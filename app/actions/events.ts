@@ -135,21 +135,48 @@ export async function updateEvent(eventId: string, formData: FormData) {
 
 export async function submitRsvp(eventId: string, formData: FormData) {
   const supabase = await createClient();
+  const slug = String(formData.get("slug") ?? "").trim();
+  const errorUrl = (message: string) => `/evento/${slug}?rsvp_error=${encodeURIComponent(message)}#rsvp`;
+  const successUrl = `/evento/${slug}?rsvp=ok#rsvp`;
+  const guestName = String(formData.get("guest_name") ?? "").trim();
+  const companions = Number(formData.get("companions") || 0);
+
+  if (!slug) {
+    redirect("/?error=No se pudo identificar la invitacion.");
+  }
+
+  if (!guestName) {
+    redirect(errorUrl("Escribe tu nombre para confirmar asistencia."));
+  }
+
+  if (!Number.isFinite(companions) || companions < 0) {
+    redirect(errorUrl("La cantidad de acompanantes debe ser 0 o mayor."));
+  }
+
   const payload = {
     event_id: eventId,
-    guest_name: String(formData.get("guest_name") ?? ""),
+    guest_name: guestName,
     phone: nullable(formData.get("phone")),
     email: nullable(formData.get("email")),
     attending: String(formData.get("attending")) === "si",
-    companions: Number(formData.get("companions") || 0),
+    companions: Math.floor(companions),
     message: nullable(formData.get("message")),
     dietary_restrictions: nullable(formData.get("dietary_restrictions"))
   };
 
   const { error } = await supabase.from("rsvps").insert(payload);
-  if (error) throw new Error(error.message);
-  revalidatePath(`/evento/${formData.get("slug")}`);
-  redirect(`/evento/${formData.get("slug")}?rsvp=ok`);
+  if (error) {
+    console.error("[KAIS RSVP] No se pudo guardar RSVP", {
+      eventId,
+      slug,
+      code: error.code,
+      message: error.message
+    });
+    redirect(errorUrl("No pudimos guardar tu confirmacion. Intenta de nuevo o contacta a los anfitriones."));
+  }
+
+  revalidatePath(`/evento/${slug}`);
+  redirect(successUrl);
 }
 
 export async function uploadEventPhoto(eventId: string, slug: string, formData: FormData) {

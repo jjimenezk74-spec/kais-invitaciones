@@ -21,7 +21,7 @@ export default async function PublicEventPage({
   searchParams
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ rsvp?: string; foto?: string }>;
+  searchParams: Promise<{ rsvp?: string; rsvp_error?: string; foto?: string }>;
 }) {
   const [{ slug }, query] = await Promise.all([params, searchParams]);
   const supabase = await createClient();
@@ -140,6 +140,7 @@ export default async function PublicEventPage({
             <h2 className="mt-3 font-display text-4xl font-bold">Confirma tu asistencia</h2>
             <p className="mt-4 text-muted-foreground">Tu respuesta ayuda a los anfitriones a preparar cada detalle.</p>
             {query.rsvp === "ok" ? <p className="mt-4 rounded-md bg-secondary p-3 text-sm font-semibold">Confirmación recibida.</p> : null}
+            {query.rsvp_error ? <p className="mt-4 rounded-md bg-red-50 p-3 text-sm font-semibold text-red-700">{query.rsvp_error}</p> : null}
           </div>
           <Card>
             <CardContent className="p-6">

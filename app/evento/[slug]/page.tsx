@@ -1,4 +1,5 @@
 import { headers } from "next/headers";
+import Image from "next/image";
 import Link from "next/link";
 import { CalendarPlus, Camera, MapPin, Send } from "lucide-react";
 import { submitRsvp, trackVisit, uploadEventPhoto } from "@/app/actions/events";
@@ -60,18 +61,29 @@ export default async function PublicEventPage({
   return (
     <main className="bg-background">
       <section
-        className="relative flex min-h-[92vh] items-end overflow-hidden px-4 py-6 text-white"
-        style={{
-          background: event.cover_image_url
-            ? `linear-gradient(180deg, rgba(17,24,39,.15), rgba(17,24,39,.86)), url(${event.cover_image_url}) center/cover`
-            : `linear-gradient(145deg, ${event.theme_color}, #155e75 58%, #e11d48)`
-        }}
+        className="relative flex min-h-[92vh] items-end overflow-hidden px-4 py-6 text-white shadow-soft"
+        style={!event.cover_image_url ? { background: `linear-gradient(145deg, ${event.theme_color}, #155e75 58%, #e11d48)` } : undefined}
       >
-        <div className="mx-auto grid w-full max-w-5xl gap-8 pb-8">
-          <div>
+        {event.cover_image_url ? (
+          <>
+            <Image
+              src={event.cover_image_url}
+              alt={`Foto de portada de ${event.hosts_names}`}
+              fill
+              priority
+              sizes="100vw"
+              className="object-cover transition-transform duration-700 ease-out"
+            />
+            <div className="absolute inset-0 bg-black/40" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/35 to-black/15" />
+          </>
+        ) : null}
+        <div className="relative z-10 mx-auto grid w-full max-w-5xl gap-8 pb-8 text-center md:text-left">
+          <div className="mx-auto max-w-3xl md:mx-0">
             <p className="text-xs font-bold uppercase tracking-[0.24em] text-white/75">{event.event_type}</p>
-            <h1 className="mt-4 font-display text-6xl font-bold leading-none md:text-8xl">{event.hosts_names}</h1>
-            <p className="mt-5 max-w-xl text-lg leading-8 text-white/80">{event.main_message}</p>
+            <h1 className="mt-4 font-display text-6xl font-bold leading-none drop-shadow md:text-8xl">{event.hosts_names}</h1>
+            <p className="mt-4 text-lg font-semibold text-white/90">{formatDate(event.event_date)} · {event.event_time}</p>
+            <p className="mx-auto mt-5 max-w-xl text-lg leading-8 text-white/80 md:mx-0">{event.main_message}</p>
           </div>
           <Countdown date={event.event_date} time={event.event_time} />
           <EventMusicPlayer url={event.music_url} />

@@ -80,6 +80,9 @@ export function EventForm({ action, event, clients = [], showOwner = false }: Ev
         <Field label="URL portada">
           <Input name="cover_image_url" defaultValue={event?.cover_image_url ?? ""} placeholder="https://..." />
         </Field>
+        <Field label="Foto de portada" hint="Sube la foto principal que aparecerá en la invitación.">
+          <Input name="cover_image_file" type="file" accept="image/jpeg,image/png,image/webp" />
+        </Field>
         <Field
           label="Música opcional"
           hint="Puedes pegar un enlace o subir un archivo .mp3, .wav u .ogg. Si subes archivo, se usará ese audio."

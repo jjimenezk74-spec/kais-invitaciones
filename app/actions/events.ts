@@ -18,6 +18,9 @@ const ALLOWED_AUDIO_TYPES = [
   "audio/ogg"
 ];
 const MAX_AUDIO_FILE_SIZE = 10 * 1024 * 1024;
+const ALLOWED_COVER_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp"];
+const ALLOWED_COVER_TYPES = ["image/jpeg", "image/png", "image/webp"];
+const MAX_COVER_FILE_SIZE = 5 * 1024 * 1024;
 const EVENT_STATUSES = ["borrador", "publicado", "inactivo"] as const;
 
 export async function createEvent(formData: FormData) {
@@ -33,8 +36,11 @@ export async function createEvent(formData: FormData) {
   const title = String(formData.get("title") ?? "Nuevo evento");
   const slug = `${slugify(title)}-${crypto.randomUUID().slice(0, 8)}`;
   let musicUrl: string | null;
+  const manualCoverUrl = nullable(formData.get("cover_image_url"));
+  const coverFile = getOptionalFile(formData.get("cover_image_file"));
 
   try {
+    if (coverFile) validateCoverImageFile(coverFile);
     musicUrl = await getMusicUrlFromForm(formData, supabase, user.id);
   } catch (error) {
     redirect(`/dashboard/eventos/nuevo?error=${encodeURIComponent(getErrorMessage(error))}`);
@@ -51,7 +57,7 @@ export async function createEvent(formData: FormData) {
     google_maps_link: nullable(formData.get("google_maps_link")),
     main_message: nullable(formData.get("main_message")),
     dress_code: nullable(formData.get("dress_code")),
-    cover_image_url: nullable(formData.get("cover_image_url")),
+    cover_image_url: manualCoverUrl,
     music_url: musicUrl,
     theme_color: String(formData.get("theme_color") || "#111827"),
     status: getEventStatus(formData.get("status")),
@@ -60,6 +66,22 @@ export async function createEvent(formData: FormData) {
 
   const { data, error } = await supabase.from("events").insert(payload).select("id").single();
   if (error) throw new Error(error.message);
+
+  if (coverFile) {
+    try {
+      const coverImageUrl = await uploadCoverImage(coverFile, supabase, data.id);
+      const { error: coverUpdateError } = await supabase
+        .from("events")
+        .update({ cover_image_url: coverImageUrl })
+        .eq("id", data.id);
+
+      if (coverUpdateError) {
+        throw new Error(coverUpdateError.message);
+      }
+    } catch (error) {
+      redirect(`/dashboard/eventos/${data.id}?error=${encodeURIComponent(getErrorMessage(error))}`);
+    }
+  }
 
   revalidatePath("/dashboard");
   redirect(`/dashboard/eventos/${data.id}?saved=created`);
@@ -74,8 +96,14 @@ export async function updateEvent(eventId: string, formData: FormData) {
   if (!user) redirect("/login");
 
   let musicUrl: string | null;
+  let coverImageUrl = nullable(formData.get("cover_image_url"));
+  const coverFile = getOptionalFile(formData.get("cover_image_file"));
 
   try {
+    if (coverFile) {
+      validateCoverImageFile(coverFile);
+      coverImageUrl = await uploadCoverImage(coverFile, supabase, eventId);
+    }
     musicUrl = await getMusicUrlFromForm(formData, supabase, user.id);
   } catch (error) {
     redirect(`/dashboard/eventos/${eventId}?error=${encodeURIComponent(getErrorMessage(error))}`);
@@ -91,7 +119,7 @@ export async function updateEvent(eventId: string, formData: FormData) {
     google_maps_link: nullable(formData.get("google_maps_link")),
     main_message: nullable(formData.get("main_message")),
     dress_code: nullable(formData.get("dress_code")),
-    cover_image_url: nullable(formData.get("cover_image_url")),
+    cover_image_url: coverImageUrl,
     music_url: musicUrl,
     theme_color: String(formData.get("theme_color") || "#111827"),
     status: getEventStatus(formData.get("status"))
@@ -206,6 +234,10 @@ function nullable(value: FormDataEntryValue | null) {
   return text.length ? text : null;
 }
 
+function getOptionalFile(value: FormDataEntryValue | null) {
+  return value instanceof File && value.size > 0 ? value : null;
+}
+
 function getEventStatus(value: FormDataEntryValue | null) {
   const status = String(value ?? "borrador");
   return EVENT_STATUSES.includes(status as (typeof EVENT_STATUSES)[number]) ? status : "borrador";
@@ -237,6 +269,38 @@ async function getMusicUrlFromForm(formData: FormData, supabase: ServerSupabaseC
   return data.publicUrl;
 }
 
+async function uploadCoverImage(file: File, supabase: ServerSupabaseClient, eventId: string) {
+  const extension = getFileExtension(file.name);
+  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "-");
+  const path = `covers/${eventId}/${crypto.randomUUID()}-${safeName || `cover${extension}`}`;
+  const { error } = await supabase.storage.from("event-covers").upload(path, file, {
+    cacheControl: "31536000",
+    contentType: file.type || getCoverContentType(extension),
+    upsert: false
+  });
+
+  if (error) {
+    throw new Error(`No se pudo subir la foto de portada a Supabase Storage. Detalle: ${error.message}`);
+  }
+
+  const { data } = supabase.storage.from("event-covers").getPublicUrl(path);
+  return data.publicUrl;
+}
+
+function validateCoverImageFile(file: File) {
+  const extension = getFileExtension(file.name);
+  const hasValidExtension = ALLOWED_COVER_EXTENSIONS.includes(extension);
+  const hasValidType = !file.type || ALLOWED_COVER_TYPES.includes(file.type);
+
+  if (file.size > MAX_COVER_FILE_SIZE) {
+    throw new Error("La foto de portada no debe superar 5MB.");
+  }
+
+  if (!hasValidExtension || !hasValidType) {
+    throw new Error("La foto de portada debe ser una imagen válida .jpg, .jpeg, .png o .webp.");
+  }
+}
+
 function validateAudioFile(file: File) {
   const extension = getFileExtension(file.name);
   const hasValidExtension = ALLOWED_AUDIO_EXTENSIONS.includes(extension);
@@ -260,6 +324,12 @@ function getAudioContentType(extension: string) {
   if (extension === ".mp3") return "audio/mpeg";
   if (extension === ".wav") return "audio/wav";
   return "audio/ogg";
+}
+
+function getCoverContentType(extension: string) {
+  if (extension === ".jpg" || extension === ".jpeg") return "image/jpeg";
+  if (extension === ".png") return "image/png";
+  return "image/webp";
 }
 
 function getErrorMessage(error: unknown) {

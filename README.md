@@ -110,6 +110,8 @@ Para permitir subida de música desde el formulario de evento, ejecuta también 
 
 Los audios subidos desde el formulario no deben superar 10MB. El proyecto configura Server Actions con `bodySizeLimit: "10mb"` y valida ese límite antes de subir el archivo a Supabase Storage.
 
+Para permitir foto de portada original, ejecuta `supabase/migrations/005_event_cover_storage.sql`. Esa migración asegura la columna `events.cover_image_url`, crea el bucket público `event-covers` y permite subir portadas en `covers/{event_id}/...`. Las portadas aceptan `.jpg`, `.jpeg`, `.png` y `.webp`, con límite de 5MB.
+
 ## Módulos incluidos
 
 - Landing pública con secciones de negocio, beneficios, tipos de eventos, planes, testimonios/contacto.
@@ -168,6 +170,7 @@ En Supabase ejecuta las migraciones en orden:
 002_profiles_insert_policy.sql
 003_events_rls_policy.sql
 004_event_audio_storage.sql
+005_event_cover_storage.sql
 ```
 
 En **Authentication > URL Configuration**:
@@ -182,6 +185,7 @@ Storage requerido:
 
 - `event-photos`: público, creado por `001_initial_schema.sql`.
 - `event-audio`: público, creado por `004_event_audio_storage.sql`.
+- `event-covers`: público, creado por `005_event_cover_storage.sql`.
 
 ### 5. Obtener enlace público final
 

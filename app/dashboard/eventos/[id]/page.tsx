@@ -12,6 +12,7 @@ import { EventForm } from "@/components/event-form";
 import { QrDownload } from "@/components/qr-download";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { getCurrentUserProfile, isKaisAdmin } from "@/lib/profiles";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Event, EventLogin, EventPhoto, Rsvp } from "@/lib/types";
@@ -33,6 +34,8 @@ export default async function EventDetailPage({
   const [{ id }, query] = await Promise.all([params, searchParams]);
   const supabase = await createClient();
   const admin = createAdminClient();
+  const { profile } = await getCurrentUserProfile();
+  const canManageClientAccess = isKaisAdmin(profile?.role);
   const { data } = await supabase.from("events").select("*").eq("id", id).single();
   const event = data as Event | null;
   if (!event) return <p>Evento no encontrado.</p>;
@@ -44,11 +47,9 @@ export default async function EventDetailPage({
   ]);
   const rsvps = (rsvpsData ?? []) as Rsvp[];
   const photos = (photosData ?? []) as EventPhoto[];
-  const { data: loginData } = await admin
-    .from("event_logins")
-    .select("*")
-    .eq("event_id", event.id)
-    .order("created_at", { ascending: false });
+  const { data: loginData } = canManageClientAccess
+    ? await admin.from("event_logins").select("*").eq("event_id", event.id).order("created_at", { ascending: false })
+    : { data: [] };
   const eventLogins = (loginData ?? []) as EventLogin[];
   const latestCredentials =
     query.login_username && query.login_password
@@ -147,6 +148,11 @@ export default async function EventDetailPage({
           </CardTitle>
         </CardHeader>
         <CardContent className="grid gap-5">
+          {!canManageClientAccess ? (
+            <div className="rounded-lg border border-red-100 bg-red-50 p-4 text-sm text-red-700">
+              Tu sesion esta activa, pero tu rol actual es <span className="font-semibold">{profile?.role ?? "sin perfil"}</span>. Para generar accesos de cliente necesitas rol admin o admin_kais.
+            </div>
+          ) : null}
           <div className="rounded-lg border bg-background p-4">
             <p className="text-sm font-semibold">Panel del cliente</p>
             <p className="mt-2 break-all text-sm text-muted-foreground">{clientPanelUrl}</p>
@@ -169,12 +175,14 @@ export default async function EventDetailPage({
             </div>
           ) : null}
 
-          <form action={createEventLogin.bind(null, event.id)}>
-            <Button className="w-full sm:w-fit">
-              <KeyRound className="h-4 w-4" />
-              Generar acceso del cliente
-            </Button>
-          </form>
+          {canManageClientAccess ? (
+            <form action={createEventLogin.bind(null, event.id)}>
+              <Button className="w-full sm:w-fit">
+                <KeyRound className="h-4 w-4" />
+                Generar acceso del cliente
+              </Button>
+            </form>
+          ) : null}
 
           <div className="grid gap-3">
             {eventLogins.map((login) => (

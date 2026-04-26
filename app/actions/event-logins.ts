@@ -12,7 +12,7 @@ import {
   setEventLoginSession,
   verifyPassword
 } from "@/lib/event-login-auth";
-import { getCurrentUserProfile } from "@/lib/profiles";
+import { getCurrentUserProfile, isKaisAdmin } from "@/lib/profiles";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Event, EventLogin, EventPhoto } from "@/lib/types";
 
@@ -183,8 +183,12 @@ async function updatePhotoStatus(photoId: string, status: "aprobada" | "rechazad
 async function assertAdmin() {
   const { user, profile } = await getCurrentUserProfile();
 
-  if (!user || profile?.role !== "admin") {
-    redirect("/login?error=Solo administradores KAIS pueden gestionar accesos.");
+  if (!user) {
+    redirect("/login?error=Inicia sesion para gestionar accesos.");
+  }
+
+  if (!isKaisAdmin(profile?.role)) {
+    redirect("/dashboard?error=Tu usuario no tiene permisos de administrador KAIS para gestionar accesos.");
   }
 }
 

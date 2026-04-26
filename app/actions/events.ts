@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { getCurrentUserProfile } from "@/lib/profiles";
+import { getCurrentUserProfile, isKaisAdmin } from "@/lib/profiles";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { slugify } from "@/lib/utils";
@@ -47,7 +47,7 @@ export async function createEvent(formData: FormData) {
   }
 
   const payload = {
-    owner_id: profile?.role === "admin" ? ownerId : user.id,
+    owner_id: isKaisAdmin(profile?.role) ? ownerId : user.id,
     title,
     event_type: String(formData.get("event_type") ?? "otro"),
     hosts_names: String(formData.get("hosts_names") ?? ""),
@@ -184,8 +184,8 @@ export async function uploadEventPhoto(eventId: string, slug: string, formData: 
 export async function approvePhoto(photoId: string, eventId: string, approved: boolean) {
   const { profile } = await getCurrentUserProfile();
 
-  if (profile?.role !== "admin") {
-    redirect("/login?error=Solo administradores KAIS pueden moderar desde dashboard.");
+  if (!isKaisAdmin(profile?.role)) {
+    redirect("/dashboard?error=Tu usuario no tiene permisos de administrador KAIS para moderar fotos.");
   }
 
   const admin = createAdminClient();

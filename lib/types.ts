@@ -1,4 +1,4 @@
-export type UserRole = "admin" | "cliente";
+export type UserRole = "admin" | "admin_kais" | "cliente";
 export type EventStatus = "borrador" | "publicado" | "inactivo";
 export type EventType =
   | "boda"

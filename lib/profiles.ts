@@ -5,6 +5,10 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import type { Profile } from "@/lib/types";
 
+export function isKaisAdmin(role?: string | null) {
+  return role === "admin" || role === "admin_kais";
+}
+
 export async function getCurrentUserProfile() {
   const supabase = await createClient();
   const {
@@ -29,18 +33,19 @@ export async function ensureProfileForUser(user: User): Promise<Profile> {
     .maybeSingle();
 
   if (existingProfile) {
-    return existingProfile as Profile;
+    return promoteFirstProfileIfNeeded(existingProfile as Profile);
   }
 
   if (selectError) {
     console.warn("[KAIS AUTH] No se pudo leer profile. Intentando crearlo.", selectError.message);
   }
 
+  const role = await getInitialRole();
   const payload = {
     id: user.id,
     full_name: getFullName(user),
     email: user.email ?? null,
-    role: "cliente"
+    role
   };
 
   try {
@@ -70,6 +75,52 @@ export async function ensureProfileForUser(user: User): Promise<Profile> {
 
   console.info("[KAIS AUTH] Profile creado con cliente autenticado para", user.email ?? user.id);
   return data as Profile;
+}
+
+async function getInitialRole(): Promise<Profile["role"]> {
+  try {
+    const admin = createAdminClient();
+    const { count, error } = await admin.from("profiles").select("id", { count: "exact", head: true });
+
+    if (!error && (count ?? 0) === 0) {
+      return "admin_kais";
+    }
+  } catch {
+    // If admin env is unavailable, fall back to a normal client profile.
+  }
+
+  return "cliente";
+}
+
+async function promoteFirstProfileIfNeeded(profile: Profile): Promise<Profile> {
+  if (isKaisAdmin(profile.role)) {
+    return profile;
+  }
+
+  try {
+    const admin = createAdminClient();
+    const { count, error: countError } = await admin.from("profiles").select("id", { count: "exact", head: true });
+
+    if (countError || (count ?? 0) !== 1) {
+      return profile;
+    }
+
+    const { data, error } = await admin
+      .from("profiles")
+      .update({ role: "admin_kais" })
+      .eq("id", profile.id)
+      .select("*")
+      .single();
+
+    if (error || !data) {
+      return profile;
+    }
+
+    console.info("[KAIS AUTH] Primer perfil promovido automaticamente a admin_kais:", profile.email ?? profile.id);
+    return data as Profile;
+  } catch {
+    return profile;
+  }
 }
 
 function getFullName(user: User) {

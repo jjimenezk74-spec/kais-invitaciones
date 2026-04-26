@@ -1,6 +1,6 @@
 create extension if not exists "pgcrypto";
 
-create type public.user_role as enum ('admin', 'cliente');
+create type public.user_role as enum ('admin', 'admin_kais', 'cliente');
 create type public.event_type as enum ('boda', 'cumpleaños', 'quinceaños', 'bautizo', 'baby shower', 'corporativo', 'graduación', 'otro');
 create type public.event_status as enum ('borrador', 'publicado', 'inactivo');
 
@@ -115,7 +115,7 @@ as $$
   select exists (
     select 1 from public.profiles
     where id = auth.uid()
-    and role = 'admin'
+    and role::text in ('admin', 'admin_kais')
   );
 $$;
 

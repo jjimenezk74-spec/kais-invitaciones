@@ -10,7 +10,7 @@ import { publicEventUrl } from "@/lib/utils";
 export default async function DashboardPage({
   searchParams
 }: {
-  searchParams?: Promise<{ error?: string }>;
+  searchParams?: Promise<{ error?: string; deleted?: string; warning?: string }>;
 }) {
   const query = searchParams ? await searchParams : {};
   const supabase = await createClient();
@@ -45,6 +45,8 @@ export default async function DashboardPage({
           <p className="text-sm font-bold uppercase tracking-[0.18em] text-accent">Panel {profile?.role}</p>
           <h1 className="font-display text-4xl font-bold">Tus eventos</h1>
           {query.error ? <p className="mt-3 rounded-md bg-red-50 p-3 text-sm font-semibold text-red-700">{query.error}</p> : null}
+          {query.deleted ? <p className="mt-3 rounded-md bg-secondary p-3 text-sm font-semibold">{query.deleted} fue eliminado correctamente.</p> : null}
+          {query.warning ? <p className="mt-3 rounded-md bg-amber-50 p-3 text-sm font-semibold text-amber-800">{query.warning}</p> : null}
         </div>
         <Button asChild>
           <Link href="/dashboard/eventos/nuevo">

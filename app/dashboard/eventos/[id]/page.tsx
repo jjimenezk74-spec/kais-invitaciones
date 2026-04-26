@@ -6,8 +6,9 @@ import {
   toggleEventLoginActive,
   updateEventLoginExpiration
 } from "@/app/actions/event-logins";
-import { approvePhoto, updateEvent } from "@/app/actions/events";
+import { approvePhoto, deleteEvent, updateEvent } from "@/app/actions/events";
 import { CopyLinkButton } from "@/components/copy-link-button";
+import { DeleteEventButton } from "@/components/delete-event-button";
 import { EventForm } from "@/components/event-form";
 import { QrDownload } from "@/components/qr-download";
 import { Button } from "@/components/ui/button";
@@ -249,6 +250,20 @@ export default async function EventDetailPage({
           <EventForm action={update} event={event} />
         </CardContent>
       </Card>
+
+      {canManageClientAccess ? (
+        <Card className="border-red-100">
+          <CardHeader>
+            <CardTitle>Zona de riesgo</CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-4">
+            <p className="text-sm text-muted-foreground">
+              Eliminar este evento borrara tambien sus RSVP, fotos y accesos del cliente. Esta accion no se puede deshacer.
+            </p>
+            <DeleteEventButton action={deleteEvent.bind(null, event.id)} />
+          </CardContent>
+        </Card>
+      ) : null}
 
       <Card>
         <CardHeader>

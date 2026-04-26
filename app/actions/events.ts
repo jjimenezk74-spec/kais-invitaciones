@@ -133,6 +133,54 @@ export async function updateEvent(eventId: string, formData: FormData) {
   redirect(`/dashboard/eventos/${eventId}?saved=updated`);
 }
 
+export async function deleteEvent(eventId: string) {
+  const { user, profile } = await getCurrentUserProfile();
+
+  if (!user) {
+    redirect("/login?error=Inicia sesion para eliminar eventos.");
+  }
+
+  if (!isKaisAdmin(profile?.role)) {
+    redirect("/dashboard?error=Solo administradores KAIS pueden eliminar eventos.");
+  }
+
+  const admin = createAdminClient();
+  const { data: event, error: eventError } = await admin
+    .from("events")
+    .select("id,title,cover_image_url,music_url")
+    .eq("id", eventId)
+    .maybeSingle();
+
+  if (eventError || !event) {
+    redirect(`/dashboard/eventos/${eventId}?error=${encodeURIComponent(eventError?.message ?? "No se encontro el evento.")}`);
+  }
+
+  const { data: photosData } = await admin.from("event_photos").select("storage_path").eq("event_id", eventId);
+  const storageWarnings = await deleteEventStorageFiles({
+    coverImageUrl: event.cover_image_url,
+    musicUrl: event.music_url,
+    photoPaths: (photosData ?? []).map((photo) => photo.storage_path).filter(Boolean)
+  });
+
+  const { error: deleteError } = await admin.from("events").delete().eq("id", eventId);
+
+  if (deleteError) {
+    redirect(`/dashboard/eventos/${eventId}?error=${encodeURIComponent(`No se pudo eliminar el evento. Detalle: ${deleteError.message}`)}`);
+  }
+
+  revalidatePath("/dashboard");
+
+  const params = new URLSearchParams({
+    deleted: String(event.title ?? "Evento eliminado")
+  });
+
+  if (storageWarnings.length > 0) {
+    params.set("warning", "El evento se elimino, pero algunos archivos de Storage no pudieron borrarse automaticamente.");
+  }
+
+  redirect(`/dashboard?${params.toString()}`);
+}
+
 export async function submitRsvp(eventId: string, formData: FormData) {
   const supabase = await createClient();
   const slug = String(formData.get("slug") ?? "").trim();
@@ -373,6 +421,57 @@ function getCoverContentType(extension: string) {
   if (extension === ".jpg" || extension === ".jpeg") return "image/jpeg";
   if (extension === ".png") return "image/png";
   return "image/webp";
+}
+
+async function deleteEventStorageFiles({
+  coverImageUrl,
+  musicUrl,
+  photoPaths
+}: {
+  coverImageUrl: string | null;
+  musicUrl: string | null;
+  photoPaths: string[];
+}) {
+  const admin = createAdminClient();
+  const warnings: string[] = [];
+  const eventPhotoPaths = Array.from(
+    new Set([...photoPaths, getStoragePathFromPublicUrl(coverImageUrl, "event-photos")].filter(Boolean) as string[])
+  );
+  const eventAudioPath = getStoragePathFromPublicUrl(musicUrl, "event-audio");
+
+  if (eventPhotoPaths.length > 0) {
+    const { error } = await admin.storage.from("event-photos").remove(eventPhotoPaths);
+    if (error) {
+      console.error("[KAIS DELETE EVENT] No se pudieron borrar archivos de event-photos", error.message);
+      warnings.push(error.message);
+    }
+  }
+
+  if (eventAudioPath) {
+    const { error } = await admin.storage.from("event-audio").remove([eventAudioPath]);
+    if (error) {
+      console.error("[KAIS DELETE EVENT] No se pudo borrar audio de event-audio", error.message);
+      warnings.push(error.message);
+    }
+  }
+
+  return warnings;
+}
+
+function getStoragePathFromPublicUrl(url: string | null, bucket: "event-photos" | "event-audio") {
+  if (!url) return null;
+
+  const marker = `/storage/v1/object/public/${bucket}/`;
+  const markerIndex = url.indexOf(marker);
+  if (markerIndex === -1) return null;
+
+  const path = url.slice(markerIndex + marker.length).split("?")[0];
+
+  try {
+    return decodeURIComponent(path);
+  } catch {
+    return path;
+  }
 }
 
 function getErrorMessage(error: unknown) {

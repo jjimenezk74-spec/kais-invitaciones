@@ -12,6 +12,7 @@ create table if not exists public.event_logins (
 
 create index if not exists event_logins_event_id_idx on public.event_logins(event_id);
 create index if not exists event_logins_username_idx on public.event_logins(username);
+create unique index if not exists event_logins_one_active_access_per_event_idx on public.event_logins(event_id);
 
 alter table public.event_photos
 add column if not exists status text not null default 'pendiente',

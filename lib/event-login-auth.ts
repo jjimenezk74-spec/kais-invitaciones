@@ -18,9 +18,8 @@ type SessionPayload = {
 };
 
 export function generateEventPassword() {
-  const prefix = randomBytes(2).toString("hex").toUpperCase();
   const code = Math.floor(1000 + Math.random() * 9000);
-  return `KA${prefix}-${code}`;
+  return `KAIS-${code}`;
 }
 
 export function normalizeUsername(value: string) {

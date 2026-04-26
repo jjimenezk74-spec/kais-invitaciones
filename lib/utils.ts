@@ -21,9 +21,9 @@ export function buildCredentialsMessage(username: string, password: string) {
   return [
     "Hola, este es tu acceso al panel de tu evento:",
     "",
+    `Panel: ${absoluteUrl("/evento-login")}`,
     `Usuario: ${username}`,
-    `Contrasena: ${password}`,
-    `Panel: ${absoluteUrl("/evento-login")}`
+    `Contrasena: ${password}`
   ].join("\n");
 }
 

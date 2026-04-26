@@ -25,6 +25,18 @@ export async function createEventLogin(eventId: string) {
     redirect(`/dashboard/eventos/${eventId}?error=No se encontro el evento.`);
   }
 
+  const { data: existingLogin } = await admin
+    .from("event_logins")
+    .select("username")
+    .eq("event_id", eventId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (existingLogin) {
+    redirect(`/dashboard/eventos/${eventId}?access_existing=${encodeURIComponent(existingLogin.username)}`);
+  }
+
   const password = generateEventPassword();
   const username = await getAvailableUsername(normalizeUsername((event as Event).slug));
   const { data, error } = await admin

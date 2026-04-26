@@ -22,7 +22,13 @@ export default async function EventDetailPage({
   searchParams
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ error?: string; saved?: string; login_username?: string; login_password?: string }>;
+  searchParams: Promise<{
+    error?: string;
+    saved?: string;
+    login_username?: string;
+    login_password?: string;
+    access_existing?: string;
+  }>;
 }) {
   const [{ id }, query] = await Promise.all([params, searchParams]);
   const supabase = await createClient();
@@ -152,6 +158,14 @@ export default async function EventDetailPage({
               <div className="mt-3">
                 <CopyLinkButton value={latestCredentials} label="Copiar acceso para WhatsApp" copiedLabel="Acceso copiado" />
               </div>
+            </div>
+          ) : null}
+          {query.access_existing ? (
+            <div className="rounded-lg border bg-background p-4">
+              <p className="font-semibold">Este evento ya tiene acceso creado</p>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Usuario: <span className="font-semibold text-foreground">{query.access_existing}</span>. Usa resetear contrasena si necesitas enviar una nueva clave.
+              </p>
             </div>
           ) : null}
 

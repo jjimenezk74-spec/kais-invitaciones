@@ -59,7 +59,23 @@ export type EventPhoto = {
   public_url: string;
   guest_name: string | null;
   is_approved: boolean;
+  status: "pendiente" | "aprobada" | "rechazada";
+  is_public: boolean;
+  approved_at: string | null;
+  approved_by_event_login: string | null;
   created_at: string;
+};
+
+export type EventLogin = {
+  id: string;
+  event_id: string;
+  username: string;
+  password_hash: string;
+  active: boolean;
+  expires_at: string | null;
+  last_login_at: string | null;
+  created_at: string;
+  created_by: string | null;
 };
 
 export type DashboardMetrics = {

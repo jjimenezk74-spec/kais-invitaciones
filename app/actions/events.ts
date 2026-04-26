@@ -171,7 +171,9 @@ export async function uploadEventPhoto(eventId: string, slug: string, formData: 
     storage_path: path,
     public_url: data.publicUrl,
     guest_name: nullable(formData.get("guest_name")),
-    is_approved: false
+    is_approved: false,
+    status: "pendiente",
+    is_public: false
   });
   if (error) throw new Error(error.message);
 
@@ -180,8 +182,22 @@ export async function uploadEventPhoto(eventId: string, slug: string, formData: 
 }
 
 export async function approvePhoto(photoId: string, eventId: string, approved: boolean) {
-  const supabase = await createClient();
-  const { error } = await supabase.from("event_photos").update({ is_approved: approved }).eq("id", photoId);
+  const { profile } = await getCurrentUserProfile();
+
+  if (profile?.role !== "admin") {
+    redirect("/login?error=Solo administradores KAIS pueden moderar desde dashboard.");
+  }
+
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("event_photos")
+    .update({
+      is_approved: approved,
+      status: approved ? "aprobada" : "rechazada",
+      is_public: approved,
+      approved_at: approved ? new Date().toISOString() : null
+    })
+    .eq("id", photoId);
   if (error) throw new Error(error.message);
   revalidatePath(`/dashboard/eventos/${eventId}`);
 }

@@ -4,7 +4,15 @@ import { Copy, Check } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 
-export function CopyLinkButton({ value }: { value: string }) {
+export function CopyLinkButton({
+  value,
+  label = "Copiar enlace",
+  copiedLabel = "Copiado"
+}: {
+  value: string;
+  label?: string;
+  copiedLabel?: string;
+}) {
   const [copied, setCopied] = useState(false);
 
   async function copyLink() {
@@ -20,7 +28,7 @@ export function CopyLinkButton({ value }: { value: string }) {
   return (
     <Button type="button" variant="outline" onClick={copyLink}>
       {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-      {copied ? "Copiado" : "Copiar enlace"}
+      {copied ? copiedLabel : label}
     </Button>
   );
 }

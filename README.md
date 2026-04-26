@@ -171,6 +171,7 @@ En Supabase ejecuta las migraciones en orden:
 003_events_rls_policy.sql
 004_event_audio_storage.sql
 005_event_cover_storage.sql
+006_event_logins.sql
 ```
 
 En **Authentication > URL Configuration**:
@@ -185,6 +186,23 @@ Storage requerido:
 
 - `event-photos`: público, creado por `001_initial_schema.sql`.
 - `event-audio`: público, creado por `004_event_audio_storage.sql`.
+
+### Acceso por evento para clientes
+
+KAIS puede crear accesos específicos por evento sin usar Supabase Auth para el cliente final. Supabase Auth queda para administradores KAIS. Ejecuta `supabase/migrations/006_event_logins.sql` para crear `event_logins` y actualizar la moderación de fotos.
+
+Checklist de prueba:
+
+1. Admin KAIS entra por `/login`.
+2. Admin crea o abre un evento en `/dashboard/eventos/[id]`.
+3. En `Acceso del cliente`, admin genera acceso.
+4. Admin copia el texto para WhatsApp.
+5. Cliente entra en `/evento-login` con usuario y contraseña.
+6. Cliente ve solo su evento en `/panel-evento`.
+7. Invitado sube foto desde `/evento/[slug]`.
+8. Cliente aprueba la foto en `/panel-evento`.
+9. La foto aparece en la galería pública.
+10. Cliente cierra sesión desde el panel.
 
 ### 5. Obtener enlace público final
 

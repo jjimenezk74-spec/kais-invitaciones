@@ -7,6 +7,7 @@ import { Countdown } from "@/components/countdown";
 import { EventMusicPlayer } from "@/components/event-music-player";
 import { Field } from "@/components/field";
 import { Button } from "@/components/ui/button";
+import { BackButton } from "@/components/back-button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -50,7 +51,8 @@ export default async function PublicEventPage({
     .from("event_photos")
     .select("*")
     .eq("event_id", event.id)
-    .eq("is_approved", true)
+    .eq("status", "aprobada")
+    .eq("is_public", true)
     .order("created_at", { ascending: false });
   const photos = (photosData ?? []) as EventPhoto[];
 
@@ -60,6 +62,9 @@ export default async function PublicEventPage({
 
   return (
     <main className="bg-background">
+      <div className="fixed left-3 top-3 z-50">
+        <BackButton />
+      </div>
       <section
         className="relative flex min-h-[92vh] items-end overflow-hidden px-4 py-6 text-white shadow-soft"
         style={!event.cover_image_url ? { background: `linear-gradient(145deg, ${event.theme_color}, #155e75 58%, #e11d48)` } : undefined}

@@ -17,6 +17,16 @@ export function publicEventUrl(slug: string) {
   return absoluteUrl(`/evento/${slug}`);
 }
 
+export function buildCredentialsMessage(username: string, password: string) {
+  return [
+    "Hola, este es tu acceso al panel de tu evento:",
+    "",
+    `Usuario: ${username}`,
+    `Contrasena: ${password}`,
+    `Panel: ${absoluteUrl("/evento-login")}`
+  ].join("\n");
+}
+
 export function formatDate(date: string) {
   return new Intl.DateTimeFormat("es-PY", {
     day: "2-digit",

@@ -273,7 +273,7 @@ async function uploadCoverImage(file: File, supabase: ServerSupabaseClient, even
   const extension = getFileExtension(file.name);
   const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "-");
   const path = `covers/${eventId}/${crypto.randomUUID()}-${safeName || `cover${extension}`}`;
-  const { error } = await supabase.storage.from("event-covers").upload(path, file, {
+  const { error } = await supabase.storage.from("event-photos").upload(path, file, {
     cacheControl: "31536000",
     contentType: file.type || getCoverContentType(extension),
     upsert: false
@@ -283,7 +283,7 @@ async function uploadCoverImage(file: File, supabase: ServerSupabaseClient, even
     throw new Error(`No se pudo subir la foto de portada a Supabase Storage. Detalle: ${error.message}`);
   }
 
-  const { data } = supabase.storage.from("event-covers").getPublicUrl(path);
+  const { data } = supabase.storage.from("event-photos").getPublicUrl(path);
   return data.publicUrl;
 }
 

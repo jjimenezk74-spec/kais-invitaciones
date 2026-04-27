@@ -190,7 +190,7 @@ export function EventMusicPlayer({ url, compact = false }: { url: string | null;
       ) : null}
 
       {source.kind === "audio" ? (
-        <div className={compact ? "hidden lg:mt-3 lg:flex lg:flex-col lg:gap-3 xl:flex-row xl:items-center" : "mt-4 grid gap-4"}>
+        <div className={compact ? "hidden lg:mt-3 lg:flex lg:items-center lg:gap-2" : "mt-4 grid gap-4"}>
           <audio
             ref={audioRef}
             src={source.url}
@@ -206,28 +206,50 @@ export function EventMusicPlayer({ url, compact = false }: { url: string | null;
             </Button>
           ) : null}
           <div className={compact ? "flex gap-2" : "flex flex-col gap-3 sm:flex-row"}>
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={togglePlayback}
-              className={compact ? "px-3" : undefined}
-              aria-label={isPlaying ? "Pausar musica" : "Reproducir musica"}
-            >
-              {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-              {compact ? null : isPlaying ? "Pausar" : "Reproducir"}
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              className={`border-white/30 bg-white/10 text-white hover:bg-white/20 ${compact ? "px-3" : ""}`}
-              onClick={toggleMuted}
-              aria-label={isMuted || volume === 0 ? "Activar sonido" : "Silenciar musica"}
-            >
-              {isMuted || volume === 0 ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
-              {compact ? null : isMuted || volume === 0 ? "Activar sonido" : "Silenciar"}
-            </Button>
+            {compact ? (
+              <>
+                <button
+                  type="button"
+                  onClick={togglePlayback}
+                  aria-label={isPlaying ? "Pausar musica" : "Reproducir musica"}
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#d4af37] text-[#170607] shadow-[0_10px_24px_rgba(212,175,55,0.22)] transition hover:bg-[#f5d572]"
+                >
+                  {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+                </button>
+                <button
+                  type="button"
+                  onClick={toggleMuted}
+                  aria-label={isMuted || volume === 0 ? "Activar sonido" : "Silenciar musica"}
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#d4af37]/25 bg-white/10 text-[#f5ecd9] transition hover:bg-white/15"
+                >
+                  {isMuted || volume === 0 ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+                </button>
+              </>
+            ) : (
+              <>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={togglePlayback}
+                  aria-label={isPlaying ? "Pausar musica" : "Reproducir musica"}
+                >
+                  {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+                  {isPlaying ? "Pausar" : "Reproducir"}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="border-white/30 bg-white/10 text-white hover:bg-white/20"
+                  onClick={toggleMuted}
+                  aria-label={isMuted || volume === 0 ? "Activar sonido" : "Silenciar musica"}
+                >
+                  {isMuted || volume === 0 ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+                  {isMuted || volume === 0 ? "Activar sonido" : "Silenciar"}
+                </Button>
+              </>
+            )}
           </div>
-          <div className={compact ? "grid min-w-0 flex-1 gap-1.5" : "grid gap-2"}>
+          <div className={compact ? "grid min-w-[9rem] flex-1 gap-1.5" : "grid gap-2"}>
             <div className="flex items-center justify-between text-xs font-semibold text-white/80">
               <span>Volumen</span>
               <span>{volume}%</span>
@@ -238,7 +260,7 @@ export function EventMusicPlayer({ url, compact = false }: { url: string | null;
               max="100"
               value={volume}
               onChange={(event) => changeVolume(event.target.value)}
-              className="h-2 w-full cursor-pointer accent-white"
+              className={compact ? "h-2 w-full cursor-pointer accent-[#d4af37]" : "h-2 w-full cursor-pointer accent-white"}
               aria-label="Volumen de la musica"
             />
           </div>

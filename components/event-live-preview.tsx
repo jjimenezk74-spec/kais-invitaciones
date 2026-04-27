@@ -48,8 +48,8 @@ const previewTabs: { value: PreviewSection; label: string }[] = [
 ];
 
 const previewViewports = {
-  desktop: { outerWidth: 520, outerHeight: 320, innerWidth: 1440, innerHeight: 900, scale: 0.361 },
-  mobile: { outerWidth: 180, outerHeight: 360, innerWidth: 390, innerHeight: 780, scale: 0.462 }
+  desktop: { outerWidth: 520, outerHeight: 325, innerWidth: 1440, innerHeight: 900, scale: 520 / 1440 },
+  mobile: { outerWidth: 220, outerHeight: 476, innerWidth: 390, innerHeight: 844, scale: 220 / 390 }
 };
 
 export function EventLivePreview({
@@ -166,14 +166,14 @@ function ScaledPreviewFrame({
             } as CSSProperties
           }
         >
-          <PreviewCanvas event={event} section={section} />
+          <PreviewCanvas event={event} section={section} device={device} />
         </div>
       </div>
     </div>
   );
 }
 
-function PreviewCanvas({ event, section }: { event: PreviewEvent; section: PreviewSection }) {
+function PreviewCanvas({ event, section, device }: { event: PreviewEvent; section: PreviewSection; device: PreviewDevice }) {
   const calendarUrl = "#";
 
   return (
@@ -182,7 +182,14 @@ function PreviewCanvas({ event, section }: { event: PreviewEvent; section: Previ
       style={{ ["--template-primary" as string]: event.theme_color, ["--template-secondary" as string]: "#d4af37" }}
     >
       {section === "hero" ? (
-        <EventHero event={event} calendarUrl={calendarUrl} showMusic={false} showScrollCue={false} />
+        <EventHero
+          event={event}
+          calendarUrl={calendarUrl}
+          showMusic={false}
+          showScrollCue={false}
+          previewMode={device}
+          previewHeight={previewViewports[device].innerHeight}
+        />
       ) : null}
       {section === "story" ? <StorySection event={event} /> : null}
       {section === "details" ? <DetailsSection event={event} /> : null}

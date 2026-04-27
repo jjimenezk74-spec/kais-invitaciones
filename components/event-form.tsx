@@ -1,4 +1,7 @@
+"use client";
+
 import { Save } from "lucide-react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -21,12 +24,38 @@ const guestModes = [
   ["publico", "Publico"],
   ["lista_invitados", "Lista de invitados"]
 ];
+const MAX_COVER_FILE_SIZE = 5 * 1024 * 1024;
+const MAX_AUDIO_FILE_SIZE = 10 * 1024 * 1024;
+const MAX_TOTAL_UPLOAD_SIZE = 20 * 1024 * 1024;
+const ALLOWED_COVER_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp"];
+const ALLOWED_AUDIO_EXTENSIONS = [".mp3", ".wav", ".ogg"];
 
 export function EventForm({ action, event, clients = [], businessClients = [], templates = [], showOwner = false }: EventFormProps) {
   const shouldShowOwnerSelect = showOwner && clients.length > 0;
+  const [uploadError, setUploadError] = useState("");
 
   return (
-    <form action={action} className="grid gap-5">
+    <form
+      action={action}
+      className="grid gap-5"
+      onSubmit={(submitEvent) => {
+        const error = validateUploads(submitEvent.currentTarget);
+        if (error) {
+          submitEvent.preventDefault();
+          setUploadError(error);
+          window.requestAnimationFrame(() => {
+            document.getElementById("event-form-upload-error")?.scrollIntoView({ behavior: "smooth", block: "center" });
+          });
+          return;
+        }
+        setUploadError("");
+      }}
+    >
+      {uploadError ? (
+        <div id="event-form-upload-error" className="rounded-md border border-red-100 bg-red-50 p-4 text-sm font-semibold text-red-700">
+          {uploadError}
+        </div>
+      ) : null}
       {shouldShowOwnerSelect ? (
         <Field label="Cliente">
           <Select name="owner_id" defaultValue={event?.owner_id}>
@@ -134,16 +163,16 @@ export function EventForm({ action, event, clients = [], businessClients = [], t
         <Field label="URL portada">
           <Input name="cover_image_url" defaultValue={event?.cover_image_url ?? ""} placeholder="https://..." />
         </Field>
-        <Field label="Foto de portada" hint="Sube la foto principal que aparecerá en la invitación.">
+        <Field label="Foto de portada" hint="JPG/PNG/WEBP máximo 5MB. Si pesa más, comprime la imagen antes de subirla.">
           <Input name="cover_image_file" type="file" accept="image/jpeg,image/png,image/webp" />
         </Field>
-        <Field label="Portada móvil" hint="Opcional. Imagen vertical optimizada para WhatsApp y celulares.">
+        <Field label="Portada móvil" hint="JPG/PNG/WEBP máximo 5MB. Usa una imagen vertical y comprimida para mejor carga móvil.">
           <Input name="mobile_cover_image_url" defaultValue={event?.mobile_cover_image_url ?? ""} placeholder="https://..." />
           <Input name="mobile_cover_image_file" type="file" accept="image/jpeg,image/png,image/webp" />
         </Field>
         <Field
           label="Música opcional"
-          hint="Puedes pegar un enlace o subir un archivo .mp3, .wav u .ogg. Si subes archivo, se usará ese audio."
+          hint="MP3/WAV/OGG máximo 10MB. Si pesa más, usa un enlace o comprime el audio."
         >
           <Input name="music_url" defaultValue={event?.music_url ?? ""} placeholder="https://..." />
           <Input name="music_file" type="file" accept=".mp3,.wav,.ogg,audio/mpeg,audio/wav,audio/ogg" />
@@ -179,6 +208,54 @@ export function EventForm({ action, event, clients = [], businessClients = [], t
       </Button>
     </form>
   );
+}
+
+function validateUploads(form: HTMLFormElement) {
+  const coverFile = getFile(form, "cover_image_file");
+  const mobileCoverFile = getFile(form, "mobile_cover_image_file");
+  const musicFile = getFile(form, "music_file");
+  const files = [coverFile, mobileCoverFile, musicFile].filter(Boolean) as File[];
+  const totalSize = files.reduce((sum, file) => sum + file.size, 0);
+
+  const coverError = validateFile(coverFile, "La portada desktop", MAX_COVER_FILE_SIZE, ALLOWED_COVER_EXTENSIONS);
+  if (coverError) return coverError;
+
+  const mobileCoverError = validateFile(mobileCoverFile, "La portada móvil", MAX_COVER_FILE_SIZE, ALLOWED_COVER_EXTENSIONS);
+  if (mobileCoverError) return mobileCoverError;
+
+  const musicError = validateFile(musicFile, "La música", MAX_AUDIO_FILE_SIZE, ALLOWED_AUDIO_EXTENSIONS);
+  if (musicError) return musicError;
+
+  if (totalSize > MAX_TOTAL_UPLOAD_SIZE) {
+    return "Los archivos seleccionados no deben superar 20MB en total. Comprime imágenes/audio o sube menos archivos a la vez.";
+  }
+
+  return "";
+}
+
+function getFile(form: HTMLFormElement, name: string) {
+  const input = form.elements.namedItem(name);
+  return input instanceof HTMLInputElement && input.files?.[0] ? input.files[0] : null;
+}
+
+function validateFile(file: File | null, label: string, maxSize: number, allowedExtensions: string[]) {
+  if (!file) return "";
+
+  const extension = file.name.toLowerCase().match(/\.[a-z0-9]+$/)?.[0] ?? "";
+
+  if (!allowedExtensions.includes(extension)) {
+    return `${label} debe tener formato ${allowedExtensions.join(", ")}.`;
+  }
+
+  if (file.size > maxSize) {
+    return `${label} supera el máximo permitido de ${formatBytes(maxSize)}. Comprime el archivo antes de subirlo.`;
+  }
+
+  return "";
+}
+
+function formatBytes(bytes: number) {
+  return `${Math.round(bytes / 1024 / 1024)}MB`;
 }
 
 function templatePreviewBackground(slug: string, primary?: string, secondary?: string) {

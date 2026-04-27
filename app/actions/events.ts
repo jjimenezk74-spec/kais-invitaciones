@@ -386,7 +386,12 @@ export async function toggleEventGuestBlocked(guestId: string, eventId: string, 
 export async function uploadEventPhoto(eventId: string, slug: string, formData: FormData) {
   const supabase = await createClient();
   const file = formData.get("photo");
-  if (!(file instanceof File) || file.size === 0) return;
+  const photoUrl = (params: Record<string, string>) => `/evento/${slug}?${new URLSearchParams(params).toString()}#fotos`;
+  const errorUrl = (message: string) => photoUrl({ foto_error: message });
+
+  if (!(file instanceof File) || file.size === 0) {
+    redirect(errorUrl("Selecciona una foto para subir."));
+  }
 
   const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "-");
   const path = `${eventId}/${crypto.randomUUID()}-${safeName}`;
@@ -394,7 +399,10 @@ export async function uploadEventPhoto(eventId: string, slug: string, formData: 
     cacheControl: "3600",
     upsert: false
   });
-  if (uploadError) throw new Error(uploadError.message);
+  if (uploadError) {
+    console.error("[KAIS FOTO] No se pudo subir foto", { eventId, slug, message: uploadError.message });
+    redirect(errorUrl("No pudimos subir la foto. Intenta de nuevo en unos minutos."));
+  }
 
   const { data } = supabase.storage.from("event-photos").getPublicUrl(path);
   const { error } = await supabase.from("event_photos").insert({
@@ -406,10 +414,13 @@ export async function uploadEventPhoto(eventId: string, slug: string, formData: 
     status: "pendiente",
     is_public: false
   });
-  if (error) throw new Error(error.message);
+  if (error) {
+    console.error("[KAIS FOTO] No se pudo guardar registro de foto", { eventId, slug, message: error.message });
+    redirect(errorUrl("La foto se subio, pero no pudimos registrarla para moderacion."));
+  }
 
   revalidatePath(`/evento/${slug}`);
-  redirect(`/evento/${slug}?foto=ok`);
+  redirect(photoUrl({ foto: "ok" }));
 }
 
 export async function approvePhoto(photoId: string, eventId: string, approved: boolean) {

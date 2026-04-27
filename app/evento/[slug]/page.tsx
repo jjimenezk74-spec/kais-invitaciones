@@ -23,7 +23,9 @@ type PageProps = {
     rsvp?: string | string[];
     rsvp_error?: string | string[];
     foto?: string | string[];
+    foto_error?: string | string[];
     guest?: string | string[];
+    from?: string | string[];
   }>;
 };
 
@@ -121,8 +123,8 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
       className={isRedRoses ? "bg-[#170607] text-[#fff7ed]" : "bg-background"}
       style={{ ["--template-primary" as string]: primary, ["--template-secondary" as string]: secondary }}
     >
-      <div className="fixed left-3 top-3 z-50">
-        <BackButton />
+      <div className="fixed left-3 top-[max(0.75rem,env(safe-area-inset-top))] z-50 sm:left-4">
+        <BackButton from={normalizeSearchParam(query.from)} />
       </div>
       <section
         className={`relative flex min-h-[92vh] items-end overflow-hidden px-4 py-6 text-white shadow-soft ${isRedRoses ? "border-b border-[#d4af37]/35" : ""}`}
@@ -213,8 +215,8 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
             <p className="mt-4 text-muted-foreground">
               {invitedGuest ? `Hola, ${invitedGuest.guest_name}. Puedes confirmar o editar tu respuesta.` : "Tu respuesta ayuda a los anfitriones a preparar cada detalle."}
             </p>
-            {normalizeSearchParam(query.rsvp) === "ok" ? <p className="mt-4 rounded-md bg-secondary p-3 text-sm font-semibold">Confirmación recibida.</p> : null}
-            {normalizeSearchParam(query.rsvp_error) ? <p className="mt-4 rounded-md bg-red-50 p-3 text-sm font-semibold text-red-700">{normalizeSearchParam(query.rsvp_error)}</p> : null}
+            {normalizeSearchParam(query.rsvp) === "ok" ? <StatusMessage variant="success">Confirmación recibida.</StatusMessage> : null}
+            {normalizeSearchParam(query.rsvp_error) ? <StatusMessage variant="error">{normalizeSearchParam(query.rsvp_error)}</StatusMessage> : null}
           </div>
           <Card>
             <CardContent className="p-6">
@@ -264,7 +266,8 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
           <div>
             <p className="text-sm font-bold uppercase tracking-[0.18em] text-accent">Galería</p>
             <h2 className="mt-3 font-display text-4xl font-bold">Comparte fotos del evento</h2>
-            {normalizeSearchParam(query.foto) === "ok" ? <p className="mt-4 rounded-md bg-white p-3 text-sm font-semibold">Foto recibida para moderación.</p> : null}
+            {normalizeSearchParam(query.foto) === "ok" ? <StatusMessage variant="success">Foto recibida para moderación.</StatusMessage> : null}
+            {normalizeSearchParam(query.foto_error) ? <StatusMessage variant="error">{normalizeSearchParam(query.foto_error)}</StatusMessage> : null}
             <form action={photoAction} className="mt-6 grid gap-4 rounded-lg border bg-white p-5">
               <Field label="Tu nombre">
                 <Input name="guest_name" />
@@ -326,6 +329,19 @@ function RedRosesFrame() {
 function normalizeSearchParam(value: string | string[] | undefined) {
   const raw = Array.isArray(value) ? value[0] : value;
   return String(raw ?? "").trim();
+}
+
+function StatusMessage({ children, variant }: { children: string; variant: "success" | "error" }) {
+  const styles =
+    variant === "success"
+      ? "border-green-200 bg-green-50 text-green-900"
+      : "border-red-200 bg-red-50 text-red-900";
+
+  return (
+    <p className={`mt-4 rounded-lg border px-4 py-3 text-sm font-semibold leading-6 shadow-sm ${styles}`}>
+      {children}
+    </p>
+  );
 }
 
 function PersonalLinkRequired() {

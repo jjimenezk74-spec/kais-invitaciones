@@ -1,14 +1,12 @@
 "use client";
 
 import { Save } from "lucide-react";
-import type { Dispatch, SetStateAction } from "react";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Field } from "@/components/field";
-import { EventLivePreview } from "@/components/event-live-preview";
 import { createClientSupabaseBrowser } from "@/lib/supabase/browser";
 import type { Client, Event, InvitationTemplate, Profile } from "@/lib/types";
 
@@ -19,21 +17,6 @@ type EventFormProps = {
   businessClients?: Client[];
   templates?: InvitationTemplate[];
   showOwner?: boolean;
-};
-
-type PreviewState = {
-  templateId: string;
-  title: string;
-  hostNames: string;
-  eventType: string;
-  eventDate: string;
-  eventTime: string;
-  address: string;
-  googleMapsLink: string;
-  mainMessage: string;
-  musicUrl: string;
-  themeColor: string;
-  heroImageUrl: string;
 };
 
 const eventTypes = ["boda", "cumpleaños", "quinceaños", "bautizo", "baby shower", "corporativo", "graduación", "otro"];
@@ -50,39 +33,15 @@ const ALLOWED_AUDIO_EXTENSIONS = [".mp3", ".wav", ".ogg"];
 
 export function EventForm({ action, event, clients = [], businessClients = [], templates = [], showOwner = false }: EventFormProps) {
   const shouldShowOwnerSelect = showOwner && clients.length > 0;
-  const defaultTemplateId = event?.template_id ?? templates.find((template) => template.slug === "rosas-rojas-15")?.id ?? templates[0]?.id ?? "";
   const [uploadError, setUploadError] = useState("");
   const [uploadStatus, setUploadStatus] = useState("");
   const [isUploading, setIsUploading] = useState(false);
-  const [previewImageObjectUrl, setPreviewImageObjectUrl] = useState("");
-  const [preview, setPreview] = useState<PreviewState>({
-    templateId: defaultTemplateId,
-    title: event?.title ?? "",
-    hostNames: event?.hosts_names ?? "",
-    eventType: event?.event_type ?? "boda",
-    eventDate: event?.event_date ?? "",
-    eventTime: event?.event_time ?? "",
-    address: event?.address ?? "",
-    googleMapsLink: event?.google_maps_link ?? "",
-    mainMessage: event?.main_message ?? "",
-    musicUrl: event?.music_url ?? "",
-    themeColor: event?.theme_color ?? "#3a0a12",
-    heroImageUrl: event?.mobile_cover_image_url ?? event?.cover_image_url ?? ""
-  });
   const submitAfterUploadRef = useRef(false);
-
-  useEffect(() => {
-    return () => {
-      if (previewImageObjectUrl) URL.revokeObjectURL(previewImageObjectUrl);
-    };
-  }, [previewImageObjectUrl]);
 
   return (
     <form
       action={action}
       className="grid gap-5"
-      onChange={(changeEvent) => updatePreviewFromForm(changeEvent.currentTarget, setPreview, setPreviewImageObjectUrl, true)}
-      onInput={(inputEvent) => updatePreviewFromForm(inputEvent.currentTarget, setPreview, setPreviewImageObjectUrl, false)}
       onSubmit={async (submitEvent) => {
         if (submitAfterUploadRef.current) {
           submitAfterUploadRef.current = false;
@@ -191,22 +150,6 @@ export function EventForm({ action, event, clients = [], businessClients = [], t
           </div>
         </Field>
       ) : null}
-
-      <EventLivePreview
-        templateId={preview.templateId}
-        templateSlug={templates.find((template) => template.id === preview.templateId)?.slug}
-        title={preview.title}
-        hostNames={preview.hostNames}
-        eventType={preview.eventType}
-        eventDate={preview.eventDate}
-        eventTime={preview.eventTime}
-        address={preview.address}
-        googleMapsLink={preview.googleMapsLink}
-        mainMessage={preview.mainMessage}
-        musicUrl={preview.musicUrl}
-        themeColor={preview.themeColor}
-        heroImageUrl={previewImageObjectUrl || preview.heroImageUrl}
-      />
 
       <div className="grid gap-5 md:grid-cols-2">
         <Field label="Título">
@@ -334,60 +277,6 @@ function getFile(form: HTMLFormElement, name: string) {
 
 function hasPendingUploads(form: HTMLFormElement) {
   return Boolean(getFile(form, "cover_image_file") || getFile(form, "mobile_cover_image_file") || getFile(form, "music_file"));
-}
-
-function updatePreviewFromForm(
-  form: HTMLFormElement,
-  setPreview: Dispatch<SetStateAction<PreviewState>>,
-  setPreviewImageObjectUrl: Dispatch<SetStateAction<string>>,
-  includeFilePreview: boolean
-) {
-  const nextHeroImageUrl = getInputValue(form, "mobile_cover_image_url") || getInputValue(form, "cover_image_url");
-
-  setPreview({
-    templateId: getCheckedValue(form, "template_id"),
-    title: getInputValue(form, "title"),
-    hostNames: getInputValue(form, "hosts_names"),
-    eventType: getInputValue(form, "event_type"),
-    eventDate: getInputValue(form, "event_date"),
-    eventTime: getInputValue(form, "event_time"),
-    address: getInputValue(form, "address"),
-    googleMapsLink: getInputValue(form, "google_maps_link"),
-    mainMessage: getInputValue(form, "main_message"),
-    musicUrl: getInputValue(form, "music_url"),
-    themeColor: getInputValue(form, "theme_color") || "#3a0a12",
-    heroImageUrl: nextHeroImageUrl
-  });
-
-  if (includeFilePreview) {
-    const imageFile = getFile(form, "mobile_cover_image_file") ?? getFile(form, "cover_image_file");
-    if (imageFile) {
-      const objectUrl = URL.createObjectURL(imageFile);
-      setPreviewImageObjectUrl((currentUrl) => {
-        if (currentUrl) URL.revokeObjectURL(currentUrl);
-        return objectUrl;
-      });
-    }
-  }
-}
-
-function getInputValue(form: HTMLFormElement, name: string) {
-  const input = form.elements.namedItem(name);
-  if (input instanceof HTMLInputElement || input instanceof HTMLSelectElement || input instanceof HTMLTextAreaElement) {
-    return input.value;
-  }
-  return "";
-}
-
-function getCheckedValue(form: HTMLFormElement, name: string) {
-  const input = form.elements.namedItem(name);
-  if (input instanceof RadioNodeList) {
-    return String(input.value ?? "");
-  }
-  if (input instanceof HTMLInputElement) {
-    return input.value;
-  }
-  return "";
 }
 
 async function uploadFilesToSupabase(form: HTMLFormElement, setStatus: (status: string) => void) {

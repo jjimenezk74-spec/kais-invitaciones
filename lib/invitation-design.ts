@@ -43,7 +43,8 @@ export function resolveInvitationDesign(
 }
 
 export function normalizeInvitationDesignConfig(config: InvitationTemplateConfig | null | undefined): InvitationDesignConfig {
-  const designConfig = config?.designConfig ?? {};
+  const raw = config?.designConfig;
+  const designConfig: Partial<InvitationDesignConfig> = typeof raw === "object" && raw !== null ? raw : {};
 
   return {
     fontPreset: isOneOf(designConfig.fontPreset, fontPresets) ? designConfig.fontPreset : DEFAULT_INVITATION_DESIGN_CONFIG.fontPreset,

@@ -80,7 +80,7 @@ export async function createEvent(formData: FormData) {
   };
 
   const { data, error } = await supabase.from("events").insert(payload).select("id").single();
-  if (error) throw new Error(error.message);
+  if (error) redirect(`/dashboard/eventos/nuevo?error=${encodeURIComponent(error.message)}`);
 
   if (coverFile || mobileCoverFile) {
     try {
@@ -156,7 +156,7 @@ export async function updateEvent(eventId: string, formData: FormData) {
   };
 
   const { error } = await supabase.from("events").update(payload).eq("id", eventId);
-  if (error) throw new Error(error.message);
+  if (error) redirect(`/dashboard/eventos/${eventId}?error=${encodeURIComponent(error.message)}`);
 
   revalidatePath("/dashboard");
   revalidatePath(`/dashboard/eventos/${eventId}`);

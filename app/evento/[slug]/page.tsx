@@ -17,16 +17,19 @@ import { createClient } from "@/lib/supabase/server";
 import { formatDate } from "@/lib/utils";
 import type { Event, EventGuest, EventPhoto, InvitationTemplate, Rsvp } from "@/lib/types";
 
-export default async function PublicEventPage({
-  params,
-  searchParams
-}: {
+type PageProps = {
   params: Promise<{ slug: string }>;
-  searchParams:
-    | Promise<{ rsvp?: string | string[]; rsvp_error?: string | string[]; foto?: string | string[]; guest?: string | string[] }>
-    | { rsvp?: string | string[]; rsvp_error?: string | string[]; foto?: string | string[]; guest?: string | string[] };
-}) {
-  const [{ slug }, query] = await Promise.all([params, searchParams]);
+  searchParams?: Promise<{
+    rsvp?: string | string[];
+    rsvp_error?: string | string[];
+    foto?: string | string[];
+    guest?: string | string[];
+  }>;
+};
+
+export default async function PublicEventPage({ params, searchParams }: PageProps) {
+  const { slug } = await params;
+  const query = searchParams ? await searchParams : {};
   const supabase = await createClient();
   const { data } = await supabase
     .from("events")

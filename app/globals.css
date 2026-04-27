@@ -199,40 +199,6 @@ select.kais-input-luxe { appearance: none; background-image: linear-gradient(45d
 select.kais-input-luxe option { background: #0a0405; color: var(--kais-ivory); }
 
 @media (max-width: 767px) {
-  .kais-glass {
-    border-color: rgba(212,175,55,0.26);
-    background: linear-gradient(135deg, rgba(26,5,8,0.92), rgba(10,4,5,0.78));
-    box-shadow:
-      0 24px 70px -34px rgba(0,0,0,0.85),
-      inset 0 1px 0 rgba(245,213,114,0.18);
-  }
-
-  .kais-input-luxe {
-    min-height: 3rem;
-    border: 1px solid rgba(212,175,55,0.18);
-    border-radius: 16px;
-    background: rgba(255,247,237,0.96);
-    color: #170607;
-    padding: 0.85rem 1rem;
-    box-shadow: inset 0 1px 0 rgba(255,255,255,0.65);
-  }
-
-  .kais-input-luxe:focus {
-    border-color: var(--kais-gold-bright);
-    box-shadow:
-      0 0 0 3px rgba(212,175,55,0.18),
-      inset 0 1px 0 rgba(255,255,255,0.65);
-  }
-
-  .kais-input-luxe::placeholder { color: rgba(23,6,7,0.46); }
-  .kais-input-luxe[readonly] { color: rgba(23,6,7,0.72); }
-  .kais-input-luxe:disabled {
-    opacity: 1;
-    color: rgba(23,6,7,0.72);
-    background: rgba(255,247,237,0.82);
-  }
-  select.kais-input-luxe option { background: #fff7ed; color: #170607; }
-
   .kais-cta {
     min-height: 3.25rem;
     padding-inline: 1.35rem;

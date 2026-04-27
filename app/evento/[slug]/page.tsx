@@ -499,7 +499,7 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
 function LuxeField({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block">
-      <span className="kais-eyebrow text-[0.66rem] tracking-[0.28em] text-[#f5d572] md:text-[0.6rem] md:tracking-[0.36em] md:text-[#d4af37]/85">{label}</span>
+      <span className="kais-eyebrow text-[0.6rem] tracking-[0.36em] text-[#d4af37]/85">{label}</span>
       <div className="mt-2.5">{children}</div>
     </label>
   );

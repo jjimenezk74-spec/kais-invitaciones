@@ -41,11 +41,45 @@ export type Profile = {
   created_at: string;
 };
 
+export type EventCategory = {
+  id: string;
+  slug: string;
+  name: string;
+  description: string | null;
+  sort_order: number;
+  is_active: boolean;
+  created_at: string;
+};
+
+export type InvitationTheme = {
+  id: string;
+  category_id: string | null;
+  slug: string;
+  name: string;
+  description: string | null;
+  preview_image_url: string | null;
+  thumbnail_url: string | null;
+  default_design_config: Partial<InvitationDesignConfig>;
+  available_options: {
+    fontPresets?: InvitationFontPreset[];
+    backgroundVariants?: InvitationBackgroundVariant[];
+    animationPresets?: InvitationAnimationPreset[];
+    decorationLevels?: InvitationDecorationLevel[];
+  };
+  is_premium: boolean;
+  is_active: boolean;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+};
+
 export type Event = {
   id: string;
   owner_id: string;
   client_id: string | null;
   template_id: string | null;
+  category_id: string | null;
+  theme_id: string | null;
   title: string;
   event_type: EventType;
   hosts_names: string;

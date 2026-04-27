@@ -106,7 +106,7 @@ export function EventMusicPlayer({ url, compact = false }: { url: string | null;
             aria-label={isPlaying ? "Pausar musica" : "Reproducir musica"}
             className={`flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-full lg:h-8 lg:w-8 ${isPlaying ? "kais-disc is-playing" : "kais-disc"}`}
           >
-            <Music2 className="h-4 w-4 lg:h-3.5 lg:w-3.5" />
+            {isPlaying ? <Pause className="h-4 w-4 lg:h-3.5 lg:w-3.5" /> : <Play className="h-4 w-4 lg:h-3.5 lg:w-3.5" />}
           </button>
         ) : (
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-white/15">
@@ -137,7 +137,7 @@ export function EventMusicPlayer({ url, compact = false }: { url: string | null;
             onPlay={() => setIsPlaying(true)}
             onEnded={() => setIsPlaying(false)}
           />
-          {needsInteraction ? (
+          {!compact && needsInteraction ? (
             <Button type="button" variant="secondary" onClick={play} className={compact ? "w-full xl:w-fit" : "w-full sm:w-fit"}>
               <Play className="h-4 w-4" />
               Tocar musica

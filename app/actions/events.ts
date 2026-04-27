@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { getCurrentUserProfile, isKaisAdmin } from "@/lib/profiles";
+import { canCreateEvents, canModerateEvents, getCurrentUserProfile, isKaisAdmin } from "@/lib/profiles";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { slugify } from "@/lib/utils";
@@ -32,6 +32,10 @@ export async function createEvent(formData: FormData) {
   if (!user) redirect("/login");
 
   const profile = await getCurrentProfile();
+  if (!canCreateEvents(profile?.role)) {
+    redirect("/dashboard?error=Tu rol no tiene permisos para crear eventos.");
+  }
+
   const ownerId = String(formData.get("owner_id") || user.id);
   const title = String(formData.get("title") ?? "Nuevo evento");
   const slug = `${slugify(title)}-${crypto.randomUUID().slice(0, 8)}`;
@@ -259,8 +263,8 @@ export async function uploadEventPhoto(eventId: string, slug: string, formData: 
 export async function approvePhoto(photoId: string, eventId: string, approved: boolean) {
   const { profile } = await getCurrentUserProfile();
 
-  if (!isKaisAdmin(profile?.role)) {
-    redirect("/dashboard?error=Tu usuario no tiene permisos de administrador KAIS para moderar fotos.");
+  if (!canModerateEvents(profile?.role)) {
+    redirect("/dashboard?error=Tu usuario no tiene permisos para moderar fotos.");
   }
 
   const admin = createAdminClient();

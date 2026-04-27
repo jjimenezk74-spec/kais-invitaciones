@@ -1,4 +1,4 @@
-export type UserRole = "admin" | "admin_kais" | "cliente";
+export type UserRole = "super_admin" | "admin" | "admin_kais" | "diseñador" | "soporte_evento" | "cliente";
 export type EventStatus = "borrador" | "publicado" | "inactivo";
 export type EventType =
   | "boda"
@@ -15,6 +15,7 @@ export type Profile = {
   full_name: string | null;
   email: string | null;
   role: UserRole;
+  is_active: boolean;
   created_at: string;
 };
 

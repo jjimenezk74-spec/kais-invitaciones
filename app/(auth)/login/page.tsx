@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { signIn } from "@/app/actions/auth";
+import { Field } from "@/components/field";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Field } from "@/components/field";
 
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ error?: string; status?: string }> }) {
   const query = await searchParams;
@@ -15,6 +15,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
             KAIS INVITACIONES
           </Link>
           <CardTitle className="font-display text-3xl">Ingresar</CardTitle>
+          <p className="text-sm text-muted-foreground">Acceso exclusivo para equipo KAIS.</p>
           {query.error ? <p className="text-sm text-red-600">{query.error}</p> : null}
           {query.status ? <p className="text-sm text-muted-foreground">{query.status}</p> : null}
         </CardHeader>
@@ -23,17 +24,11 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
             <Field label="Email">
               <Input name="email" type="email" required />
             </Field>
-            <Field label="Contraseña">
+            <Field label="Contrasena">
               <Input name="password" type="password" required />
             </Field>
             <Button>Entrar al panel</Button>
           </form>
-          <p className="mt-5 text-sm text-muted-foreground">
-            ¿No tienes cuenta?{" "}
-            <Link href="/registro" className="font-semibold text-foreground">
-              Crear cuenta
-            </Link>
-          </p>
         </CardContent>
       </Card>
     </main>

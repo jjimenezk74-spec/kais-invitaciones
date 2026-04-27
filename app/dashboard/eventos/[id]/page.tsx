@@ -13,7 +13,7 @@ import { EventForm } from "@/components/event-form";
 import { QrDownload } from "@/components/qr-download";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getCurrentUserProfile, isKaisAdmin } from "@/lib/profiles";
+import { canModerateEvents, getCurrentUserProfile, isKaisAdmin } from "@/lib/profiles";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Event, EventLogin, EventPhoto, Rsvp } from "@/lib/types";
@@ -37,6 +37,7 @@ export default async function EventDetailPage({
   const admin = createAdminClient();
   const { profile } = await getCurrentUserProfile();
   const canManageClientAccess = isKaisAdmin(profile?.role);
+  const canModerateEventPhotos = canModerateEvents(profile?.role);
   const { data } = await supabase.from("events").select("*").eq("id", id).single();
   const event = data as Event | null;
   if (!event) return <p>Evento no encontrado.</p>;
@@ -305,12 +306,14 @@ export default async function EventDetailPage({
               <img src={photo.public_url} alt="" className="aspect-[4/3] w-full object-cover" />
               <div className="flex items-center justify-between p-3 text-sm">
                 <span>{photo.guest_name || "Invitado"}</span>
-                <form action={approvePhoto.bind(null, photo.id, event.id, !photo.is_approved)}>
-                  <Button size="sm" variant={photo.is_approved ? "outline" : "default"}>
-                    {photo.is_approved ? <X className="h-4 w-4" /> : <Check className="h-4 w-4" />}
-                    {photo.is_approved ? "Rechazar" : "Aprobar"}
-                  </Button>
-                </form>
+                {canModerateEventPhotos ? (
+                  <form action={approvePhoto.bind(null, photo.id, event.id, !photo.is_approved)}>
+                    <Button size="sm" variant={photo.is_approved ? "outline" : "default"}>
+                      {photo.is_approved ? <X className="h-4 w-4" /> : <Check className="h-4 w-4" />}
+                      {photo.is_approved ? "Rechazar" : "Aprobar"}
+                    </Button>
+                  </form>
+                ) : null}
                 <span className="text-xs text-muted-foreground">{photo.status} · {photo.is_public ? "publica" : "privada"}</span>
               </div>
             </div>

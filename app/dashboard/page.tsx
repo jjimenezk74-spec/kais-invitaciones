@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/app/actions/events";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { canCreateEvents } from "@/lib/profiles";
 import type { Event } from "@/lib/types";
 import { publicEventUrl } from "@/lib/utils";
 
@@ -48,12 +49,14 @@ export default async function DashboardPage({
           {query.deleted ? <p className="mt-3 rounded-md bg-secondary p-3 text-sm font-semibold">{query.deleted} fue eliminado correctamente.</p> : null}
           {query.warning ? <p className="mt-3 rounded-md bg-amber-50 p-3 text-sm font-semibold text-amber-800">{query.warning}</p> : null}
         </div>
-        <Button asChild>
-          <Link href="/dashboard/eventos/nuevo">
-            <Plus className="h-4 w-4" />
-            Crear nuevo evento
-          </Link>
-        </Button>
+        {canCreateEvents(profile?.role) ? (
+          <Button asChild>
+            <Link href="/dashboard/eventos/nuevo">
+              <Plus className="h-4 w-4" />
+              Crear nuevo evento
+            </Link>
+          </Button>
+        ) : null}
       </div>
 
       <div className="grid gap-4 md:grid-cols-4">

@@ -6,7 +6,19 @@ import { createClient } from "@/lib/supabase/server";
 import type { Profile } from "@/lib/types";
 
 export function isKaisAdmin(role?: string | null) {
-  return role === "admin" || role === "admin_kais";
+  return role === "super_admin" || role === "admin" || role === "admin_kais";
+}
+
+export function isSuperAdmin(role?: string | null) {
+  return role === "super_admin";
+}
+
+export function canCreateEvents(role?: string | null) {
+  return role === "super_admin" || role === "admin" || role === "admin_kais";
+}
+
+export function canModerateEvents(role?: string | null) {
+  return isKaisAdmin(role) || role === "soporte_evento";
 }
 
 export async function getCurrentUserProfile() {
@@ -45,7 +57,8 @@ export async function ensureProfileForUser(user: User): Promise<Profile> {
     id: user.id,
     full_name: getFullName(user),
     email: user.email ?? null,
-    role
+    role,
+    is_active: true
   };
 
   try {
@@ -83,7 +96,7 @@ async function getInitialRole(): Promise<Profile["role"]> {
     const { count, error } = await admin.from("profiles").select("id", { count: "exact", head: true });
 
     if (!error && (count ?? 0) === 0) {
-      return "admin_kais";
+      return "super_admin";
     }
   } catch {
     // If admin env is unavailable, fall back to a normal client profile.
@@ -107,7 +120,7 @@ async function promoteFirstProfileIfNeeded(profile: Profile): Promise<Profile> {
 
     const { data, error } = await admin
       .from("profiles")
-      .update({ role: "admin_kais" })
+      .update({ role: "super_admin", is_active: true })
       .eq("id", profile.id)
       .select("*")
       .single();
@@ -116,7 +129,7 @@ async function promoteFirstProfileIfNeeded(profile: Profile): Promise<Profile> {
       return profile;
     }
 
-    console.info("[KAIS AUTH] Primer perfil promovido automaticamente a admin_kais:", profile.email ?? profile.id);
+    console.info("[KAIS AUTH] Primer perfil promovido automaticamente a super_admin:", profile.email ?? profile.id);
     return data as Profile;
   } catch {
     return profile;

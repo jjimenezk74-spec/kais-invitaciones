@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { ensureProfileForUser } from "@/lib/profiles";
 import { createClient } from "@/lib/supabase/server";
-import { absoluteUrl } from "@/lib/utils";
+import type { Profile } from "@/lib/types";
 
 export async function signIn(formData: FormData) {
   const supabase = await createClient();
@@ -23,54 +23,26 @@ export async function signIn(formData: FormData) {
     redirect("/login?error=No se pudo iniciar sesion. Intenta nuevamente.");
   }
 
+  let profile: Profile;
   try {
-    await ensureProfileForUser(data.user);
+    profile = await ensureProfileForUser(data.user);
   } catch (profileError) {
     const message = profileError instanceof Error ? profileError.message : "No se pudo crear el perfil.";
-    console.error("[KAIS AUTH] Login con sesión, pero profile falló:", message);
+    console.error("[KAIS AUTH] Login con sesion, pero profile fallo:", message);
     redirect(`/login?error=${encodeURIComponent(message)}`);
+  }
+
+  if (profile.is_active === false) {
+    await supabase.auth.signOut();
+    redirect("/login?error=Tu usuario interno esta desactivado. Contacta al super admin de KAIS.");
   }
 
   console.info("[KAIS AUTH] Login correcto. Redirigiendo a /dashboard");
   redirect("/dashboard");
 }
 
-export async function signUp(formData: FormData) {
-  const supabase = await createClient();
-  const email = String(formData.get("email") ?? "");
-  const password = String(formData.get("password") ?? "");
-  const fullName = String(formData.get("full_name") ?? "");
-
-  const { data, error } = await supabase.auth.signUp({
-    email,
-    password,
-    options: {
-      emailRedirectTo: absoluteUrl("/login?status=Correo confirmado. Ya puedes ingresar."),
-      data: {
-        full_name: fullName,
-        role: "cliente"
-      }
-    }
-  });
-
-  if (error) redirect(`/registro?error=${encodeURIComponent(error.message)}`);
-
-  if (data.user) {
-    try {
-      await ensureProfileForUser(data.user);
-    } catch (profileError) {
-      console.warn(
-        "[KAIS AUTH] Registro creado, pero profile todavía no pudo asegurarse:",
-        profileError instanceof Error ? profileError.message : profileError
-      );
-    }
-  }
-
-  if (!data.session) {
-    redirect("/login?status=Revisa tu correo para confirmar la cuenta antes de ingresar.");
-  }
-
-  redirect("/dashboard");
+export async function signUp() {
+  redirect("/login?error=Registro deshabilitado. Los usuarios internos son creados por un super admin KAIS.");
 }
 
 export async function signOut() {
@@ -83,7 +55,7 @@ function getFriendlyAuthError(message: string) {
   const normalized = message.toLowerCase();
 
   if (normalized.includes("invalid login credentials")) {
-    return "Email o contraseña incorrectos.";
+    return "Email o contrasena incorrectos.";
   }
 
   if (normalized.includes("email not confirmed")) {

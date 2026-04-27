@@ -1,8 +1,10 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { createEvent, getCurrentProfile } from "@/app/actions/events";
 import { EventForm } from "@/components/event-form";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { canCreateEvents, isKaisAdmin } from "@/lib/profiles";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function NewEventPage({
@@ -13,8 +15,11 @@ export default async function NewEventPage({
   const query = await searchParams;
   const supabase = await createClient();
   const profile = await getCurrentProfile();
+  if (!canCreateEvents(profile?.role)) {
+    redirect("/dashboard?error=Tu rol no tiene permisos para crear eventos.");
+  }
   const { data: clientsData } =
-    profile?.role === "admin"
+    isKaisAdmin(profile?.role)
       ? await supabase.from("profiles").select("*").eq("role", "cliente").order("created_at", { ascending: false })
       : { data: [] };
   const clients = clientsData ?? [];
@@ -31,7 +36,7 @@ export default async function NewEventPage({
         {query.error ? <p className="text-sm text-red-600">{query.error}</p> : null}
       </CardHeader>
       <CardContent>
-        <EventForm action={createEvent} clients={clients} showOwner={profile?.role === "admin"} />
+        <EventForm action={createEvent} clients={clients} showOwner={isKaisAdmin(profile?.role)} />
       </CardContent>
     </Card>
   );

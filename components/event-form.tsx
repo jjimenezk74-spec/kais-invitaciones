@@ -1,12 +1,13 @@
 "use client";
 
 import { Save } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Field } from "@/components/field";
+import { createClient } from "@/lib/supabase/browser";
 import type { Client, Event, InvitationTemplate, Profile } from "@/lib/types";
 
 type EventFormProps = {
@@ -33,13 +34,22 @@ const ALLOWED_AUDIO_EXTENSIONS = [".mp3", ".wav", ".ogg"];
 export function EventForm({ action, event, clients = [], businessClients = [], templates = [], showOwner = false }: EventFormProps) {
   const shouldShowOwnerSelect = showOwner && clients.length > 0;
   const [uploadError, setUploadError] = useState("");
+  const [uploadStatus, setUploadStatus] = useState("");
+  const [isUploading, setIsUploading] = useState(false);
+  const submitAfterUploadRef = useRef(false);
 
   return (
     <form
       action={action}
       className="grid gap-5"
-      onSubmit={(submitEvent) => {
-        const error = validateUploads(submitEvent.currentTarget);
+      onSubmit={async (submitEvent) => {
+        if (submitAfterUploadRef.current) {
+          submitAfterUploadRef.current = false;
+          return;
+        }
+
+        const form = submitEvent.currentTarget;
+        const error = validateUploads(form);
         if (error) {
           submitEvent.preventDefault();
           setUploadError(error);
@@ -48,12 +58,39 @@ export function EventForm({ action, event, clients = [], businessClients = [], t
           });
           return;
         }
+
+        if (hasPendingUploads(form)) {
+          submitEvent.preventDefault();
+          setUploadError("");
+          setIsUploading(true);
+
+          try {
+            await uploadFilesToSupabase(form, setUploadStatus);
+            clearFileInput(form, "cover_image_file");
+            clearFileInput(form, "mobile_cover_image_file");
+            clearFileInput(form, "music_file");
+            submitAfterUploadRef.current = true;
+            form.requestSubmit();
+          } catch (uploadFailure) {
+            setUploadError(uploadFailure instanceof Error ? uploadFailure.message : "No se pudieron subir los archivos. Intenta nuevamente.");
+          } finally {
+            setIsUploading(false);
+            setUploadStatus("");
+          }
+          return;
+        }
+
         setUploadError("");
       }}
     >
       {uploadError ? (
         <div id="event-form-upload-error" className="rounded-md border border-red-100 bg-red-50 p-4 text-sm font-semibold text-red-700">
           {uploadError}
+        </div>
+      ) : null}
+      {uploadStatus ? (
+        <div className="rounded-md border border-amber-100 bg-amber-50 p-4 text-sm font-semibold text-amber-800">
+          {uploadStatus}
         </div>
       ) : null}
       {shouldShowOwnerSelect ? (
@@ -204,7 +241,7 @@ export function EventForm({ action, event, clients = [], businessClients = [], t
 
       <Button className="w-full sm:w-fit">
         <Save className="h-4 w-4" />
-        Guardar evento
+        {isUploading ? "Subiendo archivos..." : "Guardar evento"}
       </Button>
     </form>
   );
@@ -238,10 +275,104 @@ function getFile(form: HTMLFormElement, name: string) {
   return input instanceof HTMLInputElement && input.files?.[0] ? input.files[0] : null;
 }
 
+function hasPendingUploads(form: HTMLFormElement) {
+  return Boolean(getFile(form, "cover_image_file") || getFile(form, "mobile_cover_image_file") || getFile(form, "music_file"));
+}
+
+async function uploadFilesToSupabase(form: HTMLFormElement, setStatus: (status: string) => void) {
+  const supabase = createClient();
+  const {
+    data: { user },
+    error: userError
+  } = await supabase.auth.getUser();
+
+  if (userError || !user) {
+    throw new Error("Tu sesión expiró. Inicia sesión nuevamente antes de subir archivos.");
+  }
+
+  const coverFile = getFile(form, "cover_image_file");
+  const mobileCoverFile = getFile(form, "mobile_cover_image_file");
+  const musicFile = getFile(form, "music_file");
+
+  if (coverFile) {
+    setStatus("Subiendo portada desktop a Supabase Storage...");
+    const publicUrl = await uploadPublicFile({
+      bucket: "event-photos",
+      file: coverFile,
+      path: `covers/direct/${user.id}/${crypto.randomUUID()}-${sanitizeFileName(coverFile.name)}`,
+      contentType: coverFile.type || getImageContentType(coverFile.name)
+    });
+    setInputValue(form, "cover_image_url", publicUrl);
+  }
+
+  if (mobileCoverFile) {
+    setStatus("Subiendo portada móvil a Supabase Storage...");
+    const publicUrl = await uploadPublicFile({
+      bucket: "event-photos",
+      file: mobileCoverFile,
+      path: `covers/direct/${user.id}/mobile/${crypto.randomUUID()}-${sanitizeFileName(mobileCoverFile.name)}`,
+      contentType: mobileCoverFile.type || getImageContentType(mobileCoverFile.name)
+    });
+    setInputValue(form, "mobile_cover_image_url", publicUrl);
+  }
+
+  if (musicFile) {
+    setStatus("Subiendo música a Supabase Storage...");
+    const extension = getExtension(musicFile.name);
+    const publicUrl = await uploadPublicFile({
+      bucket: "event-audio",
+      file: musicFile,
+      path: `${user.id}/${crypto.randomUUID()}${extension}`,
+      contentType: musicFile.type || getAudioContentType(extension)
+    });
+    setInputValue(form, "music_url", publicUrl);
+  }
+}
+
+async function uploadPublicFile({
+  bucket,
+  file,
+  path,
+  contentType
+}: {
+  bucket: "event-photos" | "event-audio";
+  file: File;
+  path: string;
+  contentType: string;
+}) {
+  const supabase = createClient();
+  const { error } = await supabase.storage.from(bucket).upload(path, file, {
+    cacheControl: "31536000",
+    contentType,
+    upsert: false
+  });
+
+  if (error) {
+    throw new Error(`No se pudo subir ${file.name}. Detalle: ${error.message}`);
+  }
+
+  const { data } = supabase.storage.from(bucket).getPublicUrl(path);
+  return data.publicUrl;
+}
+
+function setInputValue(form: HTMLFormElement, name: string, value: string) {
+  const input = form.elements.namedItem(name);
+  if (input instanceof HTMLInputElement) {
+    input.value = value;
+  }
+}
+
+function clearFileInput(form: HTMLFormElement, name: string) {
+  const input = form.elements.namedItem(name);
+  if (input instanceof HTMLInputElement) {
+    input.value = "";
+  }
+}
+
 function validateFile(file: File | null, label: string, maxSize: number, allowedExtensions: string[]) {
   if (!file) return "";
 
-  const extension = file.name.toLowerCase().match(/\.[a-z0-9]+$/)?.[0] ?? "";
+  const extension = getExtension(file.name);
 
   if (!allowedExtensions.includes(extension)) {
     return `${label} debe tener formato ${allowedExtensions.join(", ")}.`;
@@ -252,6 +383,27 @@ function validateFile(file: File | null, label: string, maxSize: number, allowed
   }
 
   return "";
+}
+
+function sanitizeFileName(fileName: string) {
+  return fileName.replace(/[^a-zA-Z0-9._-]/g, "-");
+}
+
+function getExtension(fileName: string) {
+  return fileName.toLowerCase().match(/\.[a-z0-9]+$/)?.[0] ?? "";
+}
+
+function getImageContentType(fileName: string) {
+  const extension = getExtension(fileName);
+  if (extension === ".jpg" || extension === ".jpeg") return "image/jpeg";
+  if (extension === ".png") return "image/png";
+  return "image/webp";
+}
+
+function getAudioContentType(extension: string) {
+  if (extension === ".mp3") return "audio/mpeg";
+  if (extension === ".wav") return "audio/wav";
+  return "audio/ogg";
 }
 
 function formatBytes(bytes: number) {

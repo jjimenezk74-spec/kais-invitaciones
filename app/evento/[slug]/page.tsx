@@ -109,6 +109,7 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
   const rsvpError = normalizeSearchParam(query.rsvp_error);
   const photoStatus = normalizeSearchParam(query.foto);
   const photoError = normalizeSearchParam(query.foto_error);
+  const isConfirmed = Boolean(invitedGuestRsvp) || rsvpStatus === "ok";
 
   return (
     <main
@@ -325,12 +326,14 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
             </h2>
 
             <p className="mt-7 max-w-md text-[0.95rem] leading-[1.9] text-[#f5ecd9]/65">
-              {invitedGuest
-                ? `Hola ${invitedGuest.guest_name}, podés confirmar o editar tu respuesta cuando quieras.`
-                : "Tu respuesta ayuda a los anfitriones a preparar cada detalle del evento."}
+              {isConfirmed
+                ? "Tu asistencia ya fue confirmada. Para realizar cambios, contactá a los anfitriones."
+                : invitedGuest
+                  ? `Hola ${invitedGuest.guest_name}, podés confirmar tu asistencia.`
+                  : "Tu respuesta ayuda a los anfitriones a preparar cada detalle del evento."}
             </p>
 
-            {rsvpStatus === "ok" ? (
+            {isConfirmed ? (
               <p className="mt-7 inline-flex"><span className="kais-status-success">Confirmación recibida</span></p>
             ) : null}
             {rsvpError ? (
@@ -343,28 +346,36 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
               <input type="hidden" name="slug" value={event.slug} />
               <input type="hidden" name="guest_token" value={guestToken} />
 
+              {isConfirmed ? (
+                <div className="rounded-2xl border border-[#d4af37]/35 bg-[#d4af37]/10 p-4 text-[#f5ecd9]">
+                  <p className="text-[0.68rem] font-semibold uppercase tracking-[0.28em] text-[#d4af37]">Confirmación recibida</p>
+                  <p className="mt-2 text-sm leading-6 text-[#f5ecd9]/72">Tu asistencia ya fue confirmada. Para realizar cambios, contactá a los anfitriones.</p>
+                </div>
+              ) : null}
+
               <LuxeField label="Nombre">
                 <input
                   name="guest_name"
                   required
                   defaultValue={invitedGuest?.guest_name ?? ""}
-                  readOnly={Boolean(invitedGuest)}
+                  readOnly={Boolean(invitedGuest) || isConfirmed}
+                  disabled={isConfirmed}
                   className="kais-input-luxe"
                 />
               </LuxeField>
 
               <div className="grid gap-5 md:grid-cols-2 md:gap-7">
                 <LuxeField label="Telefono">
-                  <input name="phone" defaultValue={invitedGuest?.phone ?? invitedGuestRsvp?.phone ?? ""} className="kais-input-luxe" />
+                  <input name="phone" defaultValue={invitedGuest?.phone ?? invitedGuestRsvp?.phone ?? ""} disabled={isConfirmed} className="kais-input-luxe" />
                 </LuxeField>
                 <LuxeField label="Email">
-                  <input name="email" type="email" defaultValue={invitedGuest?.email ?? invitedGuestRsvp?.email ?? ""} className="kais-input-luxe" />
+                  <input name="email" type="email" defaultValue={invitedGuest?.email ?? invitedGuestRsvp?.email ?? ""} disabled={isConfirmed} className="kais-input-luxe" />
                 </LuxeField>
               </div>
 
               <div className="grid gap-5 md:grid-cols-2 md:gap-7">
                 <LuxeField label="Asistira?">
-                  <select name="attending" defaultValue={invitedGuestRsvp?.attending === false ? "no" : "si"} className="kais-input-luxe">
+                  <select name="attending" defaultValue={invitedGuestRsvp?.attending === false ? "no" : "si"} disabled={isConfirmed} className="kais-input-luxe">
                     <option value="si">Sí, con gusto</option>
                     <option value="no">No podré asistir</option>
                   </select>
@@ -376,25 +387,26 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
                     min={0}
                     max={invitedGuest?.max_companions}
                     defaultValue={String(invitedGuestRsvp?.companions ?? 0)}
+                    disabled={isConfirmed}
                     className="kais-input-luxe"
                   />
                 </LuxeField>
               </div>
 
               <LuxeField label="Restriccion alimentaria">
-                <input name="dietary_restrictions" placeholder="Opcional" defaultValue={invitedGuestRsvp?.dietary_restrictions ?? ""} className="kais-input-luxe" />
+                <input name="dietary_restrictions" placeholder="Opcional" defaultValue={invitedGuestRsvp?.dietary_restrictions ?? ""} disabled={isConfirmed} className="kais-input-luxe" />
               </LuxeField>
 
               <LuxeField label="Mensaje para los anfitriones">
-                <textarea name="message" rows={3} defaultValue={invitedGuestRsvp?.message ?? ""} className="kais-input-luxe resize-none" />
+                <textarea name="message" rows={3} defaultValue={invitedGuestRsvp?.message ?? ""} disabled={isConfirmed} className="kais-input-luxe resize-none" />
               </LuxeField>
 
-              <div className="mt-2">
+              {!isConfirmed ? <div className="mt-2">
                 <button type="submit" className="kais-cta w-full sm:w-fit">
                   <Send className="h-3.5 w-3.5" />
                   Enviar confirmación
                 </button>
-              </div>
+              </div> : null}
             </form>
           </div>
         </div>

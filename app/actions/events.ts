@@ -229,14 +229,6 @@ export async function submitRsvp(eventId: string, formData: FormData) {
     redirect("/?error=No se pudo identificar la invitacion.");
   }
 
-  if (!guestName) {
-    redirect(errorUrl("Escribe tu nombre para confirmar asistencia."));
-  }
-
-  if (!Number.isFinite(companions) || companions < 0) {
-    redirect(errorUrl("La cantidad de acompanantes debe ser 0 o mayor."));
-  }
-
   if (guestToken) {
     const admin = createAdminClient();
     const { data: guestData } = await admin
@@ -256,6 +248,11 @@ export async function submitRsvp(eventId: string, formData: FormData) {
       redirect(errorUrl("Este enlace ya no esta activo."));
     }
 
+    if (eventGuest.rsvp_id) {
+      revalidatePath(`/evento/${slug}`);
+      redirect(successUrl);
+    }
+
     if (companions > eventGuest.max_companions) {
       redirect(errorUrl(`Este enlace permite hasta ${eventGuest.max_companions} acompanantes.`));
     }
@@ -268,6 +265,14 @@ export async function submitRsvp(eventId: string, formData: FormData) {
     }
   }
 
+  if (!guestName) {
+    redirect(errorUrl("Escribe tu nombre para confirmar asistencia."));
+  }
+
+  if (!Number.isFinite(companions) || companions < 0) {
+    redirect(errorUrl("La cantidad de acompanantes debe ser 0 o mayor."));
+  }
+
   const payload = {
     event_id: eventId,
     guest_name: guestName,
@@ -278,21 +283,6 @@ export async function submitRsvp(eventId: string, formData: FormData) {
     message: nullable(formData.get("message")),
     dietary_restrictions: nullable(formData.get("dietary_restrictions"))
   };
-
-  if (eventGuest?.rsvp_id) {
-    const admin = createAdminClient();
-    const { error } = await admin.from("rsvps").update(payload).eq("id", eventGuest.rsvp_id).eq("event_id", eventId);
-    if (error) {
-      console.error("[KAIS RSVP] No se pudo actualizar RSVP personal", { eventId, slug, code: error.code, message: error.message });
-      redirect(errorUrl("No pudimos actualizar tu confirmacion. Intenta de nuevo o contacta a los anfitriones."));
-    }
-    await admin
-      .from("event_guests")
-      .update({ status: attending ? "confirmado" : "no_asiste", last_opened_at: new Date().toISOString() })
-      .eq("id", eventGuest.id);
-    revalidatePath(`/evento/${slug}`);
-    redirect(successUrl);
-  }
 
   const client = eventGuest ? createAdminClient() : supabase;
   const { data: insertedRsvp, error } = await client.from("rsvps").insert(payload).select("id").single();

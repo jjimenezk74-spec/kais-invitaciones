@@ -190,12 +190,6 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
               <span className="block h-px w-12 kais-hairline lg:w-auto lg:max-w-[160px] lg:flex-1" />
             </div>
 
-            {event.main_message ? (
-              <p className="kais-rise-d2 mt-7 hidden max-w-md text-[0.95rem] leading-[1.95] text-[#f5ecd9]/72 sm:max-w-lg lg:block">
-                {event.main_message}
-              </p>
-            ) : null}
-
             <div className="kais-rise-d3 mt-10 hidden max-w-md sm:max-w-lg lg:block">
               <Countdown date={event.event_date} time={event.event_time} variant="luxe" />
             </div>
@@ -243,13 +237,6 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
           <div className="mt-10">
             <Countdown date={event.event_date} time={event.event_time} variant="luxe" />
           </div>
-
-          {event.main_message ? (
-            <>
-              <span className="mx-auto mt-14 block h-px w-16 kais-hairline" />
-              <p className="mt-10 text-[0.95rem] leading-[1.95] text-[#f5ecd9]/72">{event.main_message}</p>
-            </>
-          ) : null}
 
           <div className="mt-12 flex flex-wrap items-center justify-center gap-x-6 gap-y-4">
             <a href={event.google_maps_link ?? "#detalles"} target="_blank" rel="noreferrer" className="kais-ghost-link">

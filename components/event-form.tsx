@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Field } from "@/components/field";
-import { createClient } from "@/lib/supabase/browser";
+import { createClientSupabaseBrowser } from "@/lib/supabase/browser";
 import type { Client, Event, InvitationTemplate, Profile } from "@/lib/types";
 
 type EventFormProps = {
@@ -280,7 +280,11 @@ function hasPendingUploads(form: HTMLFormElement) {
 }
 
 async function uploadFilesToSupabase(form: HTMLFormElement, setStatus: (status: string) => void) {
-  const supabase = createClient();
+  const { client: supabase, error: envError } = createClientSupabaseBrowser();
+
+  if (!supabase) {
+    throw new Error(envError ?? "No se pudo inicializar Supabase para subir archivos.");
+  }
   const {
     data: { user },
     error: userError
@@ -340,7 +344,11 @@ async function uploadPublicFile({
   path: string;
   contentType: string;
 }) {
-  const supabase = createClient();
+  const { client: supabase, error: envError } = createClientSupabaseBrowser();
+
+  if (!supabase) {
+    throw new Error(envError ?? "No se pudo inicializar Supabase para subir archivos.");
+  }
   const { error } = await supabase.storage.from(bucket).upload(path, file, {
     cacheControl: "31536000",
     contentType,

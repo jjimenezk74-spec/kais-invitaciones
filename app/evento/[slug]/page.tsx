@@ -120,14 +120,14 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
 
   return (
     <main
-      className={isRedRoses ? "bg-[#170607] text-[#fff7ed]" : "bg-background"}
+      className="bg-[#080506] text-[#fff7ed]"
       style={{ ["--template-primary" as string]: primary, ["--template-secondary" as string]: secondary }}
     >
       <div className="fixed left-3 top-[max(0.75rem,env(safe-area-inset-top))] z-50 sm:left-4">
         <BackButton from={normalizeSearchParam(query.from)} />
       </div>
       <section
-        className={`relative overflow-hidden bg-slate-950 text-white shadow-soft md:flex md:min-h-[92vh] md:items-end md:px-4 md:py-6 lg:px-0 lg:py-0 ${isRedRoses ? "border-b border-[#d4af37]/35" : ""}`}
+        className={`relative min-h-[100svh] overflow-hidden bg-[#080506] text-white shadow-soft md:flex md:min-h-[92vh] md:items-end md:px-4 md:py-6 lg:px-0 lg:py-0 ${isRedRoses ? "border-b border-[#d4af37]/35" : ""}`}
         style={!hasHeroCover ? { background: isRedRoses ? "linear-gradient(145deg, #170607, #4c0710 55%, #8b0000)" : `linear-gradient(145deg, ${event.theme_color}, #155e75 58%, #e11d48)` } : undefined}
       >
         {isRedRoses ? (
@@ -163,7 +163,7 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
           </>
         ) : null}
         <div
-          className="relative h-[40vh] min-h-[280px] overflow-hidden md:hidden"
+          className="absolute inset-0 min-h-[100svh] overflow-hidden md:hidden"
           style={!hasHeroCover ? { background: isRedRoses ? "linear-gradient(145deg, #170607, #4c0710 55%, #8b0000)" : `linear-gradient(145deg, ${event.theme_color}, #155e75 58%, #e11d48)` } : undefined}
         >
           {event.mobile_cover_image_url || event.cover_image_url ? (
@@ -177,22 +177,22 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
               className="object-cover"
             />
           ) : null}
-          <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-[#170607]/95 via-[#170607]/45 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/25 via-black/10 to-[#080506]/92" />
+          <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-[#080506] via-[#170607]/70 to-transparent" />
         </div>
-        <div className="relative z-10 mx-3 -mt-7 overflow-hidden rounded-t-[28px] border border-[#d4af37]/25 bg-[rgba(45,8,14,0.82)] px-4 pb-5 pt-6 text-center shadow-[0_-18px_60px_rgba(0,0,0,0.42)] backdrop-blur-xl md:hidden">
-          <div className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-[#d4af37]/70 to-transparent" />
-          <div className="pointer-events-none absolute -left-12 top-10 h-32 w-32 rotate-12 rounded-[45%_55%_50%_50%] border border-[#b91c1c]/25 bg-[#7f1d1d]/20 blur-sm" />
-          <div className="pointer-events-none absolute -right-10 bottom-28 h-28 w-28 -rotate-12 rounded-[55%_45%_50%_50%] border border-[#d4af37]/20 bg-[#d4af37]/10 blur-sm" />
-          <div className="pointer-events-none absolute inset-x-8 bottom-0 h-px bg-gradient-to-r from-transparent via-[#991b1b]/70 to-transparent" />
-          <div className="relative z-10">
-          <p className={`text-[0.68rem] font-bold uppercase tracking-[0.24em] ${isRedRoses ? "text-[#d4af37]" : "text-[#facc15]"}`}>{event.event_type}</p>
+        <div className="relative z-10 flex min-h-[100svh] flex-col justify-end px-4 pb-7 pt-24 text-center md:hidden">
+          <div className="pointer-events-none absolute bottom-40 left-4 h-28 w-28 rounded-full bg-[#8b0000]/30 blur-3xl" />
+          <div className="pointer-events-none absolute bottom-24 right-3 h-24 w-24 rounded-full bg-[#d4af37]/20 blur-3xl" />
+          <div className="pointer-events-none absolute inset-x-8 bottom-3 h-px bg-gradient-to-r from-transparent via-[#d4af37]/70 to-transparent" />
+          <div className="relative z-10 kais-fade-up">
+          <p className={`text-[0.68rem] font-bold uppercase tracking-[0.32em] drop-shadow ${isRedRoses ? "text-[#d4af37]" : "text-[#facc15]"}`}>{event.event_type}</p>
           {invitedGuest ? <p className="mx-auto mt-3 max-w-xs text-xs font-semibold uppercase tracking-[0.18em] text-white/65">Hola, {invitedGuest.guest_name}</p> : null}
-          <h1 className={`mx-auto mt-3 line-clamp-2 max-w-[20rem] font-display text-[clamp(2.7rem,13vw,4.45rem)] font-bold leading-[0.9] drop-shadow-[0_4px_18px_rgba(0,0,0,0.45)] ${isRedRoses ? "text-[#fff7ed]" : "text-white"}`}>
+          <h1 className={`mx-auto mt-4 line-clamp-2 max-w-[21rem] font-display text-[clamp(3.2rem,15vw,5rem)] font-bold leading-[0.86] drop-shadow-[0_8px_26px_rgba(0,0,0,0.72)] ${isRedRoses ? "text-[#fff7ed]" : "text-white"}`}>
             {event.hosts_names}
           </h1>
           <p className={`mt-4 text-base font-semibold ${isRedRoses ? "text-[#facc15]" : "text-white/90"}`}>{formatDate(event.event_date)} · {event.event_time}</p>
-          <p className="mx-auto mt-4 line-clamp-2 max-w-sm text-sm leading-7 text-white/75">{event.main_message}</p>
-          <div className="mt-6">
+          <p className="mx-auto mt-4 line-clamp-2 max-w-sm text-sm leading-7 text-white/82 drop-shadow">{event.main_message}</p>
+          <div className="mt-6 rounded-2xl border border-white/18 bg-black/20 p-2 shadow-[0_20px_50px_rgba(0,0,0,0.3)] backdrop-blur-md">
             <Countdown date={event.event_date} time={event.event_time} compact />
           </div>
           <div className="mt-4">
@@ -247,19 +247,21 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
             </Button>
           </div>
         </div>
-        <div className="relative z-10 mx-auto hidden min-h-[82vh] w-full max-w-7xl grid-cols-[0.9fr_1.1fr] items-center gap-10 px-8 py-10 lg:grid xl:gap-14">
-          <div className="absolute inset-y-0 left-0 hidden w-[58%] bg-gradient-to-r from-black/90 via-black/70 to-transparent lg:block" />
-          <div className="relative z-10 max-w-2xl">
+        <div className="relative z-10 mx-auto hidden min-h-[100vh] w-full max-w-[1500px] grid-cols-[0.82fr_1.18fr] items-center gap-12 px-10 py-12 lg:grid xl:gap-16">
+          <div className="pointer-events-none absolute left-0 top-0 h-full w-[54%] bg-gradient-to-r from-black/95 via-[#170607]/82 to-transparent" />
+          <div className="pointer-events-none absolute left-12 top-16 h-52 w-52 rounded-full bg-[#8b0000]/25 blur-3xl" />
+          <div className="pointer-events-none absolute bottom-16 left-1/3 h-36 w-36 rounded-full bg-[#d4af37]/14 blur-3xl" />
+          <div className="relative z-10 max-w-2xl kais-fade-up">
             <p className={`text-xs font-bold uppercase tracking-[0.28em] ${isRedRoses ? "text-[#d4af37]" : "text-white/70"}`}>{event.event_type}</p>
             {invitedGuest ? <p className="mt-5 text-xs font-semibold uppercase tracking-[0.2em] text-white/60">Hola, {invitedGuest.guest_name}</p> : null}
-            <h1 className={`mt-5 max-w-2xl font-display text-[clamp(4.5rem,8vw,8rem)] font-bold leading-[0.88] drop-shadow-sm ${isRedRoses ? "text-[#fff7ed]" : "text-white"}`}>
+            <h1 className={`mt-5 max-w-2xl font-display text-[clamp(5rem,8vw,9rem)] font-bold leading-[0.84] drop-shadow-[0_12px_32px_rgba(0,0,0,0.45)] ${isRedRoses ? "text-[#fff7ed]" : "text-white"}`}>
               {event.hosts_names}
             </h1>
             <p className={`mt-6 text-xl font-semibold ${isRedRoses ? "text-[#facc15]" : "text-white/90"}`}>{formatDate(event.event_date)} · {event.event_time}</p>
             <p className="mt-5 line-clamp-2 max-w-xl text-base leading-8 text-white/72">{event.main_message}</p>
 
             <div className="mt-8 flex flex-wrap gap-3">
-              <Button asChild className="px-6">
+              <Button asChild className="border border-[#facc15]/35 bg-[#d4af37] px-7 text-[#170607] shadow-[0_18px_45px_rgba(212,175,55,0.2)] hover:bg-[#facc15]">
                 <a href="#rsvp">Confirmar asistencia</a>
               </Button>
               <Button variant="secondary" asChild>
@@ -268,7 +270,7 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
                   Cómo llegar
                 </a>
               </Button>
-              <Button variant="outline" className="border-white/30 bg-white/10 text-white hover:bg-white/20" asChild>
+              <Button variant="outline" className="border-white/25 bg-white/10 text-white backdrop-blur hover:bg-white/20" asChild>
                 <a href={calendarUrl} target="_blank">
                   <CalendarPlus className="h-4 w-4" />
                   Calendario
@@ -276,7 +278,7 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
               </Button>
             </div>
 
-            <div className="mt-8 max-w-xl">
+            <div className="mt-8 max-w-xl rounded-2xl border border-white/15 bg-white/10 p-3 shadow-[0_24px_70px_rgba(0,0,0,0.28)] backdrop-blur-xl">
               <Countdown date={event.event_date} time={event.event_time} compact />
             </div>
             <div className="mt-5 max-w-2xl">
@@ -284,7 +286,7 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
             </div>
           </div>
 
-          <div className="relative z-10 h-[78vh] min-h-[560px] overflow-hidden rounded-[1.75rem] border border-white/15 bg-white/10 shadow-2xl">
+          <div className="relative z-10 h-[84vh] min-h-[620px] overflow-hidden rounded-[2rem] border border-[#d4af37]/18 bg-white/10 shadow-[0_30px_100px_rgba(0,0,0,0.48)] kais-fade-up-delay kais-soft-float">
             {event.cover_image_url || event.mobile_cover_image_url ? (
               <Image
                 src={event.cover_image_url ?? event.mobile_cover_image_url ?? ""}
@@ -292,7 +294,7 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
                 fill
                 priority
                 sizes="52vw"
-                className="object-cover"
+                className="object-cover transition-transform duration-[1600ms] hover:scale-[1.025]"
               />
             ) : (
               <div
@@ -304,39 +306,40 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
         </div>
       </section>
 
-      <section className={`section ${isRedRoses ? "bg-[#170607] text-[#fff7ed]" : ""}`} id="detalles">
+      <section className="section relative overflow-hidden bg-[#080506] text-[#fff7ed]" id="detalles">
+        <div className="pointer-events-none absolute -left-20 top-24 h-64 w-64 rounded-full bg-[#8b0000]/18 blur-3xl" />
         <div className="mx-auto grid max-w-5xl gap-5 md:grid-cols-3">
           {[
             ["Fecha", formatDate(event.event_date)],
             ["Hora", event.event_time],
             ["Lugar", event.address]
           ].map(([label, value]) => (
-            <Card key={label}>
-              <CardHeader><CardTitle>{label}</CardTitle></CardHeader>
-              <CardContent className="text-muted-foreground">{value}</CardContent>
+            <Card key={label} className="kais-luxury-panel rounded-2xl bg-transparent text-[#fff7ed] transition-transform duration-300 hover:-translate-y-1">
+              <CardHeader><CardTitle className="text-sm uppercase tracking-[0.22em] text-[#d4af37]">{label}</CardTitle></CardHeader>
+              <CardContent className="text-[#fff7ed]/78">{value}</CardContent>
             </Card>
           ))}
         </div>
         <div className="mx-auto mt-10 max-w-3xl text-center">
-          <p className="text-sm font-bold uppercase tracking-[0.18em] text-accent">Mensaje especial</p>
-          <h2 className="mt-3 font-display text-4xl font-bold">{event.title}</h2>
-          <p className="mt-5 leading-8 text-muted-foreground">{event.main_message}</p>
+          <p className="text-sm font-bold uppercase tracking-[0.24em] text-[#d4af37]">Mensaje especial</p>
+          <h2 className="mt-4 font-display text-4xl font-bold md:text-6xl">{event.title}</h2>
+          <p className="mt-6 leading-8 text-[#fff7ed]/72">{event.main_message}</p>
           {event.dress_code ? <p className="mt-5 font-semibold">Código de vestimenta: {event.dress_code}</p> : null}
         </div>
       </section>
 
-      <section className={`section ${isRedRoses ? "bg-[#2a090d] text-[#fff7ed]" : "bg-white"}`} id="rsvp">
+      <section className="section bg-[#120708] text-[#fff7ed]" id="rsvp">
         <div className="mx-auto grid max-w-5xl gap-8 lg:grid-cols-[0.85fr_1.15fr]">
           <div>
-            <p className="text-sm font-bold uppercase tracking-[0.18em] text-accent">RSVP</p>
-            <h2 className="mt-3 font-display text-4xl font-bold">Confirma tu asistencia</h2>
-            <p className="mt-4 text-muted-foreground">
+            <p className="text-sm font-bold uppercase tracking-[0.24em] text-[#d4af37]">RSVP</p>
+            <h2 className="mt-3 font-display text-4xl font-bold md:text-5xl">Confirma tu asistencia</h2>
+            <p className="mt-4 text-[#fff7ed]/70">
               {invitedGuest ? `Hola, ${invitedGuest.guest_name}. Puedes confirmar o editar tu respuesta.` : "Tu respuesta ayuda a los anfitriones a preparar cada detalle."}
             </p>
             {normalizeSearchParam(query.rsvp) === "ok" ? <StatusMessage variant="success">Confirmación recibida.</StatusMessage> : null}
             {normalizeSearchParam(query.rsvp_error) ? <StatusMessage variant="error">{normalizeSearchParam(query.rsvp_error)}</StatusMessage> : null}
           </div>
-          <Card>
+          <Card className="kais-luxury-panel rounded-2xl bg-transparent text-[#fff7ed]">
             <CardContent className="p-6">
               <form action={rsvpAction} className="grid gap-4">
                 <input type="hidden" name="slug" value={event.slug} />
@@ -369,7 +372,7 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
                 <Field label="Mensaje">
                   <Textarea name="message" defaultValue={invitedGuestRsvp?.message ?? ""} />
                 </Field>
-                <Button>
+                <Button className="bg-[#d4af37] text-[#170607] hover:bg-[#facc15]">
                   <Send className="h-4 w-4" />
                   Enviar confirmación
                 </Button>
@@ -379,21 +382,21 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
         </div>
       </section>
 
-      <section className={`section ${isRedRoses ? "bg-[#170607] text-[#fff7ed]" : "bg-muted/60"}`} id="fotos">
+      <section className="section bg-[#080506] text-[#fff7ed]" id="fotos">
         <div className="mx-auto grid max-w-5xl gap-8 lg:grid-cols-[0.9fr_1.1fr]">
           <div>
-            <p className="text-sm font-bold uppercase tracking-[0.18em] text-accent">Galería</p>
-            <h2 className="mt-3 font-display text-4xl font-bold">Comparte fotos del evento</h2>
+            <p className="text-sm font-bold uppercase tracking-[0.24em] text-[#d4af37]">Galería</p>
+            <h2 className="mt-3 font-display text-4xl font-bold md:text-5xl">Comparte fotos del evento</h2>
             {normalizeSearchParam(query.foto) === "ok" ? <StatusMessage variant="success">Foto recibida para moderación.</StatusMessage> : null}
             {normalizeSearchParam(query.foto_error) ? <StatusMessage variant="error">{normalizeSearchParam(query.foto_error)}</StatusMessage> : null}
-            <form action={photoAction} className="mt-6 grid gap-4 rounded-lg border bg-white p-5">
+            <form action={photoAction} className="kais-luxury-panel mt-6 grid gap-4 rounded-2xl p-5">
               <Field label="Tu nombre">
                 <Input name="guest_name" />
               </Field>
               <Field label="Foto">
                 <Input name="photo" type="file" accept="image/*" required />
               </Field>
-              <Button>
+              <Button className="bg-[#d4af37] text-[#170607] hover:bg-[#facc15]">
                 <Camera className="h-4 w-4" />
                 Subir fotos
               </Button>
@@ -401,15 +404,15 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             {photos.map((photo) => (
-              <img key={photo.id} src={photo.public_url} alt="" className="aspect-[4/3] rounded-lg object-cover" />
+              <img key={photo.id} src={photo.public_url} alt="" className="aspect-[4/3] rounded-2xl border border-[#d4af37]/15 object-cover shadow-2xl" />
             ))}
-            {photos.length === 0 ? <p className="text-sm text-muted-foreground">Las fotos aprobadas aparecerán aquí.</p> : null}
+            {photos.length === 0 ? <p className="text-sm text-[#fff7ed]/65">Las fotos aprobadas aparecerán aquí.</p> : null}
           </div>
         </div>
       </section>
 
-      <footer className="border-t bg-white px-4 py-8 text-center text-sm text-muted-foreground">
-        Powered by <Link href="/" className="font-bold text-foreground">KAIS INVITACIONES</Link>
+      <footer className="border-t border-[#d4af37]/15 bg-[#080506] px-4 py-8 text-center text-sm text-[#fff7ed]/55">
+        Powered by <Link href="/" className="font-bold text-[#d4af37]">KAIS INVITACIONES</Link>
       </footer>
     </main>
   );

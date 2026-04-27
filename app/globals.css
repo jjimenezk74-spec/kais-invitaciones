@@ -45,6 +45,48 @@ html {
   padding: 5rem 1rem;
 }
 
+.kais-fade-up {
+  animation: kais-fade-up 720ms ease-out both;
+}
+
+.kais-fade-up-delay {
+  animation: kais-fade-up 920ms ease-out 120ms both;
+}
+
+.kais-soft-float {
+  animation: kais-soft-float 7s ease-in-out infinite;
+}
+
+.kais-luxury-panel {
+  background: linear-gradient(135deg, rgba(255, 247, 237, 0.11), rgba(255, 255, 255, 0.045));
+  border: 1px solid rgba(212, 175, 55, 0.22);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.34);
+  backdrop-filter: blur(18px);
+}
+
+@keyframes kais-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(22px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes kais-soft-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
 @media (min-width: 768px) {
   .section {
     padding: 7rem 2rem;

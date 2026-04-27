@@ -28,6 +28,9 @@ type PreviewState = {
   eventType: string;
   eventDate: string;
   eventTime: string;
+  address: string;
+  mainMessage: string;
+  musicUrl: string;
   heroImageUrl: string;
 };
 
@@ -57,6 +60,9 @@ export function EventForm({ action, event, clients = [], businessClients = [], t
     eventType: event?.event_type ?? "boda",
     eventDate: event?.event_date ?? "",
     eventTime: event?.event_time ?? "",
+    address: event?.address ?? "",
+    mainMessage: event?.main_message ?? "",
+    musicUrl: event?.music_url ?? "",
     heroImageUrl: event?.mobile_cover_image_url ?? event?.cover_image_url ?? ""
   });
   const submitAfterUploadRef = useRef(false);
@@ -190,6 +196,9 @@ export function EventForm({ action, event, clients = [], businessClients = [], t
         eventType={preview.eventType}
         eventDate={preview.eventDate}
         eventTime={preview.eventTime}
+        address={preview.address}
+        mainMessage={preview.mainMessage}
+        musicUrl={preview.musicUrl}
         heroImageUrl={previewImageObjectUrl || preview.heroImageUrl}
       />
 
@@ -336,6 +345,9 @@ function updatePreviewFromForm(
     eventType: getInputValue(form, "event_type"),
     eventDate: getInputValue(form, "event_date"),
     eventTime: getInputValue(form, "event_time"),
+    address: getInputValue(form, "address"),
+    mainMessage: getInputValue(form, "main_message"),
+    musicUrl: getInputValue(form, "music_url"),
     heroImageUrl: nextHeroImageUrl
   });
 

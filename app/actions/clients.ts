@@ -73,6 +73,7 @@ async function assertCanManageClients() {
 function getClientPayload(formData: FormData) {
   return {
     name: String(formData.get("name") ?? "").trim(),
+    plan_id: nullable(formData.get("plan_id")),
     contact_name: nullable(formData.get("contact_name")),
     phone: nullable(formData.get("phone")),
     whatsapp: nullable(formData.get("whatsapp")),

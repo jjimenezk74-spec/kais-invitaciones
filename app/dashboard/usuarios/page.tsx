@@ -11,7 +11,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentProfile } from "@/app/actions/events";
 import type { Profile, UserRole } from "@/lib/types";
 
-const INTERNAL_ROLES: UserRole[] = ["super_admin", "admin_kais", "diseñador", "soporte_evento"];
+const INTERNAL_ROLES: UserRole[] = ["super_admin", "admin_kais", "diseñador", "soporte_evento", "vendedor"];
 
 export default async function InternalUsersPage({
   searchParams

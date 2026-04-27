@@ -6,7 +6,7 @@ import { getCurrentUserProfile, isSuperAdmin } from "@/lib/profiles";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { UserRole } from "@/lib/types";
 
-const INTERNAL_ROLES = ["super_admin", "admin", "admin_kais", "diseñador", "soporte_evento"] as const;
+const INTERNAL_ROLES = ["super_admin", "admin", "admin_kais", "diseñador", "soporte_evento", "vendedor"] as const;
 
 export async function createInternalUser(formData: FormData) {
   await assertSuperAdmin();

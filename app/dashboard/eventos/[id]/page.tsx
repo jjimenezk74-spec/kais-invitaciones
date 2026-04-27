@@ -24,7 +24,15 @@ import { canModerateEvents, getCurrentUserProfile, isKaisAdmin } from "@/lib/pro
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Client, Event, EventGuest, EventLogin, EventPhoto, InvitationTemplate, Rsvp } from "@/lib/types";
-import { absoluteUrl, buildCredentialsMessage, buildGuestWhatsAppMessage, buildWhatsAppUrl, guestEventUrl, publicEventUrl } from "@/lib/utils";
+import {
+  absoluteUrl,
+  buildCredentialsMessage,
+  buildGuestReminderMessage,
+  buildGuestWhatsAppMessage,
+  buildWhatsAppUrl,
+  guestEventUrl,
+  publicEventUrl
+} from "@/lib/utils";
 
 export default async function EventDetailPage({
   params,
@@ -300,6 +308,7 @@ export default async function EventDetailPage({
                   {guests.map((guest) => {
                     const link = guestEventUrl(event.slug, guest.token);
                     const whatsapp = buildWhatsAppUrl(guest.phone, buildGuestWhatsAppMessage(guest.guest_name, event.title, link));
+                    const reminder = buildWhatsAppUrl(guest.phone, buildGuestReminderMessage(guest.guest_name, event.title, link));
                     return (
                       <tr key={guest.id} className="border-b align-top">
                         <td className="py-3">
@@ -313,6 +322,11 @@ export default async function EventDetailPage({
                           <div className="flex flex-wrap gap-2">
                             <CopyLinkButton value={link} label="Copiar enlace" />
                             <Button size="sm" variant="outline" asChild><a href={whatsapp} target="_blank">Enviar WhatsApp</a></Button>
+                            <Button size="sm" variant="outline" asChild><a href={reminder} target="_blank">Recordatorio</a></Button>
+                            <div className="w-full rounded-md border bg-white p-2">
+                              <p className="mb-2 text-xs font-semibold text-muted-foreground">QR acceso invitado</p>
+                              <QrDownload value={link} filename={`kais-${event.slug}-${guest.guest_name.replace(/[^a-zA-Z0-9]+/g, "-")}`} />
+                            </div>
                             <form action={toggleEventGuestBlocked.bind(null, guest.id, event.id, guest.status !== "bloqueado")}>
                               <Button size="sm" variant="outline">{guest.status === "bloqueado" ? "Desbloquear" : "Bloquear"}</Button>
                             </form>
@@ -387,9 +401,15 @@ export default async function EventDetailPage({
 
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2"><ImageIcon className="h-5 w-5" /> Fotos subidas</CardTitle>
+          <CardTitle className="flex items-center gap-2"><ImageIcon className="h-5 w-5" /> Álbum en vivo</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-3">
+          <div className="rounded-lg border bg-background p-4 md:col-span-3">
+            <p className="text-sm font-semibold">Moderación del álbum</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {photos.filter((photo) => photo.status === "aprobada" && photo.is_public).length} públicas · {photos.filter((photo) => photo.status === "pendiente").length} pendientes
+            </p>
+          </div>
           {photos.map((photo) => (
             <div key={photo.id} className="overflow-hidden rounded-lg border bg-background">
               <img src={photo.public_url} alt="" className="aspect-[4/3] w-full object-cover" />

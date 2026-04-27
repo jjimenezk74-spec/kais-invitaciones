@@ -18,7 +18,7 @@ export function canCreateEvents(role?: string | null) {
 }
 
 export function canManageClients(role?: string | null) {
-  return role === "super_admin" || role === "admin_kais";
+  return role === "super_admin" || role === "admin_kais" || role === "vendedor";
 }
 
 export function canModerateEvents(role?: string | null) {

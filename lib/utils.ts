@@ -32,6 +32,17 @@ export function buildGuestWhatsAppMessage(guestName: string, eventTitle: string,
   ].join("\n");
 }
 
+export function buildGuestReminderMessage(guestName: string, eventTitle: string, guestLink: string) {
+  return [
+    `Hola ${guestName}, te recordamos confirmar tu asistencia a ${eventTitle}.`,
+    "",
+    "Puedes revisar o editar tu respuesta aqui:",
+    guestLink,
+    "",
+    "Este enlace es personal."
+  ].join("\n");
+}
+
 export function buildWhatsAppUrl(phone: string, message: string) {
   const normalizedPhone = phone.replace(/[^\d]/g, "");
   return `https://wa.me/${normalizedPhone}?text=${encodeURIComponent(message)}`;

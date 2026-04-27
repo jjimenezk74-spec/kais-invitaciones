@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Eye, PartyPopper, Plus, Users } from "lucide-react";
+import { BarChart3, Eye, PartyPopper, Plus, TrendingUp, Users } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/app/actions/events";
 import { Button } from "@/components/ui/button";
@@ -32,11 +32,15 @@ export default async function DashboardPage({
   ]);
 
   const published = events.filter((event) => event.status === "publicado").length;
+  const upcoming = events.filter((event) => new Date(`${event.event_date}T23:59:59`) >= new Date()).length;
+  const conversion = visitsCount ? Math.round(((rsvpsCount ?? 0) / visitsCount) * 100) : 0;
   const metrics = [
     { label: "Eventos", value: events.length, Icon: PartyPopper },
     { label: "Publicados", value: published, Icon: Eye },
     { label: "RSVP", value: rsvpsCount ?? 0, Icon: Users },
-    { label: "Visitas", value: visitsCount ?? 0, Icon: Eye }
+    { label: "Visitas", value: visitsCount ?? 0, Icon: BarChart3 },
+    { label: "Próximos", value: upcoming, Icon: TrendingUp },
+    { label: "Conversión", value: `${conversion}%`, Icon: TrendingUp }
   ];
 
   return (
@@ -59,7 +63,7 @@ export default async function DashboardPage({
         ) : null}
       </div>
 
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-6">
         {metrics.map(({ label, value, Icon }) => (
           <Card key={label}>
             <CardHeader>

@@ -114,6 +114,7 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
   const isRedRoses = template?.slug === "rosas-rojas-15";
   const primary = template?.config.primary ?? event.theme_color;
   const secondary = template?.config.secondary ?? "#f8fafc";
+  const hasHeroCover = Boolean(event.cover_image_url || event.mobile_cover_image_url);
 
   return (
     <main
@@ -125,19 +126,31 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
       </div>
       <section
         className={`relative flex min-h-[92vh] items-end overflow-hidden px-4 py-6 text-white shadow-soft ${isRedRoses ? "border-b border-[#d4af37]/35" : ""}`}
-        style={!event.cover_image_url ? { background: isRedRoses ? "linear-gradient(145deg, #170607, #4c0710 55%, #8b0000)" : `linear-gradient(145deg, ${event.theme_color}, #155e75 58%, #e11d48)` } : undefined}
+        style={!hasHeroCover ? { background: isRedRoses ? "linear-gradient(145deg, #170607, #4c0710 55%, #8b0000)" : `linear-gradient(145deg, ${event.theme_color}, #155e75 58%, #e11d48)` } : undefined}
       >
         {isRedRoses ? <RedRosesFrame /> : null}
-        {event.cover_image_url ? (
+        {event.mobile_cover_image_url || event.cover_image_url ? (
           <>
-            <Image
-              src={event.cover_image_url}
-              alt={`Foto de portada de ${event.hosts_names}`}
-              fill
-              priority
-              sizes="100vw"
-              className="object-cover transition-transform duration-700 ease-out"
-            />
+            {event.mobile_cover_image_url ? (
+              <Image
+                src={event.mobile_cover_image_url}
+                alt={`Foto de portada movil de ${event.hosts_names}`}
+                fill
+                priority
+                sizes="100vw"
+                className={`object-cover transition-transform duration-700 ease-out ${event.cover_image_url ? "md:hidden" : ""}`}
+              />
+            ) : null}
+            {event.cover_image_url ? (
+              <Image
+                src={event.cover_image_url}
+                alt={`Foto de portada de ${event.hosts_names}`}
+                fill
+                priority
+                sizes="100vw"
+                className={`object-cover transition-transform duration-700 ease-out ${event.mobile_cover_image_url ? "hidden md:block" : ""}`}
+              />
+            ) : null}
             <div className={`absolute inset-0 ${isRedRoses ? "bg-black/45" : "bg-black/40"}`} />
             <div className={`absolute inset-0 ${isRedRoses ? "bg-gradient-to-t from-[#170607] via-black/35 to-[#8b0000]/20" : "bg-gradient-to-t from-black/80 via-black/35 to-black/15"}`} />
           </>

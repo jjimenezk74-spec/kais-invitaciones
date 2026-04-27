@@ -1,6 +1,6 @@
 create extension if not exists "pgcrypto";
 
-create type public.user_role as enum ('super_admin', 'admin', 'admin_kais', 'diseñador', 'soporte_evento', 'cliente');
+create type public.user_role as enum ('super_admin', 'admin', 'admin_kais', 'diseñador', 'soporte_evento', 'vendedor', 'cliente');
 create type public.event_type as enum ('boda', 'cumpleaños', 'quinceaños', 'bautizo', 'baby shower', 'corporativo', 'graduación', 'otro');
 create type public.event_status as enum ('borrador', 'publicado', 'inactivo');
 
@@ -27,6 +27,7 @@ create table public.events (
   main_message text,
   dress_code text,
   cover_image_url text,
+  mobile_cover_image_url text,
   music_url text,
   theme_color text not null default '#111827',
   status public.event_status not null default 'borrador',
@@ -40,6 +41,7 @@ create table public.clients (
   id uuid primary key default gen_random_uuid(),
   name text not null,
   contact_name text,
+  plan_id uuid,
   phone text,
   whatsapp text,
   email text,
@@ -47,6 +49,16 @@ create table public.clients (
   status text not null default 'activo' check (status in ('activo', 'inactivo')),
   created_at timestamptz not null default now(),
   created_by uuid references public.profiles(id)
+);
+
+create table public.commercial_plans (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  slug text unique not null,
+  price_label text,
+  features jsonb not null default '[]'::jsonb,
+  active boolean not null default true,
+  created_at timestamptz not null default now()
 );
 
 create table public.invitation_templates (
@@ -62,6 +74,9 @@ create table public.invitation_templates (
 
 alter table public.events
 add constraint events_client_id_fkey foreign key (client_id) references public.clients(id) on delete set null;
+
+alter table public.clients
+add constraint clients_plan_id_fkey foreign key (plan_id) references public.commercial_plans(id) on delete set null;
 
 alter table public.events
 add column template_id uuid references public.invitation_templates(id) on delete set null;
@@ -100,6 +115,8 @@ create table public.analytics_visits (
 create index events_owner_id_idx on public.events(owner_id);
 create index events_client_id_idx on public.events(client_id);
 create index clients_status_idx on public.clients(status);
+create index clients_plan_id_idx on public.clients(plan_id);
+create index commercial_plans_slug_idx on public.commercial_plans(slug);
 create index invitation_templates_slug_idx on public.invitation_templates(slug);
 create index events_slug_idx on public.events(slug);
 create index rsvps_event_id_idx on public.rsvps(event_id);

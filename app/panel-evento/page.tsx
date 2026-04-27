@@ -14,7 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getEventLoginSession } from "@/lib/event-login-auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Event, EventGuest, EventPhoto, Rsvp } from "@/lib/types";
-import { buildGuestWhatsAppMessage, buildWhatsAppUrl, formatDate, guestEventUrl, publicEventUrl } from "@/lib/utils";
+import { buildGuestReminderMessage, buildGuestWhatsAppMessage, buildWhatsAppUrl, formatDate, guestEventUrl, publicEventUrl } from "@/lib/utils";
 
 export default async function PanelEventoPage({
   searchParams
@@ -138,6 +138,7 @@ export default async function PanelEventoPage({
                 {typedGuests.map((guest) => {
                   const link = guestEventUrl(typedEvent.slug, guest.token);
                   const whatsapp = buildWhatsAppUrl(guest.phone, buildGuestWhatsAppMessage(guest.guest_name, typedEvent.title, link));
+                  const reminder = buildWhatsAppUrl(guest.phone, buildGuestReminderMessage(guest.guest_name, typedEvent.title, link));
                   return (
                     <tr key={guest.id} className="border-b align-top">
                       <td className="py-3 font-medium">{guest.guest_name}</td>
@@ -147,7 +148,10 @@ export default async function PanelEventoPage({
                         {link}
                         <div className="mt-2"><CopyLinkButton value={link} label="Copiar enlace" /></div>
                       </td>
-                      <td><Button size="sm" variant="outline" asChild><a href={whatsapp} target="_blank">Enviar WhatsApp</a></Button></td>
+                      <td className="flex flex-wrap gap-2">
+                        <Button size="sm" variant="outline" asChild><a href={whatsapp} target="_blank">Enviar WhatsApp</a></Button>
+                        <Button size="sm" variant="outline" asChild><a href={reminder} target="_blank">Recordatorio</a></Button>
+                      </td>
                     </tr>
                   );
                 })}
@@ -194,9 +198,15 @@ export default async function PanelEventoPage({
 
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2"><ImageIcon className="h-5 w-5" /> Moderar fotos</CardTitle>
+            <CardTitle className="flex items-center gap-2"><ImageIcon className="h-5 w-5" /> Álbum en vivo</CardTitle>
           </CardHeader>
           <CardContent className="grid gap-4 md:grid-cols-3">
+            <div className="rounded-lg border bg-background p-4 md:col-span-3">
+              <p className="font-semibold">Fotos del evento</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {typedPhotos.filter((photo) => photo.status === "aprobada" && photo.is_public).length} públicas · {typedPhotos.filter((photo) => photo.status === "pendiente").length} pendientes
+              </p>
+            </div>
             {typedPhotos.map((photo) => (
               <div key={photo.id} className="overflow-hidden rounded-lg border bg-background">
                 <img src={photo.public_url} alt="" className="aspect-[4/3] w-full object-cover" />

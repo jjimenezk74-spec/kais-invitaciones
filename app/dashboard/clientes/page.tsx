@@ -10,7 +10,7 @@ import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { canManageClients } from "@/lib/profiles";
 import { createAdminClient } from "@/lib/supabase/admin";
-import type { Client, Event } from "@/lib/types";
+import type { Client, CommercialPlan, Event } from "@/lib/types";
 
 export default async function ClientsPage({
   searchParams
@@ -24,12 +24,14 @@ export default async function ClientsPage({
   }
 
   const admin = createAdminClient();
-  const [{ data: clientsData }, { data: eventsData }] = await Promise.all([
+  const [{ data: clientsData }, { data: eventsData }, { data: plansData }] = await Promise.all([
     admin.from("clients").select("*").order("created_at", { ascending: false }),
-    admin.from("events").select("id,title,status,client_id").order("created_at", { ascending: false })
+    admin.from("events").select("id,title,status,client_id,event_date").order("created_at", { ascending: false }),
+    admin.from("commercial_plans").select("*").eq("active", true).order("created_at", { ascending: true })
   ]);
   const clients = (clientsData ?? []) as Client[];
-  const events = (eventsData ?? []) as Pick<Event, "id" | "title" | "status" | "client_id">[];
+  const events = (eventsData ?? []) as Pick<Event, "id" | "title" | "status" | "client_id" | "event_date">[];
+  const plans = (plansData ?? []) as CommercialPlan[];
 
   return (
     <div className="grid gap-8">
@@ -54,6 +56,14 @@ export default async function ClientsPage({
             </Field>
             <Field label="Persona de contacto">
               <Input name="contact_name" />
+            </Field>
+            <Field label="Plan comercial">
+              <Select name="plan_id" defaultValue="">
+                <option value="">Sin plan asignado</option>
+                {plans.map((plan) => (
+                  <option key={plan.id} value={plan.id}>{plan.name} {plan.price_label ? `· ${plan.price_label}` : ""}</option>
+                ))}
+              </Select>
             </Field>
             <Field label="Telefono">
               <Input name="phone" />
@@ -85,6 +95,7 @@ export default async function ClientsPage({
       <div className="grid gap-5">
         {clients.map((client) => {
           const clientEvents = events.filter((event) => event.client_id === client.id);
+          const plan = plans.find((item) => item.id === client.plan_id);
           return (
             <Card key={client.id}>
               <CardHeader>
@@ -92,7 +103,7 @@ export default async function ClientsPage({
                   <div>
                     <CardTitle>{client.name}</CardTitle>
                     <p className="mt-1 text-sm text-muted-foreground">
-                      {client.contact_name || "Sin contacto"} · {client.status}
+                      {client.contact_name || "Sin contacto"} · {client.status} · {plan?.name ?? "Sin plan"}
                     </p>
                   </div>
                   <form action={toggleClientStatus.bind(null, client.id, client.status === "activo" ? "inactivo" : "activo")}>
@@ -109,6 +120,14 @@ export default async function ClientsPage({
                   </Field>
                   <Field label="Contacto">
                     <Input name="contact_name" defaultValue={client.contact_name ?? ""} />
+                  </Field>
+                  <Field label="Plan comercial">
+                    <Select name="plan_id" defaultValue={client.plan_id ?? ""}>
+                      <option value="">Sin plan asignado</option>
+                      {plans.map((item) => (
+                        <option key={item.id} value={item.id}>{item.name} {item.price_label ? `· ${item.price_label}` : ""}</option>
+                      ))}
+                    </Select>
                   </Field>
                   <Field label="Telefono">
                     <Input name="phone" defaultValue={client.phone ?? ""} />
@@ -140,7 +159,7 @@ export default async function ClientsPage({
                   <div className="mt-3 grid gap-2">
                     {clientEvents.map((event) => (
                       <Link key={event.id} href={`/dashboard/eventos/${event.id}`} className="text-sm font-semibold text-accent">
-                        {event.title} · {event.status}
+                        {event.title} · {event.status} · {event.event_date}
                       </Link>
                     ))}
                     {clientEvents.length === 0 ? <p className="text-sm text-muted-foreground">Sin eventos asociados todavia.</p> : null}

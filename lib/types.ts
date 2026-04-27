@@ -1,4 +1,4 @@
-export type UserRole = "super_admin" | "admin" | "admin_kais" | "diseñador" | "soporte_evento" | "cliente";
+export type UserRole = "super_admin" | "admin" | "admin_kais" | "diseñador" | "soporte_evento" | "vendedor" | "cliente";
 export type EventStatus = "borrador" | "publicado" | "inactivo";
 export type GuestMode = "publico" | "lista_invitados";
 export type InvitationTemplateConfig = {
@@ -45,6 +45,7 @@ export type Event = {
   main_message: string | null;
   dress_code: string | null;
   cover_image_url: string | null;
+  mobile_cover_image_url: string | null;
   music_url: string | null;
   theme_color: string;
   status: EventStatus;
@@ -69,6 +70,7 @@ export type Client = {
   id: string;
   name: string;
   contact_name: string | null;
+  plan_id: string | null;
   phone: string | null;
   whatsapp: string | null;
   email: string | null;
@@ -76,6 +78,16 @@ export type Client = {
   status: "activo" | "inactivo";
   created_at: string;
   created_by: string | null;
+};
+
+export type CommercialPlan = {
+  id: string;
+  name: string;
+  slug: string;
+  price_label: string | null;
+  features: string[];
+  active: boolean;
+  created_at: string;
 };
 
 export type EventGuest = {

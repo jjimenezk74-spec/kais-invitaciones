@@ -45,9 +45,11 @@ export async function createEvent(formData: FormData) {
   let musicUrl: string | null;
   const manualCoverUrl = nullable(formData.get("cover_image_url"));
   const coverFile = getOptionalFile(formData.get("cover_image_file"));
+  const mobileCoverFile = getOptionalFile(formData.get("mobile_cover_image_file"));
 
   try {
     if (coverFile) validateCoverImageFile(coverFile);
+    if (mobileCoverFile) validateCoverImageFile(mobileCoverFile);
     musicUrl = await getMusicUrlFromForm(formData, supabase, user.id);
   } catch (error) {
     redirect(`/dashboard/eventos/nuevo?error=${encodeURIComponent(getErrorMessage(error))}`);
@@ -65,6 +67,7 @@ export async function createEvent(formData: FormData) {
     main_message: nullable(formData.get("main_message")),
     dress_code: nullable(formData.get("dress_code")),
     cover_image_url: manualCoverUrl,
+    mobile_cover_image_url: nullable(formData.get("mobile_cover_image_url")),
     music_url: musicUrl,
     theme_color: String(formData.get("theme_color") || "#111827"),
     status: getEventStatus(formData.get("status")),
@@ -77,12 +80,16 @@ export async function createEvent(formData: FormData) {
   const { data, error } = await supabase.from("events").insert(payload).select("id").single();
   if (error) throw new Error(error.message);
 
-  if (coverFile) {
+  if (coverFile || mobileCoverFile) {
     try {
-      const coverImageUrl = await uploadCoverImage(coverFile, supabase, data.id);
+      const coverImageUrl = coverFile ? await uploadCoverImage(coverFile, supabase, data.id, "desktop") : null;
+      const mobileCoverImageUrl = mobileCoverFile ? await uploadCoverImage(mobileCoverFile, supabase, data.id, "mobile") : null;
       const { error: coverUpdateError } = await supabase
         .from("events")
-        .update({ cover_image_url: coverImageUrl })
+        .update({
+          ...(coverImageUrl ? { cover_image_url: coverImageUrl } : {}),
+          ...(mobileCoverImageUrl ? { mobile_cover_image_url: mobileCoverImageUrl } : {})
+        })
         .eq("id", data.id);
 
       if (coverUpdateError) {
@@ -107,12 +114,18 @@ export async function updateEvent(eventId: string, formData: FormData) {
 
   let musicUrl: string | null;
   let coverImageUrl = nullable(formData.get("cover_image_url"));
+  let mobileCoverImageUrl = nullable(formData.get("mobile_cover_image_url"));
   const coverFile = getOptionalFile(formData.get("cover_image_file"));
+  const mobileCoverFile = getOptionalFile(formData.get("mobile_cover_image_file"));
 
   try {
     if (coverFile) {
       validateCoverImageFile(coverFile);
-      coverImageUrl = await uploadCoverImage(coverFile, supabase, eventId);
+      coverImageUrl = await uploadCoverImage(coverFile, supabase, eventId, "desktop");
+    }
+    if (mobileCoverFile) {
+      validateCoverImageFile(mobileCoverFile);
+      mobileCoverImageUrl = await uploadCoverImage(mobileCoverFile, supabase, eventId, "mobile");
     }
     musicUrl = await getMusicUrlFromForm(formData, supabase, user.id);
   } catch (error) {
@@ -130,6 +143,7 @@ export async function updateEvent(eventId: string, formData: FormData) {
     main_message: nullable(formData.get("main_message")),
     dress_code: nullable(formData.get("dress_code")),
     cover_image_url: coverImageUrl,
+    mobile_cover_image_url: mobileCoverImageUrl,
     music_url: musicUrl,
     theme_color: String(formData.get("theme_color") || "#111827"),
     status: getEventStatus(formData.get("status")),
@@ -160,7 +174,7 @@ export async function deleteEvent(eventId: string) {
   const admin = createAdminClient();
   const { data: event, error: eventError } = await admin
     .from("events")
-    .select("id,title,cover_image_url,music_url")
+    .select("id,title,cover_image_url,mobile_cover_image_url,music_url")
     .eq("id", eventId)
     .maybeSingle();
 
@@ -171,6 +185,7 @@ export async function deleteEvent(eventId: string) {
   const { data: photosData } = await admin.from("event_photos").select("storage_path").eq("event_id", eventId);
   const storageWarnings = await deleteEventStorageFiles({
     coverImageUrl: event.cover_image_url,
+    mobileCoverImageUrl: event.mobile_cover_image_url,
     musicUrl: event.music_url,
     photoPaths: (photosData ?? []).map((photo) => photo.storage_path).filter(Boolean)
   });
@@ -506,10 +521,10 @@ async function getMusicUrlFromForm(formData: FormData, supabase: ServerSupabaseC
   return data.publicUrl;
 }
 
-async function uploadCoverImage(file: File, supabase: ServerSupabaseClient, eventId: string) {
+async function uploadCoverImage(file: File, supabase: ServerSupabaseClient, eventId: string, variant = "desktop") {
   const extension = getFileExtension(file.name);
   const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "-");
-  const path = `covers/${eventId}/${crypto.randomUUID()}-${safeName || `cover${extension}`}`;
+  const path = `covers/${eventId}/${variant}/${crypto.randomUUID()}-${safeName || `cover${extension}`}`;
   const { error } = await supabase.storage.from("event-photos").upload(path, file, {
     cacheControl: "31536000",
     contentType: file.type || getCoverContentType(extension),
@@ -571,17 +586,25 @@ function getCoverContentType(extension: string) {
 
 async function deleteEventStorageFiles({
   coverImageUrl,
+  mobileCoverImageUrl,
   musicUrl,
   photoPaths
 }: {
   coverImageUrl: string | null;
+  mobileCoverImageUrl: string | null;
   musicUrl: string | null;
   photoPaths: string[];
 }) {
   const admin = createAdminClient();
   const warnings: string[] = [];
   const eventPhotoPaths = Array.from(
-    new Set([...photoPaths, getStoragePathFromPublicUrl(coverImageUrl, "event-photos")].filter(Boolean) as string[])
+    new Set(
+      [
+        ...photoPaths,
+        getStoragePathFromPublicUrl(coverImageUrl, "event-photos"),
+        getStoragePathFromPublicUrl(mobileCoverImageUrl, "event-photos")
+      ].filter(Boolean) as string[]
+    )
   );
   const eventAudioPath = getStoragePathFromPublicUrl(musicUrl, "event-audio");
 

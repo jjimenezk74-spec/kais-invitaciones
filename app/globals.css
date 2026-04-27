@@ -608,3 +608,264 @@ select.kais-input-luxe option { background: #0a0405; color: var(--kais-ivory); }
     inset-inline: 1rem;
   }
 }
+
+/* ====================================================
+   KAIS · DESIGN PRESETS — Font, Background, Animation, Decoration
+   Applied via kais-font-*, kais-bg-*, kais-motion-*, kais-decor-* classes
+   on <main class="kais-stage">.
+   ==================================================== */
+
+/* --- Font Presets ---
+   Descendant selector (specificity 0-2-0) beats Tailwind .font-display (0-1-0). */
+
+.kais-font-romantic-script .font-display {
+  font-family: var(--font-romantic-script, cursive);
+  font-style: normal;
+  font-weight: 400;
+}
+
+.kais-font-luxury-serif .font-display {
+  font-family: var(--font-luxury-serif, Georgia, serif);
+  font-style: italic;
+}
+
+.kais-font-royal-classic .font-display {
+  font-family: var(--font-royal-classic, serif);
+  font-style: normal;
+  font-weight: 400;
+  letter-spacing: 0.10em;
+}
+
+.kais-font-modern-chic .font-display {
+  font-family: var(--font-modern-chic, sans-serif);
+  font-style: normal;
+  font-weight: 300;
+  letter-spacing: 0.05em;
+}
+
+/* --- Background Variants ---
+   Compound selector (.kais-bg-X.kais-stage) beats .kais-stage alone. */
+
+.kais-bg-dark-roses.kais-stage {
+  background:
+    radial-gradient(70% 45% at 50% 0%, rgba(120,10,25,0.44), transparent 55%),
+    radial-gradient(40% 30% at 18% 62%, rgba(80,8,18,0.30), transparent 50%),
+    radial-gradient(50% 35% at 82% 68%, rgba(60,5,15,0.24), transparent 55%),
+    radial-gradient(120% 80% at 50% 0%, #120306 0%, #060304 55%, #030202 100%);
+}
+
+.kais-bg-satin-red.kais-stage {
+  background:
+    repeating-linear-gradient(
+      105deg,
+      rgba(180,15,30,0) 0px,
+      rgba(180,15,30,0.025) 1px,
+      rgba(180,15,30,0) 2px,
+      rgba(180,15,30,0) 10px
+    ),
+    radial-gradient(80% 60% at 50% -5%, rgba(150,12,28,0.50), transparent 60%),
+    radial-gradient(120% 80% at 50% 0%, #1c0508 0%, #0a0304 60%, #050202 100%);
+}
+
+.kais-bg-gold-glow.kais-stage {
+  background:
+    radial-gradient(55% 40% at 50% 0%, rgba(212,175,55,0.18), transparent 56%),
+    radial-gradient(35% 28% at 16% 42%, rgba(212,175,55,0.08), transparent 52%),
+    radial-gradient(35% 28% at 84% 42%, rgba(212,175,55,0.08), transparent 52%),
+    radial-gradient(120% 80% at 50% 0%, #1a0508 0%, #080506 60%, #050304 100%);
+}
+.kais-bg-gold-glow .kais-gold-text {
+  filter: drop-shadow(0 0 12px rgba(212,175,55,0.42));
+}
+
+.kais-bg-romantic-floral.kais-stage {
+  background:
+    radial-gradient(65% 50% at 50% 0%, rgba(105,15,32,0.34), transparent 58%),
+    radial-gradient(45% 38% at 10% 55%, rgba(78,10,24,0.20), transparent 52%),
+    radial-gradient(45% 38% at 90% 55%, rgba(78,10,24,0.20), transparent 52%),
+    radial-gradient(35% 25% at 50% 95%, rgba(90,12,26,0.16), transparent 50%),
+    radial-gradient(120% 80% at 50% 0%, #180508 0%, #090405 58%, #060304 100%);
+}
+
+/* --- Animation Presets ---
+   ::before on <main> — position: fixed covers the full viewport.
+   pointer-events: none ensures no interaction interference. */
+
+/* soft-petals */
+@keyframes kais-petals-drift {
+  0%   { transform: translateY(0) rotate(0deg); opacity: 0; }
+  12%  { opacity: 1; }
+  88%  { opacity: 0.55; }
+  100% { transform: translateY(-72px) rotate(14deg); opacity: 0; }
+}
+@keyframes kais-petals-drift-2 {
+  0%   { transform: translateY(0) rotate(0deg); opacity: 0; }
+  15%  { opacity: 0.8; }
+  85%  { opacity: 0.4; }
+  100% { transform: translateY(-90px) rotate(-10deg); opacity: 0; }
+}
+.kais-motion-soft-petals::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background-image:
+    radial-gradient(ellipse 10px 15px at 14% 92%, rgba(160,18,35,0.30) 0%, transparent 100%),
+    radial-gradient(ellipse 8px 12px at 32% 88%, rgba(212,175,55,0.16) 0%, transparent 100%),
+    radial-gradient(ellipse 13px 9px at 68% 91%, rgba(160,18,35,0.24) 0%, transparent 100%),
+    radial-gradient(ellipse 9px 14px at 84% 86%, rgba(212,175,55,0.13) 0%, transparent 100%),
+    radial-gradient(ellipse 11px 17px at 50% 94%, rgba(160,18,35,0.20) 0%, transparent 100%),
+    radial-gradient(ellipse 7px 11px at 22% 82%, rgba(212,175,55,0.11) 0%, transparent 100%);
+  animation: kais-petals-drift 9s ease-in-out infinite, kais-petals-drift-2 13s ease-in-out 3s infinite;
+}
+
+/* gold-sparkles */
+@keyframes kais-sparkle-fade {
+  0%, 100% { opacity: 0.06; }
+  50%       { opacity: 0.20; }
+}
+.kais-motion-gold-sparkles::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background-image:
+    radial-gradient(circle at center, rgba(245,213,114,0.92) 0 1px, transparent 1.5px),
+    radial-gradient(circle at center, rgba(212,175,55,0.72) 0 1px, transparent 1.5px),
+    radial-gradient(circle at center, rgba(245,213,114,0.82) 0 1px, transparent 1.5px),
+    radial-gradient(circle at center, rgba(212,175,55,0.62) 0 1px, transparent 1.5px),
+    radial-gradient(circle at center, rgba(245,213,114,0.88) 0 1px, transparent 1.5px);
+  background-size: 24rem 24rem, 18rem 18rem, 22rem 22rem, 28rem 28rem, 20rem 20rem;
+  background-position: 18% 24%, 76% 18%, 64% 66%, 28% 74%, 50% 45%;
+  background-repeat: repeat;
+  animation: kais-sparkle-fade 4.5s ease-in-out infinite;
+}
+
+/* elegant-glow */
+@keyframes kais-glow-breathe {
+  0%, 100% { opacity: 0.45; }
+  50%       { opacity: 1; }
+}
+.kais-motion-elegant-glow::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 65% 45% at 50% 0%, rgba(212,175,55,0.22), transparent 66%),
+    radial-gradient(ellipse 50% 40% at 50% 105%, rgba(140,12,25,0.24), transparent 62%);
+  animation: kais-glow-breathe 7s ease-in-out infinite;
+}
+
+/* --- Decoration Levels (standalone, works on any template) --- */
+
+/* medium: section hairlines + rose halo behind headings */
+.kais-decor-medium .kais-section {
+  overflow: hidden;
+}
+.kais-decor-medium .kais-section::before {
+  content: "";
+  position: absolute;
+  inset-inline: 1.5rem;
+  top: 0;
+  height: 1px;
+  pointer-events: none;
+  background: linear-gradient(90deg,
+    transparent,
+    rgba(212,175,55,0.36),
+    rgba(245,213,114,0.60),
+    rgba(212,175,55,0.36),
+    transparent);
+}
+.kais-decor-medium .kais-section h2 {
+  position: relative;
+  isolation: isolate;
+}
+.kais-decor-medium .kais-section h2::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: -1;
+  width: min(24rem, 85vw);
+  height: min(14rem, 44vw);
+  transform: translate(-50%, -48%);
+  border-radius: 999px;
+  background: radial-gradient(circle,
+    rgba(110,15,30,0.18),
+    rgba(212,175,55,0.05) 42%,
+    transparent 72%);
+  filter: blur(16px);
+  pointer-events: none;
+}
+
+/* premium: stronger hairlines, halo, bottom ornament per section, enhanced glass */
+.kais-decor-premium .kais-section {
+  overflow: hidden;
+}
+.kais-decor-premium .kais-section::before {
+  content: "";
+  position: absolute;
+  inset-inline: 1.5rem;
+  top: 0;
+  height: 1px;
+  pointer-events: none;
+  background: linear-gradient(90deg,
+    transparent,
+    rgba(212,175,55,0.46),
+    rgba(245,213,114,0.76),
+    rgba(212,175,55,0.46),
+    transparent);
+}
+.kais-decor-premium .kais-section h2 {
+  position: relative;
+  isolation: isolate;
+}
+.kais-decor-premium .kais-section h2::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: -1;
+  width: min(28rem, 88vw);
+  height: min(18rem, 54vw);
+  transform: translate(-50%, -48%);
+  border-radius: 999px;
+  background: radial-gradient(circle,
+    rgba(126,20,34,0.24),
+    rgba(212,175,55,0.07) 38%,
+    transparent 70%);
+  filter: blur(18px);
+  pointer-events: none;
+}
+.kais-decor-premium .kais-section::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 2.5rem;
+  width: min(16rem, 52vw);
+  height: 1px;
+  transform: translateX(-50%);
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(212,175,55,0.52), transparent);
+  box-shadow:
+    -3.5rem 0 0 -0.5px rgba(120,18,30,0.40),
+     3.5rem 0 0 -0.5px rgba(120,18,30,0.40);
+}
+.kais-decor-premium .kais-glass {
+  border-color: rgba(212,175,55,0.28);
+  box-shadow:
+    0 32px 90px -30px rgba(0,0,0,0.65),
+    inset 0 1px 0 rgba(245,213,114,0.22),
+    inset 0 0 0 1px rgba(212,175,55,0.12);
+}
+
+@media (max-width: 767px) {
+  .kais-decor-medium .kais-section::before,
+  .kais-decor-premium .kais-section::before {
+    inset-inline: 1rem;
+  }
+}

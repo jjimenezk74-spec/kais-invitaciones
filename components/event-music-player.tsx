@@ -121,15 +121,20 @@ export function EventMusicPlayer({ url, compact = false }: { url: string | null;
     >
       <div className={compact ? "flex items-center gap-2" : "flex items-center gap-3"}>
         {compact ? (
-          <button
-            type="button"
-            onClick={toggleCompactPlayback}
-            aria-label={isPlaying ? "Pausar musica" : "Reproducir musica"}
-            aria-expanded={isMobilePanelOpen}
-            className={`flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-full lg:h-8 lg:w-8 ${isPlaying ? "kais-disc is-playing" : "kais-disc"}`}
-          >
-            {isPlaying ? <Pause className="h-4 w-4 lg:h-3.5 lg:w-3.5" /> : <Play className="h-4 w-4 lg:h-3.5 lg:w-3.5" />}
-          </button>
+          <>
+            <button
+              type="button"
+              onClick={toggleCompactPlayback}
+              aria-label={isPlaying ? "Pausar musica" : "Reproducir musica"}
+              aria-expanded={isMobilePanelOpen}
+              className={`flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-full lg:hidden ${isPlaying ? "kais-disc is-playing" : "kais-disc"}`}
+            >
+              {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+            </button>
+            <div className="hidden h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[#d4af37]/25 bg-white/10 text-[#d4af37] lg:flex">
+              <Music2 className="h-3.5 w-3.5" />
+            </div>
+          </>
         ) : (
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-white/15">
             <Music2 className="h-5 w-5" />

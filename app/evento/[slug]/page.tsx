@@ -119,7 +119,7 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
         <BackButton from={normalizeSearchParam(query.from)} />
       </div>
 
-      <div className="fixed right-4 top-[calc(env(safe-area-inset-top)_+_16px)] z-50 lg:right-5 lg:top-[max(0.75rem,env(safe-area-inset-top))]">
+      <div className="kais-music-float">
         <EventMusicPlayer url={event.music_url} compact />
       </div>
 

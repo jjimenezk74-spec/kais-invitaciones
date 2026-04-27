@@ -375,6 +375,25 @@ select.kais-input-luxe option { background: #0a0405; color: var(--kais-ivory); }
 .kais-disc.is-playing { animation: kais-disc-spin 9s linear infinite; }
 @keyframes kais-disc-spin { from { transform: rotate(0); } to { transform: rotate(360deg); } }
 
+.kais-music-float {
+  position: fixed;
+  top: calc(env(safe-area-inset-top) + 16px);
+  right: 16px;
+  z-index: 9999;
+  width: 52px;
+  height: 52px;
+}
+
+@media (min-width: 1024px) {
+  .kais-music-float {
+    top: max(0.75rem, env(safe-area-inset-top));
+    right: 1.25rem;
+    z-index: 50;
+    width: auto;
+    height: auto;
+  }
+}
+
 /* --- Animaciones de entrada (rise + blur) --- */
 @keyframes kais-rise {
   from { opacity: 0; transform: translateY(28px); filter: blur(6px); }

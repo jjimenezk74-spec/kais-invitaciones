@@ -104,7 +104,7 @@ export function EventMusicPlayer({ url, compact = false }: { url: string | null;
             type="button"
             onClick={togglePlayback}
             aria-label={isPlaying ? "Pausar musica" : "Reproducir musica"}
-            className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full lg:h-8 lg:w-8 ${isPlaying ? "kais-disc is-playing" : "kais-disc"}`}
+            className={`flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-full lg:h-8 lg:w-8 ${isPlaying ? "kais-disc is-playing" : "kais-disc"}`}
           >
             <Music2 className="h-4 w-4 lg:h-3.5 lg:w-3.5" />
           </button>

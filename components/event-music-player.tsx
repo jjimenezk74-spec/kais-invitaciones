@@ -90,16 +90,12 @@ export function EventMusicPlayer({ url, compact = false }: { url: string | null;
     }
   }
 
-  const compactAudio = compact && source.kind === "audio";
-
   return (
     <div
       className={
-        compactAudio
+        compact
           ? "lg:rounded-2xl lg:border lg:border-[#d4af37]/30 lg:bg-black/55 lg:p-2.5 lg:text-[#f5ecd9] lg:shadow-[0_18px_40px_-18px_rgba(0,0,0,0.7)] lg:backdrop-blur-xl"
-          : compact
-            ? "rounded-2xl border border-[#d4af37]/30 bg-black/55 p-2.5 text-[#f5ecd9] shadow-[0_18px_40px_-18px_rgba(0,0,0,0.7)] backdrop-blur-xl"
-            : "rounded-lg border border-white/25 bg-white/15 p-4 text-white shadow-soft backdrop-blur"
+          : "rounded-lg border border-white/25 bg-white/15 p-4 text-white shadow-soft backdrop-blur"
       }
     >
       <div className={compact ? "flex items-center gap-2" : "flex items-center gap-3"}>
@@ -188,7 +184,7 @@ export function EventMusicPlayer({ url, compact = false }: { url: string | null;
       ) : null}
 
       {source.kind === "external" ? (
-        <div className="mt-4">
+        <div className={compact ? "hidden lg:mt-4 lg:block" : "mt-4"}>
           <Button type="button" variant="secondary" asChild>
             <a href={source.url} target="_blank" rel="noreferrer">
               <ExternalLink className="h-4 w-4" />
@@ -202,7 +198,7 @@ export function EventMusicPlayer({ url, compact = false }: { url: string | null;
       ) : null}
 
       {source.kind === "unsupported" || source.kind === "invalid" ? (
-        <div className="mt-4 flex gap-3 rounded-md border border-white/20 bg-white/10 p-3 text-sm text-white/85">
+        <div className={compact ? "hidden lg:mt-4 lg:flex lg:gap-3 lg:rounded-md lg:border lg:border-white/20 lg:bg-white/10 lg:p-3 lg:text-sm lg:text-white/85" : "mt-4 flex gap-3 rounded-md border border-white/20 bg-white/10 p-3 text-sm text-white/85"}>
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
           <p>{source.message}</p>
         </div>

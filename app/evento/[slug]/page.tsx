@@ -119,7 +119,7 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
         <BackButton from={normalizeSearchParam(query.from)} />
       </div>
 
-      <div className="fixed right-3 top-[max(0.75rem,env(safe-area-inset-top))] z-50 sm:right-5">
+      <div className="fixed right-4 top-[calc(env(safe-area-inset-top)_+_16px)] z-50 lg:right-5 lg:top-[max(0.75rem,env(safe-area-inset-top))]">
         <EventMusicPlayer url={event.music_url} compact />
       </div>
 
@@ -161,7 +161,7 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
         <div className="pointer-events-none absolute -left-32 top-1/3 h-80 w-80 rounded-full bg-[#d4af37]/[0.08] blur-3xl lg:left-[-10%] lg:h-[28rem] lg:w-[28rem]" />
         <div className="pointer-events-none absolute -bottom-20 right-[-10%] h-72 w-72 rounded-full bg-[#3a0a12]/40 blur-3xl" />
 
-        <div className="relative z-10 mx-auto flex min-h-[100svh] w-full max-w-[1500px] flex-col justify-end px-5 pb-16 pt-36 sm:px-7 lg:grid lg:grid-cols-12 lg:items-center lg:gap-10 lg:px-12 lg:pb-0 lg:pt-0">
+        <div className="relative z-10 mx-auto flex min-h-[100svh] w-full max-w-[1500px] flex-col justify-end px-5 pb-20 pt-40 sm:px-7 lg:grid lg:grid-cols-12 lg:items-center lg:gap-10 lg:px-12 lg:pb-0 lg:pt-0">
           <div className="text-center lg:col-span-6 lg:py-24 lg:text-left xl:col-span-5">
             <div className="kais-rise flex items-center justify-center gap-3 lg:justify-start">
               <span className="block h-px w-10 kais-hairline" />
@@ -176,13 +176,13 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
             ) : null}
 
             <h1
-              className="kais-rise-d1 mt-10 font-display font-light italic leading-[0.92] text-[#f5ecd9] drop-shadow-[0_8px_28px_rgba(0,0,0,0.6)] lg:mt-5"
+              className="kais-rise-d1 mt-12 font-display font-light italic leading-[0.92] text-[#f5ecd9] drop-shadow-[0_8px_28px_rgba(0,0,0,0.6)] lg:mt-5"
               style={{ fontSize: "clamp(3.4rem, 12vw, 8.5rem)" }}
             >
               {event.hosts_names}
             </h1>
 
-            <div className="kais-rise-d2 mt-10 flex items-center justify-center gap-4 lg:mt-8 lg:justify-start">
+            <div className="kais-rise-d2 mt-12 flex items-center justify-center gap-4 lg:mt-8 lg:justify-start">
               <span className="block h-px w-12 kais-hairline" />
               <p className="font-display text-lg italic text-[#d4af37] sm:text-xl md:text-2xl">
                 {formatDate(event.event_date)} <span className="text-[#d4af37]/60">·</span> {event.event_time}
@@ -200,7 +200,7 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
               <Countdown date={event.event_date} time={event.event_time} variant="luxe" />
             </div>
 
-            <div className="kais-rise-d4 mt-14 flex flex-col items-stretch gap-6 lg:mt-12 lg:flex-row lg:items-center">
+            <div className="kais-rise-d4 mt-12 flex flex-col items-stretch gap-6 lg:mt-12 lg:flex-row lg:items-center">
               <a href="#rsvp" className="kais-cta w-full lg:w-auto">Confirmar asistencia</a>
               <div className="hidden flex-wrap items-center gap-x-7 gap-y-4 lg:flex">
                 <a href={event.google_maps_link ?? "#detalles"} target="_blank" rel="noreferrer" className="kais-ghost-link">
@@ -351,8 +351,8 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
             ) : null}
           </div>
 
-          <div className="kais-glass relative rounded-[2rem] p-7 sm:p-9 md:p-11">
-            <form action={rsvpAction} className="grid gap-7">
+          <div className="kais-glass relative rounded-[2rem] p-6 sm:p-9 md:p-11">
+            <form action={rsvpAction} className="grid gap-5 md:gap-7">
               <input type="hidden" name="slug" value={event.slug} />
               <input type="hidden" name="guest_token" value={guestToken} />
 
@@ -366,7 +366,7 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
                 />
               </LuxeField>
 
-              <div className="grid gap-7 md:grid-cols-2">
+              <div className="grid gap-5 md:grid-cols-2 md:gap-7">
                 <LuxeField label="Telefono">
                   <input name="phone" defaultValue={invitedGuest?.phone ?? invitedGuestRsvp?.phone ?? ""} className="kais-input-luxe" />
                 </LuxeField>
@@ -375,7 +375,7 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
                 </LuxeField>
               </div>
 
-              <div className="grid gap-7 md:grid-cols-2">
+              <div className="grid gap-5 md:grid-cols-2 md:gap-7">
                 <LuxeField label="Asistira?">
                   <select name="attending" defaultValue={invitedGuestRsvp?.attending === false ? "no" : "si"} className="kais-input-luxe">
                     <option value="si">Sí, con gusto</option>
@@ -500,7 +500,7 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
 function LuxeField({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block">
-      <span className="kais-eyebrow text-[0.6rem] tracking-[0.36em] text-[#d4af37]/85">{label}</span>
+      <span className="kais-eyebrow text-[0.66rem] tracking-[0.28em] text-[#f5d572] md:text-[0.6rem] md:tracking-[0.36em] md:text-[#d4af37]/85">{label}</span>
       <div className="mt-2.5">{children}</div>
     </label>
   );

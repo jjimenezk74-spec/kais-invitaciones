@@ -159,14 +159,45 @@ export function EventForm({ action, event, clients = [], businessClients = [], t
             <p className="text-sm font-bold uppercase tracking-[0.18em] text-accent">Diseño de invitación</p>
             <p className="mt-1 text-sm text-muted-foreground">Personaliza la apariencia premium de la invitacion.</p>
           </div>
-          <Button type="button" variant="outline" className="w-full border-accent/40 sm:w-fit" onClick={(event) => restoreDefaultDesign(event.currentTarget.form)}>
+          <Button type="button" variant="outline" className="w-full border-accent/40 sm:w-fit" onClick={(e) => restoreDefaultDesign(e.currentTarget.form)}>
             Restaurar diseño original
           </Button>
         </div>
-        <input type="hidden" name="design_font_preset" defaultValue={designConfig.fontPreset} />
-        <input type="hidden" name="design_background_variant" defaultValue={designConfig.backgroundVariant} />
-        <input type="hidden" name="design_animation_preset" defaultValue={designConfig.animationPreset} />
-        <input type="hidden" name="design_decoration_level" defaultValue={designConfig.decorationLevel} />
+        <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <Field label="Fuente">
+            <Select name="design_font_preset" defaultValue={designConfig.fontPreset}>
+              <option value="default">Default</option>
+              <option value="romantic-script">Romantic Script</option>
+              <option value="luxury-serif">Luxury Serif</option>
+              <option value="royal-classic">Royal Classic</option>
+              <option value="modern-chic">Modern Chic</option>
+            </Select>
+          </Field>
+          <Field label="Fondo">
+            <Select name="design_background_variant" defaultValue={designConfig.backgroundVariant}>
+              <option value="default">Default</option>
+              <option value="dark-roses">Dark Roses</option>
+              <option value="satin-red">Satin Red</option>
+              <option value="gold-glow">Gold Glow</option>
+              <option value="romantic-floral">Romantic Floral</option>
+            </Select>
+          </Field>
+          <Field label="Animación">
+            <Select name="design_animation_preset" defaultValue={designConfig.animationPreset}>
+              <option value="none">Ninguna</option>
+              <option value="soft-petals">Soft Petals</option>
+              <option value="gold-sparkles">Gold Sparkles</option>
+              <option value="elegant-glow">Elegant Glow</option>
+            </Select>
+          </Field>
+          <Field label="Detalles decorativos">
+            <Select name="design_decoration_level" defaultValue={designConfig.decorationLevel}>
+              <option value="minimal">Minimal</option>
+              <option value="medium">Medium</option>
+              <option value="premium">Premium</option>
+            </Select>
+          </Field>
+        </div>
       </div>
 
       <div className="grid gap-5 md:grid-cols-2">
@@ -390,9 +421,9 @@ async function uploadPublicFile({
 }
 
 function setInputValue(form: HTMLFormElement, name: string, value: string) {
-  const input = form.elements.namedItem(name);
-  if (input instanceof HTMLInputElement) {
-    input.value = value;
+  const el = form.elements.namedItem(name);
+  if (el instanceof HTMLInputElement || el instanceof HTMLSelectElement) {
+    el.value = value;
   }
 }
 
@@ -413,7 +444,7 @@ function validateFile(file: File | null, label: string, maxSize: number, allowed
   }
 
   if (file.size > maxSize) {
-    return `${label} supera el máximo permitido de ${formatBytes(maxSize)}. Comprime el archivo antes de subirlo.`;
+    return `${label} supera el maximo permitido de ${formatBytes(maxSize)}. Comprime el archivo antes de subirlo.`;
   }
 
   return "";

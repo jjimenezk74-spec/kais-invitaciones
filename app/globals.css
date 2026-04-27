@@ -472,3 +472,139 @@ select.kais-input-luxe option { background: #0a0405; color: var(--kais-ivory); }
   transition: border-color .4s ease, background .4s ease;
 }
 .kais-music-trigger:hover { border-color: var(--kais-gold-bright); background: rgba(8,5,6,0.7); }
+
+/* --- Rosas Rojas 15 · decoraciones premium opcionales --- */
+.kais-template-rosas-rojas-15.kais-roses-decor-medium,
+.kais-template-rosas-rojas-15.kais-roses-decor-premium {
+  background:
+    radial-gradient(70% 55% at 50% 0%, rgba(90,12,24,0.22), transparent 58%),
+    radial-gradient(120% 80% at 50% 0%, #1a0508 0%, #080506 60%, #050304 100%);
+}
+
+.kais-template-rosas-rojas-15.kais-roses-decor-medium .kais-grain::before,
+.kais-template-rosas-rojas-15.kais-roses-decor-premium .kais-grain::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  opacity: 0.34;
+  background:
+    radial-gradient(ellipse at 6% 12%, rgba(126,20,34,0.46) 0 2.2rem, transparent 2.35rem),
+    radial-gradient(ellipse at 10% 17%, rgba(58,10,18,0.56) 0 1.7rem, transparent 1.85rem),
+    radial-gradient(ellipse at 94% 14%, rgba(126,20,34,0.42) 0 2rem, transparent 2.2rem),
+    radial-gradient(ellipse at 90% 20%, rgba(58,10,18,0.52) 0 1.55rem, transparent 1.75rem),
+    linear-gradient(115deg, transparent 0%, rgba(245,213,114,0.055) 35%, transparent 56%);
+  mix-blend-mode: screen;
+}
+
+.kais-template-rosas-rojas-15.kais-roses-decor-medium .kais-section,
+.kais-template-rosas-rojas-15.kais-roses-decor-premium .kais-section {
+  overflow: hidden;
+}
+
+.kais-template-rosas-rojas-15.kais-roses-decor-medium .kais-section::before,
+.kais-template-rosas-rojas-15.kais-roses-decor-premium .kais-section::before {
+  content: "";
+  position: absolute;
+  inset-inline: 1.25rem;
+  top: 0;
+  height: 1px;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(212,175,55,0.44), rgba(245,213,114,0.72), rgba(212,175,55,0.44), transparent);
+}
+
+.kais-template-rosas-rojas-15.kais-roses-decor-medium .kais-section h2::before,
+.kais-template-rosas-rojas-15.kais-roses-decor-premium .kais-section h2::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: -1;
+  width: min(28rem, 88vw);
+  height: min(18rem, 54vw);
+  transform: translate(-50%, -48%);
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(126,20,34,0.22), rgba(212,175,55,0.06) 38%, transparent 70%);
+  filter: blur(18px);
+  pointer-events: none;
+}
+
+.kais-template-rosas-rojas-15.kais-roses-decor-medium .kais-section h2,
+.kais-template-rosas-rojas-15.kais-roses-decor-premium .kais-section h2 {
+  position: relative;
+  isolation: isolate;
+}
+
+.kais-template-rosas-rojas-15.kais-roses-decor-premium .kais-grain {
+  box-shadow:
+    inset 0 0 0 1px rgba(212,175,55,0.22),
+    inset 0 0 0 12px rgba(8,5,6,0.18);
+}
+
+.kais-template-rosas-rojas-15.kais-roses-decor-premium .kais-grain::before {
+  opacity: 0.48;
+  background:
+    radial-gradient(ellipse at 4% 10%, rgba(126,20,34,0.6) 0 2.8rem, transparent 3rem),
+    radial-gradient(ellipse at 9% 16%, rgba(90,12,24,0.72) 0 2.1rem, transparent 2.3rem),
+    radial-gradient(ellipse at 14% 8%, rgba(212,175,55,0.13) 0 0.9rem, transparent 1rem),
+    radial-gradient(ellipse at 96% 12%, rgba(126,20,34,0.56) 0 2.7rem, transparent 2.95rem),
+    radial-gradient(ellipse at 90% 19%, rgba(90,12,24,0.68) 0 2rem, transparent 2.25rem),
+    radial-gradient(ellipse at 86% 9%, rgba(212,175,55,0.12) 0 0.85rem, transparent 1rem),
+    linear-gradient(115deg, transparent 0%, rgba(245,213,114,0.075) 34%, transparent 58%);
+}
+
+.kais-template-rosas-rojas-15.kais-roses-decor-premium::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0.22;
+  background-image:
+    radial-gradient(circle at 18% 24%, rgba(245,213,114,0.6) 0 1px, transparent 1.5px),
+    radial-gradient(circle at 76% 18%, rgba(212,175,55,0.45) 0 1px, transparent 1.5px),
+    radial-gradient(circle at 64% 66%, rgba(245,213,114,0.38) 0 1px, transparent 1.5px),
+    radial-gradient(circle at 28% 74%, rgba(212,175,55,0.34) 0 1px, transparent 1.5px);
+  background-size: 18rem 18rem, 22rem 22rem, 20rem 20rem, 24rem 24rem;
+}
+
+.kais-template-rosas-rojas-15.kais-roses-decor-premium .kais-section::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 2.25rem;
+  width: min(18rem, 58vw);
+  height: 1px;
+  transform: translateX(-50%);
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, transparent, rgba(212,175,55,0.6), transparent);
+  box-shadow:
+    -4.5rem 0 0 -0.5px rgba(126,20,34,0.46),
+    4.5rem 0 0 -0.5px rgba(126,20,34,0.46);
+}
+
+@media (max-width: 767px) {
+  .kais-template-rosas-rojas-15.kais-roses-decor-medium .kais-grain::before,
+  .kais-template-rosas-rojas-15.kais-roses-decor-premium .kais-grain::before {
+    opacity: 0.22;
+    background:
+      radial-gradient(ellipse at 4% 9%, rgba(126,20,34,0.38) 0 1.65rem, transparent 1.85rem),
+      radial-gradient(ellipse at 96% 10%, rgba(126,20,34,0.34) 0 1.55rem, transparent 1.8rem),
+      linear-gradient(115deg, transparent 0%, rgba(245,213,114,0.04) 38%, transparent 62%);
+  }
+
+  .kais-template-rosas-rojas-15.kais-roses-decor-premium .kais-grain {
+    box-shadow: inset 0 0 0 1px rgba(212,175,55,0.14);
+  }
+
+  .kais-template-rosas-rojas-15.kais-roses-decor-premium::after {
+    opacity: 0.12;
+  }
+
+  .kais-template-rosas-rojas-15.kais-roses-decor-medium .kais-section::before,
+  .kais-template-rosas-rojas-15.kais-roses-decor-premium .kais-section::before {
+    inset-inline: 1rem;
+  }
+}

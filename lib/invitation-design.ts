@@ -22,7 +22,8 @@ const decorationLevels: InvitationDecorationLevel[] = ["minimal", "medium", "pre
 export function resolveInvitationDesign(
   config: InvitationTemplateConfig | null | undefined,
   fallbackPrimary: string,
-  eventDesignConfig?: Partial<InvitationDesignConfig> | null
+  eventDesignConfig?: Partial<InvitationDesignConfig> | null,
+  templateSlug?: string | null
 ) {
   const designConfig = normalizeInvitationDesignConfig({
     ...config,
@@ -37,7 +38,7 @@ export function resolveInvitationDesign(
     primary: config?.primary ?? fallbackPrimary,
     secondary: config?.secondary ?? "#f8fafc",
     stageClassName: "kais-stage relative font-sans",
-    designClassName: getDesignClassName(designConfig)
+    designClassName: getDesignClassName(designConfig, templateSlug)
   };
 }
 
@@ -58,7 +59,7 @@ export function normalizeInvitationDesignConfig(config: InvitationTemplateConfig
   };
 }
 
-function getDesignClassName(config: InvitationDesignConfig) {
+function getDesignClassName(config: InvitationDesignConfig, templateSlug?: string | null) {
   if (
     config.fontPreset === "default" &&
     config.backgroundVariant === "default" &&
@@ -68,12 +69,18 @@ function getDesignClassName(config: InvitationDesignConfig) {
     return "";
   }
 
-  return [
+  const classes = [
     `kais-font-${config.fontPreset}`,
     `kais-bg-${config.backgroundVariant}`,
     `kais-motion-${config.animationPreset}`,
     `kais-decor-${config.decorationLevel}`
-  ].join(" ");
+  ];
+
+  if (templateSlug === "rosas-rojas-15" && config.decorationLevel !== "minimal") {
+    classes.push("kais-template-rosas-rojas-15", `kais-roses-decor-${config.decorationLevel}`);
+  }
+
+  return classes.join(" ");
 }
 
 function isOneOf<T extends string>(value: string | undefined, options: readonly T[]): value is T {

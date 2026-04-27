@@ -376,7 +376,7 @@ select.kais-input-luxe option { background: #0a0405; color: var(--kais-ivory); }
 @keyframes kais-disc-spin { from { transform: rotate(0); } to { transform: rotate(360deg); } }
 
 .kais-music-float {
-  position: fixed;
+  position: absolute;
   top: calc(env(safe-area-inset-top) + 16px);
   right: 16px;
   z-index: 9999;
@@ -386,6 +386,7 @@ select.kais-input-luxe option { background: #0a0405; color: var(--kais-ivory); }
 
 @media (min-width: 1024px) {
   .kais-music-float {
+    position: fixed;
     top: max(0.75rem, env(safe-area-inset-top));
     right: 1.25rem;
     z-index: 50;

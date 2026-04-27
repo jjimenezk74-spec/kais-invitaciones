@@ -119,11 +119,11 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
         <BackButton from={normalizeSearchParam(query.from)} />
       </div>
 
-      <div className="kais-music-float">
-        <EventMusicPlayer url={event.music_url} compact />
-      </div>
-
       <section className="kais-grain relative isolate overflow-hidden" style={{ minHeight: "100svh" }}>
+        <div className="kais-music-float">
+          <EventMusicPlayer url={event.music_url} compact />
+        </div>
+
         <div className="absolute inset-0">
           {hasHeroCover ? (
             <>

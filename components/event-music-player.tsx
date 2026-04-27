@@ -106,17 +106,35 @@ export function EventMusicPlayer({ url, compact = false }: { url: string | null;
   }
 
   return (
-    <div className={`rounded-lg border border-white/25 bg-white/15 text-white shadow-soft backdrop-blur ${compact ? "p-3" : "p-4"}`}>
-      <div className="flex items-center gap-3">
-        <div className={`flex shrink-0 items-center justify-center rounded-md bg-white/15 ${compact ? "h-8 w-8" : "h-10 w-10"}`}>
-          <Music2 className={compact ? "h-4 w-4" : "h-5 w-5"} />
+    <div
+      className={
+        compact
+          ? "rounded-2xl border border-[#d4af37]/30 bg-black/55 p-2.5 text-[#f5ecd9] shadow-[0_18px_40px_-18px_rgba(0,0,0,0.7)] backdrop-blur-xl"
+          : "rounded-lg border border-white/25 bg-white/15 p-4 text-white shadow-soft backdrop-blur"
+      }
+    >
+      <div className={compact ? "flex items-center gap-2" : "flex items-center gap-3"}>
+        <div
+          className={
+            compact
+              ? `flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${isPlaying ? "kais-disc is-playing" : "kais-disc"}`
+              : "flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-white/15"
+          }
+        >
+          <Music2 className={compact ? "h-3.5 w-3.5" : "h-5 w-5"} />
         </div>
-        <div className="min-w-0">
-          <p className="text-sm font-semibold">Musica del evento</p>
-          <p className="truncate text-xs text-white/75">
-            {source.kind === "audio" ? "Audio listo para reproducir" : source.host ?? "Enlace de cancion"}
+        {compact ? (
+          <p className="hidden text-[0.62rem] font-semibold uppercase tracking-[0.32em] text-[#d4af37] sm:block">
+            {isPlaying ? "Sonando" : "Música"}
           </p>
-        </div>
+        ) : (
+          <div className="min-w-0">
+            <p className="text-sm font-semibold">Musica del evento</p>
+            <p className="truncate text-xs text-white/75">
+              {source.kind === "audio" ? "Audio listo para reproducir" : source.host ?? "Enlace de cancion"}
+            </p>
+          </div>
+        )}
       </div>
 
       {source.kind === "audio" ? (

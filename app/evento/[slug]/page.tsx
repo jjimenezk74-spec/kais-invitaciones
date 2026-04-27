@@ -10,6 +10,12 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate } from "@/lib/utils";
 import type { Event, EventGuest, EventPhoto, InvitationTemplate, Rsvp } from "@/lib/types";
+import {
+  NotPublishedScreen,
+  PersonalLinkRequired,
+  InvalidPersonalLink,
+  InactivePersonalLink
+} from "./_screens";
 
 type PageProps = {
   params: Promise<{ slug: string }>;
@@ -109,19 +115,15 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
       className="kais-stage relative font-sans"
       style={{ ["--template-primary" as string]: primary, ["--template-secondary" as string]: secondary }}
     >
-      {/* Back button */}
       <div className="fixed left-3 top-[max(0.75rem,env(safe-area-inset-top))] z-50 sm:left-5">
         <BackButton from={normalizeSearchParam(query.from)} />
       </div>
 
-      {/* Floating music — discreto, esquina superior derecha */}
       <div className="fixed right-3 top-[max(0.75rem,env(safe-area-inset-top))] z-50 sm:right-5">
         <EventMusicPlayer url={event.music_url} compact />
       </div>
 
-      {/* ============= HERO CINEMATOGRÁFICO ============= */}
       <section className="kais-grain relative isolate overflow-hidden" style={{ minHeight: "100svh" }}>
-        {/* Background image full-bleed */}
         <div className="absolute inset-0">
           {hasHeroCover ? (
             <>
@@ -149,64 +151,58 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
           ) : (
             <div
               className="h-full w-full"
-              style={{
-                background: `linear-gradient(145deg, ${event.theme_color}, #1a0508 55%, #3a0a12)`
-              }}
+              style={{ background: `linear-gradient(145deg, ${event.theme_color}, #1a0508 55%, #3a0a12)` }}
             />
           )}
-          {/* Veils que funden la imagen con el fondo (no la encajan) */}
           <div className="absolute inset-0 kais-veil-mobile lg:hidden" />
           <div className="absolute inset-0 hidden lg:block kais-veil-desktop" />
         </div>
 
-        {/* Glow ambient de oro */}
         <div className="pointer-events-none absolute -left-32 top-1/3 h-80 w-80 rounded-full bg-[#d4af37]/[0.08] blur-3xl lg:left-[-10%] lg:h-[28rem] lg:w-[28rem]" />
         <div className="pointer-events-none absolute -bottom-20 right-[-10%] h-72 w-72 rounded-full bg-[#3a0a12]/40 blur-3xl" />
 
-        {/* Contenido del hero */}
-        <div className="relative z-10 mx-auto flex min-h-[100svh] w-full max-w-[1500px] flex-col justify-end px-5 pb-12 pt-28 sm:px-7 lg:grid lg:grid-cols-12 lg:items-center lg:gap-10 lg:px-12 lg:pb-0 lg:pt-0">
-          <div className="lg:col-span-6 lg:py-24 xl:col-span-5">
-            <div className="kais-rise flex items-center gap-3">
+        <div className="relative z-10 mx-auto flex min-h-[100svh] w-full max-w-[1500px] flex-col justify-end px-5 pb-16 pt-36 sm:px-7 lg:grid lg:grid-cols-12 lg:items-center lg:gap-10 lg:px-12 lg:pb-0 lg:pt-0">
+          <div className="text-center lg:col-span-6 lg:py-24 lg:text-left xl:col-span-5">
+            <div className="kais-rise flex items-center justify-center gap-3 lg:justify-start">
               <span className="block h-px w-10 kais-hairline" />
               <p className="kais-eyebrow">{event.event_type}</p>
+              <span className="block h-px w-10 kais-hairline lg:hidden" />
             </div>
 
             {invitedGuest ? (
-              <p className="kais-rise-d1 mt-7 text-[0.66rem] font-semibold uppercase tracking-[0.38em] text-[#f5ecd9]/55 sm:text-[0.7rem]">
-                Para · {invitedGuest.guest_name}
+              <p className="kais-rise-d1 mt-7 hidden text-[0.66rem] font-semibold uppercase tracking-[0.38em] text-[#f5ecd9]/55 sm:text-[0.7rem] lg:block">
+                Para {invitedGuest.guest_name}
               </p>
             ) : null}
 
-            <h1 className="kais-rise-d1 mt-5 font-display font-light italic leading-[0.92] text-[#f5ecd9] drop-shadow-[0_8px_28px_rgba(0,0,0,0.6)]"
-                style={{ fontSize: "clamp(3.4rem, 12vw, 8.5rem)" }}>
+            <h1
+              className="kais-rise-d1 mt-10 font-display font-light italic leading-[0.92] text-[#f5ecd9] drop-shadow-[0_8px_28px_rgba(0,0,0,0.6)] lg:mt-5"
+              style={{ fontSize: "clamp(3.4rem, 12vw, 8.5rem)" }}
+            >
               {event.hosts_names}
             </h1>
 
-            <div className="kais-rise-d2 mt-8 flex items-center gap-4">
+            <div className="kais-rise-d2 mt-10 flex items-center justify-center gap-4 lg:mt-8 lg:justify-start">
               <span className="block h-px w-12 kais-hairline" />
               <p className="font-display text-lg italic text-[#d4af37] sm:text-xl md:text-2xl">
                 {formatDate(event.event_date)} <span className="text-[#d4af37]/60">·</span> {event.event_time}
               </p>
-              <span className="block h-px max-w-[160px] flex-1 kais-hairline" />
+              <span className="block h-px w-12 kais-hairline lg:w-auto lg:max-w-[160px] lg:flex-1" />
             </div>
 
             {event.main_message ? (
-              <p className="kais-rise-d2 mt-7 max-w-md text-[0.95rem] leading-[1.95] text-[#f5ecd9]/72 sm:max-w-lg">
+              <p className="kais-rise-d2 mt-7 hidden max-w-md text-[0.95rem] leading-[1.95] text-[#f5ecd9]/72 sm:max-w-lg lg:block">
                 {event.main_message}
               </p>
             ) : null}
 
-            {/* Countdown editorial */}
-            <div className="kais-rise-d3 mt-10 max-w-md sm:max-w-lg">
+            <div className="kais-rise-d3 mt-10 hidden max-w-md sm:max-w-lg lg:block">
               <Countdown date={event.event_date} time={event.event_time} variant="luxe" />
             </div>
 
-            {/* CTA y links secundarios */}
-            <div className="kais-rise-d4 mt-12 flex flex-col items-start gap-6 sm:flex-row sm:items-center">
-              <a href="#rsvp" className="kais-cta">
-                Confirmar asistencia
-              </a>
-              <div className="flex flex-wrap items-center gap-x-7 gap-y-4">
+            <div className="kais-rise-d4 mt-14 flex flex-col items-stretch gap-6 lg:mt-12 lg:flex-row lg:items-center">
+              <a href="#rsvp" className="kais-cta w-full lg:w-auto">Confirmar asistencia</a>
+              <div className="hidden flex-wrap items-center gap-x-7 gap-y-4 lg:flex">
                 <a href={event.google_maps_link ?? "#detalles"} target="_blank" rel="noreferrer" className="kais-ghost-link">
                   <MapPin className="h-3.5 w-3.5" />
                   Cómo llegar
@@ -219,11 +215,9 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
             </div>
           </div>
 
-          {/* Columna derecha vacía para que la foto respire en desktop */}
           <div aria-hidden className="hidden lg:col-span-6 lg:block xl:col-span-7" />
         </div>
 
-        {/* Indicador de scroll */}
         <a
           href="#detalles"
           aria-label="Bajar a detalles"
@@ -234,7 +228,42 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
         </a>
       </section>
 
-      {/* ============= DETALLES (editorial, sin cards) ============= */}
+      <section className="relative px-5 py-20 sm:py-24 lg:hidden" aria-label="Cuenta regresiva y mensaje">
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-px kais-hairline" />
+        <div className="pointer-events-none absolute -left-20 top-10 h-56 w-56 rounded-full bg-[#3a0a12]/35 blur-3xl" />
+        <div className="pointer-events-none absolute -right-16 bottom-12 h-48 w-48 rounded-full bg-[#d4af37]/[0.07] blur-3xl" />
+
+        <div className="relative mx-auto max-w-md text-center">
+          <div className="flex items-center justify-center gap-3">
+            <span className="block h-px w-10 kais-hairline" />
+            <p className="kais-eyebrow">{invitedGuest ? `Para ${invitedGuest.guest_name}` : "Faltan"}</p>
+            <span className="block h-px w-10 kais-hairline" />
+          </div>
+
+          <div className="mt-10">
+            <Countdown date={event.event_date} time={event.event_time} variant="luxe" />
+          </div>
+
+          {event.main_message ? (
+            <>
+              <span className="mx-auto mt-14 block h-px w-16 kais-hairline" />
+              <p className="mt-10 text-[0.95rem] leading-[1.95] text-[#f5ecd9]/72">{event.main_message}</p>
+            </>
+          ) : null}
+
+          <div className="mt-12 flex flex-wrap items-center justify-center gap-x-6 gap-y-4">
+            <a href={event.google_maps_link ?? "#detalles"} target="_blank" rel="noreferrer" className="kais-ghost-link">
+              <MapPin className="h-3.5 w-3.5" />
+              Cómo llegar
+            </a>
+            <a href={calendarUrl} target="_blank" rel="noreferrer" className="kais-ghost-link">
+              <CalendarPlus className="h-3.5 w-3.5" />
+              Calendario
+            </a>
+          </div>
+        </div>
+      </section>
+
       <section id="detalles" className="kais-section">
         <div className="pointer-events-none absolute -left-20 top-24 h-64 w-64 rounded-full bg-[#3a0a12]/35 blur-3xl" />
         <div className="pointer-events-none absolute -right-32 bottom-16 h-72 w-72 rounded-full bg-[#d4af37]/[0.06] blur-3xl" />
@@ -254,12 +283,9 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
           </h2>
 
           {event.main_message ? (
-            <p className="mx-auto mt-8 max-w-2xl text-[0.95rem] leading-[2] text-[#f5ecd9]/72">
-              {event.main_message}
-            </p>
+            <p className="mx-auto mt-8 max-w-2xl text-[0.95rem] leading-[2] text-[#f5ecd9]/72">{event.main_message}</p>
           ) : null}
 
-          {/* Tres datos sin cards: solo columnas con hairline divisor */}
           <div className="mt-16 grid grid-cols-1 gap-12 md:grid-cols-3 md:gap-0">
             {[
               ["Fecha", formatDate(event.event_date)],
@@ -269,7 +295,9 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
               <div
                 key={label}
                 className={`relative px-2 py-2 ${
-                  i > 0 ? "md:before:absolute md:before:inset-y-3 md:before:left-0 md:before:w-px md:before:bg-gradient-to-b md:before:from-transparent md:before:via-[#d4af37]/35 md:before:to-transparent" : ""
+                  i > 0
+                    ? "md:before:absolute md:before:inset-y-3 md:before:left-0 md:before:w-px md:before:bg-gradient-to-b md:before:from-transparent md:before:via-[#d4af37]/35 md:before:to-transparent"
+                    : ""
                 }`}
               >
                 <p className="kais-eyebrow">{label}</p>
@@ -287,7 +315,6 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
         </div>
       </section>
 
-      {/* ============= RSVP ============= */}
       <section id="rsvp" className="kais-section bg-[#0a0405]">
         <div className="pointer-events-none absolute inset-x-0 top-0 h-px kais-hairline" />
         <div className="pointer-events-none absolute -right-20 top-1/3 h-72 w-72 rounded-full bg-[#d4af37]/[0.07] blur-3xl" />
@@ -317,14 +344,10 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
             </p>
 
             {rsvpStatus === "ok" ? (
-              <p className="mt-7 inline-flex">
-                <span className="kais-status-success">Confirmación recibida</span>
-              </p>
+              <p className="mt-7 inline-flex"><span className="kais-status-success">Confirmación recibida</span></p>
             ) : null}
             {rsvpError ? (
-              <p className="mt-7 inline-flex">
-                <span className="kais-status-error">{rsvpError}</span>
-              </p>
+              <p className="mt-7 inline-flex"><span className="kais-status-error">{rsvpError}</span></p>
             ) : null}
           </div>
 
@@ -344,35 +367,22 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
               </LuxeField>
 
               <div className="grid gap-7 md:grid-cols-2">
-                <LuxeField label="Teléfono">
-                  <input
-                    name="phone"
-                    defaultValue={invitedGuest?.phone ?? invitedGuestRsvp?.phone ?? ""}
-                    className="kais-input-luxe"
-                  />
+                <LuxeField label="Telefono">
+                  <input name="phone" defaultValue={invitedGuest?.phone ?? invitedGuestRsvp?.phone ?? ""} className="kais-input-luxe" />
                 </LuxeField>
                 <LuxeField label="Email">
-                  <input
-                    name="email"
-                    type="email"
-                    defaultValue={invitedGuest?.email ?? invitedGuestRsvp?.email ?? ""}
-                    className="kais-input-luxe"
-                  />
+                  <input name="email" type="email" defaultValue={invitedGuest?.email ?? invitedGuestRsvp?.email ?? ""} className="kais-input-luxe" />
                 </LuxeField>
               </div>
 
               <div className="grid gap-7 md:grid-cols-2">
-                <LuxeField label="¿Asistirá?">
-                  <select
-                    name="attending"
-                    defaultValue={invitedGuestRsvp?.attending === false ? "no" : "si"}
-                    className="kais-input-luxe"
-                  >
+                <LuxeField label="Asistira?">
+                  <select name="attending" defaultValue={invitedGuestRsvp?.attending === false ? "no" : "si"} className="kais-input-luxe">
                     <option value="si">Sí, con gusto</option>
                     <option value="no">No podré asistir</option>
                   </select>
                 </LuxeField>
-                <LuxeField label="Acompañantes">
+                <LuxeField label="Acompanantes">
                   <input
                     name="companions"
                     type="number"
@@ -384,22 +394,12 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
                 </LuxeField>
               </div>
 
-              <LuxeField label="Restricción alimentaria">
-                <input
-                  name="dietary_restrictions"
-                  placeholder="Opcional"
-                  defaultValue={invitedGuestRsvp?.dietary_restrictions ?? ""}
-                  className="kais-input-luxe"
-                />
+              <LuxeField label="Restriccion alimentaria">
+                <input name="dietary_restrictions" placeholder="Opcional" defaultValue={invitedGuestRsvp?.dietary_restrictions ?? ""} className="kais-input-luxe" />
               </LuxeField>
 
               <LuxeField label="Mensaje para los anfitriones">
-                <textarea
-                  name="message"
-                  rows={3}
-                  defaultValue={invitedGuestRsvp?.message ?? ""}
-                  className="kais-input-luxe resize-none"
-                />
+                <textarea name="message" rows={3} defaultValue={invitedGuestRsvp?.message ?? ""} className="kais-input-luxe resize-none" />
               </LuxeField>
 
               <div className="mt-2">
@@ -413,7 +413,6 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
         </div>
       </section>
 
-      {/* ============= GALERÍA ============= */}
       <section id="fotos" className="kais-section">
         <div className="pointer-events-none absolute inset-x-0 top-0 h-px kais-hairline" />
 
@@ -438,14 +437,10 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
             </p>
 
             {photoStatus === "ok" ? (
-              <p className="mt-6 inline-flex">
-                <span className="kais-status-success">Foto recibida</span>
-              </p>
+              <p className="mt-6 inline-flex"><span className="kais-status-success">Foto recibida</span></p>
             ) : null}
             {photoError ? (
-              <p className="mt-6 inline-flex">
-                <span className="kais-status-error">{photoError}</span>
-              </p>
+              <p className="mt-6 inline-flex"><span className="kais-status-error">{photoError}</span></p>
             ) : null}
 
             <form action={photoAction} className="kais-glass mt-9 grid gap-6 rounded-[1.6rem] p-6 sm:p-8">
@@ -491,21 +486,16 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
         </div>
       </section>
 
-      {/* ============= FOOTER ============= */}
       <footer className="relative px-5 py-14 text-center">
         <div className="pointer-events-none absolute inset-x-0 top-0 h-px kais-hairline" />
         <p className="kais-eyebrow text-[0.62rem]">Una experiencia de</p>
         <p className="mt-4 font-display text-2xl italic">
-          <Link href="/" className="kais-gold-text kais-shimmer">
-            KAIS Invitaciones
-          </Link>
+          <Link href="/" className="kais-gold-text kais-shimmer">KAIS Invitaciones</Link>
         </p>
       </footer>
     </main>
   );
 }
-
-/* ============= helpers visuales ============= */
 
 function LuxeField({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -515,8 +505,6 @@ function LuxeField({ label, children }: { label: string; children: React.ReactNo
     </label>
   );
 }
-
-/* ============= helpers de datos (sin cambios) ============= */
 
 function buildCalendarUrl(event: Event) {
   const start = `${event.event_date.replaceAll("-", "")}T${event.event_time.replace(":", "")}00`;
@@ -545,70 +533,4 @@ async function getInvitationTemplate(templateId: string) {
 function normalizeSearchParam(value: string | string[] | undefined) {
   const raw = Array.isArray(value) ? value[0] : value;
   return String(raw ?? "").trim();
-}
-
-/* ============= pantallas de error ============= */
-
-function NotPublishedScreen() {
-  return (
-    <main className="kais-stage flex min-h-screen items-center justify-center px-4 text-center">
-      <div className="kais-rise">
-        <p className="kais-eyebrow">KAIS Invitaciones</p>
-        <h1 className="mt-5 font-display text-4xl font-light italic text-[#f5ecd9] md:text-5xl">
-          Esta invitación aún no está publicada.
-        </h1>
-        <p className="mt-5 max-w-md text-sm leading-7 text-[#f5ecd9]/65">
-          Cuando el evento esté en estado publicado, podrás verlo y compartirlo.
-        </p>
-      </div>
-    </main>
-  );
-}
-
-function PersonalLinkRequired() {
-  return (
-    <main className="kais-stage flex min-h-screen items-center justify-center px-4 text-center">
-      <div className="kais-rise">
-        <p className="kais-eyebrow">KAIS Invitaciones</p>
-        <h1 className="mt-5 font-display text-4xl font-light italic text-[#f5ecd9] md:text-5xl">
-          Esta invitación requiere enlace personal.
-        </h1>
-        <p className="mt-5 max-w-md text-sm leading-7 text-[#f5ecd9]/65">
-          Abre el enlace que recibiste por WhatsApp para confirmar tu asistencia.
-        </p>
-      </div>
-    </main>
-  );
-}
-
-function InvalidPersonalLink() {
-  return (
-    <main className="kais-stage flex min-h-screen items-center justify-center px-4 text-center">
-      <div className="kais-rise">
-        <p className="kais-eyebrow">KAIS Invitaciones</p>
-        <h1 className="mt-5 font-display text-4xl font-light italic text-[#f5ecd9] md:text-5xl">
-          Este enlace personal no es válido.
-        </h1>
-        <p className="mt-5 max-w-md text-sm leading-7 text-[#f5ecd9]/65">
-          Verifica que abriste el enlace completo enviado por WhatsApp.
-        </p>
-      </div>
-    </main>
-  );
-}
-
-function InactivePersonalLink() {
-  return (
-    <main className="kais-stage flex min-h-screen items-center justify-center px-4 text-center">
-      <div className="kais-rise">
-        <p className="kais-eyebrow">KAIS Invitaciones</p>
-        <h1 className="mt-5 font-display text-4xl font-light italic text-[#f5ecd9] md:text-5xl">
-          Este enlace ya no está activo.
-        </h1>
-        <p className="mt-5 max-w-md text-sm leading-7 text-[#f5ecd9]/65">
-          Contactá a los anfitriones si necesitás ayuda con tu invitación.
-        </p>
-      </div>
-    </main>
-  );
 }

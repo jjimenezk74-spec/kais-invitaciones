@@ -302,8 +302,7 @@ select.kais-input-luxe option { background: #0a0405; color: var(--kais-ivory); }
 
 /* --- Disco de música flotante --- */
 .kais-disc {
-  width: 44px;
-  height: 44px;
+  position: relative;
   border-radius: 999px;
   display: inline-flex;
   align-items: center;
@@ -311,13 +310,31 @@ select.kais-input-luxe option { background: #0a0405; color: var(--kais-ivory); }
   background: radial-gradient(circle at 30% 30%, #f5d572, #d4af37 55%, #7a5b15 100%);
   color: #1a0508;
   box-shadow:
-    0 10px 30px -8px rgba(212,175,55,0.6),
-    inset 0 0 0 1px rgba(245,213,114,0.6);
+    0 14px 36px -8px rgba(212,175,55,0.55),
+    0 4px 12px -4px rgba(0,0,0,0.6),
+    inset 0 0 0 1px rgba(245,213,114,0.65);
   border: 0;
   cursor: pointer;
-  transition: transform .5s cubic-bezier(.22,.94,.4,1);
+  transition: transform .5s cubic-bezier(.22,.94,.4,1), box-shadow .45s ease;
 }
-.kais-disc:hover { transform: scale(1.06) rotate(8deg); }
+.kais-disc::after {
+  content: "";
+  position: absolute;
+  inset: -6px;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(245,213,114,0.35), transparent 70%);
+  z-index: -1;
+  opacity: 0.6;
+  filter: blur(10px);
+  pointer-events: none;
+}
+.kais-disc:hover {
+  transform: scale(1.07) rotate(8deg);
+  box-shadow:
+    0 20px 50px -8px rgba(245,213,114,0.7),
+    0 4px 12px -4px rgba(0,0,0,0.7),
+    inset 0 0 0 1px rgba(245,213,114,0.85);
+}
 .kais-disc.is-playing { animation: kais-disc-spin 9s linear infinite; }
 @keyframes kais-disc-spin { from { transform: rotate(0); } to { transform: rotate(360deg); } }
 

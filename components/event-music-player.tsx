@@ -24,15 +24,10 @@ export function EventMusicPlayer({ url, compact = false }: { url: string | null;
 
   useEffect(() => {
     const audio = audioRef.current;
-
-    if (!audio || source.kind !== "audio") {
-      return;
-    }
-
+    if (!audio || source.kind !== "audio") return;
     const audioElement = audio;
     audioElement.volume = 0.2;
     audioElement.muted = false;
-
     async function tryAutoplay() {
       try {
         await audioElement.play();
@@ -45,7 +40,6 @@ export function EventMusicPlayer({ url, compact = false }: { url: string | null;
         setMessage("Toca el boton para iniciar la musica del evento.");
       }
     }
-
     tryAutoplay();
   }, [source.kind, source.url]);
 
@@ -54,13 +48,11 @@ export function EventMusicPlayer({ url, compact = false }: { url: string | null;
   async function play() {
     const audio = audioRef.current;
     setMessage("");
-
     try {
       if (audio) {
         audio.volume = volume / 100;
         audio.muted = isMuted;
       }
-
       await audio?.play();
       setIsPlaying(true);
       setNeedsInteraction(false);
@@ -78,54 +70,56 @@ export function EventMusicPlayer({ url, compact = false }: { url: string | null;
   }
 
   function togglePlayback() {
-    if (isPlaying) {
-      pause();
-    } else {
-      play();
-    }
+    if (isPlaying) pause();
+    else play();
   }
 
   function toggleMuted() {
     const nextMuted = !isMuted;
     setIsMuted(nextMuted);
-
-    if (audioRef.current) {
-      audioRef.current.muted = nextMuted;
-    }
+    if (audioRef.current) audioRef.current.muted = nextMuted;
   }
 
   function changeVolume(value: string) {
     const nextVolume = Number(value);
     setVolume(nextVolume);
     setIsMuted(nextVolume === 0);
-
     if (audioRef.current) {
       audioRef.current.volume = nextVolume / 100;
       audioRef.current.muted = nextVolume === 0;
     }
   }
 
+  const compactAudio = compact && source.kind === "audio";
+
   return (
     <div
       className={
-        compact
-          ? "rounded-2xl border border-[#d4af37]/30 bg-black/55 p-2.5 text-[#f5ecd9] shadow-[0_18px_40px_-18px_rgba(0,0,0,0.7)] backdrop-blur-xl"
-          : "rounded-lg border border-white/25 bg-white/15 p-4 text-white shadow-soft backdrop-blur"
+        compactAudio
+          ? "lg:rounded-2xl lg:border lg:border-[#d4af37]/30 lg:bg-black/55 lg:p-2.5 lg:text-[#f5ecd9] lg:shadow-[0_18px_40px_-18px_rgba(0,0,0,0.7)] lg:backdrop-blur-xl"
+          : compact
+            ? "rounded-2xl border border-[#d4af37]/30 bg-black/55 p-2.5 text-[#f5ecd9] shadow-[0_18px_40px_-18px_rgba(0,0,0,0.7)] backdrop-blur-xl"
+            : "rounded-lg border border-white/25 bg-white/15 p-4 text-white shadow-soft backdrop-blur"
       }
     >
       <div className={compact ? "flex items-center gap-2" : "flex items-center gap-3"}>
-        <div
-          className={
-            compact
-              ? `flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${isPlaying ? "kais-disc is-playing" : "kais-disc"}`
-              : "flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-white/15"
-          }
-        >
-          <Music2 className={compact ? "h-3.5 w-3.5" : "h-5 w-5"} />
-        </div>
         {compact ? (
-          <p className="hidden text-[0.62rem] font-semibold uppercase tracking-[0.32em] text-[#d4af37] sm:block">
-            {isPlaying ? "Sonando" : "Música"}
+          <button
+            type="button"
+            onClick={togglePlayback}
+            aria-label={isPlaying ? "Pausar musica" : "Reproducir musica"}
+            className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full lg:h-8 lg:w-8 ${isPlaying ? "kais-disc is-playing" : "kais-disc"}`}
+          >
+            <Music2 className="h-4 w-4 lg:h-3.5 lg:w-3.5" />
+          </button>
+        ) : (
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-white/15">
+            <Music2 className="h-5 w-5" />
+          </div>
+        )}
+        {compact ? (
+          <p className="hidden text-[0.62rem] font-semibold uppercase tracking-[0.32em] text-[#d4af37] lg:block">
+            {isPlaying ? "Sonando" : "Musica"}
           </p>
         ) : (
           <div className="min-w-0">
@@ -138,7 +132,7 @@ export function EventMusicPlayer({ url, compact = false }: { url: string | null;
       </div>
 
       {source.kind === "audio" ? (
-        <div className={compact ? "mt-3 flex flex-col gap-3 xl:flex-row xl:items-center" : "mt-4 grid gap-4"}>
+        <div className={compact ? "hidden lg:mt-3 lg:flex lg:flex-col lg:gap-3 xl:flex-row xl:items-center" : "mt-4 grid gap-4"}>
           <audio
             ref={audioRef}
             src={source.url}
@@ -147,14 +141,12 @@ export function EventMusicPlayer({ url, compact = false }: { url: string | null;
             onPlay={() => setIsPlaying(true)}
             onEnded={() => setIsPlaying(false)}
           />
-
           {needsInteraction ? (
             <Button type="button" variant="secondary" onClick={play} className={compact ? "w-full xl:w-fit" : "w-full sm:w-fit"}>
               <Play className="h-4 w-4" />
               Tocar musica
             </Button>
           ) : null}
-
           <div className={compact ? "flex gap-2" : "flex flex-col gap-3 sm:flex-row"}>
             <Button
               type="button"
@@ -177,7 +169,6 @@ export function EventMusicPlayer({ url, compact = false }: { url: string | null;
               {compact ? null : isMuted || volume === 0 ? "Activar sonido" : "Silenciar"}
             </Button>
           </div>
-
           <div className={compact ? "grid min-w-0 flex-1 gap-1.5" : "grid gap-2"}>
             <div className="flex items-center justify-between text-xs font-semibold text-white/80">
               <span>Volumen</span>
@@ -217,24 +208,21 @@ export function EventMusicPlayer({ url, compact = false }: { url: string | null;
         </div>
       ) : null}
 
-      {message ? <p className="mt-3 text-xs leading-5 text-white/80">{message}</p> : null}
+      {message ? (
+        <p className={compact ? "mt-3 hidden text-xs leading-5 text-white/80 lg:block" : "mt-3 text-xs leading-5 text-white/80"}>
+          {message}
+        </p>
+      ) : null}
     </div>
   );
 }
 
 function getMusicSource(value: string | null): MusicSource {
   const rawUrl = value?.trim();
-
   if (!rawUrl) {
-    return {
-      kind: "invalid",
-      url: "",
-      message: "No se configuro una cancion para este evento."
-    };
+    return { kind: "invalid", url: "", message: "No se configuro una cancion para este evento." };
   }
-
   let parsed: URL;
-
   try {
     parsed = new URL(rawUrl);
   } catch {
@@ -244,26 +232,14 @@ function getMusicSource(value: string | null): MusicSource {
       message: "El enlace de musica no es una URL valida. Usa un enlace https directo a .mp3, .wav u .ogg, o un enlace de YouTube/Spotify."
     };
   }
-
   const host = parsed.hostname.replace(/^www\./, "");
   const pathname = parsed.pathname.toLowerCase();
-
   if (pathname.endsWith(".mp3") || pathname.endsWith(".wav") || pathname.endsWith(".ogg")) {
-    return {
-      kind: "audio",
-      url: rawUrl,
-      host
-    };
+    return { kind: "audio", url: rawUrl, host };
   }
-
   if (host.includes("youtube.com") || host.includes("youtu.be") || host.includes("spotify.com")) {
-    return {
-      kind: "external",
-      url: rawUrl,
-      host
-    };
+    return { kind: "external", url: rawUrl, host };
   }
-
   return {
     kind: "unsupported",
     url: rawUrl,

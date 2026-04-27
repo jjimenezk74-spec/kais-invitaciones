@@ -19,8 +19,18 @@ const backgroundVariants: InvitationBackgroundVariant[] = ["default", "dark-rose
 const animationPresets: InvitationAnimationPreset[] = ["none", "soft-petals", "gold-sparkles", "elegant-glow"];
 const decorationLevels: InvitationDecorationLevel[] = ["minimal", "medium", "premium"];
 
-export function resolveInvitationDesign(config: InvitationTemplateConfig | null | undefined, fallbackPrimary: string) {
-  const designConfig = normalizeInvitationDesignConfig(config);
+export function resolveInvitationDesign(
+  config: InvitationTemplateConfig | null | undefined,
+  fallbackPrimary: string,
+  eventDesignConfig?: Partial<InvitationDesignConfig> | null
+) {
+  const designConfig = normalizeInvitationDesignConfig({
+    ...config,
+    designConfig: {
+      ...(config?.designConfig ?? {}),
+      ...(eventDesignConfig ?? {})
+    }
+  });
 
   return {
     designConfig,

@@ -2,11 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { normalizeInvitationDesignConfig } from "@/lib/invitation-design";
 import { canCreateEvents, canModerateEvents, getCurrentUserProfile, isKaisAdmin } from "@/lib/profiles";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { slugify } from "@/lib/utils";
-import type { EventGuest } from "@/lib/types";
+import type { EventGuest, InvitationDesignConfig } from "@/lib/types";
 
 type ServerSupabaseClient = Awaited<ReturnType<typeof createClient>>;
 
@@ -69,6 +70,7 @@ export async function createEvent(formData: FormData) {
     cover_image_url: manualCoverUrl,
     mobile_cover_image_url: nullable(formData.get("mobile_cover_image_url")),
     music_url: musicUrl,
+    design_config: getDesignConfigFromForm(formData),
     theme_color: String(formData.get("theme_color") || "#111827"),
     status: getEventStatus(formData.get("status")),
     guest_mode: getGuestMode(formData.get("guest_mode")),
@@ -145,6 +147,7 @@ export async function updateEvent(eventId: string, formData: FormData) {
     cover_image_url: coverImageUrl,
     mobile_cover_image_url: mobileCoverImageUrl,
     music_url: musicUrl,
+    design_config: getDesignConfigFromForm(formData),
     theme_color: String(formData.get("theme_color") || "#111827"),
     status: getEventStatus(formData.get("status")),
     guest_mode: getGuestMode(formData.get("guest_mode")),
@@ -494,6 +497,17 @@ function getEventStatus(value: FormDataEntryValue | null) {
 function getGuestMode(value: FormDataEntryValue | null) {
   const mode = String(value ?? "publico");
   return GUEST_MODES.includes(mode as (typeof GUEST_MODES)[number]) ? mode : "publico";
+}
+
+function getDesignConfigFromForm(formData: FormData) {
+  return normalizeInvitationDesignConfig({
+    designConfig: {
+      fontPreset: String(formData.get("design_font_preset") ?? ""),
+      backgroundVariant: String(formData.get("design_background_variant") ?? ""),
+      animationPreset: String(formData.get("design_animation_preset") ?? ""),
+      decorationLevel: String(formData.get("design_decoration_level") ?? "")
+    } as Partial<InvitationDesignConfig>
+  });
 }
 
 async function getMusicUrlFromForm(formData: FormData, supabase: ServerSupabaseClient, userId: string) {

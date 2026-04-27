@@ -58,6 +58,7 @@ export type Event = {
   cover_image_url: string | null;
   mobile_cover_image_url: string | null;
   music_url: string | null;
+  design_config: Partial<InvitationDesignConfig> | null;
   theme_color: string;
   status: EventStatus;
   guest_mode: GuestMode;

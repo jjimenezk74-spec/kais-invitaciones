@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Field } from "@/components/field";
+import { DEFAULT_INVITATION_DESIGN_CONFIG, normalizeInvitationDesignConfig } from "@/lib/invitation-design";
 import { createClientSupabaseBrowser } from "@/lib/supabase/browser";
 import type { Client, Event, InvitationTemplate, Profile } from "@/lib/types";
 
@@ -33,6 +34,7 @@ const ALLOWED_AUDIO_EXTENSIONS = [".mp3", ".wav", ".ogg"];
 
 export function EventForm({ action, event, clients = [], businessClients = [], templates = [], showOwner = false }: EventFormProps) {
   const shouldShowOwnerSelect = showOwner && clients.length > 0;
+  const designConfig = normalizeInvitationDesignConfig({ designConfig: event?.design_config ?? undefined });
   const [uploadError, setUploadError] = useState("");
   const [uploadStatus, setUploadStatus] = useState("");
   const [isUploading, setIsUploading] = useState(false);
@@ -150,6 +152,22 @@ export function EventForm({ action, event, clients = [], businessClients = [], t
           </div>
         </Field>
       ) : null}
+
+      <div className="rounded-lg border bg-background p-4">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm font-bold uppercase tracking-[0.18em] text-accent">Diseño de invitación</p>
+            <p className="mt-1 text-sm text-muted-foreground">Personaliza la apariencia premium de la invitacion.</p>
+          </div>
+          <Button type="button" variant="outline" className="w-full border-accent/40 sm:w-fit" onClick={(event) => restoreDefaultDesign(event.currentTarget.form)}>
+            Restaurar diseño original
+          </Button>
+        </div>
+        <input type="hidden" name="design_font_preset" defaultValue={designConfig.fontPreset} />
+        <input type="hidden" name="design_background_variant" defaultValue={designConfig.backgroundVariant} />
+        <input type="hidden" name="design_animation_preset" defaultValue={designConfig.animationPreset} />
+        <input type="hidden" name="design_decoration_level" defaultValue={designConfig.decorationLevel} />
+      </div>
 
       <div className="grid gap-5 md:grid-cols-2">
         <Field label="Título">
@@ -277,6 +295,14 @@ function getFile(form: HTMLFormElement, name: string) {
 
 function hasPendingUploads(form: HTMLFormElement) {
   return Boolean(getFile(form, "cover_image_file") || getFile(form, "mobile_cover_image_file") || getFile(form, "music_file"));
+}
+
+function restoreDefaultDesign(form: HTMLFormElement | null) {
+  if (!form) return;
+  setInputValue(form, "design_font_preset", DEFAULT_INVITATION_DESIGN_CONFIG.fontPreset);
+  setInputValue(form, "design_background_variant", DEFAULT_INVITATION_DESIGN_CONFIG.backgroundVariant);
+  setInputValue(form, "design_animation_preset", DEFAULT_INVITATION_DESIGN_CONFIG.animationPreset);
+  setInputValue(form, "design_decoration_level", DEFAULT_INVITATION_DESIGN_CONFIG.decorationLevel);
 }
 
 async function uploadFilesToSupabase(form: HTMLFormElement, setStatus: (status: string) => void) {

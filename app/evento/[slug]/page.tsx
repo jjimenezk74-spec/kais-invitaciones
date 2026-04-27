@@ -105,7 +105,7 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
   const photoStatus = normalizeSearchParam(query.foto);
   const photoError = normalizeSearchParam(query.foto_error);
   const isConfirmed = Boolean(invitedGuestRsvp) || rsvpStatus === "ok";
-  const design = resolveInvitationDesign(template?.config, event.theme_color);
+  const design = resolveInvitationDesign(template?.config, event.theme_color, event.design_config);
 
   return (
     <main

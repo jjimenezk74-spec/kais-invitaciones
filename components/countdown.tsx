@@ -9,7 +9,7 @@ type CountdownValue = {
   seconds: number;
 };
 
-export function Countdown({ date, time }: { date: string; time: string }) {
+export function Countdown({ date, time, compact = false }: { date: string; time: string; compact?: boolean }) {
   const target = useMemo(() => new Date(`${date}T${time || "00:00"}`).getTime(), [date, time]);
   const [remaining, setRemaining] = useState<CountdownValue | null>(null);
 
@@ -24,18 +24,18 @@ export function Countdown({ date, time }: { date: string; time: string }) {
   }, [target]);
 
   return (
-    <div className="grid grid-cols-4 gap-2 text-center">
+    <div className={`grid grid-cols-4 text-center ${compact ? "gap-1.5" : "gap-2"}`}>
       {[
         ["Días", remaining?.days],
         ["Horas", remaining?.hours],
         ["Min", remaining?.minutes],
         ["Seg", remaining?.seconds]
       ].map(([label, value]) => (
-        <div key={label} className="rounded-lg border border-white/25 bg-white/20 px-2 py-3 backdrop-blur">
-          <div className="text-2xl font-semibold text-white">
+        <div key={label} className={`rounded-lg border border-white/25 bg-white/20 backdrop-blur ${compact ? "px-2 py-2" : "px-2 py-3"}`}>
+          <div className={`${compact ? "text-lg" : "text-2xl"} font-semibold text-white`}>
             {typeof value === "number" ? String(value).padStart(2, "0") : "--"}
           </div>
-          <div className="text-[11px] uppercase tracking-[0.18em] text-white/75">{label}</div>
+          <div className={`${compact ? "text-[9px]" : "text-[11px]"} uppercase tracking-[0.18em] text-white/75`}>{label}</div>
         </div>
       ))}
     </div>

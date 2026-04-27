@@ -13,7 +13,7 @@ type MusicSource = {
   message?: string;
 };
 
-export function EventMusicPlayer({ url }: { url: string | null }) {
+export function EventMusicPlayer({ url, compact = false }: { url: string | null; compact?: boolean }) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
@@ -106,10 +106,10 @@ export function EventMusicPlayer({ url }: { url: string | null }) {
   }
 
   return (
-    <div className="rounded-lg border border-white/25 bg-white/15 p-4 text-white shadow-soft backdrop-blur">
+    <div className={`rounded-lg border border-white/25 bg-white/15 text-white shadow-soft backdrop-blur ${compact ? "p-3" : "p-4"}`}>
       <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-white/15">
-          <Music2 className="h-5 w-5" />
+        <div className={`flex shrink-0 items-center justify-center rounded-md bg-white/15 ${compact ? "h-8 w-8" : "h-10 w-10"}`}>
+          <Music2 className={compact ? "h-4 w-4" : "h-5 w-5"} />
         </div>
         <div className="min-w-0">
           <p className="text-sm font-semibold">Musica del evento</p>
@@ -120,7 +120,7 @@ export function EventMusicPlayer({ url }: { url: string | null }) {
       </div>
 
       {source.kind === "audio" ? (
-        <div className="mt-4 grid gap-4">
+        <div className={compact ? "mt-3 flex flex-col gap-3 xl:flex-row xl:items-center" : "mt-4 grid gap-4"}>
           <audio
             ref={audioRef}
             src={source.url}
@@ -131,29 +131,36 @@ export function EventMusicPlayer({ url }: { url: string | null }) {
           />
 
           {needsInteraction ? (
-            <Button type="button" variant="secondary" onClick={play} className="w-full sm:w-fit">
+            <Button type="button" variant="secondary" onClick={play} className={compact ? "w-full xl:w-fit" : "w-full sm:w-fit"}>
               <Play className="h-4 w-4" />
               Tocar musica
             </Button>
           ) : null}
 
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <Button type="button" variant="secondary" onClick={togglePlayback}>
+          <div className={compact ? "flex gap-2" : "flex flex-col gap-3 sm:flex-row"}>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={togglePlayback}
+              className={compact ? "px-3" : undefined}
+              aria-label={isPlaying ? "Pausar musica" : "Reproducir musica"}
+            >
               {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-              {isPlaying ? "Pausar" : "Reproducir"}
+              {compact ? null : isPlaying ? "Pausar" : "Reproducir"}
             </Button>
             <Button
               type="button"
               variant="outline"
-              className="border-white/30 bg-white/10 text-white hover:bg-white/20"
+              className={`border-white/30 bg-white/10 text-white hover:bg-white/20 ${compact ? "px-3" : ""}`}
               onClick={toggleMuted}
+              aria-label={isMuted || volume === 0 ? "Activar sonido" : "Silenciar musica"}
             >
               {isMuted || volume === 0 ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
-              {isMuted || volume === 0 ? "Activar sonido" : "Silenciar"}
+              {compact ? null : isMuted || volume === 0 ? "Activar sonido" : "Silenciar"}
             </Button>
           </div>
 
-          <div className="grid gap-2">
+          <div className={compact ? "grid min-w-0 flex-1 gap-1.5" : "grid gap-2"}>
             <div className="flex items-center justify-between text-xs font-semibold text-white/80">
               <span>Volumen</span>
               <span>{volume}%</span>

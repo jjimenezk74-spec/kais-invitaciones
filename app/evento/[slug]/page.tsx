@@ -127,11 +127,11 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
         <BackButton from={normalizeSearchParam(query.from)} />
       </div>
       <section
-        className={`relative overflow-hidden text-white shadow-soft md:flex md:min-h-[92vh] md:items-end md:px-4 md:py-6 ${isRedRoses ? "border-b border-[#d4af37]/35" : ""}`}
+        className={`relative overflow-hidden bg-slate-950 text-white shadow-soft md:flex md:min-h-[92vh] md:items-end md:px-4 md:py-6 lg:px-0 lg:py-0 ${isRedRoses ? "border-b border-[#d4af37]/35" : ""}`}
         style={!hasHeroCover ? { background: isRedRoses ? "linear-gradient(145deg, #170607, #4c0710 55%, #8b0000)" : `linear-gradient(145deg, ${event.theme_color}, #155e75 58%, #e11d48)` } : undefined}
       >
         {isRedRoses ? (
-          <div className="hidden md:block">
+          <div className="hidden md:block lg:hidden">
             <RedRosesFrame />
           </div>
         ) : null}
@@ -145,7 +145,7 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
                 priority
                 sizes="100vw"
                 style={{ objectPosition: "center top" }}
-                className={`hidden object-cover transition-transform duration-700 ease-out md:block ${event.cover_image_url ? "md:hidden" : ""}`}
+                className={`hidden object-cover transition-transform duration-700 ease-out md:block lg:hidden ${event.cover_image_url ? "md:hidden" : ""}`}
               />
             ) : null}
             {event.cover_image_url ? (
@@ -155,11 +155,11 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
                 fill
                 priority
                 sizes="100vw"
-                className={`hidden object-cover transition-transform duration-700 ease-out md:block ${event.mobile_cover_image_url ? "md:block" : ""}`}
+                className={`hidden object-cover transition-transform duration-700 ease-out md:block lg:hidden ${event.mobile_cover_image_url ? "md:block" : ""}`}
               />
             ) : null}
-            <div className={`absolute inset-0 hidden md:block ${isRedRoses ? "bg-black/45" : "bg-black/40"}`} />
-            <div className={`absolute inset-0 hidden md:block ${isRedRoses ? "bg-gradient-to-t from-[#170607] via-black/35 to-[#8b0000]/20" : "bg-gradient-to-t from-black/80 via-black/35 to-black/15"}`} />
+            <div className={`absolute inset-0 hidden md:block lg:hidden ${isRedRoses ? "bg-black/45" : "bg-black/40"}`} />
+            <div className={`absolute inset-0 hidden md:block lg:hidden ${isRedRoses ? "bg-gradient-to-t from-[#170607] via-black/35 to-[#8b0000]/20" : "bg-gradient-to-t from-black/80 via-black/35 to-black/15"}`} />
           </>
         ) : null}
         <div
@@ -177,28 +177,40 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
               className="object-cover"
             />
           ) : null}
-          <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/35 to-transparent" />
+          <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-[#170607]/95 via-[#170607]/45 to-transparent" />
         </div>
-        <div className={`relative z-10 px-4 pb-7 pt-6 text-center md:hidden ${isRedRoses ? "bg-gradient-to-b from-[#2a090d] to-[#170607]" : "bg-gradient-to-b from-slate-950 to-slate-900"}`}>
-          <p className={`text-[0.68rem] font-bold uppercase tracking-[0.24em] ${isRedRoses ? "text-[#d4af37]" : "text-white/70"}`}>{event.event_type}</p>
+        <div className="relative z-10 mx-3 -mt-7 overflow-hidden rounded-t-[28px] border border-[#d4af37]/25 bg-[rgba(45,8,14,0.82)] px-4 pb-5 pt-6 text-center shadow-[0_-18px_60px_rgba(0,0,0,0.42)] backdrop-blur-xl md:hidden">
+          <div className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-[#d4af37]/70 to-transparent" />
+          <div className="pointer-events-none absolute -left-12 top-10 h-32 w-32 rotate-12 rounded-[45%_55%_50%_50%] border border-[#b91c1c]/25 bg-[#7f1d1d]/20 blur-sm" />
+          <div className="pointer-events-none absolute -right-10 bottom-28 h-28 w-28 -rotate-12 rounded-[55%_45%_50%_50%] border border-[#d4af37]/20 bg-[#d4af37]/10 blur-sm" />
+          <div className="pointer-events-none absolute inset-x-8 bottom-0 h-px bg-gradient-to-r from-transparent via-[#991b1b]/70 to-transparent" />
+          <div className="relative z-10">
+          <p className={`text-[0.68rem] font-bold uppercase tracking-[0.24em] ${isRedRoses ? "text-[#d4af37]" : "text-[#facc15]"}`}>{event.event_type}</p>
           {invitedGuest ? <p className="mx-auto mt-3 max-w-xs text-xs font-semibold uppercase tracking-[0.18em] text-white/65">Hola, {invitedGuest.guest_name}</p> : null}
-          <h1 className={`mx-auto mt-3 line-clamp-2 max-w-[18rem] font-display text-[clamp(2.45rem,13vw,4.25rem)] font-bold leading-[0.92] drop-shadow-sm ${isRedRoses ? "text-[#fff7ed]" : "text-white"}`}>
+          <h1 className={`mx-auto mt-3 line-clamp-2 max-w-[20rem] font-display text-[clamp(2.7rem,13vw,4.45rem)] font-bold leading-[0.9] drop-shadow-[0_4px_18px_rgba(0,0,0,0.45)] ${isRedRoses ? "text-[#fff7ed]" : "text-white"}`}>
             {event.hosts_names}
           </h1>
           <p className={`mt-4 text-base font-semibold ${isRedRoses ? "text-[#facc15]" : "text-white/90"}`}>{formatDate(event.event_date)} · {event.event_time}</p>
-          <p className="mx-auto mt-4 max-w-sm text-sm leading-7 text-white/75">{event.main_message}</p>
-          <div className="mt-6 grid gap-3">
-            <Button asChild>
+          <p className="mx-auto mt-4 line-clamp-2 max-w-sm text-sm leading-7 text-white/75">{event.main_message}</p>
+          <div className="mt-6">
+            <Countdown date={event.event_date} time={event.event_time} compact />
+          </div>
+          <div className="mt-4">
+            <EventMusicPlayer url={event.music_url} compact />
+          </div>
+
+          <div className="mt-5 grid gap-3">
+            <Button asChild className="border border-[#facc15]/30 bg-[#d4af37] text-[#170607] shadow-[0_12px_28px_rgba(212,175,55,0.22)] hover:bg-[#facc15]">
               <a href="#rsvp">Confirmar asistencia</a>
             </Button>
             <div className="grid grid-cols-2 gap-3">
-              <Button variant="secondary" asChild>
+              <Button variant="secondary" asChild className="bg-[#fff7ed] text-[#3f080d] hover:bg-white">
                 <a href={event.google_maps_link ?? "#detalles"} target="_blank">
                   <MapPin className="h-4 w-4" />
                   Cómo llegar
                 </a>
               </Button>
-              <Button variant="outline" className="border-white/30 bg-white/10 text-white hover:bg-white/20" asChild>
+              <Button variant="outline" className="border-[#d4af37]/35 bg-white/10 text-white backdrop-blur hover:bg-white/20" asChild>
                 <a href={calendarUrl} target="_blank">
                   <CalendarPlus className="h-4 w-4" />
                   Calendario
@@ -207,13 +219,8 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
             </div>
           </div>
         </div>
-        <div className={`relative z-10 px-4 pb-8 md:hidden ${isRedRoses ? "bg-[#170607]" : "bg-slate-900"}`}>
-          <Countdown date={event.event_date} time={event.event_time} />
-          <div className="mt-5">
-            <EventMusicPlayer url={event.music_url} />
-          </div>
         </div>
-        <div className="relative z-10 mx-auto hidden w-full max-w-5xl gap-8 pb-8 text-center md:grid md:text-left">
+        <div className="relative z-10 mx-auto hidden w-full max-w-5xl gap-8 pb-8 text-center md:grid md:text-left lg:hidden">
           <div className="mx-auto max-w-3xl md:mx-0">
             <p className={`text-xs font-bold uppercase tracking-[0.24em] ${isRedRoses ? "text-[#d4af37]" : "text-white/75"}`}>{event.event_type}</p>
             <h1 className={`mt-4 font-display text-6xl font-bold leading-none drop-shadow md:text-8xl ${isRedRoses ? "text-[#fff7ed]" : ""}`}>{event.hosts_names}</h1>
@@ -238,6 +245,61 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
                 Agregar al calendario
               </a>
             </Button>
+          </div>
+        </div>
+        <div className="relative z-10 mx-auto hidden min-h-[82vh] w-full max-w-7xl grid-cols-[0.9fr_1.1fr] items-center gap-10 px-8 py-10 lg:grid xl:gap-14">
+          <div className="absolute inset-y-0 left-0 hidden w-[58%] bg-gradient-to-r from-black/90 via-black/70 to-transparent lg:block" />
+          <div className="relative z-10 max-w-2xl">
+            <p className={`text-xs font-bold uppercase tracking-[0.28em] ${isRedRoses ? "text-[#d4af37]" : "text-white/70"}`}>{event.event_type}</p>
+            {invitedGuest ? <p className="mt-5 text-xs font-semibold uppercase tracking-[0.2em] text-white/60">Hola, {invitedGuest.guest_name}</p> : null}
+            <h1 className={`mt-5 max-w-2xl font-display text-[clamp(4.5rem,8vw,8rem)] font-bold leading-[0.88] drop-shadow-sm ${isRedRoses ? "text-[#fff7ed]" : "text-white"}`}>
+              {event.hosts_names}
+            </h1>
+            <p className={`mt-6 text-xl font-semibold ${isRedRoses ? "text-[#facc15]" : "text-white/90"}`}>{formatDate(event.event_date)} · {event.event_time}</p>
+            <p className="mt-5 line-clamp-2 max-w-xl text-base leading-8 text-white/72">{event.main_message}</p>
+
+            <div className="mt-8 flex flex-wrap gap-3">
+              <Button asChild className="px-6">
+                <a href="#rsvp">Confirmar asistencia</a>
+              </Button>
+              <Button variant="secondary" asChild>
+                <a href={event.google_maps_link ?? "#detalles"} target="_blank">
+                  <MapPin className="h-4 w-4" />
+                  Cómo llegar
+                </a>
+              </Button>
+              <Button variant="outline" className="border-white/30 bg-white/10 text-white hover:bg-white/20" asChild>
+                <a href={calendarUrl} target="_blank">
+                  <CalendarPlus className="h-4 w-4" />
+                  Calendario
+                </a>
+              </Button>
+            </div>
+
+            <div className="mt-8 max-w-xl">
+              <Countdown date={event.event_date} time={event.event_time} compact />
+            </div>
+            <div className="mt-5 max-w-2xl">
+              <EventMusicPlayer url={event.music_url} compact />
+            </div>
+          </div>
+
+          <div className="relative z-10 h-[78vh] min-h-[560px] overflow-hidden rounded-[1.75rem] border border-white/15 bg-white/10 shadow-2xl">
+            {event.cover_image_url || event.mobile_cover_image_url ? (
+              <Image
+                src={event.cover_image_url ?? event.mobile_cover_image_url ?? ""}
+                alt={`Foto de portada de ${event.hosts_names}`}
+                fill
+                priority
+                sizes="52vw"
+                className="object-cover"
+              />
+            ) : (
+              <div
+                className="h-full w-full"
+                style={{ background: isRedRoses ? "linear-gradient(145deg, #170607, #4c0710 55%, #8b0000)" : `linear-gradient(145deg, ${event.theme_color}, #155e75 58%, #e11d48)` }}
+              />
+            )}
           </div>
         </div>
       </section>

@@ -25,6 +25,7 @@ type PageProps = {
     foto_error?: string | string[];
     guest?: string | string[];
     from?: string | string[];
+    preview?: string | string[];
   }>;
 };
 
@@ -37,6 +38,28 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
 
   if (!event || event.status !== "publicado") {
     return <NotPublishedScreen />;
+  }
+
+  const previewMode = normalizeSearchParam(query.preview);
+  if (previewMode === "mobile") {
+    const mobilePreviewUrl = `/evento/${event.slug}`;
+    return (
+      <main className="min-h-screen bg-neutral-200 px-4 py-8">
+        <div className="mx-auto w-fit">
+          <div className="mb-4 text-center">
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-neutral-500">Vista mobile real</p>
+            <p className="mt-1 text-sm text-neutral-600">Viewport 390px renderizado en iframe.</p>
+          </div>
+          <div className="overflow-hidden rounded-[2rem] border border-neutral-300 bg-black shadow-2xl">
+            <iframe
+              title={`Vista mobile de ${event.title}`}
+              src={mobilePreviewUrl}
+              className="block h-[844px] w-[390px]"
+            />
+          </div>
+        </div>
+      </main>
+    );
   }
 
   const guestToken = normalizeSearchParam(query.guest);

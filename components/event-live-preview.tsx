@@ -91,7 +91,7 @@ export function EventLivePreview({
       <div className="mb-4">
         <p className="text-sm font-bold uppercase tracking-[0.18em] text-accent">Vista previa del diseno</p>
         <p className="mt-1 text-sm text-muted-foreground">
-          Usa el mismo lenguaje visual de la invitacion publica, escalado en miniatura.
+          Miniatura orientativa. Para ver el diseno exacto, usa la seccion "Vista previa real" del detalle del evento.
         </p>
       </div>
 

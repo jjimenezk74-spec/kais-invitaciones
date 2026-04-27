@@ -181,6 +181,47 @@ export default async function EventDetailPage({
 
       <Card>
         <CardHeader>
+          <CardTitle>Vista previa real</CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-4">
+          {event.slug ? (
+            <>
+              <p className="text-sm text-muted-foreground">
+                La miniatura del formulario es orientativa. Para revisar fuentes, encuadre, overlays y responsive exacto, abre la invitacion real.
+              </p>
+              <div className="rounded-lg border bg-background p-4">
+                <p className="text-sm font-semibold">Enlace publico</p>
+                <p className="mt-2 break-all text-sm text-muted-foreground">{url}</p>
+              </div>
+              <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+                <Button asChild>
+                  <Link href={`/evento/${event.slug}`} target="_blank">
+                    <ExternalLink className="h-4 w-4" />
+                    Abrir vista desktop
+                  </Link>
+                </Button>
+                <Button variant="outline" asChild>
+                  <Link href={`/evento/${event.slug}?preview=mobile`} target="_blank">
+                    <ExternalLink className="h-4 w-4" />
+                    Abrir vista mobile
+                  </Link>
+                </Button>
+                <CopyLinkButton value={url} label="Copiar enlace publico" copiedLabel="Enlace copiado" />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Vista mobile abre un marco de 390px para revisar la invitacion como celular.
+              </p>
+            </>
+          ) : (
+            <div className="rounded-lg border bg-muted/40 p-4 text-sm text-muted-foreground">
+              Guarda el evento para generar la vista previa real.
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <KeyRound className="h-5 w-5" />
             Acceso del cliente

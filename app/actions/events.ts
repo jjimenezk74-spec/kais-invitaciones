@@ -198,8 +198,13 @@ export async function submitRsvp(eventId: string, formData: FormData) {
   const supabase = await createClient();
   const slug = String(formData.get("slug") ?? "").trim();
   const guestToken = String(formData.get("guest_token") ?? "").trim();
-  const errorUrl = (message: string) => `/evento/${slug}?rsvp_error=${encodeURIComponent(message)}#rsvp`;
-  const successUrl = `/evento/${slug}?rsvp=ok#rsvp`;
+  const rsvpUrl = (params: Record<string, string>) => {
+    const search = new URLSearchParams(params);
+    if (guestToken) search.set("guest", guestToken);
+    return `/evento/${slug}?${search.toString()}#rsvp`;
+  };
+  const errorUrl = (message: string) => rsvpUrl({ rsvp_error: message });
+  const successUrl = rsvpUrl({ rsvp: "ok" });
   let guestName = String(formData.get("guest_name") ?? "").trim();
   const companions = Number(formData.get("companions") || 0);
   const attending = String(formData.get("attending")) === "si";

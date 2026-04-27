@@ -22,7 +22,9 @@ export default async function PublicEventPage({
   searchParams
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ rsvp?: string; rsvp_error?: string; foto?: string; guest?: string }>;
+  searchParams:
+    | Promise<{ rsvp?: string | string[]; rsvp_error?: string | string[]; foto?: string | string[]; guest?: string | string[] }>
+    | { rsvp?: string | string[]; rsvp_error?: string | string[]; foto?: string | string[]; guest?: string | string[] };
 }) {
   const [{ slug }, query] = await Promise.all([params, searchParams]);
   const supabase = await createClient();
@@ -45,23 +47,41 @@ export default async function PublicEventPage({
     );
   }
 
-  const guestToken = String(query.guest ?? "").trim();
+  const guestToken = normalizeSearchParam(query.guest);
   let invitedGuest: EventGuest | null = null;
   let invitedGuestRsvp: Rsvp | null = null;
 
   if (event.guest_mode === "lista_invitados") {
-    if (!guestToken) return <PersonalLinkRequired />;
+    console.info("[KAIS GUEST LINK]", {
+      slug,
+      guestToken,
+      eventId: event.id,
+      guestMode: event.guest_mode
+    });
+
+    if (!guestToken) {
+      console.warn("[KAIS GUEST LINK] Invitacion sin token personal", { slug, eventId: event.id });
+      return <PersonalLinkRequired />;
+    }
 
     const admin = createAdminClient();
-    const { data: guestData } = await admin
+    const { data: guestData, error: guestError } = await admin
       .from("event_guests")
       .select("*")
-      .eq("event_id", event.id)
       .eq("token", guestToken)
+      .eq("event_id", event.id)
       .maybeSingle();
 
+    console.info("[KAIS GUEST LINK] Resultado busqueda invitado", {
+      slug,
+      guestToken,
+      eventId: event.id,
+      found: Boolean(guestData),
+      error: guestError?.message ?? null
+    });
+
     invitedGuest = (guestData ?? null) as EventGuest | null;
-    if (!invitedGuest) return <PersonalLinkRequired />;
+    if (!invitedGuest) return <InvalidPersonalLink />;
     if (invitedGuest.status === "bloqueado") return <InactivePersonalLink />;
 
     await admin.from("event_guests").update({ last_opened_at: new Date().toISOString() }).eq("id", invitedGuest.id);
@@ -177,8 +197,8 @@ export default async function PublicEventPage({
             <p className="mt-4 text-muted-foreground">
               {invitedGuest ? `Hola, ${invitedGuest.guest_name}. Puedes confirmar o editar tu respuesta.` : "Tu respuesta ayuda a los anfitriones a preparar cada detalle."}
             </p>
-            {query.rsvp === "ok" ? <p className="mt-4 rounded-md bg-secondary p-3 text-sm font-semibold">Confirmación recibida.</p> : null}
-            {query.rsvp_error ? <p className="mt-4 rounded-md bg-red-50 p-3 text-sm font-semibold text-red-700">{query.rsvp_error}</p> : null}
+            {normalizeSearchParam(query.rsvp) === "ok" ? <p className="mt-4 rounded-md bg-secondary p-3 text-sm font-semibold">Confirmación recibida.</p> : null}
+            {normalizeSearchParam(query.rsvp_error) ? <p className="mt-4 rounded-md bg-red-50 p-3 text-sm font-semibold text-red-700">{normalizeSearchParam(query.rsvp_error)}</p> : null}
           </div>
           <Card>
             <CardContent className="p-6">
@@ -228,7 +248,7 @@ export default async function PublicEventPage({
           <div>
             <p className="text-sm font-bold uppercase tracking-[0.18em] text-accent">Galería</p>
             <h2 className="mt-3 font-display text-4xl font-bold">Comparte fotos del evento</h2>
-            {query.foto === "ok" ? <p className="mt-4 rounded-md bg-white p-3 text-sm font-semibold">Foto recibida para moderación.</p> : null}
+            {normalizeSearchParam(query.foto) === "ok" ? <p className="mt-4 rounded-md bg-white p-3 text-sm font-semibold">Foto recibida para moderación.</p> : null}
             <form action={photoAction} className="mt-6 grid gap-4 rounded-lg border bg-white p-5">
               <Field label="Tu nombre">
                 <Input name="guest_name" />
@@ -287,6 +307,11 @@ function RedRosesFrame() {
   );
 }
 
+function normalizeSearchParam(value: string | string[] | undefined) {
+  const raw = Array.isArray(value) ? value[0] : value;
+  return String(raw ?? "").trim();
+}
+
 function PersonalLinkRequired() {
   return (
     <main className="flex min-h-screen items-center justify-center px-4 text-center">
@@ -294,6 +319,18 @@ function PersonalLinkRequired() {
         <p className="text-sm font-bold uppercase tracking-[0.18em] text-accent">KAIS INVITACIONES</p>
         <h1 className="mt-3 font-display text-4xl font-bold">Esta invitacion requiere enlace personal.</h1>
         <p className="mt-3 text-muted-foreground">Abre el enlace que recibiste por WhatsApp para confirmar asistencia.</p>
+      </div>
+    </main>
+  );
+}
+
+function InvalidPersonalLink() {
+  return (
+    <main className="flex min-h-screen items-center justify-center px-4 text-center">
+      <div>
+        <p className="text-sm font-bold uppercase tracking-[0.18em] text-accent">KAIS INVITACIONES</p>
+        <h1 className="mt-3 font-display text-4xl font-bold">Este enlace personal no es válido.</h1>
+        <p className="mt-3 text-muted-foreground">Verifica que abriste el enlace completo enviado por WhatsApp.</p>
       </div>
     </main>
   );

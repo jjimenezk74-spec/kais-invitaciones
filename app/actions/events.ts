@@ -70,6 +70,7 @@ export async function createEvent(formData: FormData) {
     status: getEventStatus(formData.get("status")),
     guest_mode: getGuestMode(formData.get("guest_mode")),
     client_id: nullable(formData.get("client_id")),
+    template_id: nullable(formData.get("template_id")),
     slug
   };
 
@@ -133,7 +134,8 @@ export async function updateEvent(eventId: string, formData: FormData) {
     theme_color: String(formData.get("theme_color") || "#111827"),
     status: getEventStatus(formData.get("status")),
     guest_mode: getGuestMode(formData.get("guest_mode")),
-    client_id: nullable(formData.get("client_id"))
+    client_id: nullable(formData.get("client_id")),
+    template_id: nullable(formData.get("template_id"))
   };
 
   const { error } = await supabase.from("events").update(payload).eq("id", eventId);

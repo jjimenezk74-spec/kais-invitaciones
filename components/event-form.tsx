@@ -4,13 +4,14 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Field } from "@/components/field";
-import type { Client, Event, Profile } from "@/lib/types";
+import type { Client, Event, InvitationTemplate, Profile } from "@/lib/types";
 
 type EventFormProps = {
   action: (formData: FormData) => Promise<void> | void;
   event?: Event;
   clients?: Profile[];
   businessClients?: Client[];
+  templates?: InvitationTemplate[];
   showOwner?: boolean;
 };
 
@@ -21,7 +22,7 @@ const guestModes = [
   ["lista_invitados", "Lista de invitados"]
 ];
 
-export function EventForm({ action, event, clients = [], businessClients = [], showOwner = false }: EventFormProps) {
+export function EventForm({ action, event, clients = [], businessClients = [], templates = [], showOwner = false }: EventFormProps) {
   const shouldShowOwnerSelect = showOwner && clients.length > 0;
 
   return (
@@ -59,6 +60,30 @@ export function EventForm({ action, event, clients = [], businessClients = [], s
           </div>
         )}
       </Field>
+
+      {templates.length > 0 ? (
+        <Field label="Plantilla de invitacion">
+          <div className="grid gap-3 md:grid-cols-4">
+            {templates.map((template) => (
+              <label key={template.id} className="cursor-pointer rounded-lg border bg-background p-3 transition hover:border-accent">
+                <input
+                  name="template_id"
+                  type="radio"
+                  value={template.id}
+                  defaultChecked={event?.template_id === template.id || (!event?.template_id && template.slug === "rosas-rojas-15")}
+                  className="sr-only peer"
+                />
+                <div
+                  className="aspect-[4/3] rounded-md border border-white/20 bg-gradient-to-br from-neutral-950 via-red-950 to-rose-800 shadow-soft peer-checked:ring-2 peer-checked:ring-accent"
+                  style={{ background: templatePreviewBackground(template.slug, template.config.primary, template.config.secondary) }}
+                />
+                <p className="mt-3 text-sm font-semibold">{template.name}</p>
+                <p className="text-xs text-muted-foreground">{template.category}</p>
+              </label>
+            ))}
+          </div>
+        </Field>
+      ) : null}
 
       <div className="grid gap-5 md:grid-cols-2">
         <Field label="Título">
@@ -150,4 +175,12 @@ export function EventForm({ action, event, clients = [], businessClients = [], s
       </Button>
     </form>
   );
+}
+
+function templatePreviewBackground(slug: string, primary?: string, secondary?: string) {
+  if (slug === "rosas-rojas-15") {
+    return "radial-gradient(circle at 15% 15%, #7f1d1d 0 12%, transparent 13%), linear-gradient(135deg, #170607, #5f0f14 58%, #d4af37)";
+  }
+
+  return `linear-gradient(135deg, ${primary ?? "#111827"}, ${secondary ?? "#e5e7eb"})`;
 }

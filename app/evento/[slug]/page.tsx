@@ -15,7 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate } from "@/lib/utils";
-import type { Event, EventGuest, EventPhoto, Rsvp } from "@/lib/types";
+import type { Event, EventGuest, EventPhoto, InvitationTemplate, Rsvp } from "@/lib/types";
 
 export default async function PublicEventPage({
   params,
@@ -87,16 +87,24 @@ export default async function PublicEventPage({
   const rsvpAction = submitRsvp.bind(null, event.id);
   const photoAction = uploadEventPhoto.bind(null, event.id, event.slug);
   const calendarUrl = buildCalendarUrl(event);
+  const template = event.template_id ? await getInvitationTemplate(event.template_id) : null;
+  const isRedRoses = template?.slug === "rosas-rojas-15";
+  const primary = template?.config.primary ?? event.theme_color;
+  const secondary = template?.config.secondary ?? "#f8fafc";
 
   return (
-    <main className="bg-background">
+    <main
+      className={isRedRoses ? "bg-[#170607] text-[#fff7ed]" : "bg-background"}
+      style={{ ["--template-primary" as string]: primary, ["--template-secondary" as string]: secondary }}
+    >
       <div className="fixed left-3 top-3 z-50">
         <BackButton />
       </div>
       <section
-        className="relative flex min-h-[92vh] items-end overflow-hidden px-4 py-6 text-white shadow-soft"
-        style={!event.cover_image_url ? { background: `linear-gradient(145deg, ${event.theme_color}, #155e75 58%, #e11d48)` } : undefined}
+        className={`relative flex min-h-[92vh] items-end overflow-hidden px-4 py-6 text-white shadow-soft ${isRedRoses ? "border-b border-[#d4af37]/35" : ""}`}
+        style={!event.cover_image_url ? { background: isRedRoses ? "linear-gradient(145deg, #170607, #4c0710 55%, #8b0000)" : `linear-gradient(145deg, ${event.theme_color}, #155e75 58%, #e11d48)` } : undefined}
       >
+        {isRedRoses ? <RedRosesFrame /> : null}
         {event.cover_image_url ? (
           <>
             <Image
@@ -107,15 +115,15 @@ export default async function PublicEventPage({
               sizes="100vw"
               className="object-cover transition-transform duration-700 ease-out"
             />
-            <div className="absolute inset-0 bg-black/40" />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/35 to-black/15" />
+            <div className={`absolute inset-0 ${isRedRoses ? "bg-black/45" : "bg-black/40"}`} />
+            <div className={`absolute inset-0 ${isRedRoses ? "bg-gradient-to-t from-[#170607] via-black/35 to-[#8b0000]/20" : "bg-gradient-to-t from-black/80 via-black/35 to-black/15"}`} />
           </>
         ) : null}
         <div className="relative z-10 mx-auto grid w-full max-w-5xl gap-8 pb-8 text-center md:text-left">
           <div className="mx-auto max-w-3xl md:mx-0">
-            <p className="text-xs font-bold uppercase tracking-[0.24em] text-white/75">{event.event_type}</p>
-            <h1 className="mt-4 font-display text-6xl font-bold leading-none drop-shadow md:text-8xl">{event.hosts_names}</h1>
-            <p className="mt-4 text-lg font-semibold text-white/90">{formatDate(event.event_date)} · {event.event_time}</p>
+            <p className={`text-xs font-bold uppercase tracking-[0.24em] ${isRedRoses ? "text-[#d4af37]" : "text-white/75"}`}>{event.event_type}</p>
+            <h1 className={`mt-4 font-display text-6xl font-bold leading-none drop-shadow md:text-8xl ${isRedRoses ? "text-[#fff7ed]" : ""}`}>{event.hosts_names}</h1>
+            <p className={`mt-4 text-lg font-semibold ${isRedRoses ? "text-[#facc15]" : "text-white/90"}`}>{formatDate(event.event_date)} · {event.event_time}</p>
             <p className="mx-auto mt-5 max-w-xl text-lg leading-8 text-white/80 md:mx-0">{event.main_message}</p>
           </div>
           <Countdown date={event.event_date} time={event.event_time} />
@@ -140,7 +148,7 @@ export default async function PublicEventPage({
         </div>
       </section>
 
-      <section className="section" id="detalles">
+      <section className={`section ${isRedRoses ? "bg-[#170607] text-[#fff7ed]" : ""}`} id="detalles">
         <div className="mx-auto grid max-w-5xl gap-5 md:grid-cols-3">
           {[
             ["Fecha", formatDate(event.event_date)],
@@ -161,7 +169,7 @@ export default async function PublicEventPage({
         </div>
       </section>
 
-      <section className="section bg-white" id="rsvp">
+      <section className={`section ${isRedRoses ? "bg-[#2a090d] text-[#fff7ed]" : "bg-white"}`} id="rsvp">
         <div className="mx-auto grid max-w-5xl gap-8 lg:grid-cols-[0.85fr_1.15fr]">
           <div>
             <p className="text-sm font-bold uppercase tracking-[0.18em] text-accent">RSVP</p>
@@ -215,7 +223,7 @@ export default async function PublicEventPage({
         </div>
       </section>
 
-      <section className="section bg-muted/60" id="fotos">
+      <section className={`section ${isRedRoses ? "bg-[#170607] text-[#fff7ed]" : "bg-muted/60"}`} id="fotos">
         <div className="mx-auto grid max-w-5xl gap-8 lg:grid-cols-[0.9fr_1.1fr]">
           <div>
             <p className="text-sm font-bold uppercase tracking-[0.18em] text-accent">Galería</p>
@@ -261,6 +269,22 @@ function buildCalendarUrl(event: Event) {
     location: event.address
   });
   return `https://calendar.google.com/calendar/render?${params.toString()}`;
+}
+
+async function getInvitationTemplate(templateId: string) {
+  const admin = createAdminClient();
+  const { data } = await admin.from("invitation_templates").select("*").eq("id", templateId).eq("active", true).maybeSingle();
+  return (data ?? null) as InvitationTemplate | null;
+}
+
+function RedRosesFrame() {
+  return (
+    <>
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-28 bg-gradient-to-b from-[#170607] to-transparent" />
+      <div className="pointer-events-none absolute left-0 top-0 z-10 h-44 w-44 rounded-br-full border-b border-r border-[#d4af37]/25 bg-[radial-gradient(circle_at_25%_25%,#991b1b_0_12%,transparent_13%),radial-gradient(circle_at_50%_35%,#7f1d1d_0_10%,transparent_11%)] opacity-80" />
+      <div className="pointer-events-none absolute bottom-0 right-0 z-10 h-52 w-52 rounded-tl-full border-l border-t border-[#d4af37]/25 bg-[radial-gradient(circle_at_75%_75%,#b91c1c_0_11%,transparent_12%),radial-gradient(circle_at_55%_60%,#7f1d1d_0_10%,transparent_11%)] opacity-80" />
+    </>
+  );
 }
 
 function PersonalLinkRequired() {

@@ -49,8 +49,22 @@ create table public.clients (
   created_by uuid references public.profiles(id)
 );
 
+create table public.invitation_templates (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  slug text unique not null,
+  category text not null,
+  preview_image text,
+  config jsonb not null,
+  active boolean not null default true,
+  created_at timestamptz not null default now()
+);
+
 alter table public.events
 add constraint events_client_id_fkey foreign key (client_id) references public.clients(id) on delete set null;
+
+alter table public.events
+add column template_id uuid references public.invitation_templates(id) on delete set null;
 
 create table public.rsvps (
   id uuid primary key default gen_random_uuid(),
@@ -86,6 +100,7 @@ create table public.analytics_visits (
 create index events_owner_id_idx on public.events(owner_id);
 create index events_client_id_idx on public.events(client_id);
 create index clients_status_idx on public.clients(status);
+create index invitation_templates_slug_idx on public.invitation_templates(slug);
 create index events_slug_idx on public.events(slug);
 create index rsvps_event_id_idx on public.rsvps(event_id);
 create index event_photos_event_id_idx on public.event_photos(event_id);

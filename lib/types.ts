@@ -1,6 +1,16 @@
 export type UserRole = "super_admin" | "admin" | "admin_kais" | "diseñador" | "soporte_evento" | "cliente";
 export type EventStatus = "borrador" | "publicado" | "inactivo";
 export type GuestMode = "publico" | "lista_invitados";
+export type InvitationTemplateConfig = {
+  background?: string;
+  primary?: string;
+  secondary?: string;
+  fontTitle?: string;
+  fontBody?: string;
+  overlay?: string;
+  countdownStyle?: string;
+  flowerTheme?: string;
+};
 export type EventType =
   | "boda"
   | "cumpleaños"
@@ -24,6 +34,7 @@ export type Event = {
   id: string;
   owner_id: string;
   client_id: string | null;
+  template_id: string | null;
   title: string;
   event_type: EventType;
   hosts_names: string;
@@ -41,6 +52,17 @@ export type Event = {
   slug: string;
   created_at: string;
   updated_at: string;
+};
+
+export type InvitationTemplate = {
+  id: string;
+  name: string;
+  slug: string;
+  category: string;
+  preview_image: string | null;
+  config: InvitationTemplateConfig;
+  active: boolean;
+  created_at: string;
 };
 
 export type Client = {

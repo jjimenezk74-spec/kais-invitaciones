@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { canCreateEvents, isKaisAdmin } from "@/lib/profiles";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import type { Client } from "@/lib/types";
+import type { Client, InvitationTemplate } from "@/lib/types";
 
 export default async function NewEventPage({
   searchParams
@@ -21,14 +21,16 @@ export default async function NewEventPage({
   if (!canCreateEvents(profile?.role)) {
     redirect("/dashboard?error=Tu rol no tiene permisos para crear eventos.");
   }
-  const [{ data: clientsData }, { data: businessClientsData }] = await Promise.all([
+  const [{ data: clientsData }, { data: businessClientsData }, { data: templatesData }] = await Promise.all([
     isKaisAdmin(profile?.role)
       ? supabase.from("profiles").select("*").eq("role", "cliente").order("created_at", { ascending: false })
       : Promise.resolve({ data: [] }),
-    admin.from("clients").select("*").eq("status", "activo").order("name", { ascending: true })
+    admin.from("clients").select("*").eq("status", "activo").order("name", { ascending: true }),
+    admin.from("invitation_templates").select("*").eq("active", true).order("created_at", { ascending: true })
   ]);
   const clients = clientsData ?? [];
   const businessClients = (businessClientsData ?? []) as Client[];
+  const templates = (templatesData ?? []) as InvitationTemplate[];
 
   return (
     <Card>
@@ -42,7 +44,7 @@ export default async function NewEventPage({
         {query.error ? <p className="text-sm text-red-600">{query.error}</p> : null}
       </CardHeader>
       <CardContent>
-        <EventForm action={createEvent} clients={clients} businessClients={businessClients} showOwner={isKaisAdmin(profile?.role)} />
+        <EventForm action={createEvent} clients={clients} businessClients={businessClients} templates={templates} showOwner={isKaisAdmin(profile?.role)} />
       </CardContent>
     </Card>
   );

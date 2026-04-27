@@ -21,9 +21,11 @@ const guestModes = [
 ];
 
 export function EventForm({ action, event, clients = [], showOwner = false }: EventFormProps) {
+  const shouldShowOwnerSelect = showOwner && clients.length > 0;
+
   return (
     <form action={action} className="grid gap-5">
-      {showOwner ? (
+      {shouldShowOwnerSelect ? (
         <Field label="Cliente">
           <Select name="owner_id" defaultValue={event?.owner_id}>
             {clients.map((client) => (
@@ -33,6 +35,11 @@ export function EventForm({ action, event, clients = [], showOwner = false }: Ev
             ))}
           </Select>
         </Field>
+      ) : null}
+      {showOwner && clients.length === 0 ? (
+        <div className="rounded-md border bg-muted/40 p-4 text-sm text-muted-foreground">
+          No hay clientes internos. El evento quedará asignado a KAIS.
+        </div>
       ) : null}
 
       <div className="grid gap-5 md:grid-cols-2">

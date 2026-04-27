@@ -38,7 +38,8 @@ export async function createEvent(formData: FormData) {
     redirect("/dashboard?error=Tu rol no tiene permisos para crear eventos.");
   }
 
-  const ownerId = String(formData.get("owner_id") || user.id);
+  const requestedOwnerId = String(formData.get("owner_id") ?? "").trim();
+  const ownerId = requestedOwnerId || user.id;
   const title = String(formData.get("title") ?? "Nuevo evento");
   const slug = `${slugify(title)}-${crypto.randomUUID().slice(0, 8)}`;
   let musicUrl: string | null;

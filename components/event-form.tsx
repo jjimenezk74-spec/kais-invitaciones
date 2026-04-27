@@ -29,8 +29,10 @@ type PreviewState = {
   eventDate: string;
   eventTime: string;
   address: string;
+  googleMapsLink: string;
   mainMessage: string;
   musicUrl: string;
+  themeColor: string;
   heroImageUrl: string;
 };
 
@@ -61,8 +63,10 @@ export function EventForm({ action, event, clients = [], businessClients = [], t
     eventDate: event?.event_date ?? "",
     eventTime: event?.event_time ?? "",
     address: event?.address ?? "",
+    googleMapsLink: event?.google_maps_link ?? "",
     mainMessage: event?.main_message ?? "",
     musicUrl: event?.music_url ?? "",
+    themeColor: event?.theme_color ?? "#3a0a12",
     heroImageUrl: event?.mobile_cover_image_url ?? event?.cover_image_url ?? ""
   });
   const submitAfterUploadRef = useRef(false);
@@ -197,8 +201,10 @@ export function EventForm({ action, event, clients = [], businessClients = [], t
         eventDate={preview.eventDate}
         eventTime={preview.eventTime}
         address={preview.address}
+        googleMapsLink={preview.googleMapsLink}
         mainMessage={preview.mainMessage}
         musicUrl={preview.musicUrl}
+        themeColor={preview.themeColor}
         heroImageUrl={previewImageObjectUrl || preview.heroImageUrl}
       />
 
@@ -346,8 +352,10 @@ function updatePreviewFromForm(
     eventDate: getInputValue(form, "event_date"),
     eventTime: getInputValue(form, "event_time"),
     address: getInputValue(form, "address"),
+    googleMapsLink: getInputValue(form, "google_maps_link"),
     mainMessage: getInputValue(form, "main_message"),
     musicUrl: getInputValue(form, "music_url"),
+    themeColor: getInputValue(form, "theme_color") || "#3a0a12",
     heroImageUrl: nextHeroImageUrl
   });
 

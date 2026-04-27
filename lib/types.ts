@@ -1,6 +1,16 @@
 export type UserRole = "super_admin" | "admin" | "admin_kais" | "diseñador" | "soporte_evento" | "vendedor" | "cliente";
 export type EventStatus = "borrador" | "publicado" | "inactivo";
 export type GuestMode = "publico" | "lista_invitados";
+export type InvitationFontPreset = "default" | "romantic-script" | "luxury-serif" | "royal-classic" | "modern-chic";
+export type InvitationBackgroundVariant = "default" | "dark-roses" | "satin-red" | "gold-glow" | "romantic-floral";
+export type InvitationAnimationPreset = "none" | "soft-petals" | "gold-sparkles" | "elegant-glow";
+export type InvitationDecorationLevel = "minimal" | "medium" | "premium";
+export type InvitationDesignConfig = {
+  fontPreset: InvitationFontPreset;
+  backgroundVariant: InvitationBackgroundVariant;
+  animationPreset: InvitationAnimationPreset;
+  decorationLevel: InvitationDecorationLevel;
+};
 export type InvitationTemplateConfig = {
   background?: string;
   primary?: string;
@@ -10,6 +20,7 @@ export type InvitationTemplateConfig = {
   overlay?: string;
   countdownStyle?: string;
   flowerTheme?: string;
+  designConfig?: Partial<InvitationDesignConfig>;
 };
 export type EventType =
   | "boda"

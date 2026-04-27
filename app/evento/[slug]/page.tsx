@@ -5,6 +5,7 @@ import { submitRsvp, trackVisit, uploadEventPhoto } from "@/app/actions/events";
 import { Countdown } from "@/components/countdown";
 import { BackButton } from "@/components/back-button";
 import { EventHero } from "@/components/public-invitation/event-hero";
+import { resolveInvitationDesign } from "@/lib/invitation-design";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate } from "@/lib/utils";
@@ -98,19 +99,22 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
   const photoAction = uploadEventPhoto.bind(null, event.id, event.slug);
   const calendarUrl = buildCalendarUrl(event);
   const template = event.template_id ? await getInvitationTemplate(event.template_id) : null;
-  const primary = template?.config.primary ?? event.theme_color;
-  const secondary = template?.config.secondary ?? "#f8fafc";
 
   const rsvpStatus = normalizeSearchParam(query.rsvp);
   const rsvpError = normalizeSearchParam(query.rsvp_error);
   const photoStatus = normalizeSearchParam(query.foto);
   const photoError = normalizeSearchParam(query.foto_error);
   const isConfirmed = Boolean(invitedGuestRsvp) || rsvpStatus === "ok";
+  const design = resolveInvitationDesign(template?.config, event.theme_color);
 
   return (
     <main
-      className="kais-stage relative font-sans"
-      style={{ ["--template-primary" as string]: primary, ["--template-secondary" as string]: secondary }}
+      className={[design.stageClassName, design.designClassName].filter(Boolean).join(" ")}
+      data-font-preset={design.designConfig.fontPreset}
+      data-background-variant={design.designConfig.backgroundVariant}
+      data-animation-preset={design.designConfig.animationPreset}
+      data-decoration-level={design.designConfig.decorationLevel}
+      style={{ ["--template-primary" as string]: design.primary, ["--template-secondary" as string]: design.secondary }}
     >
       <div className="fixed left-3 top-[max(0.75rem,env(safe-area-inset-top))] z-50 sm:left-5">
         <BackButton from={normalizeSearchParam(query.from)} />

@@ -6,6 +6,7 @@ import { canCreateEvents, canModerateEvents, getCurrentUserProfile, isKaisAdmin 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { slugify } from "@/lib/utils";
+import type { EventGuest } from "@/lib/types";
 
 type ServerSupabaseClient = Awaited<ReturnType<typeof createClient>>;
 
@@ -22,6 +23,7 @@ const ALLOWED_COVER_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp"];
 const ALLOWED_COVER_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const MAX_COVER_FILE_SIZE = 5 * 1024 * 1024;
 const EVENT_STATUSES = ["borrador", "publicado", "inactivo"] as const;
+const GUEST_MODES = ["publico", "lista_invitados"] as const;
 
 export async function createEvent(formData: FormData) {
   const supabase = await createClient();
@@ -65,6 +67,7 @@ export async function createEvent(formData: FormData) {
     music_url: musicUrl,
     theme_color: String(formData.get("theme_color") || "#111827"),
     status: getEventStatus(formData.get("status")),
+    guest_mode: getGuestMode(formData.get("guest_mode")),
     slug
   };
 
@@ -126,7 +129,8 @@ export async function updateEvent(eventId: string, formData: FormData) {
     cover_image_url: coverImageUrl,
     music_url: musicUrl,
     theme_color: String(formData.get("theme_color") || "#111827"),
-    status: getEventStatus(formData.get("status"))
+    status: getEventStatus(formData.get("status")),
+    guest_mode: getGuestMode(formData.get("guest_mode"))
   };
 
   const { error } = await supabase.from("events").update(payload).eq("id", eventId);
@@ -188,10 +192,13 @@ export async function deleteEvent(eventId: string) {
 export async function submitRsvp(eventId: string, formData: FormData) {
   const supabase = await createClient();
   const slug = String(formData.get("slug") ?? "").trim();
+  const guestToken = String(formData.get("guest_token") ?? "").trim();
   const errorUrl = (message: string) => `/evento/${slug}?rsvp_error=${encodeURIComponent(message)}#rsvp`;
   const successUrl = `/evento/${slug}?rsvp=ok#rsvp`;
-  const guestName = String(formData.get("guest_name") ?? "").trim();
+  let guestName = String(formData.get("guest_name") ?? "").trim();
   const companions = Number(formData.get("companions") || 0);
+  const attending = String(formData.get("attending")) === "si";
+  let eventGuest: EventGuest | null = null;
 
   if (!slug) {
     redirect("/?error=No se pudo identificar la invitacion.");
@@ -205,18 +212,65 @@ export async function submitRsvp(eventId: string, formData: FormData) {
     redirect(errorUrl("La cantidad de acompanantes debe ser 0 o mayor."));
   }
 
+  if (guestToken) {
+    const admin = createAdminClient();
+    const { data: guestData } = await admin
+      .from("event_guests")
+      .select("*")
+      .eq("token", guestToken)
+      .eq("event_id", eventId)
+      .maybeSingle();
+
+    eventGuest = (guestData ?? null) as EventGuest | null;
+
+    if (!eventGuest) {
+      redirect(errorUrl("Este enlace personal no es valido."));
+    }
+
+    if (eventGuest.status === "bloqueado") {
+      redirect(errorUrl("Este enlace ya no esta activo."));
+    }
+
+    if (companions > eventGuest.max_companions) {
+      redirect(errorUrl(`Este enlace permite hasta ${eventGuest.max_companions} acompanantes.`));
+    }
+
+    guestName = eventGuest.guest_name;
+  } else {
+    const { data: eventData } = await supabase.from("events").select("guest_mode").eq("id", eventId).maybeSingle();
+    if (eventData?.guest_mode === "lista_invitados") {
+      redirect(errorUrl("Esta invitacion requiere enlace personal."));
+    }
+  }
+
   const payload = {
     event_id: eventId,
     guest_name: guestName,
     phone: nullable(formData.get("phone")),
     email: nullable(formData.get("email")),
-    attending: String(formData.get("attending")) === "si",
+    attending,
     companions: Math.floor(companions),
     message: nullable(formData.get("message")),
     dietary_restrictions: nullable(formData.get("dietary_restrictions"))
   };
 
-  const { error } = await supabase.from("rsvps").insert(payload);
+  if (eventGuest?.rsvp_id) {
+    const admin = createAdminClient();
+    const { error } = await admin.from("rsvps").update(payload).eq("id", eventGuest.rsvp_id).eq("event_id", eventId);
+    if (error) {
+      console.error("[KAIS RSVP] No se pudo actualizar RSVP personal", { eventId, slug, code: error.code, message: error.message });
+      redirect(errorUrl("No pudimos actualizar tu confirmacion. Intenta de nuevo o contacta a los anfitriones."));
+    }
+    await admin
+      .from("event_guests")
+      .update({ status: attending ? "confirmado" : "no_asiste", last_opened_at: new Date().toISOString() })
+      .eq("id", eventGuest.id);
+    revalidatePath(`/evento/${slug}`);
+    redirect(successUrl);
+  }
+
+  const client = eventGuest ? createAdminClient() : supabase;
+  const { data: insertedRsvp, error } = await client.from("rsvps").insert(payload).select("id").single();
   if (error) {
     console.error("[KAIS RSVP] No se pudo guardar RSVP", {
       eventId,
@@ -227,8 +281,81 @@ export async function submitRsvp(eventId: string, formData: FormData) {
     redirect(errorUrl("No pudimos guardar tu confirmacion. Intenta de nuevo o contacta a los anfitriones."));
   }
 
+  if (eventGuest) {
+    await createAdminClient()
+      .from("event_guests")
+      .update({
+        rsvp_id: insertedRsvp?.id ?? null,
+        status: attending ? "confirmado" : "no_asiste",
+        last_opened_at: new Date().toISOString()
+      })
+      .eq("id", eventGuest.id);
+  }
+
   revalidatePath(`/evento/${slug}`);
   redirect(successUrl);
+}
+
+export async function createEventGuest(eventId: string, formData: FormData) {
+  const { profile } = await getCurrentUserProfile();
+  if (!isKaisAdmin(profile?.role)) {
+    redirect(`/dashboard/eventos/${eventId}?error=Solo admin KAIS puede gestionar invitados.`);
+  }
+
+  const guestName = String(formData.get("guest_name") ?? "").trim();
+  const phone = String(formData.get("phone") ?? "").trim();
+  const email = nullable(formData.get("email"));
+  const maxCompanions = Math.max(0, Math.floor(Number(formData.get("max_companions") || 0)));
+
+  if (!guestName || !phone) {
+    redirect(`/dashboard/eventos/${eventId}?error=Nombre y telefono son obligatorios para agregar invitado.`);
+  }
+
+  const admin = createAdminClient();
+  const { error } = await admin.from("event_guests").insert({
+    event_id: eventId,
+    guest_name: guestName,
+    phone,
+    email,
+    max_companions: maxCompanions,
+    token: crypto.randomUUID().replace(/-/g, "")
+  });
+
+  if (error) {
+    redirect(`/dashboard/eventos/${eventId}?error=${encodeURIComponent(error.message)}`);
+  }
+
+  revalidatePath(`/dashboard/eventos/${eventId}`);
+}
+
+export async function deleteEventGuest(guestId: string, eventId: string) {
+  const { profile } = await getCurrentUserProfile();
+  if (!isKaisAdmin(profile?.role)) {
+    redirect(`/dashboard/eventos/${eventId}?error=Solo admin KAIS puede eliminar invitados.`);
+  }
+
+  const { error } = await createAdminClient().from("event_guests").delete().eq("id", guestId).eq("event_id", eventId);
+  if (error) {
+    redirect(`/dashboard/eventos/${eventId}?error=${encodeURIComponent(error.message)}`);
+  }
+  revalidatePath(`/dashboard/eventos/${eventId}`);
+}
+
+export async function toggleEventGuestBlocked(guestId: string, eventId: string, blocked: boolean) {
+  const { profile } = await getCurrentUserProfile();
+  if (!isKaisAdmin(profile?.role)) {
+    redirect(`/dashboard/eventos/${eventId}?error=Solo admin KAIS puede bloquear invitados.`);
+  }
+
+  const { error } = await createAdminClient()
+    .from("event_guests")
+    .update({ status: blocked ? "bloqueado" : "pendiente" })
+    .eq("id", guestId)
+    .eq("event_id", eventId);
+  if (error) {
+    redirect(`/dashboard/eventos/${eventId}?error=${encodeURIComponent(error.message)}`);
+  }
+  revalidatePath(`/dashboard/eventos/${eventId}`);
 }
 
 export async function uploadEventPhoto(eventId: string, slug: string, formData: FormData) {
@@ -336,6 +463,11 @@ function getOptionalFile(value: FormDataEntryValue | null) {
 function getEventStatus(value: FormDataEntryValue | null) {
   const status = String(value ?? "borrador");
   return EVENT_STATUSES.includes(status as (typeof EVENT_STATUSES)[number]) ? status : "borrador";
+}
+
+function getGuestMode(value: FormDataEntryValue | null) {
+  const mode = String(value ?? "publico");
+  return GUEST_MODES.includes(mode as (typeof GUEST_MODES)[number]) ? mode : "publico";
 }
 
 async function getMusicUrlFromForm(formData: FormData, supabase: ServerSupabaseClient, userId: string) {

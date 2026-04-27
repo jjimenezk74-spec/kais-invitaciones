@@ -1,5 +1,6 @@
 export type UserRole = "super_admin" | "admin" | "admin_kais" | "diseñador" | "soporte_evento" | "cliente";
 export type EventStatus = "borrador" | "publicado" | "inactivo";
+export type GuestMode = "publico" | "lista_invitados";
 export type EventType =
   | "boda"
   | "cumpleaños"
@@ -35,9 +36,24 @@ export type Event = {
   music_url: string | null;
   theme_color: string;
   status: EventStatus;
+  guest_mode: GuestMode;
   slug: string;
   created_at: string;
   updated_at: string;
+};
+
+export type EventGuest = {
+  id: string;
+  event_id: string;
+  guest_name: string;
+  phone: string;
+  email: string | null;
+  token: string;
+  max_companions: number;
+  status: "pendiente" | "confirmado" | "no_asiste" | "bloqueado";
+  rsvp_id: string | null;
+  last_opened_at: string | null;
+  created_at: string;
 };
 
 export type Rsvp = {

@@ -13,8 +13,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getEventLoginSession } from "@/lib/event-login-auth";
 import { createAdminClient } from "@/lib/supabase/admin";
-import type { Event, EventPhoto, Rsvp } from "@/lib/types";
-import { formatDate, publicEventUrl } from "@/lib/utils";
+import type { Event, EventGuest, EventPhoto, Rsvp } from "@/lib/types";
+import { buildGuestWhatsAppMessage, buildWhatsAppUrl, formatDate, guestEventUrl, publicEventUrl } from "@/lib/utils";
 
 export default async function PanelEventoPage({
   searchParams
@@ -28,10 +28,11 @@ export default async function PanelEventoPage({
   }
 
   const admin = createAdminClient();
-  const [{ data: event }, { data: rsvpsData }, { data: photosData }] = await Promise.all([
+  const [{ data: event }, { data: rsvpsData }, { data: photosData }, { data: guestsData }] = await Promise.all([
     admin.from("events").select("*").eq("id", login.event_id).single(),
     admin.from("rsvps").select("*").eq("event_id", login.event_id).order("created_at", { ascending: false }),
-    admin.from("event_photos").select("*").eq("event_id", login.event_id).order("created_at", { ascending: false })
+    admin.from("event_photos").select("*").eq("event_id", login.event_id).order("created_at", { ascending: false }),
+    admin.from("event_guests").select("*").eq("event_id", login.event_id).order("created_at", { ascending: false })
   ]);
 
   if (!event) {
@@ -41,6 +42,7 @@ export default async function PanelEventoPage({
   const typedEvent = event as Event;
   const typedRsvps = (rsvpsData ?? []) as Rsvp[];
   const typedPhotos = (photosData ?? []) as EventPhoto[];
+  const typedGuests = (guestsData ?? []) as EventGuest[];
   const url = publicEventUrl(typedEvent.slug);
 
   return (
@@ -106,7 +108,54 @@ export default async function PanelEventoPage({
             <CardHeader><CardTitle>Fotos</CardTitle></CardHeader>
             <CardContent className="text-3xl font-bold">{typedPhotos.length}</CardContent>
           </Card>
+          <Card>
+            <CardHeader><CardTitle>Pendientes</CardTitle></CardHeader>
+            <CardContent className="text-3xl font-bold">{typedGuests.filter((guest) => guest.status === "pendiente").length}</CardContent>
+          </Card>
         </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Lista de invitados</CardTitle>
+          </CardHeader>
+          <CardContent className="overflow-x-auto">
+            <div className="mb-4">
+              <Button variant="outline" asChild>
+                <a href="/api/panel-evento/invitados.csv">Descargar CSV invitados</a>
+              </Button>
+            </div>
+            <table className="w-full min-w-[900px] text-left text-sm">
+              <thead className="border-b text-muted-foreground">
+                <tr>
+                  <th className="py-3">Invitado</th>
+                  <th>Estado</th>
+                  <th>Acompanantes max.</th>
+                  <th>Enlace</th>
+                  <th>WhatsApp</th>
+                </tr>
+              </thead>
+              <tbody>
+                {typedGuests.map((guest) => {
+                  const link = guestEventUrl(typedEvent.slug, guest.token);
+                  const whatsapp = buildWhatsAppUrl(guest.phone, buildGuestWhatsAppMessage(guest.guest_name, typedEvent.title, link));
+                  return (
+                    <tr key={guest.id} className="border-b align-top">
+                      <td className="py-3 font-medium">{guest.guest_name}</td>
+                      <td>{guest.status}</td>
+                      <td>{guest.max_companions}</td>
+                      <td className="max-w-xs break-all text-xs text-muted-foreground">
+                        {link}
+                        <div className="mt-2"><CopyLinkButton value={link} label="Copiar enlace" /></div>
+                      </td>
+                      <td><Button size="sm" variant="outline" asChild><a href={whatsapp} target="_blank">Enviar WhatsApp</a></Button></td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            {typedGuests.length === 0 ? <p className="text-sm text-muted-foreground">Todavia no hay invitados precargados.</p> : null}
+          </CardContent>
+        </Card>
 
         <Card>
           <CardHeader>

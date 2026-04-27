@@ -29,6 +29,7 @@ create table public.events (
   music_url text,
   theme_color text not null default '#111827',
   status public.event_status not null default 'borrador',
+  guest_mode text not null default 'publico' check (guest_mode in ('publico', 'lista_invitados')),
   slug text not null unique,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()

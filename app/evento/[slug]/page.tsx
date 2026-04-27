@@ -12,16 +12,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate } from "@/lib/utils";
-import type { Event, EventPhoto } from "@/lib/types";
+import type { Event, EventGuest, EventPhoto, Rsvp } from "@/lib/types";
 
 export default async function PublicEventPage({
   params,
   searchParams
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ rsvp?: string; rsvp_error?: string; foto?: string }>;
+  searchParams: Promise<{ rsvp?: string; rsvp_error?: string; foto?: string; guest?: string }>;
 }) {
   const [{ slug }, query] = await Promise.all([params, searchParams]);
   const supabase = await createClient();
@@ -42,6 +43,33 @@ export default async function PublicEventPage({
         </div>
       </main>
     );
+  }
+
+  const guestToken = String(query.guest ?? "").trim();
+  let invitedGuest: EventGuest | null = null;
+  let invitedGuestRsvp: Rsvp | null = null;
+
+  if (event.guest_mode === "lista_invitados") {
+    if (!guestToken) return <PersonalLinkRequired />;
+
+    const admin = createAdminClient();
+    const { data: guestData } = await admin
+      .from("event_guests")
+      .select("*")
+      .eq("event_id", event.id)
+      .eq("token", guestToken)
+      .maybeSingle();
+
+    invitedGuest = (guestData ?? null) as EventGuest | null;
+    if (!invitedGuest) return <PersonalLinkRequired />;
+    if (invitedGuest.status === "bloqueado") return <InactivePersonalLink />;
+
+    await admin.from("event_guests").update({ last_opened_at: new Date().toISOString() }).eq("id", invitedGuest.id);
+
+    if (invitedGuest.rsvp_id) {
+      const { data: rsvpData } = await admin.from("rsvps").select("*").eq("id", invitedGuest.rsvp_id).maybeSingle();
+      invitedGuestRsvp = (rsvpData ?? null) as Rsvp | null;
+    }
   }
 
   const headerStore = await headers();
@@ -138,7 +166,9 @@ export default async function PublicEventPage({
           <div>
             <p className="text-sm font-bold uppercase tracking-[0.18em] text-accent">RSVP</p>
             <h2 className="mt-3 font-display text-4xl font-bold">Confirma tu asistencia</h2>
-            <p className="mt-4 text-muted-foreground">Tu respuesta ayuda a los anfitriones a preparar cada detalle.</p>
+            <p className="mt-4 text-muted-foreground">
+              {invitedGuest ? `Hola, ${invitedGuest.guest_name}. Puedes confirmar o editar tu respuesta.` : "Tu respuesta ayuda a los anfitriones a preparar cada detalle."}
+            </p>
             {query.rsvp === "ok" ? <p className="mt-4 rounded-md bg-secondary p-3 text-sm font-semibold">Confirmación recibida.</p> : null}
             {query.rsvp_error ? <p className="mt-4 rounded-md bg-red-50 p-3 text-sm font-semibold text-red-700">{query.rsvp_error}</p> : null}
           </div>
@@ -146,33 +176,34 @@ export default async function PublicEventPage({
             <CardContent className="p-6">
               <form action={rsvpAction} className="grid gap-4">
                 <input type="hidden" name="slug" value={event.slug} />
+                <input type="hidden" name="guest_token" value={guestToken} />
                 <Field label="Nombre">
-                  <Input name="guest_name" required />
+                  <Input name="guest_name" required defaultValue={invitedGuest?.guest_name ?? ""} readOnly={Boolean(invitedGuest)} />
                 </Field>
                 <div className="grid gap-4 md:grid-cols-2">
                   <Field label="Teléfono">
-                    <Input name="phone" />
+                    <Input name="phone" defaultValue={invitedGuest?.phone ?? invitedGuestRsvp?.phone ?? ""} />
                   </Field>
                   <Field label="Email">
-                    <Input name="email" type="email" />
+                    <Input name="email" type="email" defaultValue={invitedGuest?.email ?? invitedGuestRsvp?.email ?? ""} />
                   </Field>
                 </div>
                 <div className="grid gap-4 md:grid-cols-2">
                   <Field label="¿Asistirá?">
-                    <Select name="attending" defaultValue="si">
+                    <Select name="attending" defaultValue={invitedGuestRsvp?.attending === false ? "no" : "si"}>
                       <option value="si">Sí</option>
                       <option value="no">No</option>
                     </Select>
                   </Field>
                   <Field label="Acompañantes">
-                    <Input name="companions" type="number" min="0" defaultValue="0" />
+                    <Input name="companions" type="number" min="0" max={invitedGuest?.max_companions} defaultValue={String(invitedGuestRsvp?.companions ?? 0)} />
                   </Field>
                 </div>
                 <Field label="Restricción alimentaria">
-                  <Input name="dietary_restrictions" placeholder="Opcional" />
+                  <Input name="dietary_restrictions" placeholder="Opcional" defaultValue={invitedGuestRsvp?.dietary_restrictions ?? ""} />
                 </Field>
                 <Field label="Mensaje">
-                  <Textarea name="message" />
+                  <Textarea name="message" defaultValue={invitedGuestRsvp?.message ?? ""} />
                 </Field>
                 <Button>
                   <Send className="h-4 w-4" />
@@ -230,4 +261,28 @@ function buildCalendarUrl(event: Event) {
     location: event.address
   });
   return `https://calendar.google.com/calendar/render?${params.toString()}`;
+}
+
+function PersonalLinkRequired() {
+  return (
+    <main className="flex min-h-screen items-center justify-center px-4 text-center">
+      <div>
+        <p className="text-sm font-bold uppercase tracking-[0.18em] text-accent">KAIS INVITACIONES</p>
+        <h1 className="mt-3 font-display text-4xl font-bold">Esta invitacion requiere enlace personal.</h1>
+        <p className="mt-3 text-muted-foreground">Abre el enlace que recibiste por WhatsApp para confirmar asistencia.</p>
+      </div>
+    </main>
+  );
+}
+
+function InactivePersonalLink() {
+  return (
+    <main className="flex min-h-screen items-center justify-center px-4 text-center">
+      <div>
+        <p className="text-sm font-bold uppercase tracking-[0.18em] text-accent">KAIS INVITACIONES</p>
+        <h1 className="mt-3 font-display text-4xl font-bold">Este enlace ya no esta activo.</h1>
+        <p className="mt-3 text-muted-foreground">Contacta a los anfitriones si necesitas ayuda con tu invitacion.</p>
+      </div>
+    </main>
+  );
 }

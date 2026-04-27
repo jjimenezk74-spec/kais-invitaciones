@@ -6,7 +6,14 @@ import {
   toggleEventLoginActive,
   updateEventLoginExpiration
 } from "@/app/actions/event-logins";
-import { approvePhoto, deleteEvent, updateEvent } from "@/app/actions/events";
+import {
+  approvePhoto,
+  createEventGuest,
+  deleteEvent,
+  deleteEventGuest,
+  toggleEventGuestBlocked,
+  updateEvent
+} from "@/app/actions/events";
 import { CopyLinkButton } from "@/components/copy-link-button";
 import { DeleteEventButton } from "@/components/delete-event-button";
 import { EventForm } from "@/components/event-form";
@@ -16,8 +23,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { canModerateEvents, getCurrentUserProfile, isKaisAdmin } from "@/lib/profiles";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import type { Event, EventLogin, EventPhoto, Rsvp } from "@/lib/types";
-import { absoluteUrl, buildCredentialsMessage, publicEventUrl } from "@/lib/utils";
+import type { Event, EventGuest, EventLogin, EventPhoto, Rsvp } from "@/lib/types";
+import { absoluteUrl, buildCredentialsMessage, buildGuestWhatsAppMessage, buildWhatsAppUrl, guestEventUrl, publicEventUrl } from "@/lib/utils";
 
 export default async function EventDetailPage({
   params,
@@ -42,13 +49,15 @@ export default async function EventDetailPage({
   const event = data as Event | null;
   if (!event) return <p>Evento no encontrado.</p>;
 
-  const [{ data: rsvpsData }, { data: photosData }, { count: visits = 0 }] = await Promise.all([
+  const [{ data: rsvpsData }, { data: photosData }, { data: guestsData }, { count: visits = 0 }] = await Promise.all([
     supabase.from("rsvps").select("*").eq("event_id", event.id).order("created_at", { ascending: false }),
     supabase.from("event_photos").select("*").eq("event_id", event.id).order("created_at", { ascending: false }),
+    admin.from("event_guests").select("*").eq("event_id", event.id).order("created_at", { ascending: false }),
     supabase.from("analytics_visits").select("*", { count: "exact", head: true }).eq("event_id", event.id)
   ]);
   const rsvps = (rsvpsData ?? []) as Rsvp[];
   const photos = (photosData ?? []) as EventPhoto[];
+  const guests = (guestsData ?? []) as EventGuest[];
   const { data: loginData } = canManageClientAccess
     ? await admin.from("event_logins").select("*").eq("event_id", event.id).order("created_at", { ascending: false })
     : { data: [] };
@@ -242,6 +251,66 @@ export default async function EventDetailPage({
           <CardContent className="text-3xl font-bold">{visits ?? 0}</CardContent>
         </Card>
       </div>
+
+      {canManageClientAccess ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Lista de invitados</CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-5">
+            <form action={createEventGuest.bind(null, event.id)} className="grid gap-4 md:grid-cols-5">
+              <input name="guest_name" className="h-10 rounded-md border bg-white px-3 text-sm" placeholder="Nombre" required />
+              <input name="phone" className="h-10 rounded-md border bg-white px-3 text-sm" placeholder="WhatsApp 595..." required />
+              <input name="email" className="h-10 rounded-md border bg-white px-3 text-sm" placeholder="Email opcional" />
+              <input name="max_companions" type="number" min="0" className="h-10 rounded-md border bg-white px-3 text-sm" placeholder="Acompanantes" defaultValue="0" />
+              <Button>Agregar invitado</Button>
+            </form>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[900px] text-left text-sm">
+                <thead className="border-b text-muted-foreground">
+                  <tr>
+                    <th className="py-3">Invitado</th>
+                    <th>Estado</th>
+                    <th>Acompanantes</th>
+                    <th>Enlace</th>
+                    <th>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {guests.map((guest) => {
+                    const link = guestEventUrl(event.slug, guest.token);
+                    const whatsapp = buildWhatsAppUrl(guest.phone, buildGuestWhatsAppMessage(guest.guest_name, event.title, link));
+                    return (
+                      <tr key={guest.id} className="border-b align-top">
+                        <td className="py-3">
+                          <p className="font-medium">{guest.guest_name}</p>
+                          <p className="text-muted-foreground">{guest.phone}</p>
+                        </td>
+                        <td>{guest.status}</td>
+                        <td>{guest.max_companions}</td>
+                        <td className="max-w-xs break-all text-xs text-muted-foreground">{link}</td>
+                        <td>
+                          <div className="flex flex-wrap gap-2">
+                            <CopyLinkButton value={link} label="Copiar enlace" />
+                            <Button size="sm" variant="outline" asChild><a href={whatsapp} target="_blank">Enviar WhatsApp</a></Button>
+                            <form action={toggleEventGuestBlocked.bind(null, guest.id, event.id, guest.status !== "bloqueado")}>
+                              <Button size="sm" variant="outline">{guest.status === "bloqueado" ? "Desbloquear" : "Bloquear"}</Button>
+                            </form>
+                            <form action={deleteEventGuest.bind(null, guest.id, event.id)}>
+                              <Button size="sm" variant="danger">Eliminar</Button>
+                            </form>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              {guests.length === 0 ? <p className="mt-3 text-sm text-muted-foreground">Todavia no hay invitados precargados.</p> : null}
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
 
       <Card>
         <CardHeader>

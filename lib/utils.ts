@@ -17,6 +17,26 @@ export function publicEventUrl(slug: string) {
   return absoluteUrl(`/evento/${slug}`);
 }
 
+export function guestEventUrl(slug: string, token: string) {
+  return absoluteUrl(`/evento/${slug}?guest=${encodeURIComponent(token)}`);
+}
+
+export function buildGuestWhatsAppMessage(guestName: string, eventTitle: string, guestLink: string) {
+  return [
+    `Hola ${guestName}, estas invitado/a a ${eventTitle}.`,
+    "",
+    "Confirma tu asistencia aqui:",
+    guestLink,
+    "",
+    "Este enlace es personal, por favor no lo compartas."
+  ].join("\n");
+}
+
+export function buildWhatsAppUrl(phone: string, message: string) {
+  const normalizedPhone = phone.replace(/[^\d]/g, "");
+  return `https://wa.me/${normalizedPhone}?text=${encodeURIComponent(message)}`;
+}
+
 export function buildCredentialsMessage(username: string, password: string) {
   return [
     "Hola, este es tu acceso al panel de tu evento:",

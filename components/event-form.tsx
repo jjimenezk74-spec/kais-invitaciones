@@ -15,6 +15,10 @@ type EventFormProps = {
 
 const eventTypes = ["boda", "cumpleaños", "quinceaños", "bautizo", "baby shower", "corporativo", "graduación", "otro"];
 const statuses = ["borrador", "publicado", "inactivo"];
+const guestModes = [
+  ["publico", "Publico"],
+  ["lista_invitados", "Lista de invitados"]
+];
 
 export function EventForm({ action, event, clients = [], showOwner = false }: EventFormProps) {
   return (
@@ -100,6 +104,16 @@ export function EventForm({ action, event, clients = [], showOwner = false }: Ev
           {statuses.map((status) => (
             <option key={status} value={status}>
               {status}
+            </option>
+          ))}
+        </Select>
+      </Field>
+
+      <Field label="Modo de RSVP">
+        <Select name="guest_mode" defaultValue={event?.guest_mode ?? "publico"}>
+          {guestModes.map(([value, label]) => (
+            <option key={value} value={value}>
+              {label}
             </option>
           ))}
         </Select>

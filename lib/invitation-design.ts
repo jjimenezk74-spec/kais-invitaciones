@@ -4,7 +4,8 @@ import type {
   InvitationDecorationLevel,
   InvitationDesignConfig,
   InvitationFontPreset,
-  InvitationTemplateConfig
+  InvitationTemplateConfig,
+  InvitationTheme
 } from "@/lib/types";
 
 export const DEFAULT_INVITATION_DESIGN_CONFIG: InvitationDesignConfig = {
@@ -19,12 +20,85 @@ const backgroundVariants: InvitationBackgroundVariant[] = ["default", "dark-rose
 const animationPresets: InvitationAnimationPreset[] = ["none", "soft-petals", "gold-sparkles", "elegant-glow"];
 const decorationLevels: InvitationDecorationLevel[] = ["minimal", "medium", "premium"];
 
+/** Shape returned by all design resolvers. */
+export type ResolvedDesign = {
+  designConfig: InvitationDesignConfig;
+  primary: string;
+  secondary: string;
+  stageClassName: string;
+  designClassName: string;
+};
+
+// ─── Theme-system resolver (new) ─────────────────────────────────────────────
+
+/**
+ * Resolves the final display config for the new theme system.
+ * Merge priority (lowest → highest):
+ *   DEFAULT_INVITATION_DESIGN_CONFIG
+ *   → theme.default_design_config
+ *   → event.design_config
+ *
+ * Fields that are explicitly set in a higher-priority source override
+ * lower-priority ones, including explicit "default" / "none" / "minimal".
+ * Undefined / null fields in a source are skipped so lower-priority
+ * values can fill the gap.
+ */
+export function resolveThemeDesign(
+  theme: InvitationTheme | null | undefined,
+  fallbackPrimary: string,
+  eventDesignConfig?: Partial<InvitationDesignConfig> | null
+): ResolvedDesign {
+  const merged = mergeDesignConfigs(
+    theme?.default_design_config,
+    eventDesignConfig
+  );
+  const designConfig = normalizeInvitationDesignConfig({ designConfig: merged });
+
+  return {
+    designConfig,
+    primary: fallbackPrimary,
+    secondary: "#f8fafc",
+    stageClassName: "kais-stage relative font-sans",
+    designClassName: getDesignClassName(designConfig, theme?.slug ?? null)
+  };
+}
+
+/**
+ * Merges partial design configs.
+ * Arguments are listed in ASCENDING priority order — later entries win.
+ * Undefined / null values in a source are skipped so the next-lower
+ * priority value remains in effect.
+ *
+ * @example
+ *   mergeDesignConfigs(theme.default_design_config, event.design_config)
+ *   // event.design_config wins wherever both define the same key
+ */
+export function mergeDesignConfigs(
+  ...configs: Array<Partial<InvitationDesignConfig> | null | undefined>
+): Partial<InvitationDesignConfig> {
+  const result: Partial<InvitationDesignConfig> = {};
+  for (const cfg of configs) {
+    if (!cfg) continue;
+    if (cfg.fontPreset !== undefined)       result.fontPreset       = cfg.fontPreset;
+    if (cfg.backgroundVariant !== undefined) result.backgroundVariant = cfg.backgroundVariant;
+    if (cfg.animationPreset !== undefined)   result.animationPreset   = cfg.animationPreset;
+    if (cfg.decorationLevel !== undefined)   result.decorationLevel   = cfg.decorationLevel;
+  }
+  return result;
+}
+
+// ─── Legacy template resolver (backward compat) ───────────────────────────────
+
+/**
+ * Resolves design for the legacy InvitationTemplateConfig system.
+ * Kept as-is so existing invitation_templates continue to work.
+ */
 export function resolveInvitationDesign(
   config: InvitationTemplateConfig | null | undefined,
   fallbackPrimary: string,
   eventDesignConfig?: Partial<InvitationDesignConfig> | null,
   templateSlug?: string | null
-) {
+): ResolvedDesign {
   const designConfig = normalizeInvitationDesignConfig({
     ...config,
     designConfig: {
@@ -42,12 +116,19 @@ export function resolveInvitationDesign(
   };
 }
 
-export function normalizeInvitationDesignConfig(config: InvitationTemplateConfig | null | undefined): InvitationDesignConfig {
+// ─── Shared utilities ─────────────────────────────────────────────────────────
+
+export function normalizeInvitationDesignConfig(
+  config: InvitationTemplateConfig | null | undefined
+): InvitationDesignConfig {
   const raw = config?.designConfig;
-  const designConfig: Partial<InvitationDesignConfig> = typeof raw === "object" && raw !== null ? raw : {};
+  const designConfig: Partial<InvitationDesignConfig> =
+    typeof raw === "object" && raw !== null ? raw : {};
 
   return {
-    fontPreset: isOneOf(designConfig.fontPreset, fontPresets) ? designConfig.fontPreset : DEFAULT_INVITATION_DESIGN_CONFIG.fontPreset,
+    fontPreset: isOneOf(designConfig.fontPreset, fontPresets)
+      ? designConfig.fontPreset
+      : DEFAULT_INVITATION_DESIGN_CONFIG.fontPreset,
     backgroundVariant: isOneOf(designConfig.backgroundVariant, backgroundVariants)
       ? designConfig.backgroundVariant
       : DEFAULT_INVITATION_DESIGN_CONFIG.backgroundVariant,
@@ -60,7 +141,10 @@ export function normalizeInvitationDesignConfig(config: InvitationTemplateConfig
   };
 }
 
-function getDesignClassName(config: InvitationDesignConfig, templateSlug?: string | null) {
+function getDesignClassName(
+  config: InvitationDesignConfig,
+  themeOrTemplateSlug?: string | null
+): string {
   if (
     config.fontPreset === "default" &&
     config.backgroundVariant === "default" &&
@@ -77,7 +161,8 @@ function getDesignClassName(config: InvitationDesignConfig, templateSlug?: strin
     `kais-decor-${config.decorationLevel}`
   ];
 
-  if (templateSlug === "rosas-rojas-15" && config.decorationLevel !== "minimal") {
+  // Legacy template-specific decoration classes (rosas-rojas-15).
+  if (themeOrTemplateSlug === "rosas-rojas-15" && config.decorationLevel !== "minimal") {
     classes.push("kais-template-rosas-rojas-15", `kais-roses-decor-${config.decorationLevel}`);
   }
 

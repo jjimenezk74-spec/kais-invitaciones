@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { signOut } from "@/app/actions/auth";
-import { canCreateEvents, isKaisAdmin, isSuperAdmin, getCurrentUserProfile } from "@/lib/profiles";
+import { canCreateEvents, canManageClients, isKaisAdmin, isSuperAdmin, getCurrentUserProfile } from "@/lib/profiles";
 import { Button } from "@/components/ui/button";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -24,6 +24,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
           </Link>
           <nav className="hidden items-center gap-4 text-sm font-semibold md:flex">
             <Link href="/dashboard">Dashboard</Link>
+            {canManageClients(profile.role) ? <Link href="/dashboard/clientes">Clientes</Link> : null}
             {canCreateEvents(profile.role) ? <Link href="/dashboard/eventos/nuevo">Crear evento</Link> : null}
             {isKaisAdmin(profile.role) ? <Link href="/dashboard/admin">Admin</Link> : null}
             {isSuperAdmin(profile.role) ? <Link href="/dashboard/usuarios">Usuarios</Link> : null}

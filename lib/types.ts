@@ -23,6 +23,7 @@ export type Profile = {
 export type Event = {
   id: string;
   owner_id: string;
+  client_id: string | null;
   title: string;
   event_type: EventType;
   hosts_names: string;
@@ -40,6 +41,19 @@ export type Event = {
   slug: string;
   created_at: string;
   updated_at: string;
+};
+
+export type Client = {
+  id: string;
+  name: string;
+  contact_name: string | null;
+  phone: string | null;
+  whatsapp: string | null;
+  email: string | null;
+  notes: string | null;
+  status: "activo" | "inactivo";
+  created_at: string;
+  created_by: string | null;
 };
 
 export type EventGuest = {

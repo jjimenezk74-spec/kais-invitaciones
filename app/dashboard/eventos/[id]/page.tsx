@@ -23,7 +23,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { canModerateEvents, getCurrentUserProfile, isKaisAdmin } from "@/lib/profiles";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import type { Event, EventGuest, EventLogin, EventPhoto, Rsvp } from "@/lib/types";
+import type { Client, Event, EventGuest, EventLogin, EventPhoto, Rsvp } from "@/lib/types";
 import { absoluteUrl, buildCredentialsMessage, buildGuestWhatsAppMessage, buildWhatsAppUrl, guestEventUrl, publicEventUrl } from "@/lib/utils";
 
 export default async function EventDetailPage({
@@ -49,15 +49,18 @@ export default async function EventDetailPage({
   const event = data as Event | null;
   if (!event) return <p>Evento no encontrado.</p>;
 
-  const [{ data: rsvpsData }, { data: photosData }, { data: guestsData }, { count: visits = 0 }] = await Promise.all([
+  const [{ data: rsvpsData }, { data: photosData }, { data: guestsData }, { data: clientsData }, { count: visits = 0 }] = await Promise.all([
     supabase.from("rsvps").select("*").eq("event_id", event.id).order("created_at", { ascending: false }),
     supabase.from("event_photos").select("*").eq("event_id", event.id).order("created_at", { ascending: false }),
     admin.from("event_guests").select("*").eq("event_id", event.id).order("created_at", { ascending: false }),
+    admin.from("clients").select("*").order("name", { ascending: true }),
     supabase.from("analytics_visits").select("*", { count: "exact", head: true }).eq("event_id", event.id)
   ]);
   const rsvps = (rsvpsData ?? []) as Rsvp[];
   const photos = (photosData ?? []) as EventPhoto[];
   const guests = (guestsData ?? []) as EventGuest[];
+  const businessClients = (clientsData ?? []) as Client[];
+  const eventClient = businessClients.find((client) => client.id === event.client_id) ?? null;
   const { data: loginData } = canManageClientAccess
     ? await admin.from("event_logins").select("*").eq("event_id", event.id).order("created_at", { ascending: false })
     : { data: [] };
@@ -117,6 +120,16 @@ export default async function EventDetailPage({
           <CardTitle>Publicacion</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-5">
+          <div className="rounded-lg border bg-background p-4">
+            <p className="text-sm font-semibold">Cliente asociado</p>
+            {eventClient ? (
+              <p className="mt-2 text-sm text-muted-foreground">
+                {eventClient.name} {eventClient.contact_name ? `· ${eventClient.contact_name}` : ""}
+              </p>
+            ) : (
+              <p className="mt-2 text-sm text-muted-foreground">KAIS / sin cliente asociado</p>
+            )}
+          </div>
           <div className="grid gap-4 md:grid-cols-[0.75fr_1.25fr] md:items-center">
             <div>
               <p className="text-sm text-muted-foreground">Estado actual</p>
@@ -317,7 +330,7 @@ export default async function EventDetailPage({
           <CardTitle>Editar datos</CardTitle>
         </CardHeader>
         <CardContent>
-          <EventForm action={update} event={event} />
+          <EventForm action={update} event={event} businessClients={businessClients} />
         </CardContent>
       </Card>
 

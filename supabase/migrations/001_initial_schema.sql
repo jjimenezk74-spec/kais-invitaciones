@@ -16,6 +16,7 @@ create table public.profiles (
 create table public.events (
   id uuid primary key default gen_random_uuid(),
   owner_id uuid not null references public.profiles(id) on delete cascade,
+  client_id uuid,
   title text not null,
   event_type public.event_type not null default 'otro',
   hosts_names text not null,
@@ -34,6 +35,22 @@ create table public.events (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+create table public.clients (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  contact_name text,
+  phone text,
+  whatsapp text,
+  email text,
+  notes text,
+  status text not null default 'activo' check (status in ('activo', 'inactivo')),
+  created_at timestamptz not null default now(),
+  created_by uuid references public.profiles(id)
+);
+
+alter table public.events
+add constraint events_client_id_fkey foreign key (client_id) references public.clients(id) on delete set null;
 
 create table public.rsvps (
   id uuid primary key default gen_random_uuid(),
@@ -67,6 +84,8 @@ create table public.analytics_visits (
 );
 
 create index events_owner_id_idx on public.events(owner_id);
+create index events_client_id_idx on public.events(client_id);
+create index clients_status_idx on public.clients(status);
 create index events_slug_idx on public.events(slug);
 create index rsvps_event_id_idx on public.rsvps(event_id);
 create index event_photos_event_id_idx on public.event_photos(event_id);

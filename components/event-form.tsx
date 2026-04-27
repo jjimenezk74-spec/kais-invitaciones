@@ -4,12 +4,13 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Field } from "@/components/field";
-import type { Event, Profile } from "@/lib/types";
+import type { Client, Event, Profile } from "@/lib/types";
 
 type EventFormProps = {
   action: (formData: FormData) => Promise<void> | void;
   event?: Event;
   clients?: Profile[];
+  businessClients?: Client[];
   showOwner?: boolean;
 };
 
@@ -20,7 +21,7 @@ const guestModes = [
   ["lista_invitados", "Lista de invitados"]
 ];
 
-export function EventForm({ action, event, clients = [], showOwner = false }: EventFormProps) {
+export function EventForm({ action, event, clients = [], businessClients = [], showOwner = false }: EventFormProps) {
   const shouldShowOwnerSelect = showOwner && clients.length > 0;
 
   return (
@@ -41,6 +42,23 @@ export function EventForm({ action, event, clients = [], showOwner = false }: Ev
           No hay clientes internos. El evento quedará asignado a KAIS.
         </div>
       ) : null}
+
+      <Field label="Cliente contratante">
+        {businessClients.length > 0 ? (
+          <Select name="client_id" defaultValue={event?.client_id ?? ""}>
+            <option value="">KAIS / sin cliente asociado</option>
+            {businessClients.map((client) => (
+              <option key={client.id} value={client.id}>
+                {client.name}
+              </option>
+            ))}
+          </Select>
+        ) : (
+          <div className="rounded-md border bg-muted/40 p-4 text-sm text-muted-foreground">
+            No hay clientes registrados. El evento quedará asignado a KAIS.
+          </div>
+        )}
+      </Field>
 
       <div className="grid gap-5 md:grid-cols-2">
         <Field label="Título">

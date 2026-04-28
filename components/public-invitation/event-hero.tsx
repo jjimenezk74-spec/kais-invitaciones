@@ -60,7 +60,7 @@ export function EventHero({
                 priority
                 unoptimized={shouldUnoptimizeMobile}
                 sizes="(max-width: 1024px) 100vw, 0px"
-                className="object-cover object-[center_28%] lg:hidden"
+                className="object-cover object-top lg:hidden"
               />
             ) : null}
             {heroImage ? (
@@ -85,7 +85,7 @@ export function EventHero({
       <div className="pointer-events-none absolute -left-32 top-1/3 h-80 w-80 rounded-full bg-[#d4af37]/[0.08] blur-3xl lg:left-[-10%] lg:h-[28rem] lg:w-[28rem]" />
       <div className="pointer-events-none absolute -bottom-20 right-[-10%] h-72 w-72 rounded-full bg-[#3a0a12]/40 blur-3xl" />
 
-      <div className="relative z-10 mx-auto flex min-h-[100svh] w-full max-w-[1500px] flex-col justify-end px-5 pb-20 pt-40 sm:px-7 lg:grid lg:grid-cols-12 lg:items-center lg:gap-10 lg:px-12 lg:pb-0 lg:pt-0">
+      <div className="relative z-10 mx-auto flex min-h-[100svh] w-full max-w-[1500px] flex-col justify-end px-5 pb-14 pt-32 sm:px-7 lg:grid lg:grid-cols-12 lg:items-center lg:gap-10 lg:px-12 lg:pb-0 lg:pt-0">
         <div className="kais-mobile-hero-copy text-center lg:col-span-6 lg:py-24 lg:text-left xl:col-span-5">
           <div className="kais-rise kais-mobile-text-shadow flex items-center justify-center gap-3 lg:justify-start">
             <span className="block h-px w-10 kais-hairline" />
@@ -100,13 +100,13 @@ export function EventHero({
           ) : null}
 
           <h1
-            className="kais-rise-d1 kais-mobile-title-shadow mt-12 font-display font-light italic leading-[0.92] text-[#f5ecd9] drop-shadow-[0_8px_28px_rgba(0,0,0,0.6)] lg:mt-5"
+            className="kais-rise-d1 kais-mobile-title-shadow mt-8 font-display font-light italic leading-[0.92] text-[#f5ecd9] drop-shadow-[0_8px_28px_rgba(0,0,0,0.6)] lg:mt-5"
             style={{ fontSize: "clamp(3.4rem, 12vw, 8.5rem)" }}
           >
             {event.hosts_names}
           </h1>
 
-          <div className="kais-rise-d2 kais-mobile-text-shadow mt-12 flex items-center justify-center gap-4 lg:mt-8 lg:justify-start">
+          <div className="kais-rise-d2 kais-mobile-text-shadow mt-6 flex items-center justify-center gap-4 lg:mt-8 lg:justify-start">
             <span className="block h-px w-12 kais-hairline" />
             <p className="font-display text-lg italic text-[#d4af37] sm:text-xl md:text-2xl">
               {formatDate(event.event_date)} <span className="text-[#d4af37]/60">·</span> {event.event_time}
@@ -118,8 +118,8 @@ export function EventHero({
             <Countdown date={event.event_date} time={event.event_time} variant="luxe" />
           </div>
 
-          <div className="kais-rise-d4 mt-12 flex flex-col items-stretch gap-6 lg:mt-12 lg:flex-row lg:items-center">
-            <a href="#rsvp" className="kais-cta kais-mobile-cta-shadow w-full lg:w-auto">Confirmar asistencia</a>
+          <div className="kais-rise-d4 mt-8 flex flex-col items-center gap-6 lg:mt-12 lg:flex-row lg:items-center">
+            <a href="#rsvp" className="kais-cta kais-mobile-cta lg:w-auto">Confirmar asistencia</a>
             <div className="hidden flex-wrap items-center gap-x-7 gap-y-4 lg:flex">
               <a href={event.google_maps_link ?? "#detalles"} target="_blank" rel="noreferrer" className="kais-ghost-link">
                 <MapPin className="h-3.5 w-3.5" />

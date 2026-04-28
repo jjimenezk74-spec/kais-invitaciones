@@ -118,6 +118,8 @@ html {
   --kt-section-alt-bg: #0a0405;
   --kt-input-border:   rgba(212,175,55,0.32);
   --kt-input-focus:    #f5d572;
+  --kt-blob-dark:      rgba(58,10,18,0.50);
+  --kt-blob-glow:      rgba(212,175,55,0.08);
   /* ─────────────────────────────────────────────────────────────────────── */
   background: var(--kt-stage-bg);
   color: var(--kais-ivory);
@@ -934,6 +936,8 @@ main.kais-stage.kais-theme-garden-romance {
   --kt-section-alt-bg: #030d06;
   --kt-input-border:   rgba(122,184,147,0.32);
   --kt-input-focus:    #a8d5b5;
+  --kt-blob-dark:      rgba(3,13,6,0.50);
+  --kt-blob-glow:      rgba(122,184,147,0.12);
   background: var(--kt-stage-bg);
 }
 
@@ -956,6 +960,8 @@ main.kais-stage.kais-theme-princess-pink {
   --kt-section-alt-bg: #0d020a;
   --kt-input-border:   rgba(232,121,160,0.32);
   --kt-input-focus:    #f5b5ce;
+  --kt-blob-dark:      rgba(13,2,10,0.50);
+  --kt-blob-glow:      rgba(232,121,160,0.10);
   background: var(--kt-stage-bg);
 }
 
@@ -978,6 +984,8 @@ main.kais-stage.kais-theme-midnight-queen {
   --kt-section-alt-bg: #060010;
   --kt-input-border:   rgba(184,126,255,0.32);
   --kt-input-focus:    #b87eff;
+  --kt-blob-dark:      rgba(6,0,16,0.50);
+  --kt-blob-glow:      rgba(184,126,255,0.10);
   background: var(--kt-stage-bg);
 }
 
@@ -1000,6 +1008,8 @@ main.kais-stage.kais-theme-royal-wedding {
   --kt-section-alt-bg: #0d0800;
   --kt-input-border:   rgba(245,213,114,0.35);
   --kt-input-focus:    #ffe89a;
+  --kt-blob-dark:      rgba(13,8,0,0.50);
+  --kt-blob-glow:      rgba(245,213,114,0.10);
   background: var(--kt-stage-bg);
 }
 
@@ -1022,6 +1032,8 @@ main.kais-stage.kais-theme-ivory-minimal {
   --kt-section-alt-bg: #0d0d0b;
   --kt-input-border:   rgba(200,194,176,0.30);
   --kt-input-focus:    #e8e0cc;
+  --kt-blob-dark:      rgba(13,13,11,0.50);
+  --kt-blob-glow:      rgba(200,194,176,0.08);
   background: var(--kt-stage-bg);
 }
 
@@ -1044,6 +1056,8 @@ main.kais-stage.kais-theme-luxury-night {
   --kt-section-alt-bg: #070707;
   --kt-input-border:   rgba(212,175,55,0.38);
   --kt-input-focus:    #f5d572;
+  --kt-blob-dark:      rgba(7,7,7,0.50);
+  --kt-blob-glow:      rgba(212,175,55,0.10);
   background: var(--kt-stage-bg);
 }
 
@@ -1066,6 +1080,8 @@ main.kais-stage.kais-theme-neon-party {
   --kt-section-alt-bg: #06001a;
   --kt-input-border:   rgba(255,0,204,0.32);
   --kt-input-focus:    #ff66e0;
+  --kt-blob-dark:      rgba(6,0,26,0.50);
+  --kt-blob-glow:      rgba(255,0,204,0.12);
   background: var(--kt-stage-bg);
 }
 
@@ -1088,6 +1104,8 @@ main.kais-stage.kais-theme-safari-kids {
   --kt-section-alt-bg: #0d0702;
   --kt-input-border:   rgba(249,168,37,0.34);
   --kt-input-focus:    #ffd54f;
+  --kt-blob-dark:      rgba(13,7,2,0.50);
+  --kt-blob-glow:      rgba(249,168,37,0.12);
   background: var(--kt-stage-bg);
 }
 
@@ -1110,6 +1128,8 @@ main.kais-stage.kais-theme-candy-land {
   --kt-section-alt-bg: #0d0015;
   --kt-input-border:   rgba(255,77,170,0.32);
   --kt-input-focus:    #ff9dce;
+  --kt-blob-dark:      rgba(13,0,21,0.50);
+  --kt-blob-glow:      rgba(255,77,170,0.12);
   background: var(--kt-stage-bg);
 }
 
@@ -1132,6 +1152,8 @@ main.kais-stage.kais-theme-executive-black {
   --kt-section-alt-bg: #050607;
   --kt-input-border:   rgba(144,164,174,0.30);
   --kt-input-focus:    #b0bec5;
+  --kt-blob-dark:      rgba(5,6,7,0.50);
+  --kt-blob-glow:      rgba(144,164,174,0.08);
   background: var(--kt-stage-bg);
 }
 /* Executive: suppress floral decoration overlays entirely */
@@ -1163,6 +1185,8 @@ main.kais-stage.kais-theme-legacy-night {
   --kt-section-alt-bg: #01070f;
   --kt-input-border:   rgba(74,144,196,0.32);
   --kt-input-focus:    #4a90c4;
+  --kt-blob-dark:      rgba(1,7,15,0.50);
+  --kt-blob-glow:      rgba(212,175,55,0.08);
   background: var(--kt-stage-bg);
 }
 
@@ -1212,4 +1236,309 @@ main.kais-stage.kais-theme-active.kais-motion-elegant-glow::before {
 .kais-hero-fallback {
   background: var(--kt-stage-bg,
     radial-gradient(120% 80% at 50% 0%, #1a0508 0%, #080506 60%, #050304 100%));
+}
+
+/* ===========================================================
+   KAIS · PER-THEME BLOB & VEIL OVERRIDES
+   Hardcoded Tailwind classes in event-hero.tsx:
+     bg-[#3a0a12]/40  → dark crimson blob
+     bg-[#d4af37]/[0.08] → gold glow blob
+   Each theme overrides these via CSS vars.
+   Veils (.kais-veil-mobile / .kais-veil-desktop) are also
+   overridden per theme so they use each theme's base color.
+   =========================================================== */
+
+/* ── Global blob overrides when theme is active ─────────────────────────── */
+main.kais-stage.kais-theme-active .bg-\[\#3a0a12\]\/40 {
+  background-color: var(--kt-blob-dark) !important;
+}
+main.kais-stage.kais-theme-active .bg-\[\#d4af37\]\/\[0\.08\] {
+  background-color: var(--kt-blob-glow) !important;
+}
+
+/* ── Per-theme veil overrides ────────────────────────────────────────────── */
+/* garden-romance: dark forest green base */
+main.kais-stage.kais-theme-garden-romance .kais-veil-mobile {
+  background:
+    linear-gradient(180deg,
+      rgba(3,13,6,0.22) 0%,
+      rgba(3,13,6,0.04) 18%,
+      rgba(3,13,6,0.08) 40%,
+      rgba(7,26,14,0.62) 64%,
+      rgba(3,13,6,0.94) 88%,
+      #030d06 100%),
+    radial-gradient(120% 70% at 50% 106%, rgba(10,40,20,0.60) 0%, rgba(3,13,6,0.42) 46%, transparent 72%);
+}
+main.kais-stage.kais-theme-garden-romance .kais-veil-desktop {
+  background:
+    linear-gradient(90deg,
+      rgba(3,13,6,0.94) 0%,
+      rgba(3,13,6,0.78) 28%,
+      rgba(3,13,6,0.18) 55%,
+      rgba(3,13,6,0) 75%,
+      rgba(3,13,6,0) 100%),
+    linear-gradient(180deg,
+      rgba(3,13,6,0.10) 0%,
+      transparent 30%,
+      rgba(3,13,6,0.55) 100%);
+}
+
+/* princess-pink: dark rose base */
+main.kais-stage.kais-theme-princess-pink .kais-veil-mobile {
+  background:
+    linear-gradient(180deg,
+      rgba(13,2,10,0.22) 0%,
+      rgba(13,2,10,0.04) 18%,
+      rgba(13,2,10,0.08) 40%,
+      rgba(26,5,20,0.62) 64%,
+      rgba(13,2,10,0.94) 88%,
+      #0d020a 100%),
+    radial-gradient(120% 70% at 50% 106%, rgba(40,5,28,0.65) 0%, rgba(13,2,10,0.42) 46%, transparent 72%);
+}
+main.kais-stage.kais-theme-princess-pink .kais-veil-desktop {
+  background:
+    linear-gradient(90deg,
+      rgba(13,2,10,0.94) 0%,
+      rgba(13,2,10,0.78) 28%,
+      rgba(13,2,10,0.18) 55%,
+      rgba(13,2,10,0) 75%,
+      rgba(13,2,10,0) 100%),
+    linear-gradient(180deg,
+      rgba(13,2,10,0.10) 0%,
+      transparent 30%,
+      rgba(13,2,10,0.55) 100%);
+}
+
+/* midnight-queen: dark purple base */
+main.kais-stage.kais-theme-midnight-queen .kais-veil-mobile {
+  background:
+    linear-gradient(180deg,
+      rgba(6,0,16,0.22) 0%,
+      rgba(6,0,16,0.04) 18%,
+      rgba(6,0,16,0.08) 40%,
+      rgba(13,0,30,0.62) 64%,
+      rgba(6,0,16,0.94) 88%,
+      #060010 100%),
+    radial-gradient(120% 70% at 50% 106%, rgba(20,0,50,0.65) 0%, rgba(6,0,16,0.42) 46%, transparent 72%);
+}
+main.kais-stage.kais-theme-midnight-queen .kais-veil-desktop {
+  background:
+    linear-gradient(90deg,
+      rgba(6,0,16,0.94) 0%,
+      rgba(6,0,16,0.78) 28%,
+      rgba(6,0,16,0.18) 55%,
+      rgba(6,0,16,0) 75%,
+      rgba(6,0,16,0) 100%),
+    linear-gradient(180deg,
+      rgba(6,0,16,0.10) 0%,
+      transparent 30%,
+      rgba(6,0,16,0.55) 100%);
+}
+
+/* royal-wedding: dark amber-black base */
+main.kais-stage.kais-theme-royal-wedding .kais-veil-mobile {
+  background:
+    linear-gradient(180deg,
+      rgba(13,8,0,0.22) 0%,
+      rgba(13,8,0,0.04) 18%,
+      rgba(13,8,0,0.08) 40%,
+      rgba(26,16,0,0.62) 64%,
+      rgba(13,8,0,0.94) 88%,
+      #0d0800 100%),
+    radial-gradient(120% 70% at 50% 106%, rgba(35,22,0,0.65) 0%, rgba(13,8,0,0.42) 46%, transparent 72%);
+}
+main.kais-stage.kais-theme-royal-wedding .kais-veil-desktop {
+  background:
+    linear-gradient(90deg,
+      rgba(13,8,0,0.94) 0%,
+      rgba(13,8,0,0.78) 28%,
+      rgba(13,8,0,0.18) 55%,
+      rgba(13,8,0,0) 75%,
+      rgba(13,8,0,0) 100%),
+    linear-gradient(180deg,
+      rgba(13,8,0,0.10) 0%,
+      transparent 30%,
+      rgba(13,8,0,0.55) 100%);
+}
+
+/* ivory-minimal: dark charcoal base */
+main.kais-stage.kais-theme-ivory-minimal .kais-veil-mobile {
+  background:
+    linear-gradient(180deg,
+      rgba(13,13,11,0.22) 0%,
+      rgba(13,13,11,0.04) 18%,
+      rgba(13,13,11,0.08) 40%,
+      rgba(20,20,18,0.62) 64%,
+      rgba(13,13,11,0.94) 88%,
+      #0d0d0b 100%),
+    radial-gradient(120% 70% at 50% 106%, rgba(25,25,22,0.60) 0%, rgba(13,13,11,0.42) 46%, transparent 72%);
+}
+main.kais-stage.kais-theme-ivory-minimal .kais-veil-desktop {
+  background:
+    linear-gradient(90deg,
+      rgba(13,13,11,0.94) 0%,
+      rgba(13,13,11,0.78) 28%,
+      rgba(13,13,11,0.18) 55%,
+      rgba(13,13,11,0) 75%,
+      rgba(13,13,11,0) 100%),
+    linear-gradient(180deg,
+      rgba(13,13,11,0.10) 0%,
+      transparent 30%,
+      rgba(13,13,11,0.55) 100%);
+}
+
+/* luxury-night: near-black base */
+main.kais-stage.kais-theme-luxury-night .kais-veil-mobile {
+  background:
+    linear-gradient(180deg,
+      rgba(7,7,7,0.22) 0%,
+      rgba(7,7,7,0.04) 18%,
+      rgba(7,7,7,0.08) 40%,
+      rgba(14,14,0,0.62) 64%,
+      rgba(7,7,7,0.94) 88%,
+      #070707 100%),
+    radial-gradient(120% 70% at 50% 106%, rgba(18,18,4,0.65) 0%, rgba(7,7,7,0.42) 46%, transparent 72%);
+}
+main.kais-stage.kais-theme-luxury-night .kais-veil-desktop {
+  background:
+    linear-gradient(90deg,
+      rgba(7,7,7,0.94) 0%,
+      rgba(7,7,7,0.78) 28%,
+      rgba(7,7,7,0.18) 55%,
+      rgba(7,7,7,0) 75%,
+      rgba(7,7,7,0) 100%),
+    linear-gradient(180deg,
+      rgba(7,7,7,0.10) 0%,
+      transparent 30%,
+      rgba(7,7,7,0.55) 100%);
+}
+
+/* neon-party: dark navy base */
+main.kais-stage.kais-theme-neon-party .kais-veil-mobile {
+  background:
+    linear-gradient(180deg,
+      rgba(6,0,26,0.22) 0%,
+      rgba(6,0,26,0.04) 18%,
+      rgba(6,0,26,0.08) 40%,
+      rgba(13,0,51,0.62) 64%,
+      rgba(6,0,26,0.94) 88%,
+      #06001a 100%),
+    radial-gradient(120% 70% at 50% 106%, rgba(20,0,80,0.65) 0%, rgba(6,0,26,0.42) 46%, transparent 72%);
+}
+main.kais-stage.kais-theme-neon-party .kais-veil-desktop {
+  background:
+    linear-gradient(90deg,
+      rgba(6,0,26,0.94) 0%,
+      rgba(6,0,26,0.78) 28%,
+      rgba(6,0,26,0.18) 55%,
+      rgba(6,0,26,0) 75%,
+      rgba(6,0,26,0) 100%),
+    linear-gradient(180deg,
+      rgba(6,0,26,0.10) 0%,
+      transparent 30%,
+      rgba(6,0,26,0.55) 100%);
+}
+
+/* safari-kids: dark earth base */
+main.kais-stage.kais-theme-safari-kids .kais-veil-mobile {
+  background:
+    linear-gradient(180deg,
+      rgba(13,7,2,0.22) 0%,
+      rgba(13,7,2,0.04) 18%,
+      rgba(13,7,2,0.08) 40%,
+      rgba(26,14,4,0.62) 64%,
+      rgba(13,7,2,0.94) 88%,
+      #0d0702 100%),
+    radial-gradient(120% 70% at 50% 106%, rgba(35,18,5,0.65) 0%, rgba(13,7,2,0.42) 46%, transparent 72%);
+}
+main.kais-stage.kais-theme-safari-kids .kais-veil-desktop {
+  background:
+    linear-gradient(90deg,
+      rgba(13,7,2,0.94) 0%,
+      rgba(13,7,2,0.78) 28%,
+      rgba(13,7,2,0.18) 55%,
+      rgba(13,7,2,0) 75%,
+      rgba(13,7,2,0) 100%),
+    linear-gradient(180deg,
+      rgba(13,7,2,0.10) 0%,
+      transparent 30%,
+      rgba(13,7,2,0.55) 100%);
+}
+
+/* candy-land: dark berry/grape base */
+main.kais-stage.kais-theme-candy-land .kais-veil-mobile {
+  background:
+    linear-gradient(180deg,
+      rgba(13,0,21,0.22) 0%,
+      rgba(13,0,21,0.04) 18%,
+      rgba(13,0,21,0.08) 40%,
+      rgba(26,0,42,0.62) 64%,
+      rgba(13,0,21,0.94) 88%,
+      #0d0015 100%),
+    radial-gradient(120% 70% at 50% 106%, rgba(35,0,60,0.65) 0%, rgba(13,0,21,0.42) 46%, transparent 72%);
+}
+main.kais-stage.kais-theme-candy-land .kais-veil-desktop {
+  background:
+    linear-gradient(90deg,
+      rgba(13,0,21,0.94) 0%,
+      rgba(13,0,21,0.78) 28%,
+      rgba(13,0,21,0.18) 55%,
+      rgba(13,0,21,0) 75%,
+      rgba(13,0,21,0) 100%),
+    linear-gradient(180deg,
+      rgba(13,0,21,0.10) 0%,
+      transparent 30%,
+      rgba(13,0,21,0.55) 100%);
+}
+
+/* executive-black: dark steel base */
+main.kais-stage.kais-theme-executive-black .kais-veil-mobile {
+  background:
+    linear-gradient(180deg,
+      rgba(5,6,7,0.22) 0%,
+      rgba(5,6,7,0.04) 18%,
+      rgba(5,6,7,0.08) 40%,
+      rgba(10,12,15,0.62) 64%,
+      rgba(5,6,7,0.94) 88%,
+      #050607 100%),
+    radial-gradient(120% 70% at 50% 106%, rgba(15,18,22,0.60) 0%, rgba(5,6,7,0.42) 46%, transparent 72%);
+}
+main.kais-stage.kais-theme-executive-black .kais-veil-desktop {
+  background:
+    linear-gradient(90deg,
+      rgba(5,6,7,0.94) 0%,
+      rgba(5,6,7,0.78) 28%,
+      rgba(5,6,7,0.18) 55%,
+      rgba(5,6,7,0) 75%,
+      rgba(5,6,7,0) 100%),
+    linear-gradient(180deg,
+      rgba(5,6,7,0.10) 0%,
+      transparent 30%,
+      rgba(5,6,7,0.55) 100%);
+}
+
+/* legacy-night: dark navy/blue base */
+main.kais-stage.kais-theme-legacy-night .kais-veil-mobile {
+  background:
+    linear-gradient(180deg,
+      rgba(1,7,15,0.22) 0%,
+      rgba(1,7,15,0.04) 18%,
+      rgba(1,7,15,0.08) 40%,
+      rgba(3,14,31,0.62) 64%,
+      rgba(1,7,15,0.94) 88%,
+      #01070f 100%),
+    radial-gradient(120% 70% at 50% 106%, rgba(5,20,45,0.65) 0%, rgba(1,7,15,0.42) 46%, transparent 72%);
+}
+main.kais-stage.kais-theme-legacy-night .kais-veil-desktop {
+  background:
+    linear-gradient(90deg,
+      rgba(1,7,15,0.94) 0%,
+      rgba(1,7,15,0.78) 28%,
+      rgba(1,7,15,0.18) 55%,
+      rgba(1,7,15,0) 75%,
+      rgba(1,7,15,0) 100%),
+    linear-gradient(180deg,
+      rgba(1,7,15,0.10) 0%,
+      transparent 30%,
+      rgba(1,7,15,0.55) 100%);
 }

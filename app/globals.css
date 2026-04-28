@@ -99,8 +99,27 @@ html {
    =========================================================== */
 
 .kais-stage {
-  background:
-    radial-gradient(120% 80% at 50% 0%, #1a0508 0%, #080506 60%, #050304 100%);
+  /* ─── KAIS THEME TOKENS — override per .kais-theme-{slug} ─────────────── */
+  --kt-accent:         #d4af37;
+  --kt-accent-2:       #f5d572;
+  --kt-accent-3:       #b8902c;
+  --kt-stage-bg:       radial-gradient(120% 80% at 50% 0%, #1a0508 0%, #080506 60%, #050304 100%);
+  --kt-glass-bg:       rgba(255,247,237,0.045);
+  --kt-glass-bg2:      rgba(255,247,237,0.012);
+  --kt-glass-border:   rgba(212,175,55,0.18);
+  --kt-glass-shine:    rgba(245,213,114,0.16);
+  --kt-cta-text:       #1a0508;
+  --kt-cta-glow:       rgba(212,175,55,0.55);
+  --kt-cta-glow-h:     rgba(245,213,114,0.70);
+  --kt-hairline-mid:   rgba(212,175,55,0.55);
+  --kt-hairline-peak:  rgba(245,213,114,0.85);
+  --kt-ghost-color:    rgba(245,236,217,0.78);
+  --kt-ghost-border:   rgba(212,175,55,0.40);
+  --kt-section-alt-bg: #0a0405;
+  --kt-input-border:   rgba(212,175,55,0.32);
+  --kt-input-focus:    #f5d572;
+  /* ─────────────────────────────────────────────────────────────────────── */
+  background: var(--kt-stage-bg);
   color: var(--kais-ivory);
 }
 
@@ -115,9 +134,9 @@ html {
 .kais-hairline {
   background-image: linear-gradient(90deg,
     transparent,
-    rgba(212,175,55,0.55) 18%,
-    rgba(245,213,114,0.85) 50%,
-    rgba(212,175,55,0.55) 82%,
+    var(--kt-hairline-mid,  rgba(212,175,55,0.55)) 18%,
+    var(--kt-hairline-peak, rgba(245,213,114,0.85)) 50%,
+    var(--kt-hairline-mid,  rgba(212,175,55,0.55)) 82%,
     transparent);
 }
 .kais-hairline-v {
@@ -130,11 +149,11 @@ html {
 /* --- Texto oro con shimmer --- */
 .kais-gold-text {
   background: linear-gradient(135deg,
-    #f5d572 0%,
-    #d4af37 30%,
-    #b8902c 55%,
-    #f5d572 80%,
-    #d4af37 100%);
+    var(--kt-accent-2, #f5d572) 0%,
+    var(--kt-accent,   #d4af37) 30%,
+    var(--kt-accent-3, #b8902c) 55%,
+    var(--kt-accent-2, #f5d572) 80%,
+    var(--kt-accent,   #d4af37) 100%);
   background-size: 200% 100%;
   -webkit-background-clip: text;
   background-clip: text;
@@ -153,19 +172,19 @@ html {
   letter-spacing: 0.42em;
   text-transform: uppercase;
   font-weight: 600;
-  color: var(--kais-gold);
+  color: var(--kt-accent, var(--kais-gold));
 }
 @media (min-width: 768px) { .kais-eyebrow { font-size: 0.7rem; } }
 
 /* --- Glass panel refinado --- */
 .kais-glass {
   background: linear-gradient(135deg,
-    rgba(255,247,237,0.045),
-    rgba(255,247,237,0.012));
-  border: 1px solid rgba(212,175,55,0.18);
+    var(--kt-glass-bg,  rgba(255,247,237,0.045)),
+    var(--kt-glass-bg2, rgba(255,247,237,0.012)));
+  border: 1px solid var(--kt-glass-border, rgba(212,175,55,0.18));
   box-shadow:
     0 32px 90px -30px rgba(0,0,0,0.6),
-    inset 0 1px 0 rgba(245,213,114,0.16);
+    inset 0 1px 0 var(--kt-glass-shine, rgba(245,213,114,0.16));
   backdrop-filter: blur(24px) saturate(140%);
   -webkit-backdrop-filter: blur(24px) saturate(140%);
 }
@@ -174,7 +193,7 @@ html {
 .kais-input-luxe {
   background: transparent;
   border: 0;
-  border-bottom: 1px solid rgba(212,175,55,0.32);
+  border-bottom: 1px solid var(--kt-input-border, rgba(212,175,55,0.32));
   border-radius: 0;
   color: var(--kais-ivory);
   padding: 0.65rem 0;
@@ -185,8 +204,8 @@ html {
 }
 .kais-input-luxe:focus {
   outline: none;
-  border-bottom-color: var(--kais-gold-bright);
-  box-shadow: 0 1px 0 var(--kais-gold-bright);
+  border-bottom-color: var(--kt-input-focus, var(--kais-gold-bright));
+  box-shadow: 0 1px 0 var(--kt-input-focus, var(--kais-gold-bright));
 }
 .kais-input-luxe::placeholder { color: rgba(245,236,217,0.4); }
 .kais-input-luxe[readonly] { color: rgba(245,236,217,0.65); cursor: default; }
@@ -257,14 +276,14 @@ select.kais-input-luxe option { background: #0a0405; color: var(--kais-ivory); }
   font-weight: 600;
   letter-spacing: 0.32em;
   text-transform: uppercase;
-  color: #1a0508;
+  color: var(--kt-cta-text, #1a0508);
   background: linear-gradient(135deg,
-    #f5d572 0%,
-    #d4af37 50%,
-    #b8902c 100%);
+    var(--kt-accent-2, #f5d572) 0%,
+    var(--kt-accent,   #d4af37) 50%,
+    var(--kt-accent-3, #b8902c) 100%);
   border-radius: 999px;
   box-shadow:
-    0 12px 32px -10px rgba(212,175,55,0.55),
+    0 12px 32px -10px var(--kt-cta-glow, rgba(212,175,55,0.55)),
     inset 0 0 0 1px rgba(245,213,114,0.55),
     inset 0 1px 0 rgba(255,255,255,0.4);
   transition: transform .45s cubic-bezier(.22,.94,.4,1), box-shadow .45s ease, letter-spacing .45s ease;
@@ -275,7 +294,7 @@ select.kais-input-luxe option { background: #0a0405; color: var(--kais-ivory); }
 .kais-cta:hover {
   transform: translateY(-2px);
   box-shadow:
-    0 22px 60px -14px rgba(245,213,114,0.7),
+    0 22px 60px -14px var(--kt-cta-glow-h, rgba(245,213,114,0.70)),
     inset 0 0 0 1px rgba(245,213,114,0.85),
     inset 0 1px 0 rgba(255,255,255,0.5);
   letter-spacing: 0.36em;
@@ -346,9 +365,9 @@ select.kais-input-luxe option { background: #0a0405; color: var(--kais-ivory); }
   letter-spacing: 0.3em;
   text-transform: uppercase;
   font-weight: 600;
-  color: rgba(245,236,217,0.78);
+  color: var(--kt-ghost-color, rgba(245,236,217,0.78));
   padding: 0.55rem 0;
-  border-bottom: 1px solid rgba(212,175,55,0.4);
+  border-bottom: 1px solid var(--kt-ghost-border, rgba(212,175,55,0.40));
   transition: color .4s ease, border-color .4s ease, letter-spacing .4s ease;
 }
 .kais-ghost-link:hover {
@@ -883,3 +902,269 @@ main.kais-stage.kais-decor-premium .kais-glass {
     inset-inline: 1rem;
   }
 }
+
+
+/* ===========================================================
+   KAIS · PER-THEME COLOUR TOKENS
+   Applied when <main> carries .kais-theme-{slug}.
+   All dark backgrounds so ivory text (#f5ecd9) stays legible.
+   Only the token vars need to change — the semantic classes
+   (.kais-glass, .kais-cta, .kais-hairline, etc.) inherit them.
+   =========================================================== */
+
+/* ── red-roses-glam  (default — no overrides needed) ────────────────────── */
+/* .kais-stage defaults already match this palette exactly.                   */
+
+/* ── garden-romance  (deep forest emerald) ──────────────────────────────── */
+main.kais-stage.kais-theme-garden-romance {
+  --kt-accent:         #7ab893;
+  --kt-accent-2:       #a8d5b5;
+  --kt-accent-3:       #4d9066;
+  --kt-stage-bg:       radial-gradient(120% 80% at 50% 0%, #071a0e 0%, #030d06 60%, #010803 100%);
+  --kt-glass-bg:       rgba(20,60,30,0.065);
+  --kt-glass-bg2:      rgba(10,35,18,0.030);
+  --kt-glass-border:   rgba(122,184,147,0.22);
+  --kt-glass-shine:    rgba(168,213,181,0.18);
+  --kt-cta-text:       #071a0e;
+  --kt-cta-glow:       rgba(122,184,147,0.55);
+  --kt-cta-glow-h:     rgba(168,213,181,0.72);
+  --kt-hairline-mid:   rgba(122,184,147,0.55);
+  --kt-hairline-peak:  rgba(168,213,181,0.85);
+  --kt-ghost-border:   rgba(122,184,147,0.40);
+  --kt-section-alt-bg: #030d06;
+  --kt-input-border:   rgba(122,184,147,0.32);
+  --kt-input-focus:    #a8d5b5;
+}
+
+/* ── princess-pink  (deep rose/mauve) ───────────────────────────────────── */
+main.kais-stage.kais-theme-princess-pink {
+  --kt-accent:         #e879a0;
+  --kt-accent-2:       #f5b5ce;
+  --kt-accent-3:       #c2185b;
+  --kt-stage-bg:       radial-gradient(120% 80% at 50% 0%, #1a0512 0%, #0d020a 60%, #080106 100%);
+  --kt-glass-bg:       rgba(80,15,40,0.065);
+  --kt-glass-bg2:      rgba(50,8,24,0.030);
+  --kt-glass-border:   rgba(232,121,160,0.22);
+  --kt-glass-shine:    rgba(245,181,206,0.18);
+  --kt-cta-text:       #1a0512;
+  --kt-cta-glow:       rgba(232,121,160,0.55);
+  --kt-cta-glow-h:     rgba(245,181,206,0.72);
+  --kt-hairline-mid:   rgba(232,121,160,0.55);
+  --kt-hairline-peak:  rgba(245,181,206,0.85);
+  --kt-ghost-border:   rgba(232,121,160,0.40);
+  --kt-section-alt-bg: #0d020a;
+  --kt-input-border:   rgba(232,121,160,0.32);
+  --kt-input-focus:    #f5b5ce;
+}
+
+/* ── midnight-queen  (deep purple / amethyst) ───────────────────────────── */
+main.kais-stage.kais-theme-midnight-queen {
+  --kt-accent:         #d4af37;
+  --kt-accent-2:       #b87eff;
+  --kt-accent-3:       #9a5cf5;
+  --kt-stage-bg:       radial-gradient(120% 80% at 50% 0%, #0d0018 0%, #060010 60%, #030008 100%);
+  --kt-glass-bg:       rgba(40,0,80,0.080);
+  --kt-glass-bg2:      rgba(24,0,50,0.035);
+  --kt-glass-border:   rgba(184,126,255,0.25);
+  --kt-glass-shine:    rgba(212,175,55,0.18);
+  --kt-cta-text:       #0d0018;
+  --kt-cta-glow:       rgba(212,175,55,0.55);
+  --kt-cta-glow-h:     rgba(245,213,114,0.72);
+  --kt-hairline-mid:   rgba(184,126,255,0.50);
+  --kt-hairline-peak:  rgba(212,175,55,0.85);
+  --kt-ghost-border:   rgba(184,126,255,0.40);
+  --kt-section-alt-bg: #060010;
+  --kt-input-border:   rgba(184,126,255,0.32);
+  --kt-input-focus:    #b87eff;
+}
+
+/* ── royal-wedding  (deep amber / champagne gold) ───────────────────────── */
+main.kais-stage.kais-theme-royal-wedding {
+  --kt-accent:         #f5d572;
+  --kt-accent-2:       #ffe89a;
+  --kt-accent-3:       #d4af37;
+  --kt-stage-bg:       radial-gradient(120% 80% at 50% 0%, #1a1000 0%, #0d0800 60%, #080500 100%);
+  --kt-glass-bg:       rgba(60,45,0,0.065);
+  --kt-glass-bg2:      rgba(35,26,0,0.030);
+  --kt-glass-border:   rgba(245,213,114,0.25);
+  --kt-glass-shine:    rgba(255,232,154,0.20);
+  --kt-cta-text:       #1a1000;
+  --kt-cta-glow:       rgba(245,213,114,0.60);
+  --kt-cta-glow-h:     rgba(255,232,154,0.80);
+  --kt-hairline-mid:   rgba(245,213,114,0.60);
+  --kt-hairline-peak:  rgba(255,232,154,0.92);
+  --kt-ghost-border:   rgba(245,213,114,0.45);
+  --kt-section-alt-bg: #0d0800;
+  --kt-input-border:   rgba(245,213,114,0.35);
+  --kt-input-focus:    #ffe89a;
+}
+
+/* ── ivory-minimal  (dark charcoal / warm slate) ────────────────────────── */
+main.kais-stage.kais-theme-ivory-minimal {
+  --kt-accent:         #c8c2b0;
+  --kt-accent-2:       #e8e0cc;
+  --kt-accent-3:       #9a9280;
+  --kt-stage-bg:       radial-gradient(120% 80% at 50% 0%, #1a1a18 0%, #0d0d0b 60%, #080806 100%);
+  --kt-glass-bg:       rgba(35,32,26,0.065);
+  --kt-glass-bg2:      rgba(20,18,14,0.030);
+  --kt-glass-border:   rgba(200,194,176,0.20);
+  --kt-glass-shine:    rgba(232,224,204,0.14);
+  --kt-cta-text:       #1a1a18;
+  --kt-cta-glow:       rgba(200,194,176,0.45);
+  --kt-cta-glow-h:     rgba(232,224,204,0.65);
+  --kt-hairline-mid:   rgba(200,194,176,0.50);
+  --kt-hairline-peak:  rgba(232,224,204,0.80);
+  --kt-ghost-border:   rgba(200,194,176,0.38);
+  --kt-section-alt-bg: #0d0d0b;
+  --kt-input-border:   rgba(200,194,176,0.30);
+  --kt-input-focus:    #e8e0cc;
+}
+
+/* ── luxury-night  (pure black / champagne gold, richer than default) ───── */
+main.kais-stage.kais-theme-luxury-night {
+  --kt-accent:         #d4af37;
+  --kt-accent-2:       #f5d572;
+  --kt-accent-3:       #b8902c;
+  --kt-stage-bg:       radial-gradient(120% 80% at 50% 0%, #0d0d00 0%, #070707 60%, #040404 100%);
+  --kt-glass-bg:       rgba(25,20,0,0.070);
+  --kt-glass-bg2:      rgba(14,12,0,0.035);
+  --kt-glass-border:   rgba(212,175,55,0.24);
+  --kt-glass-shine:    rgba(245,213,114,0.22);
+  --kt-cta-text:       #0d0d00;
+  --kt-cta-glow:       rgba(212,175,55,0.65);
+  --kt-cta-glow-h:     rgba(245,213,114,0.85);
+  --kt-hairline-mid:   rgba(212,175,55,0.65);
+  --kt-hairline-peak:  rgba(245,213,114,0.95);
+  --kt-ghost-border:   rgba(212,175,55,0.50);
+  --kt-section-alt-bg: #070707;
+  --kt-input-border:   rgba(212,175,55,0.38);
+  --kt-input-focus:    #f5d572;
+}
+
+/* ── neon-party  (dark navy / neon magenta + cyan) ──────────────────────── */
+main.kais-stage.kais-theme-neon-party {
+  --kt-accent:         #ff00cc;
+  --kt-accent-2:       #ff66e0;
+  --kt-accent-3:       #cc0099;
+  --kt-stage-bg:       radial-gradient(120% 80% at 50% 0%, #0d0033 0%, #06001a 60%, #03000d 100%);
+  --kt-glass-bg:       rgba(20,0,60,0.080);
+  --kt-glass-bg2:      rgba(10,0,35,0.035);
+  --kt-glass-border:   rgba(255,0,204,0.28);
+  --kt-glass-shine:    rgba(0,255,200,0.14);
+  --kt-cta-text:       #06001a;
+  --kt-cta-glow:       rgba(255,0,204,0.60);
+  --kt-cta-glow-h:     rgba(255,102,224,0.80);
+  --kt-hairline-mid:   rgba(0,255,200,0.45);
+  --kt-hairline-peak:  rgba(255,0,204,0.85);
+  --kt-ghost-border:   rgba(0,255,200,0.38);
+  --kt-section-alt-bg: #06001a;
+  --kt-input-border:   rgba(255,0,204,0.32);
+  --kt-input-focus:    #ff66e0;
+}
+
+/* ── safari-kids  (dark earth / amber) ──────────────────────────────────── */
+main.kais-stage.kais-theme-safari-kids {
+  --kt-accent:         #f9a825;
+  --kt-accent-2:       #ffd54f;
+  --kt-accent-3:       #e65100;
+  --kt-stage-bg:       radial-gradient(120% 80% at 50% 0%, #1a0e04 0%, #0d0702 60%, #080501 100%);
+  --kt-glass-bg:       rgba(80,40,10,0.070);
+  --kt-glass-bg2:      rgba(50,24,4,0.032);
+  --kt-glass-border:   rgba(249,168,37,0.24);
+  --kt-glass-shine:    rgba(255,213,79,0.18);
+  --kt-cta-text:       #1a0e04;
+  --kt-cta-glow:       rgba(249,168,37,0.60);
+  --kt-cta-glow-h:     rgba(255,213,79,0.80);
+  --kt-hairline-mid:   rgba(249,168,37,0.58);
+  --kt-hairline-peak:  rgba(255,213,79,0.88);
+  --kt-ghost-border:   rgba(249,168,37,0.42);
+  --kt-section-alt-bg: #0d0702;
+  --kt-input-border:   rgba(249,168,37,0.34);
+  --kt-input-focus:    #ffd54f;
+}
+
+/* ── candy-land  (deep berry / grape) ───────────────────────────────────── */
+main.kais-stage.kais-theme-candy-land {
+  --kt-accent:         #ff4daa;
+  --kt-accent-2:       #ff9dce;
+  --kt-accent-3:       #cc2277;
+  --kt-stage-bg:       radial-gradient(120% 80% at 50% 0%, #1a002a 0%, #0d0015 60%, #080009 100%);
+  --kt-glass-bg:       rgba(60,0,80,0.070);
+  --kt-glass-bg2:      rgba(35,0,50,0.032);
+  --kt-glass-border:   rgba(255,77,170,0.24);
+  --kt-glass-shine:    rgba(77,255,218,0.14);
+  --kt-cta-text:       #1a002a;
+  --kt-cta-glow:       rgba(255,77,170,0.58);
+  --kt-cta-glow-h:     rgba(255,157,206,0.78);
+  --kt-hairline-mid:   rgba(77,255,218,0.42);
+  --kt-hairline-peak:  rgba(255,77,170,0.85);
+  --kt-ghost-border:   rgba(255,77,170,0.42);
+  --kt-section-alt-bg: #0d0015;
+  --kt-input-border:   rgba(255,77,170,0.32);
+  --kt-input-focus:    #ff9dce;
+}
+
+/* ── executive-black  (dark steel / silver) ─────────────────────────────── */
+main.kais-stage.kais-theme-executive-black {
+  --kt-accent:         #90a4ae;
+  --kt-accent-2:       #b0bec5;
+  --kt-accent-3:       #607d8b;
+  --kt-stage-bg:       radial-gradient(120% 80% at 50% 0%, #0a0c0f 0%, #050607 60%, #020304 100%);
+  --kt-glass-bg:       rgba(10,15,20,0.070);
+  --kt-glass-bg2:      rgba(5,8,12,0.030);
+  --kt-glass-border:   rgba(144,164,174,0.22);
+  --kt-glass-shine:    rgba(176,190,197,0.14);
+  --kt-cta-text:       #0a0c0f;
+  --kt-cta-glow:       rgba(144,164,174,0.50);
+  --kt-cta-glow-h:     rgba(176,190,197,0.70);
+  --kt-hairline-mid:   rgba(144,164,174,0.50);
+  --kt-hairline-peak:  rgba(176,190,197,0.82);
+  --kt-ghost-border:   rgba(144,164,174,0.38);
+  --kt-section-alt-bg: #050607;
+  --kt-input-border:   rgba(144,164,174,0.30);
+  --kt-input-focus:    #b0bec5;
+}
+/* Executive: suppress floral decoration overlays entirely */
+main.kais-stage.kais-theme-executive-black.kais-decor-medium .kais-section::before,
+main.kais-stage.kais-theme-executive-black.kais-decor-premium .kais-section::before {
+  opacity: 0.4;
+}
+main.kais-stage.kais-theme-executive-black.kais-decor-medium .kais-section h2::before,
+main.kais-stage.kais-theme-executive-black.kais-decor-premium .kais-section h2::before {
+  display: none;
+}
+
+/* ── legacy-night  (deep navy / gold + blue) ────────────────────────────── */
+main.kais-stage.kais-theme-legacy-night {
+  --kt-accent:         #d4af37;
+  --kt-accent-2:       #4a90c4;
+  --kt-accent-3:       #b8902c;
+  --kt-stage-bg:       radial-gradient(120% 80% at 50% 0%, #030e1f 0%, #01070f 60%, #010407 100%);
+  --kt-glass-bg:       rgba(5,20,40,0.070);
+  --kt-glass-bg2:      rgba(2,10,22,0.032);
+  --kt-glass-border:   rgba(212,175,55,0.22);
+  --kt-glass-shine:    rgba(74,144,196,0.16);
+  --kt-cta-text:       #030e1f;
+  --kt-cta-glow:       rgba(212,175,55,0.55);
+  --kt-cta-glow-h:     rgba(245,213,114,0.75);
+  --kt-hairline-mid:   rgba(74,144,196,0.52);
+  --kt-hairline-peak:  rgba(212,175,55,0.85);
+  --kt-ghost-border:   rgba(212,175,55,0.42);
+  --kt-section-alt-bg: #01070f;
+  --kt-input-border:   rgba(74,144,196,0.32);
+  --kt-input-focus:    #4a90c4;
+}
+
+/* ── RSVP section bg override (JSX has bg-[#0a0405] Tailwind class)         */
+/* Specificity (1,2,1) beats Tailwind's (0,1,0) without !important           */
+main.kais-stage.kais-theme-garden-romance   section#rsvp { background: var(--kt-section-alt-bg); }
+main.kais-stage.kais-theme-princess-pink    section#rsvp { background: var(--kt-section-alt-bg); }
+main.kais-stage.kais-theme-midnight-queen   section#rsvp { background: var(--kt-section-alt-bg); }
+main.kais-stage.kais-theme-royal-wedding    section#rsvp { background: var(--kt-section-alt-bg); }
+main.kais-stage.kais-theme-ivory-minimal    section#rsvp { background: var(--kt-section-alt-bg); }
+main.kais-stage.kais-theme-luxury-night     section#rsvp { background: var(--kt-section-alt-bg); }
+main.kais-stage.kais-theme-neon-party       section#rsvp { background: var(--kt-section-alt-bg); }
+main.kais-stage.kais-theme-safari-kids      section#rsvp { background: var(--kt-section-alt-bg); }
+main.kais-stage.kais-theme-candy-land       section#rsvp { background: var(--kt-section-alt-bg); }
+main.kais-stage.kais-theme-executive-black  section#rsvp { background: var(--kt-section-alt-bg); }
+main.kais-stage.kais-theme-legacy-night     section#rsvp { background: var(--kt-section-alt-bg); }

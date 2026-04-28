@@ -5,11 +5,12 @@ import { submitRsvp, trackVisit, uploadEventPhoto } from "@/app/actions/events";
 import { Countdown } from "@/components/countdown";
 import { BackButton } from "@/components/back-button";
 import { EventHero } from "@/components/public-invitation/event-hero";
-import { resolveInvitationDesign } from "@/lib/invitation-design";
+import { resolveInvitationDesign, resolveThemeDesign } from "@/lib/invitation-design";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { fetchThemeById } from "@/lib/invitation-themes.server";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate } from "@/lib/utils";
-import type { Event, EventGuest, EventPhoto, InvitationTemplate, Rsvp } from "@/lib/types";
+import type { Event, EventGuest, EventPhoto, InvitationTemplate, InvitationTheme, Rsvp } from "@/lib/types";
 import {
   NotPublishedScreen,
   PersonalLinkRequired,
@@ -98,18 +99,27 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
   const rsvpAction = submitRsvp.bind(null, event.id);
   const photoAction = uploadEventPhoto.bind(null, event.id, event.slug);
   const calendarUrl = buildCalendarUrl(event);
-  const template = event.template_id ? await getInvitationTemplate(event.template_id) : null;
+  const [template, invitationTheme] = await Promise.all([
+    event.template_id ? getInvitationTemplate(event.template_id) : Promise.resolve(null),
+    event.theme_id    ? fetchThemeById(event.theme_id)           : Promise.resolve(null)
+  ]);
 
   const rsvpStatus = normalizeSearchParam(query.rsvp);
   const rsvpError = normalizeSearchParam(query.rsvp_error);
   const photoStatus = normalizeSearchParam(query.foto);
   const photoError = normalizeSearchParam(query.foto_error);
   const isConfirmed = Boolean(invitedGuestRsvp) || rsvpStatus === "ok";
-  const design = resolveInvitationDesign(template?.config, event.theme_color, event.design_config, template?.slug);
+  const design = invitationTheme
+    ? resolveThemeDesign(invitationTheme, event.theme_color, event.design_config)
+    : resolveInvitationDesign(template?.config, event.theme_color, event.design_config, template?.slug);
 
   return (
     <main
-      className={[design.stageClassName, design.designClassName].filter(Boolean).join(" ")}
+      className={[
+        design.stageClassName,
+        design.designClassName,
+        invitationTheme?.slug ? `kais-theme-${invitationTheme.slug}` : ""
+      ].filter(Boolean).join(" ")}
       data-font-preset={design.designConfig.fontPreset}
       data-background-variant={design.designConfig.backgroundVariant}
       data-animation-preset={design.designConfig.animationPreset}

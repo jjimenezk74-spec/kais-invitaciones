@@ -88,6 +88,18 @@ const PREVIEWS: Record<string, ThemePreview> = {
     textLight: false,
   },
 
+  "kpop-warriors": {
+    gradient:
+      "radial-gradient(ellipse at 50% -10%, #4a005e 0%, #1e0030 40%, #050008 100%)",
+    shimmer:
+      "radial-gradient(circle at 25% 52%, rgba(255,47,214,.30), transparent 46%)," +
+      "radial-gradient(circle at 75% 46%, rgba(0,212,255,.25), transparent 46%)," +
+      "linear-gradient(135deg, transparent 35%, rgba(191,0,255,.12) 55%, transparent 72%)",
+    icon: "♛",
+    accentColor: "#ff2fd6",
+    textLight: true,
+  },
+
   // ── Cumpleaños ─────────────────────────────────────────────────────────────
 
   "luxury-night": {

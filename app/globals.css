@@ -1136,6 +1136,36 @@ main.kais-stage.kais-theme-neon-party {
   background: var(--kt-stage-bg);
 }
 
+
+/* ── kpop-warriors  (deep purple / neon pink + electric blue) ───────────── */
+main.kais-stage.kais-theme-kpop-warriors {
+  --kt-accent:         #ff2fd6;
+  --kt-accent-2:       #00d4ff;
+  --kt-accent-3:       #bf00ff;
+  --kt-stage-bg:       radial-gradient(ellipse at 50% 0%, #2d003a 0%, #12001e 48%, #050008 100%);
+  --kt-hero-bg:        radial-gradient(ellipse at 50% 0%, #3d0050 0%, #1e0030 46%, #0a0010 100%);
+  --kt-glass-bg:       rgba(45,0,58,0.16);
+  --kt-glass-bg2:      rgba(18,0,30,0.08);
+  --kt-glass-border:   rgba(255,47,214,0.30);
+  --kt-glass-shine:    rgba(0,212,255,0.16);
+  --kt-cta-text:       #fff;
+  --kt-cta-glow:       rgba(255,47,214,0.55);
+  --kt-cta-glow-h:     rgba(0,212,255,0.65);
+  --kt-hairline-mid:   rgba(255,47,214,0.45);
+  --kt-hairline-peak:  rgba(0,212,255,0.82);
+  --kt-ghost-color:    rgba(255,232,251,0.80);
+  --kt-ghost-border:   rgba(255,47,214,0.38);
+  --kt-section-alt-bg: #0d0015;
+  --kt-card-bg:        rgba(45,0,58,0.16);
+  --kt-text:           #ffe8fb;
+  --kt-muted:          rgba(255,232,251,0.60);
+  --kt-input-border:   rgba(255,47,214,0.30);
+  --kt-input-focus:    #ff2fd6;
+  --kt-blob-dark:      rgba(45,0,58,0.58);
+  --kt-blob-glow:      rgba(0,212,255,0.18);
+  background: var(--kt-stage-bg);
+}
+
 /* ── safari-kids  (dark earth / amber) ──────────────────────────────────── */
 main.kais-stage.kais-theme-safari-kids {
   --kt-accent:         #d84315;
@@ -1271,6 +1301,7 @@ main.kais-stage.kais-theme-ivory-minimal    section#rsvp { background: var(--kt-
 main.kais-stage.kais-theme-luxury-night     section#rsvp { background: var(--kt-section-alt-bg); }
 main.kais-stage.kais-theme-neon-party       section#rsvp { background: var(--kt-section-alt-bg); }
 main.kais-stage.kais-theme-safari-kids      section#rsvp { background: var(--kt-section-alt-bg); }
+main.kais-stage.kais-theme-kpop-warriors    section#rsvp { background: var(--kt-section-alt-bg); }
 main.kais-stage.kais-theme-candy-land       section#rsvp { background: var(--kt-section-alt-bg); }
 main.kais-stage.kais-theme-executive-black  section#rsvp { background: var(--kt-section-alt-bg); }
 main.kais-stage.kais-theme-legacy-night     section#rsvp { background: var(--kt-section-alt-bg); }
@@ -1505,6 +1536,28 @@ main.kais-stage.kais-theme-neon-party .kais-veil-desktop {
 }
 
 /* safari-kids — LIGHT, fades to warm cream */
+/* kpop-warriors — DARK, hot-pink glow at bottom, cool spotlight at top */
+main.kais-stage.kais-theme-kpop-warriors .kais-veil-mobile {
+  background:
+    linear-gradient(180deg,
+      rgba(0,0,0,0.62)  0%,  rgba(0,0,0,0.35)  14%,
+      rgba(0,0,0,0.08) 36%,  rgba(5,0,8,0.04)  50%,
+      rgba(20,0,30,0.42) 66%, rgba(20,0,30,0.82) 82%, #0d0015 100%),
+    radial-gradient(120% 55% at 50% 110%, rgba(255,47,214,0.22) 0%, transparent 65%);
+}
+main.kais-stage.kais-theme-kpop-warriors .kais-veil-desktop {
+  background:
+    linear-gradient(90deg,
+      rgba(13,0,21,0.94)  0%,
+      rgba(13,0,21,0.78) 28%,
+      rgba(13,0,21,0.18) 55%,
+      rgba(13,0,21,0)    75%),
+    linear-gradient(180deg,
+      rgba(0,212,255,0.06)  0%,
+      transparent          30%,
+      rgba(255,47,214,0.28) 100%);
+}
+
 main.kais-stage.kais-theme-safari-kids .kais-veil-mobile {
   background:
     linear-gradient(180deg,
@@ -1626,6 +1679,11 @@ main.kais-stage.kais-theme-active .kais-cta {
 }
 main.kais-stage.kais-theme-active .kais-cta:hover {
   box-shadow: 0 6px 28px var(--kt-cta-glow-h), 0 2px 6px rgba(0,0,0,0.22);
+}
+
+/* kpop-warriors — CTA: pink → violet → electric-blue stage gradient */
+main.kais-stage.kais-theme-kpop-warriors .kais-cta {
+  background: linear-gradient(135deg, #ff2fd6 0%, #bf00ff 50%, #00d4ff 100%);
 }
 
 /* ── ALL themes: ghost link uses theme ghost colour ─────────────────────── */

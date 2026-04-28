@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Field } from "@/components/field";
 import { DEFAULT_INVITATION_DESIGN_CONFIG, normalizeInvitationDesignConfig } from "@/lib/invitation-design";
 import { applyThemeToDesignConfig } from "@/lib/invitation-themes";
+import { getThemePreview } from "@/lib/theme-preview";
 import { createClientSupabaseBrowser } from "@/lib/supabase/browser";
 import type { Client, Event, EventCategory, InvitationTemplate, InvitationTheme, Profile } from "@/lib/types";
 
@@ -183,20 +184,22 @@ export function EventForm({ action, event, clients = [], businessClients = [], t
 
       {/* ── Category + Theme selector ─────────────────────────────────────────── */}
       {(activeCategories.length > 0 || activeThemes.length > 0) ? (
-        <div className="rounded-lg border bg-background p-4">
+        <div className="rounded-xl border bg-background p-5">
           <p className="text-sm font-bold uppercase tracking-[0.18em] text-accent">Tema de invitación</p>
-          <p className="mt-1 mb-4 text-sm text-muted-foreground">Selecciona una categoría y elige el tema visual para la invitación.</p>
+          <p className="mt-1 mb-5 text-sm text-muted-foreground">
+            Elige la atmósfera visual de tu invitación. Cada tema preselecciona fuente, fondo y animación.
+          </p>
 
-          {/* Category filter tabs */}
+          {/* Category filter pills */}
           {activeCategories.length > 0 ? (
-            <div className="mb-4 flex flex-wrap gap-2">
+            <div className="mb-5 flex flex-wrap gap-2">
               <button
                 type="button"
                 onClick={() => setSelectedCategoryId(null)}
-                className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                className={`rounded-full border px-3 py-1 text-xs font-semibold tracking-wide transition-all ${
                   !selectedCategoryId
-                    ? "border-accent bg-accent text-accent-foreground"
-                    : "border-border bg-background text-muted-foreground hover:border-accent/60 hover:text-foreground"
+                    ? "border-accent bg-accent text-accent-foreground shadow-sm"
+                    : "border-border bg-background text-muted-foreground hover:border-accent/50 hover:text-foreground"
                 }`}
               >
                 Todos
@@ -206,10 +209,10 @@ export function EventForm({ action, event, clients = [], businessClients = [], t
                   key={cat.id}
                   type="button"
                   onClick={() => setSelectedCategoryId(cat.id)}
-                  className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                  className={`rounded-full border px-3 py-1 text-xs font-semibold tracking-wide transition-all ${
                     selectedCategoryId === cat.id
-                      ? "border-accent bg-accent text-accent-foreground"
-                      : "border-border bg-background text-muted-foreground hover:border-accent/60 hover:text-foreground"
+                      ? "border-accent bg-accent text-accent-foreground shadow-sm"
+                      : "border-border bg-background text-muted-foreground hover:border-accent/50 hover:text-foreground"
                   }`}
                 >
                   {cat.name}
@@ -221,45 +224,109 @@ export function EventForm({ action, event, clients = [], businessClients = [], t
           {/* Theme grid */}
           {filteredThemes.length > 0 ? (
             <div className="grid gap-3 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5">
-              {/* "None" option */}
+
+              {/* "None" card */}
               <button
                 type="button"
                 onClick={() => setSelectedThemeId(null)}
-                className={`rounded-lg border bg-background p-3 text-left transition hover:border-accent ${
-                  !selectedThemeId ? "ring-2 ring-accent" : ""
+                className={`group overflow-hidden rounded-xl border-2 text-left transition-all focus:outline-none ${
+                  !selectedThemeId
+                    ? "border-accent shadow-md"
+                    : "border-border hover:border-accent/40"
                 }`}
               >
-                <div className="flex aspect-[4/3] items-center justify-center rounded-md border border-dashed border-muted-foreground/40 bg-muted/30">
-                  <span className="text-xs text-muted-foreground">Sin tema</span>
+                <div className="relative flex aspect-[4/3] items-center justify-center bg-muted/30">
+                  <span className="text-2xl text-muted-foreground/30 select-none">∅</span>
+                  {!selectedThemeId && (
+                    <div className="absolute top-2 left-2 flex h-4 w-4 items-center justify-center rounded-full bg-accent">
+                      <svg viewBox="0 0 8 8" className="h-2.5 w-2.5 text-accent-foreground" fill="none" stroke="currentColor" strokeWidth="1.5">
+                        <polyline points="1,4 3,6 7,2" />
+                      </svg>
+                    </div>
+                  )}
                 </div>
-                <p className="mt-2 text-xs font-semibold text-muted-foreground">Sin tema</p>
+                <div className="px-3 py-2">
+                  <p className="text-xs font-semibold text-muted-foreground">Sin tema</p>
+                  <p className="mt-0.5 text-[10px] text-muted-foreground/60">Diseño personalizado</p>
+                </div>
               </button>
 
-              {filteredThemes.map((theme) => (
-                <button
-                  key={theme.id}
-                  type="button"
-                  onClick={() => handleThemeSelect(theme)}
-                  className={`rounded-lg border bg-background p-3 text-left transition hover:border-accent ${
-                    selectedThemeId === theme.id ? "ring-2 ring-accent" : ""
-                  }`}
-                >
-                  {theme.thumbnail_url ? (
+              {filteredThemes.map((theme) => {
+                const preview = getThemePreview(theme.slug);
+                const isSelected = selectedThemeId === theme.id;
+                return (
+                  <button
+                    key={theme.id}
+                    type="button"
+                    onClick={() => handleThemeSelect(theme)}
+                    className={`group overflow-hidden rounded-xl border-2 text-left transition-all focus:outline-none ${
+                      isSelected
+                        ? "border-accent shadow-lg"
+                        : "border-border hover:border-accent/40 hover:shadow-md"
+                    }`}
+                    style={isSelected ? { boxShadow: `0 4px 20px ${preview.accentColor}33` } : undefined}
+                  >
+                    {/* ── Preview area ── */}
                     <div
-                      className="aspect-[4/3] rounded-md bg-cover bg-center"
-                      style={{ backgroundImage: `url(${theme.thumbnail_url})` }}
-                    />
-                  ) : (
-                    <div
-                      className="aspect-[4/3] rounded-md bg-gradient-to-br from-neutral-900 via-rose-950 to-neutral-800"
-                    />
-                  )}
-                  <p className="mt-2 text-xs font-semibold">{theme.name}</p>
-                  {theme.is_premium ? (
-                    <span className="mt-0.5 inline-block text-[10px] font-medium text-amber-500">✦ Premium</span>
-                  ) : null}
-                </button>
-              ))}
+                      className="relative flex aspect-[4/3] items-center justify-center overflow-hidden"
+                      style={{ background: preview.gradient }}
+                    >
+                      {/* Shimmer overlay */}
+                      {preview.shimmer ? (
+                        <div className="absolute inset-0 pointer-events-none" style={{ background: preview.shimmer }} />
+                      ) : null}
+
+                      {/* Focal icon */}
+                      <span
+                        className="relative z-10 select-none text-5xl drop-shadow-xl transition-transform duration-300 group-hover:scale-110"
+                        style={{ filter: `drop-shadow(0 0 8px ${preview.accentColor}88)` }}
+                      >
+                        {preview.icon}
+                      </span>
+
+                      {/* Horizontal accent lines at bottom */}
+                      <div className="absolute bottom-3 left-1/2 z-10 flex -translate-x-1/2 flex-col items-center gap-0.5">
+                        <div className="h-px w-10 opacity-70" style={{ background: preview.accentColor }} />
+                        <div className="h-px w-5 opacity-40" style={{ background: preview.accentColor }} />
+                      </div>
+
+                      {/* Premium badge */}
+                      {theme.is_premium ? (
+                        <div
+                          className="absolute top-2 right-2 z-10 rounded-full px-1.5 py-0.5 text-[8px] font-bold tracking-widest uppercase"
+                          style={{
+                            background: `${preview.accentColor}22`,
+                            color: preview.accentColor,
+                            border: `1px solid ${preview.accentColor}55`,
+                            backdropFilter: "blur(4px)",
+                          }}
+                        >
+                          PREMIUM
+                        </div>
+                      ) : null}
+
+                      {/* Selected checkmark */}
+                      {isSelected ? (
+                        <div className="absolute top-2 left-2 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-accent shadow">
+                          <svg viewBox="0 0 8 8" className="h-3 w-3 text-accent-foreground" fill="none" stroke="currentColor" strokeWidth="1.5">
+                            <polyline points="1,4 3,6 7,2" />
+                          </svg>
+                        </div>
+                      ) : null}
+                    </div>
+
+                    {/* ── Info area ── */}
+                    <div className="px-3 py-2.5">
+                      <p className="text-xs font-bold leading-tight">{theme.name}</p>
+                      {theme.description ? (
+                        <p className="mt-0.5 line-clamp-2 text-[10px] leading-snug text-muted-foreground">
+                          {theme.description}
+                        </p>
+                      ) : null}
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           ) : (
             <p className="text-sm text-muted-foreground">No hay temas disponibles para esta categoría.</p>

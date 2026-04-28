@@ -1619,3 +1619,251 @@ main.kais-stage.kais-theme-executive-black.kais-decor-medium  .kais-section::bef
 main.kais-stage.kais-theme-executive-black.kais-decor-premium .kais-section::before { opacity: 0.3; }
 main.kais-stage.kais-theme-executive-black.kais-decor-medium  .kais-section h2::before,
 main.kais-stage.kais-theme-executive-black.kais-decor-premium .kais-section h2::before { display: none; }
+
+/* ===========================================================
+   KAIS · DECORATION PRESETS
+   Applied via .kais-decoration-{preset} on <main>.
+   Pure CSS — no external images, no JS.
+   =========================================================== */
+
+/* ── none: no-op ────────────────────────────────────────────────────────── */
+/* (no rules needed) */
+
+/* ── shared: all presets use ::before on kais-stage ────────────────────── */
+.kais-decoration-petals::before,
+.kais-decoration-gold-sparkles::before,
+.kais-decoration-confetti-party::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+
+/* ── petals: floating petal shapes, soft & slow ─────────────────────────── */
+@keyframes kais-petal-fall {
+  0%   { transform: translateY(-8vh) translateX(0)    rotate(0deg);   opacity: 0; }
+  10%  { opacity: 0.7; }
+  90%  { opacity: 0.5; }
+  100% { transform: translateY(108vh) translateX(40px) rotate(360deg); opacity: 0; }
+}
+@keyframes kais-petal-sway {
+  0%, 100% { margin-left: 0; }
+  50%       { margin-left: 30px; }
+}
+
+.kais-decoration-petals::before {
+  background-image:
+    radial-gradient(ellipse 6px 9px at center, var(--kt-accent, #d4af37) 70%, transparent 100%),
+    radial-gradient(ellipse 5px 8px at center, var(--kt-accent-2, #f5d572) 70%, transparent 100%),
+    radial-gradient(ellipse 4px 7px at center, var(--kt-accent, #d4af37) 70%, transparent 100%);
+  background-size: 8px 12px, 7px 10px, 6px 9px;
+  background-repeat: no-repeat;
+  /* Actual petals via box-shadow on pseudo — rendered below */
+}
+
+/* Petals implemented as generated pseudo-elements using CSS counter trick */
+.kais-decoration-petals {
+  position: relative;
+}
+.kais-decoration-petals::before {
+  background: none;
+}
+.kais-decoration-petals::after {
+  content: "❀ ✿ ❀ ✿ ❀ ✿ ❀ ✿ ❀ ✿ ❀ ✿";
+  position: fixed;
+  top: -5%;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
+  font-size: 1rem;
+  letter-spacing: 8vw;
+  color: var(--kt-accent, #d4af37);
+  opacity: 0.18;
+  word-break: break-all;
+  line-height: 14vh;
+  animation: kais-petal-fall 14s linear infinite;
+  text-shadow:
+    10vw 20vh 0 var(--kt-accent-2, #f5d572),
+    30vw 5vh  0 var(--kt-accent, #d4af37),
+    55vw 35vh 0 var(--kt-accent-2, #f5d572),
+    75vw 12vh 0 var(--kt-accent, #d4af37),
+    88vw 28vh 0 var(--kt-accent-2, #f5d572);
+  overflow: hidden;
+}
+
+/* ── gold-sparkles: tiny shimmering particles ────────────────────────────── */
+@keyframes kais-sparkle-float {
+  0%   { transform: translateY(0)     scale(1)    opacity: 0; }
+  20%  { opacity: 1; }
+  80%  { opacity: 0.6; }
+  100% { transform: translateY(-60px) scale(0.4); opacity: 0; }
+}
+@keyframes kais-sparkle-twinkle {
+  0%, 100% { opacity: 0.2; transform: scale(0.8); }
+  50%       { opacity: 1;   transform: scale(1.2); }
+}
+
+.kais-decoration-gold-sparkles::before {
+  background-image:
+    radial-gradient(circle 2px at center, var(--kt-accent, #d4af37) 100%, transparent 100%),
+    radial-gradient(circle 1.5px at center, var(--kt-accent-2, #f5d572) 100%, transparent 100%),
+    radial-gradient(circle 1px at center, #fff 100%, transparent 100%);
+  background-size: 4px 4px, 3px 3px, 2px 2px;
+  background-repeat: no-repeat;
+}
+
+.kais-decoration-gold-sparkles::after {
+  content: "✦ ✧ ✦ ✧ ✦ ✧ ✦ ✧ ✦ ✧ ✦ ✧ ✦ ✧ ✦ ✧";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  font-size: 0.55rem;
+  letter-spacing: 5vw;
+  line-height: 8vh;
+  color: var(--kt-accent, #d4af37);
+  opacity: 0;
+  word-break: break-all;
+  animation: kais-sparkle-twinkle 3s ease-in-out infinite;
+  text-shadow:
+    5vw  15vh 0 var(--kt-accent-2, #f5d572),
+    22vw 40vh 0 var(--kt-accent, #d4af37),
+    45vw 72vh 0 var(--kt-accent-2, #f5d572),
+    68vw 30vh 0 var(--kt-accent, #d4af37),
+    85vw 60vh 0 var(--kt-accent-2, #f5d572),
+    12vw 80vh 0 var(--kt-accent, #d4af37),
+    60vw 10vh 0 var(--kt-accent-2, #f5d572);
+}
+
+/* Staggered second layer */
+.kais-decoration-gold-sparkles .kais-section::after {
+  content: "· · · · · · · · · · · · · · ·";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  font-size: 0.4rem;
+  letter-spacing: 6vw;
+  line-height: 12vh;
+  color: var(--kt-accent-2, #f5d572);
+  opacity: 0;
+  word-break: break-all;
+  animation: kais-sparkle-twinkle 4s ease-in-out 1.5s infinite;
+}
+
+/* ── floral-corners: CSS ornamental corners ──────────────────────────────── */
+.kais-decoration-floral-corners .kais-section {
+  position: relative;
+}
+.kais-decoration-floral-corners .kais-section::before {
+  content: "❧";
+  position: absolute;
+  top: 1.5rem;
+  left: 1.5rem;
+  font-size: clamp(2rem, 4vw, 3.5rem);
+  color: var(--kt-accent, #d4af37);
+  opacity: 0.28;
+  pointer-events: none;
+  line-height: 1;
+  transform: scaleX(-1);
+}
+.kais-decoration-floral-corners .kais-section::after {
+  content: "❧";
+  position: absolute;
+  top: 1.5rem;
+  right: 1.5rem;
+  font-size: clamp(2rem, 4vw, 3.5rem);
+  color: var(--kt-accent, #d4af37);
+  opacity: 0.28;
+  pointer-events: none;
+  line-height: 1;
+}
+/* Hero corners */
+.kais-decoration-floral-corners .kais-grain::before {
+  content: "✦ ─── ✦";
+  position: absolute;
+  bottom: 5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.65rem;
+  letter-spacing: 0.5em;
+  color: var(--kt-accent, #d4af37);
+  opacity: 0.45;
+  pointer-events: none;
+  z-index: 20;
+  white-space: nowrap;
+}
+
+/* ── confetti-party: colourful dots ──────────────────────────────────────── */
+@keyframes kais-confetti-fall {
+  0%   { transform: translateY(-10vh) rotate(0deg);   opacity: 0; }
+  10%  { opacity: 0.85; }
+  90%  { opacity: 0.60; }
+  100% { transform: translateY(110vh) rotate(720deg); opacity: 0; }
+}
+
+.kais-decoration-confetti-party::after {
+  content: "● ▲ ■ ● ▲ ■ ● ▲ ■ ● ▲ ■";
+  position: fixed;
+  top: -10%;
+  left: 0;
+  width: 100%;
+  height: 120%;
+  pointer-events: none;
+  z-index: 0;
+  font-size: 0.6rem;
+  letter-spacing: 7vw;
+  line-height: 11vh;
+  word-break: break-all;
+  color: var(--kt-accent, #cc00ff);
+  opacity: 0;
+  animation: kais-confetti-fall 10s linear infinite;
+  text-shadow:
+    8vw  0    0 var(--kt-accent-2, #7c3aed),
+    18vw 0    0 #ff4daa,
+    32vw 0    0 var(--kt-accent, #cc00ff),
+    48vw 0    0 #f9a825,
+    62vw 0    0 var(--kt-accent-2, #7c3aed),
+    76vw 0    0 #4caf50,
+    90vw 0    0 #ff4daa;
+}
+/* Second wave offset */
+.kais-decoration-confetti-party .kais-section::before {
+  content: "◆ ○ ★ ◆ ○ ★ ◆ ○ ★ ◆ ○ ★";
+  position: absolute;
+  top: -5%;
+  left: 0;
+  width: 100%;
+  height: 110%;
+  pointer-events: none;
+  z-index: 0;
+  font-size: 0.5rem;
+  letter-spacing: 9vw;
+  line-height: 15vh;
+  word-break: break-all;
+  color: var(--kt-accent-2, #7c3aed);
+  opacity: 0;
+  animation: kais-confetti-fall 13s linear 5s infinite;
+  text-shadow:
+    12vw 0 0 #ff4daa,
+    28vw 0 0 #f9a825,
+    45vw 0 0 var(--kt-accent, #cc00ff),
+    60vw 0 0 #4caf50,
+    78vw 0 0 var(--kt-accent-2, #7c3aed);
+}
+
+/* ── Respect prefers-reduced-motion ─────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .kais-decoration-petals::after,
+  .kais-decoration-gold-sparkles::after,
+  .kais-decoration-gold-sparkles .kais-section::after,
+  .kais-decoration-confetti-party::after,
+  .kais-decoration-confetti-party .kais-section::before {
+    animation: none;
+    opacity: 0;
+  }
+}

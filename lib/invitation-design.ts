@@ -2,6 +2,7 @@ import type {
   InvitationAnimationPreset,
   InvitationBackgroundVariant,
   InvitationDecorationLevel,
+  InvitationDecorationPreset,
   InvitationDesignConfig,
   InvitationFontPreset,
   InvitationTemplateConfig,
@@ -12,13 +13,15 @@ export const DEFAULT_INVITATION_DESIGN_CONFIG: InvitationDesignConfig = {
   fontPreset: "default",
   backgroundVariant: "default",
   animationPreset: "none",
-  decorationLevel: "minimal"
+  decorationLevel: "minimal",
+  decorationPreset: "none"
 };
 
 const fontPresets: InvitationFontPreset[] = ["default", "romantic-script", "luxury-serif", "royal-classic", "modern-chic"];
 const backgroundVariants: InvitationBackgroundVariant[] = ["default", "dark-roses", "satin-red", "gold-glow", "romantic-floral"];
 const animationPresets: InvitationAnimationPreset[] = ["none", "soft-petals", "gold-sparkles", "elegant-glow"];
 const decorationLevels: InvitationDecorationLevel[] = ["minimal", "medium", "premium"];
+const decorationPresets: InvitationDecorationPreset[] = ["none", "petals", "gold-sparkles", "floral-corners", "confetti-party"];
 
 /** Shape returned by all design resolvers. */
 export type ResolvedDesign = {
@@ -76,6 +79,7 @@ function getThemeOnlyDesignClassName(config: InvitationDesignConfig): string {
   const classes: string[] = [];
   if (config.fontPreset !== "default") classes.push(`kais-font-${config.fontPreset}`);
   if (config.decorationLevel !== "minimal") classes.push(`kais-decor-${config.decorationLevel}`);
+  if (config.decorationPreset !== "none")   classes.push(`kais-decoration-${config.decorationPreset}`);
   return classes.join(" ");
 }
 
@@ -99,6 +103,7 @@ export function mergeDesignConfigs(
     if (cfg.backgroundVariant !== undefined) result.backgroundVariant = cfg.backgroundVariant;
     if (cfg.animationPreset !== undefined)   result.animationPreset   = cfg.animationPreset;
     if (cfg.decorationLevel !== undefined)   result.decorationLevel   = cfg.decorationLevel;
+    if (cfg.decorationPreset !== undefined)  result.decorationPreset  = cfg.decorationPreset;
   }
   return result;
 }
@@ -157,7 +162,10 @@ export function normalizeInvitationDesignConfig(
       : DEFAULT_INVITATION_DESIGN_CONFIG.animationPreset,
     decorationLevel: isOneOf(designConfig.decorationLevel, decorationLevels)
       ? designConfig.decorationLevel
-      : DEFAULT_INVITATION_DESIGN_CONFIG.decorationLevel
+      : DEFAULT_INVITATION_DESIGN_CONFIG.decorationLevel,
+    decorationPreset: isOneOf(designConfig.decorationPreset, decorationPresets)
+      ? designConfig.decorationPreset
+      : DEFAULT_INVITATION_DESIGN_CONFIG.decorationPreset
   };
 }
 
@@ -180,6 +188,7 @@ function getDesignClassName(
     `kais-motion-${config.animationPreset}`,
     `kais-decor-${config.decorationLevel}`
   ];
+  if (config.decorationPreset !== "none") classes.push(`kais-decoration-${config.decorationPreset}`);
 
   // Legacy template-specific decoration classes (rosas-rojas-15).
   if (themeOrTemplateSlug === "rosas-rojas-15" && config.decorationLevel !== "minimal") {

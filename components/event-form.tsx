@@ -62,6 +62,7 @@ export function EventForm({ action, event, clients = [], businessClients = [], t
     if (config.backgroundVariant) setInputValue(form, "design_background_variant", config.backgroundVariant);
     if (config.animationPreset) setInputValue(form, "design_animation_preset", config.animationPreset);
     if (config.decorationLevel) setInputValue(form, "design_decoration_level", config.decorationLevel);
+    if (config.decorationPreset) setInputValue(form, "design_decoration_preset", config.decorationPreset);
   }
 
   return (
@@ -347,7 +348,7 @@ export function EventForm({ action, event, clients = [], businessClients = [], t
             Restaurar diseño original
           </Button>
         </div>
-        <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
           <Field label="Fuente">
             <Select name="design_font_preset" defaultValue={designConfig.fontPreset}>
               <option value="default">Default</option>
@@ -379,6 +380,15 @@ export function EventForm({ action, event, clients = [], businessClients = [], t
               <option value="minimal">Minimal</option>
               <option value="medium">Medium</option>
               <option value="premium">Premium</option>
+            </Select>
+          </Field>
+          <Field label="Decoración visual">
+            <Select name="design_decoration_preset" defaultValue={designConfig.decorationPreset ?? "none"}>
+              <option value="none">Sin decoración</option>
+              <option value="petals">🌸 Pétalos suaves</option>
+              <option value="gold-sparkles">✨ Brillos dorados</option>
+              <option value="floral-corners">🌿 Flores en esquinas</option>
+              <option value="confetti-party">🎊 Confetti fiesta</option>
             </Select>
           </Field>
         </div>
@@ -518,6 +528,7 @@ function restoreDefaultDesign(form: HTMLFormElement | null) {
   setInputValue(form, "design_background_variant", DEFAULT_INVITATION_DESIGN_CONFIG.backgroundVariant);
   setInputValue(form, "design_animation_preset", DEFAULT_INVITATION_DESIGN_CONFIG.animationPreset);
   setInputValue(form, "design_decoration_level", DEFAULT_INVITATION_DESIGN_CONFIG.decorationLevel);
+  setInputValue(form, "design_decoration_preset", DEFAULT_INVITATION_DESIGN_CONFIG.decorationPreset);
 }
 
 async function uploadFilesToSupabase(form: HTMLFormElement, setStatus: (status: string) => void) {

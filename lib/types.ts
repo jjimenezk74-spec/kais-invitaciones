@@ -5,11 +5,13 @@ export type InvitationFontPreset = "default" | "romantic-script" | "luxury-serif
 export type InvitationBackgroundVariant = "default" | "dark-roses" | "satin-red" | "gold-glow" | "romantic-floral";
 export type InvitationAnimationPreset = "none" | "soft-petals" | "gold-sparkles" | "elegant-glow";
 export type InvitationDecorationLevel = "minimal" | "medium" | "premium";
+export type InvitationDecorationPreset = "none" | "petals" | "gold-sparkles" | "floral-corners" | "confetti-party";
 export type InvitationDesignConfig = {
   fontPreset: InvitationFontPreset;
   backgroundVariant: InvitationBackgroundVariant;
   animationPreset: InvitationAnimationPreset;
   decorationLevel: InvitationDecorationLevel;
+  decorationPreset: InvitationDecorationPreset;
 };
 export type InvitationTemplateConfig = {
   background?: string;

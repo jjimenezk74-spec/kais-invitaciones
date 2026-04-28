@@ -516,7 +516,8 @@ function getDesignConfigFromForm(formData: FormData) {
       fontPreset: String(formData.get("design_font_preset") ?? ""),
       backgroundVariant: String(formData.get("design_background_variant") ?? ""),
       animationPreset: String(formData.get("design_animation_preset") ?? ""),
-      decorationLevel: String(formData.get("design_decoration_level") ?? "")
+      decorationLevel: String(formData.get("design_decoration_level") ?? ""),
+      decorationPreset: String(formData.get("design_decoration_preset") ?? "")
     } as Partial<InvitationDesignConfig>
   });
 }

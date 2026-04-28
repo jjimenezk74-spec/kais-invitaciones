@@ -21,7 +21,7 @@ const fontPresets: InvitationFontPreset[] = ["default", "romantic-script", "luxu
 const backgroundVariants: InvitationBackgroundVariant[] = ["default", "dark-roses", "satin-red", "gold-glow", "romantic-floral"];
 const animationPresets: InvitationAnimationPreset[] = ["none", "soft-petals", "gold-sparkles", "elegant-glow"];
 const decorationLevels: InvitationDecorationLevel[] = ["minimal", "medium", "premium"];
-const decorationPresets: InvitationDecorationPreset[] = ["none", "petals", "gold-sparkles", "floral-corners", "confetti-party"];
+const decorationPresets: InvitationDecorationPreset[] = ["none", "luxury-gold", "floral-romance", "royal-classic", "minimal-chic", "kids-fantasy"];
 
 /** Shape returned by all design resolvers. */
 export type ResolvedDesign = {

@@ -1621,249 +1621,329 @@ main.kais-stage.kais-theme-executive-black.kais-decor-medium  .kais-section h2::
 main.kais-stage.kais-theme-executive-black.kais-decor-premium .kais-section h2::before { display: none; }
 
 /* ===========================================================
-   KAIS · DECORATION PRESETS
+   KAIS · DECORATION PRESETS  (v2 — static premium)
    Applied via .kais-decoration-{preset} on <main>.
-   Pure CSS — no external images, no JS.
+   Pure CSS — no animations, no external images.
+   Colours come from --kt-accent / --kt-accent-2 / --kt-accent-3
+   so every preset adapts automatically to each theme.
    =========================================================== */
 
-/* ── none: no-op ────────────────────────────────────────────────────────── */
-/* (no rules needed) */
+/* ── Shared SVG helpers (data URIs, theme-colour independent) ────────────── */
+/* diamond ornament used by multiple presets */
 
-/* ── shared: all presets use ::before on kais-stage ────────────────────── */
-.kais-decoration-petals::before,
-.kais-decoration-gold-sparkles::before,
-.kais-decoration-confetti-party::before {
+/* ═══════════════════════════════════════════════════════════
+   1. none — no changes
+   ═══════════════════════════════════════════════════════════ */
+/* (intentionally empty) */
+
+/* ═══════════════════════════════════════════════════════════
+   2. luxury-gold
+   Gold corner ornaments on every section + thin ruled lines
+   above/below headings.
+   ═══════════════════════════════════════════════════════════ */
+
+/* Thin decorative rule above every h2 inside a section */
+.kais-decoration-luxury-gold .kais-section h2::before {
   content: "";
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 0;
-  overflow: hidden;
+  display: block;
+  width: 4rem;
+  height: 1px;
+  background: linear-gradient(90deg,
+    transparent, var(--kt-accent, #d4af37) 40%,
+    var(--kt-accent-2, #f5d572) 60%, transparent);
+  margin: 0 auto 1.4rem;
 }
 
-/* ── petals: floating petal shapes, soft & slow ─────────────────────────── */
-@keyframes kais-petal-fall {
-  0%   { transform: translateY(-8vh) translateX(0)    rotate(0deg);   opacity: 0; }
-  10%  { opacity: 0.7; }
-  90%  { opacity: 0.5; }
-  100% { transform: translateY(108vh) translateX(40px) rotate(360deg); opacity: 0; }
-}
-@keyframes kais-petal-sway {
-  0%, 100% { margin-left: 0; }
-  50%       { margin-left: 30px; }
-}
-
-.kais-decoration-petals::before {
-  background-image:
-    radial-gradient(ellipse 6px 9px at center, var(--kt-accent, #d4af37) 70%, transparent 100%),
-    radial-gradient(ellipse 5px 8px at center, var(--kt-accent-2, #f5d572) 70%, transparent 100%),
-    radial-gradient(ellipse 4px 7px at center, var(--kt-accent, #d4af37) 70%, transparent 100%);
-  background-size: 8px 12px, 7px 10px, 6px 9px;
-  background-repeat: no-repeat;
-  /* Actual petals via box-shadow on pseudo — rendered below */
-}
-
-/* Petals implemented as generated pseudo-elements using CSS counter trick */
-.kais-decoration-petals {
-  position: relative;
-}
-.kais-decoration-petals::before {
-  background: none;
-}
-.kais-decoration-petals::after {
-  content: "❀ ✿ ❀ ✿ ❀ ✿ ❀ ✿ ❀ ✿ ❀ ✿";
-  position: fixed;
-  top: -5%;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-  z-index: 0;
-  font-size: 1rem;
-  letter-spacing: 8vw;
-  color: var(--kt-accent, #d4af37);
-  opacity: 0.18;
-  word-break: break-all;
-  line-height: 14vh;
-  animation: kais-petal-fall 14s linear infinite;
-  text-shadow:
-    10vw 20vh 0 var(--kt-accent-2, #f5d572),
-    30vw 5vh  0 var(--kt-accent, #d4af37),
-    55vw 35vh 0 var(--kt-accent-2, #f5d572),
-    75vw 12vh 0 var(--kt-accent, #d4af37),
-    88vw 28vh 0 var(--kt-accent-2, #f5d572);
-  overflow: hidden;
-}
-
-/* ── gold-sparkles: tiny shimmering particles ────────────────────────────── */
-@keyframes kais-sparkle-float {
-  0%   { transform: translateY(0)     scale(1); opacity: 0; }
-  20%  { opacity: 1; }
-  80%  { opacity: 0.6; }
-  100% { transform: translateY(-60px) scale(0.4); opacity: 0; }
-}
-@keyframes kais-sparkle-twinkle {
-  0%, 100% { opacity: 0.2; transform: scale(0.8); }
-  50%       { opacity: 1;   transform: scale(1.2); }
-}
-
-.kais-decoration-gold-sparkles::before {
-  background-image:
-    radial-gradient(circle 2px at center, var(--kt-accent, #d4af37) 100%, transparent 100%),
-    radial-gradient(circle 1.5px at center, var(--kt-accent-2, #f5d572) 100%, transparent 100%),
-    radial-gradient(circle 1px at center, #fff 100%, transparent 100%);
-  background-size: 4px 4px, 3px 3px, 2px 2px;
-  background-repeat: no-repeat;
-}
-
-.kais-decoration-gold-sparkles::after {
-  content: "✦ ✧ ✦ ✧ ✦ ✧ ✦ ✧ ✦ ✧ ✦ ✧ ✦ ✧ ✦ ✧";
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 0;
+/* Diamond bullet centred below the h2 */
+.kais-decoration-luxury-gold .kais-section h2::after {
+  content: "◆";
+  display: block;
   font-size: 0.55rem;
-  letter-spacing: 5vw;
-  line-height: 8vh;
+  letter-spacing: 0.6em;
   color: var(--kt-accent, #d4af37);
-  opacity: 0;
-  word-break: break-all;
-  animation: kais-sparkle-twinkle 3s ease-in-out infinite;
-  text-shadow:
-    5vw  15vh 0 var(--kt-accent-2, #f5d572),
-    22vw 40vh 0 var(--kt-accent, #d4af37),
-    45vw 72vh 0 var(--kt-accent-2, #f5d572),
-    68vw 30vh 0 var(--kt-accent, #d4af37),
-    85vw 60vh 0 var(--kt-accent-2, #f5d572),
-    12vw 80vh 0 var(--kt-accent, #d4af37),
-    60vw 10vh 0 var(--kt-accent-2, #f5d572);
+  opacity: 0.60;
+  margin-top: 1.2rem;
+  text-align: center;
 }
 
-/* Staggered second layer */
-.kais-decoration-gold-sparkles .kais-section::after {
-  content: "· · · · · · · · · · · · · · ·";
+/* Corner ornaments — top-left & top-right of each section */
+.kais-decoration-luxury-gold .kais-section::before {
+  content: "✦";
   position: absolute;
-  inset: 0;
+  top: 2rem;
+  left: 2rem;
+  font-size: 1.1rem;
+  color: var(--kt-accent, #d4af37);
+  opacity: 0.35;
   pointer-events: none;
-  z-index: 0;
-  font-size: 0.4rem;
-  letter-spacing: 6vw;
-  line-height: 12vh;
-  color: var(--kt-accent-2, #f5d572);
-  opacity: 0;
-  word-break: break-all;
-  animation: kais-sparkle-twinkle 4s ease-in-out 1.5s infinite;
+  line-height: 1;
+}
+.kais-decoration-luxury-gold .kais-section::after {
+  content: "✦";
+  position: absolute;
+  top: 2rem;
+  right: 2rem;
+  font-size: 1.1rem;
+  color: var(--kt-accent, #d4af37);
+  opacity: 0.35;
+  pointer-events: none;
+  line-height: 1;
 }
 
-/* ── floral-corners: CSS ornamental corners ──────────────────────────────── */
-.kais-decoration-floral-corners .kais-section {
-  position: relative;
+/* Fine ruled border around glass cards */
+.kais-decoration-luxury-gold .kais-glass {
+  outline: 1px solid var(--kt-accent, #d4af37);
+  outline-offset: 6px;
+  outline-color: color-mix(in srgb, var(--kt-accent, #d4af37) 22%, transparent);
 }
-.kais-decoration-floral-corners .kais-section::before {
+
+/* Slim top border accent on the hero */
+.kais-decoration-luxury-gold .kais-grain::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  height: 2px;
+  background: linear-gradient(90deg,
+    transparent 0%, var(--kt-accent, #d4af37) 30%,
+    var(--kt-accent-2, #f5d572) 50%,
+    var(--kt-accent, #d4af37) 70%, transparent 100%);
+  opacity: 0.55;
+  pointer-events: none;
+  z-index: 20;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   3. floral-romance
+   Floral text ornaments in section corners + petal dividers
+   between content blocks.
+   ═══════════════════════════════════════════════════════════ */
+
+.kais-decoration-floral-romance .kais-section::before {
   content: "❧";
   position: absolute;
-  top: 1.5rem;
-  left: 1.5rem;
-  font-size: clamp(2rem, 4vw, 3.5rem);
+  top: 1.8rem;
+  left: 1.8rem;
+  font-size: clamp(1.8rem, 3vw, 2.8rem);
   color: var(--kt-accent, #d4af37);
-  opacity: 0.28;
+  opacity: 0.30;
   pointer-events: none;
   line-height: 1;
   transform: scaleX(-1);
 }
-.kais-decoration-floral-corners .kais-section::after {
+.kais-decoration-floral-romance .kais-section::after {
   content: "❧";
   position: absolute;
-  top: 1.5rem;
-  right: 1.5rem;
-  font-size: clamp(2rem, 4vw, 3.5rem);
+  top: 1.8rem;
+  right: 1.8rem;
+  font-size: clamp(1.8rem, 3vw, 2.8rem);
   color: var(--kt-accent, #d4af37);
-  opacity: 0.28;
+  opacity: 0.30;
   pointer-events: none;
   line-height: 1;
 }
-/* Hero corners */
-.kais-decoration-floral-corners .kais-grain::before {
-  content: "✦ ─── ✦";
-  position: absolute;
-  bottom: 5rem;
-  left: 50%;
-  transform: translateX(-50%);
+
+/* Floral divider line between eyebrow and heading */
+.kais-decoration-floral-romance .kais-section h2::before {
+  content: "✾ ── ✾ ── ✾";
+  display: block;
   font-size: 0.65rem;
+  letter-spacing: 0.35em;
+  color: var(--kt-accent-2, #f5d572);
+  opacity: 0.55;
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+/* Bottom petal row below last section child */
+.kais-decoration-floral-romance .kais-section > *:last-child::after {
+  content: "✿  ·  ✿  ·  ✿";
+  display: block;
+  text-align: center;
+  font-size: 0.7rem;
   letter-spacing: 0.5em;
   color: var(--kt-accent, #d4af37);
-  opacity: 0.45;
+  opacity: 0.30;
+  margin-top: 2.5rem;
   pointer-events: none;
-  z-index: 20;
-  white-space: nowrap;
 }
 
-/* ── confetti-party: colourful dots ──────────────────────────────────────── */
-@keyframes kais-confetti-fall {
-  0%   { transform: translateY(-10vh) rotate(0deg);   opacity: 0; }
-  10%  { opacity: 0.85; }
-  90%  { opacity: 0.60; }
-  100% { transform: translateY(110vh) rotate(720deg); opacity: 0; }
+/* Thin floral border on glass cards */
+.kais-decoration-floral-romance .kais-glass {
+  border-style: solid;
+  border-width: 1px;
+  border-image: none;
+  border-color: color-mix(in srgb, var(--kt-accent, #d4af37) 28%, transparent);
 }
 
-.kais-decoration-confetti-party::after {
-  content: "● ▲ ■ ● ▲ ■ ● ▲ ■ ● ▲ ■";
-  position: fixed;
-  top: -10%;
-  left: 0;
-  width: 100%;
-  height: 120%;
-  pointer-events: none;
-  z-index: 0;
-  font-size: 0.6rem;
-  letter-spacing: 7vw;
-  line-height: 11vh;
-  word-break: break-all;
-  color: var(--kt-accent, #cc00ff);
-  opacity: 0;
-  animation: kais-confetti-fall 10s linear infinite;
-  text-shadow:
-    8vw  0    0 var(--kt-accent-2, #7c3aed),
-    18vw 0    0 #ff4daa,
-    32vw 0    0 var(--kt-accent, #cc00ff),
-    48vw 0    0 #f9a825,
-    62vw 0    0 var(--kt-accent-2, #7c3aed),
-    76vw 0    0 #4caf50,
-    90vw 0    0 #ff4daa;
+/* ═══════════════════════════════════════════════════════════
+   4. royal-classic
+   Regal frames, double-rule separators, crown motifs.
+   ═══════════════════════════════════════════════════════════ */
+
+/* Crown above each section heading */
+.kais-decoration-royal-classic .kais-section h2::before {
+  content: "♛";
+  display: block;
+  font-size: 1.1rem;
+  color: var(--kt-accent, #d4af37);
+  opacity: 0.50;
+  margin-bottom: 0.8rem;
+  text-align: center;
 }
-/* Second wave offset */
-.kais-decoration-confetti-party .kais-section::before {
-  content: "◆ ○ ★ ◆ ○ ★ ◆ ○ ★ ◆ ○ ★";
+
+/* Double-rule below headings */
+.kais-decoration-royal-classic .kais-section h2::after {
+  content: "";
+  display: block;
+  width: min(12rem, 60%);
+  height: 3px;
+  margin: 1rem auto 0;
+  background:
+    linear-gradient(90deg, transparent, var(--kt-accent, #d4af37), transparent) top / 100% 1px no-repeat,
+    linear-gradient(90deg, transparent, var(--kt-accent-2, #f5d572), transparent) bottom / 100% 1px no-repeat;
+}
+
+/* Ornamental corner brackets */
+.kais-decoration-royal-classic .kais-section::before {
+  content: "⌜";
   position: absolute;
-  top: -5%;
-  left: 0;
-  width: 100%;
-  height: 110%;
+  top: 1.5rem;
+  left: 1.5rem;
+  font-size: 2.2rem;
+  line-height: 1;
+  color: var(--kt-accent, #d4af37);
+  opacity: 0.28;
   pointer-events: none;
-  z-index: 0;
-  font-size: 0.5rem;
-  letter-spacing: 9vw;
-  line-height: 15vh;
-  word-break: break-all;
-  color: var(--kt-accent-2, #7c3aed);
-  opacity: 0;
-  animation: kais-confetti-fall 13s linear 5s infinite;
-  text-shadow:
-    12vw 0 0 #ff4daa,
-    28vw 0 0 #f9a825,
-    45vw 0 0 var(--kt-accent, #cc00ff),
-    60vw 0 0 #4caf50,
-    78vw 0 0 var(--kt-accent-2, #7c3aed);
+}
+.kais-decoration-royal-classic .kais-section::after {
+  content: "⌟";
+  position: absolute;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  font-size: 2.2rem;
+  line-height: 1;
+  color: var(--kt-accent, #d4af37);
+  opacity: 0.28;
+  pointer-events: none;
 }
 
-/* ── Respect prefers-reduced-motion ─────────────────────────────────────── */
-@media (prefers-reduced-motion: reduce) {
-  .kais-decoration-petals::after,
-  .kais-decoration-gold-sparkles::after,
-  .kais-decoration-gold-sparkles .kais-section::after,
-  .kais-decoration-confetti-party::after,
-  .kais-decoration-confetti-party .kais-section::before {
-    animation: none;
-    opacity: 0;
+/* Regal border on glass */
+.kais-decoration-royal-classic .kais-glass {
+  border-width: 1px;
+  border-style: double;
+  border-color: color-mix(in srgb, var(--kt-accent, #d4af37) 35%, transparent);
+}
+
+/* Fine ruled lines flanking the hero eyebrow (already has kais-hairline but
+   this adds a second decorative layer) */
+.kais-decoration-royal-classic .kais-grain {
+  border-top: 1px solid color-mix(in srgb, var(--kt-accent, #d4af37) 30%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--kt-accent, #d4af37) 15%, transparent);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   5. minimal-chic
+   Ultra-thin lines only — no glyphs, no ornaments.
+   Suits ivory-minimal, executive-black.
+   ═══════════════════════════════════════════════════════════ */
+
+/* Single ruled line above heading */
+.kais-decoration-minimal-chic .kais-section h2::before {
+  content: "";
+  display: block;
+  width: 2.5rem;
+  height: 1px;
+  background: var(--kt-accent, #d4af37);
+  opacity: 0.50;
+  margin: 0 auto 1.2rem;
+}
+
+/* Minimal dot below heading */
+.kais-decoration-minimal-chic .kais-section h2::after {
+  content: "·";
+  display: block;
+  font-size: 1.4rem;
+  line-height: 1;
+  color: var(--kt-accent, #d4af37);
+  opacity: 0.45;
+  margin-top: 0.8rem;
+  text-align: center;
+}
+
+/* Inset left border stripe on sections */
+.kais-decoration-minimal-chic .kais-section {
+  border-left: 1px solid color-mix(in srgb, var(--kt-accent, #d4af37) 20%, transparent);
+  padding-left: calc(var(--kais-section-px, 1.25rem) + 1.5rem);
+}
+@media (min-width: 768px) {
+  .kais-decoration-minimal-chic .kais-section {
+    border-left: none;
+    padding-left: var(--kais-section-px, 2.5rem);
   }
+}
+
+/* Subtle bottom border on glass */
+.kais-decoration-minimal-chic .kais-glass {
+  border-bottom: 2px solid color-mix(in srgb, var(--kt-accent, #d4af37) 40%, transparent);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   6. kids-fantasy
+   Playful stars, sparkle bullets, light confetti shapes —
+   all static, colourful, energetic.
+   Suits candy-land, neon-party, safari-kids.
+   ═══════════════════════════════════════════════════════════ */
+
+/* Star row above section headings */
+.kais-decoration-kids-fantasy .kais-section h2::before {
+  content: "★  ✦  ★  ✦  ★";
+  display: block;
+  font-size: 0.7rem;
+  letter-spacing: 0.5em;
+  color: var(--kt-accent-2, #f5d572);
+  opacity: 0.65;
+  margin-bottom: 0.9rem;
+  text-align: center;
+}
+
+/* Balloon-like corner badge */
+.kais-decoration-kids-fantasy .kais-section::before {
+  content: "🎈";
+  position: absolute;
+  top: 1.2rem;
+  left: 1.5rem;
+  font-size: 1.4rem;
+  opacity: 0.55;
+  pointer-events: none;
+  line-height: 1;
+}
+.kais-decoration-kids-fantasy .kais-section::after {
+  content: "🎀";
+  position: absolute;
+  top: 1.2rem;
+  right: 1.5rem;
+  font-size: 1.4rem;
+  opacity: 0.55;
+  pointer-events: none;
+  line-height: 1;
+}
+
+/* Confetti dots border at top of glass card */
+.kais-decoration-kids-fantasy .kais-glass {
+  border-top: 3px dotted color-mix(in srgb, var(--kt-accent, #cc00ff) 45%, transparent);
+  border-radius: 1.5rem;
+}
+
+/* Star footer */
+.kais-decoration-kids-fantasy .kais-section > *:last-child::after {
+  content: "·  ★  ·  ★  ·  ★  ·";
+  display: block;
+  text-align: center;
+  font-size: 0.65rem;
+  letter-spacing: 0.5em;
+  color: var(--kt-accent, #cc00ff);
+  opacity: 0.40;
+  margin-top: 2rem;
+  pointer-events: none;
 }

@@ -385,10 +385,11 @@ export function EventForm({ action, event, clients = [], businessClients = [], t
           <Field label="Decoración visual">
             <Select name="design_decoration_preset" defaultValue={designConfig.decorationPreset ?? "none"}>
               <option value="none">Sin decoración</option>
-              <option value="petals">🌸 Pétalos suaves</option>
-              <option value="gold-sparkles">✨ Brillos dorados</option>
-              <option value="floral-corners">🌿 Flores en esquinas</option>
-              <option value="confetti-party">🎊 Confetti fiesta</option>
+              <option value="luxury-gold">✦ Luxury Gold</option>
+              <option value="floral-romance">❧ Floral Romance</option>
+              <option value="royal-classic">♛ Royal Classic</option>
+              <option value="minimal-chic">— Minimal Chic</option>
+              <option value="kids-fantasy">★ Kids Fantasy</option>
             </Select>
           </Field>
         </div>

@@ -934,6 +934,7 @@ main.kais-stage.kais-theme-garden-romance {
   --kt-section-alt-bg: #030d06;
   --kt-input-border:   rgba(122,184,147,0.32);
   --kt-input-focus:    #a8d5b5;
+  background: var(--kt-stage-bg);
 }
 
 /* ── princess-pink  (deep rose/mauve) ───────────────────────────────────── */
@@ -955,6 +956,7 @@ main.kais-stage.kais-theme-princess-pink {
   --kt-section-alt-bg: #0d020a;
   --kt-input-border:   rgba(232,121,160,0.32);
   --kt-input-focus:    #f5b5ce;
+  background: var(--kt-stage-bg);
 }
 
 /* ── midnight-queen  (deep purple / amethyst) ───────────────────────────── */
@@ -976,6 +978,7 @@ main.kais-stage.kais-theme-midnight-queen {
   --kt-section-alt-bg: #060010;
   --kt-input-border:   rgba(184,126,255,0.32);
   --kt-input-focus:    #b87eff;
+  background: var(--kt-stage-bg);
 }
 
 /* ── royal-wedding  (deep amber / champagne gold) ───────────────────────── */
@@ -997,6 +1000,7 @@ main.kais-stage.kais-theme-royal-wedding {
   --kt-section-alt-bg: #0d0800;
   --kt-input-border:   rgba(245,213,114,0.35);
   --kt-input-focus:    #ffe89a;
+  background: var(--kt-stage-bg);
 }
 
 /* ── ivory-minimal  (dark charcoal / warm slate) ────────────────────────── */
@@ -1018,6 +1022,7 @@ main.kais-stage.kais-theme-ivory-minimal {
   --kt-section-alt-bg: #0d0d0b;
   --kt-input-border:   rgba(200,194,176,0.30);
   --kt-input-focus:    #e8e0cc;
+  background: var(--kt-stage-bg);
 }
 
 /* ── luxury-night  (pure black / champagne gold, richer than default) ───── */
@@ -1039,6 +1044,7 @@ main.kais-stage.kais-theme-luxury-night {
   --kt-section-alt-bg: #070707;
   --kt-input-border:   rgba(212,175,55,0.38);
   --kt-input-focus:    #f5d572;
+  background: var(--kt-stage-bg);
 }
 
 /* ── neon-party  (dark navy / neon magenta + cyan) ──────────────────────── */
@@ -1060,6 +1066,7 @@ main.kais-stage.kais-theme-neon-party {
   --kt-section-alt-bg: #06001a;
   --kt-input-border:   rgba(255,0,204,0.32);
   --kt-input-focus:    #ff66e0;
+  background: var(--kt-stage-bg);
 }
 
 /* ── safari-kids  (dark earth / amber) ──────────────────────────────────── */
@@ -1081,6 +1088,7 @@ main.kais-stage.kais-theme-safari-kids {
   --kt-section-alt-bg: #0d0702;
   --kt-input-border:   rgba(249,168,37,0.34);
   --kt-input-focus:    #ffd54f;
+  background: var(--kt-stage-bg);
 }
 
 /* ── candy-land  (deep berry / grape) ───────────────────────────────────── */
@@ -1102,6 +1110,7 @@ main.kais-stage.kais-theme-candy-land {
   --kt-section-alt-bg: #0d0015;
   --kt-input-border:   rgba(255,77,170,0.32);
   --kt-input-focus:    #ff9dce;
+  background: var(--kt-stage-bg);
 }
 
 /* ── executive-black  (dark steel / silver) ─────────────────────────────── */
@@ -1123,6 +1132,7 @@ main.kais-stage.kais-theme-executive-black {
   --kt-section-alt-bg: #050607;
   --kt-input-border:   rgba(144,164,174,0.30);
   --kt-input-focus:    #b0bec5;
+  background: var(--kt-stage-bg);
 }
 /* Executive: suppress floral decoration overlays entirely */
 main.kais-stage.kais-theme-executive-black.kais-decor-medium .kais-section::before,
@@ -1153,6 +1163,7 @@ main.kais-stage.kais-theme-legacy-night {
   --kt-section-alt-bg: #01070f;
   --kt-input-border:   rgba(74,144,196,0.32);
   --kt-input-focus:    #4a90c4;
+  background: var(--kt-stage-bg);
 }
 
 /* ── RSVP section bg override (JSX has bg-[#0a0405] Tailwind class)         */
@@ -1168,3 +1179,37 @@ main.kais-stage.kais-theme-safari-kids      section#rsvp { background: var(--kt-
 main.kais-stage.kais-theme-candy-land       section#rsvp { background: var(--kt-section-alt-bg); }
 main.kais-stage.kais-theme-executive-black  section#rsvp { background: var(--kt-section-alt-bg); }
 main.kais-stage.kais-theme-legacy-night     section#rsvp { background: var(--kt-section-alt-bg); }
+
+/* ===========================================================
+   KAIS · THEME-ACTIVE ISOLATION
+   When main carries .kais-theme-active:
+   • Suppress kais-bg-* hardcoded backgrounds (belt-and-suspenders,
+     JS already strips them from designClassName but CSS wins regardless)
+   • Suppress kais-motion-* animation overlays (hardcoded crimson/gold)
+   Specificity of selectors below is (0,3,1) or (0,2,1) — all come
+   AFTER the kais-bg-* rules in this file, so equal-specificity rules
+   win by cascade position.
+   =========================================================== */
+
+/* Override any stray kais-bg-* class when theme is active */
+main.kais-stage.kais-theme-active,
+main.kais-stage.kais-theme-active.kais-bg-default,
+main.kais-stage.kais-theme-active.kais-bg-dark-roses,
+main.kais-stage.kais-theme-active.kais-bg-satin-red,
+main.kais-stage.kais-theme-active.kais-bg-gold-glow,
+main.kais-stage.kais-theme-active.kais-bg-romantic-floral {
+  background: var(--kt-stage-bg);
+}
+
+/* Suppress animation overlays — hardcoded crimson/gold wrong for green/neon/steel themes */
+main.kais-stage.kais-theme-active.kais-motion-soft-petals::before,
+main.kais-stage.kais-theme-active.kais-motion-gold-sparkles::before,
+main.kais-stage.kais-theme-active.kais-motion-elegant-glow::before {
+  display: none;
+}
+
+/* Hero no-image fallback — inherits theme background from parent <main> */
+.kais-hero-fallback {
+  background: var(--kt-stage-bg,
+    radial-gradient(120% 80% at 50% 0%, #1a0508 0%, #080506 60%, #050304 100%));
+}

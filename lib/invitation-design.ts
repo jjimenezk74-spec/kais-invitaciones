@@ -59,8 +59,22 @@ export function resolveThemeDesign(
     primary: fallbackPrimary,
     secondary: "#f8fafc",
     stageClassName: "kais-stage relative font-sans",
-    designClassName: getDesignClassName(designConfig, theme?.slug ?? null)
+    // Theme system owns background + motion — never emit kais-bg-* or kais-motion-*
+    // so they cannot override the theme's --kt-stage-bg token.
+    designClassName: getThemeOnlyDesignClassName(designConfig)
   };
+}
+
+/**
+ * For theme-based events: only font + decoration classes.
+ * kais-bg-* and kais-motion-* are intentionally excluded —
+ * they hard-code red/crimson backgrounds that would override the theme CSS.
+ */
+function getThemeOnlyDesignClassName(config: InvitationDesignConfig): string {
+  const classes: string[] = [];
+  if (config.fontPreset !== "default") classes.push(`kais-font-${config.fontPreset}`);
+  if (config.decorationLevel !== "minimal") classes.push(`kais-decor-${config.decorationLevel}`);
+  return classes.join(" ");
 }
 
 /**

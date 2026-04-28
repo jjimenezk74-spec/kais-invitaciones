@@ -118,13 +118,16 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
       className={[
         design.stageClassName,
         design.designClassName,
-        invitationTheme?.slug ? `kais-theme-${invitationTheme.slug}` : ""
+        invitationTheme?.slug ? `kais-theme-${invitationTheme.slug}` : "",
+        invitationTheme ? "kais-theme-active" : ""
       ].filter(Boolean).join(" ")}
       data-font-preset={design.designConfig.fontPreset}
       data-background-variant={design.designConfig.backgroundVariant}
       data-animation-preset={design.designConfig.animationPreset}
       data-decoration-level={design.designConfig.decorationLevel}
-      style={{ ["--template-primary" as string]: design.primary, ["--template-secondary" as string]: design.secondary }}
+      style={invitationTheme
+        ? undefined
+        : { ["--template-primary" as string]: design.primary, ["--template-secondary" as string]: design.secondary }}
     >
       <div className="fixed left-3 top-[max(0.75rem,env(safe-area-inset-top))] z-50 sm:left-5">
         <BackButton from={normalizeSearchParam(query.from)} />

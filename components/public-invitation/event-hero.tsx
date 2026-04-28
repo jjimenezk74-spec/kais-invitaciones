@@ -76,10 +76,7 @@ export function EventHero({
             ) : null}
           </>
         ) : (
-          <div
-            className="h-full w-full"
-            style={{ background: `linear-gradient(145deg, ${event.theme_color}, #1a0508 55%, #3a0a12)` }}
-          />
+          <div className="kais-hero-fallback h-full w-full" />
         )}
         <div className="absolute inset-0 kais-veil-mobile lg:hidden" />
         <div className="absolute inset-0 hidden lg:block kais-veil-desktop" />

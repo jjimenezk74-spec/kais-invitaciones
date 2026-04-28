@@ -1375,9 +1375,15 @@ main.kais-stage.kais-theme-garden-romance .kais-veil-mobile {
 }
 main.kais-stage.kais-theme-garden-romance .kais-veil-desktop {
   background:
-    linear-gradient(90deg, rgba(240,247,242,0.94) 0%, rgba(240,247,242,0.78) 28%,
-      rgba(240,247,242,0.18) 55%, rgba(240,247,242,0) 75%),
-    linear-gradient(180deg, rgba(240,247,242,0.06) 0%, transparent 30%, rgba(240,247,242,0.52) 100%);
+    linear-gradient(90deg,
+      rgba(0,0,0,0.88)  0%,
+      rgba(0,0,0,0.62) 28%,
+      rgba(0,0,0,0.10) 55%,
+      rgba(0,0,0,0)    75%),
+    linear-gradient(180deg,
+      rgba(0,0,0,0.08)  0%,
+      transparent      30%,
+      rgba(0,0,0,0.45) 100%);
 }
 
 /* princess-pink — LIGHT, fades to soft rose */
@@ -1391,9 +1397,15 @@ main.kais-stage.kais-theme-princess-pink .kais-veil-mobile {
 }
 main.kais-stage.kais-theme-princess-pink .kais-veil-desktop {
   background:
-    linear-gradient(90deg, rgba(253,238,244,0.94) 0%, rgba(253,238,244,0.78) 28%,
-      rgba(253,238,244,0.18) 55%, rgba(253,238,244,0) 75%),
-    linear-gradient(180deg, rgba(253,238,244,0.06) 0%, transparent 30%, rgba(253,238,244,0.52) 100%);
+    linear-gradient(90deg,
+      rgba(0,0,0,0.88)  0%,
+      rgba(0,0,0,0.62) 28%,
+      rgba(0,0,0,0.10) 55%,
+      rgba(0,0,0,0)    75%),
+    linear-gradient(180deg,
+      rgba(0,0,0,0.08)  0%,
+      transparent      30%,
+      rgba(0,0,0,0.45) 100%);
 }
 
 /* midnight-queen — DARK, fades to deep purple */
@@ -1427,9 +1439,15 @@ main.kais-stage.kais-theme-royal-wedding .kais-veil-mobile {
 }
 main.kais-stage.kais-theme-royal-wedding .kais-veil-desktop {
   background:
-    linear-gradient(90deg, rgba(253,248,239,0.94) 0%, rgba(253,248,239,0.78) 28%,
-      rgba(253,248,239,0.18) 55%, rgba(253,248,239,0) 75%),
-    linear-gradient(180deg, rgba(253,248,239,0.06) 0%, transparent 30%, rgba(253,248,239,0.52) 100%);
+    linear-gradient(90deg,
+      rgba(0,0,0,0.88)  0%,
+      rgba(0,0,0,0.62) 28%,
+      rgba(0,0,0,0.10) 55%,
+      rgba(0,0,0,0)    75%),
+    linear-gradient(180deg,
+      rgba(0,0,0,0.08)  0%,
+      transparent      30%,
+      rgba(0,0,0,0.45) 100%);
 }
 
 /* ivory-minimal — LIGHT, fades to warm white */
@@ -1443,9 +1461,15 @@ main.kais-stage.kais-theme-ivory-minimal .kais-veil-mobile {
 }
 main.kais-stage.kais-theme-ivory-minimal .kais-veil-desktop {
   background:
-    linear-gradient(90deg, rgba(250,250,248,0.94) 0%, rgba(250,250,248,0.78) 28%,
-      rgba(250,250,248,0.18) 55%, rgba(250,250,248,0) 75%),
-    linear-gradient(180deg, rgba(250,250,248,0.06) 0%, transparent 30%, rgba(250,250,248,0.52) 100%);
+    linear-gradient(90deg,
+      rgba(0,0,0,0.88)  0%,
+      rgba(0,0,0,0.62) 28%,
+      rgba(0,0,0,0.10) 55%,
+      rgba(0,0,0,0)    75%),
+    linear-gradient(180deg,
+      rgba(0,0,0,0.08)  0%,
+      transparent      30%,
+      rgba(0,0,0,0.45) 100%);
 }
 
 /* luxury-night — DARK, fades to near-black gold-tinted */
@@ -1491,9 +1515,15 @@ main.kais-stage.kais-theme-safari-kids .kais-veil-mobile {
 }
 main.kais-stage.kais-theme-safari-kids .kais-veil-desktop {
   background:
-    linear-gradient(90deg, rgba(254,249,240,0.94) 0%, rgba(254,249,240,0.78) 28%,
-      rgba(254,249,240,0.18) 55%, rgba(254,249,240,0) 75%),
-    linear-gradient(180deg, rgba(254,249,240,0.06) 0%, transparent 30%, rgba(254,249,240,0.52) 100%);
+    linear-gradient(90deg,
+      rgba(0,0,0,0.88)  0%,
+      rgba(0,0,0,0.62) 28%,
+      rgba(0,0,0,0.10) 55%,
+      rgba(0,0,0,0)    75%),
+    linear-gradient(180deg,
+      rgba(0,0,0,0.08)  0%,
+      transparent      30%,
+      rgba(0,0,0,0.45) 100%);
 }
 
 /* candy-land — LIGHT, fades to soft lavender */
@@ -1507,9 +1537,15 @@ main.kais-stage.kais-theme-candy-land .kais-veil-mobile {
 }
 main.kais-stage.kais-theme-candy-land .kais-veil-desktop {
   background:
-    linear-gradient(90deg, rgba(253,240,255,0.94) 0%, rgba(253,240,255,0.78) 28%,
-      rgba(253,240,255,0.18) 55%, rgba(253,240,255,0) 75%),
-    linear-gradient(180deg, rgba(253,240,255,0.06) 0%, transparent 30%, rgba(253,240,255,0.52) 100%);
+    linear-gradient(90deg,
+      rgba(0,0,0,0.88)  0%,
+      rgba(0,0,0,0.62) 28%,
+      rgba(0,0,0,0.10) 55%,
+      rgba(0,0,0,0)    75%),
+    linear-gradient(180deg,
+      rgba(0,0,0,0.08)  0%,
+      transparent      30%,
+      rgba(0,0,0,0.45) 100%);
 }
 
 /* executive-black — DARK, fades to dark steel */

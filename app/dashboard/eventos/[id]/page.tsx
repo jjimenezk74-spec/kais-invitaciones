@@ -23,7 +23,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { canModerateEvents, getCurrentUserProfile, isKaisAdmin } from "@/lib/profiles";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import type { Client, Event, EventGuest, EventLogin, EventPhoto, InvitationTemplate, Rsvp } from "@/lib/types";
+import type { Client, Event, EventCategory, EventGuest, EventLogin, EventPhoto, InvitationTemplate, InvitationTheme, Rsvp } from "@/lib/types";
+import { fetchActiveCategories, fetchActiveThemes } from "@/lib/invitation-themes.server";
 import {
   absoluteUrl,
   buildCredentialsMessage,
@@ -57,19 +58,23 @@ export default async function EventDetailPage({
   const event = data as Event | null;
   if (!event) return <p>Evento no encontrado.</p>;
 
-  const [{ data: rsvpsData }, { data: photosData }, { data: guestsData }, { data: clientsData }, { data: templatesData }, { count: visits = 0 }] = await Promise.all([
+  const [{ data: rsvpsData }, { data: photosData }, { data: guestsData }, { data: clientsData }, { data: templatesData }, { count: visits = 0 }, categories, themes] = await Promise.all([
     supabase.from("rsvps").select("*").eq("event_id", event.id).order("created_at", { ascending: false }),
     supabase.from("event_photos").select("*").eq("event_id", event.id).order("created_at", { ascending: false }),
     admin.from("event_guests").select("*").eq("event_id", event.id).order("created_at", { ascending: false }),
     admin.from("clients").select("*").order("name", { ascending: true }),
     admin.from("invitation_templates").select("*").eq("active", true).order("created_at", { ascending: true }),
-    supabase.from("analytics_visits").select("*", { count: "exact", head: true }).eq("event_id", event.id)
+    supabase.from("analytics_visits").select("*", { count: "exact", head: true }).eq("event_id", event.id),
+    fetchActiveCategories(),
+    fetchActiveThemes()
   ]);
   const rsvps = (rsvpsData ?? []) as Rsvp[];
   const photos = (photosData ?? []) as EventPhoto[];
   const guests = (guestsData ?? []) as EventGuest[];
   const businessClients = (clientsData ?? []) as Client[];
   const templates = (templatesData ?? []) as InvitationTemplate[];
+  const activeCategories = categories as EventCategory[];
+  const activeThemes = themes as InvitationTheme[];
   const eventClient = businessClients.find((client) => client.id === event.client_id) ?? null;
   const eventTemplate = templates.find((template) => template.id === event.template_id) ?? null;
   const { data: loginData } = canManageClientAccess
@@ -351,7 +356,7 @@ export default async function EventDetailPage({
           <CardTitle>Editar datos</CardTitle>
         </CardHeader>
         <CardContent>
-          <EventForm action={update} event={event} businessClients={businessClients} templates={templates} />
+          <EventForm action={update} event={event} businessClients={businessClients} templates={templates} categories={activeCategories} themes={activeThemes} />
         </CardContent>
       </Card>
 

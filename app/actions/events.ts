@@ -76,6 +76,8 @@ export async function createEvent(formData: FormData) {
     guest_mode: getGuestMode(formData.get("guest_mode")),
     client_id: nullable(formData.get("client_id")),
     template_id: nullable(formData.get("template_id")),
+    category_id: nullableUuid(formData.get("category_id")),
+    theme_id: nullableUuid(formData.get("theme_id")),
     slug
   };
 
@@ -152,7 +154,9 @@ export async function updateEvent(eventId: string, formData: FormData) {
     status: getEventStatus(formData.get("status")),
     guest_mode: getGuestMode(formData.get("guest_mode")),
     client_id: nullable(formData.get("client_id")),
-    template_id: nullable(formData.get("template_id"))
+    template_id: nullable(formData.get("template_id")),
+    category_id: nullableUuid(formData.get("category_id")),
+    theme_id: nullableUuid(formData.get("theme_id"))
   };
 
   const { error } = await supabase.from("events").update(payload).eq("id", eventId);
@@ -483,6 +487,13 @@ export async function getCurrentProfile() {
 function nullable(value: FormDataEntryValue | null) {
   const text = String(value ?? "").trim();
   return text.length ? text : null;
+}
+
+/** Returns null for empty strings and values that aren't valid UUIDs. */
+function nullableUuid(value: FormDataEntryValue | null): string | null {
+  const str = nullable(value);
+  if (!str) return null;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str) ? str : null;
 }
 
 function getOptionalFile(value: FormDataEntryValue | null) {

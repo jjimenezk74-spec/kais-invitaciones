@@ -8,8 +8,9 @@ import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Field } from "@/components/field";
 import { DEFAULT_INVITATION_DESIGN_CONFIG, normalizeInvitationDesignConfig } from "@/lib/invitation-design";
+import { applyThemeToDesignConfig } from "@/lib/invitation-themes";
 import { createClientSupabaseBrowser } from "@/lib/supabase/browser";
-import type { Client, Event, InvitationTemplate, Profile } from "@/lib/types";
+import type { Client, Event, EventCategory, InvitationTemplate, InvitationTheme, Profile } from "@/lib/types";
 
 type EventFormProps = {
   action: (formData: FormData) => Promise<void> | void;
@@ -17,6 +18,8 @@ type EventFormProps = {
   clients?: Profile[];
   businessClients?: Client[];
   templates?: InvitationTemplate[];
+  categories?: EventCategory[];
+  themes?: InvitationTheme[];
   showOwner?: boolean;
 };
 
@@ -32,16 +35,37 @@ const MAX_TOTAL_UPLOAD_SIZE = 20 * 1024 * 1024;
 const ALLOWED_COVER_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp"];
 const ALLOWED_AUDIO_EXTENSIONS = [".mp3", ".wav", ".ogg"];
 
-export function EventForm({ action, event, clients = [], businessClients = [], templates = [], showOwner = false }: EventFormProps) {
+export function EventForm({ action, event, clients = [], businessClients = [], templates = [], categories = [], themes = [], showOwner = false }: EventFormProps) {
   const shouldShowOwnerSelect = showOwner && clients.length > 0;
   const designConfig = normalizeInvitationDesignConfig({ designConfig: event?.design_config ?? undefined });
   const [uploadError, setUploadError] = useState("");
   const [uploadStatus, setUploadStatus] = useState("");
   const [isUploading, setIsUploading] = useState(false);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(event?.category_id ?? null);
+  const [selectedThemeId, setSelectedThemeId] = useState<string | null>(event?.theme_id ?? null);
   const submitAfterUploadRef = useRef(false);
+  const formRef = useRef<HTMLFormElement>(null);
+
+  const activeCategories = categories.filter((c) => c.is_active).sort((a, b) => a.sort_order - b.sort_order);
+  const activeThemes = themes.filter((t) => t.is_active).sort((a, b) => a.sort_order - b.sort_order);
+  const filteredThemes = selectedCategoryId
+    ? activeThemes.filter((t) => t.category_id === selectedCategoryId)
+    : activeThemes;
+
+  function handleThemeSelect(theme: InvitationTheme) {
+    setSelectedThemeId(theme.id);
+    const form = formRef.current;
+    if (!form) return;
+    const config = applyThemeToDesignConfig(theme);
+    if (config.fontPreset) setInputValue(form, "design_font_preset", config.fontPreset);
+    if (config.backgroundVariant) setInputValue(form, "design_background_variant", config.backgroundVariant);
+    if (config.animationPreset) setInputValue(form, "design_animation_preset", config.animationPreset);
+    if (config.decorationLevel) setInputValue(form, "design_decoration_level", config.decorationLevel);
+  }
 
   return (
     <form
+      ref={formRef}
       action={action}
       className="grid gap-5"
       onSubmit={async (submitEvent) => {
@@ -151,6 +175,96 @@ export function EventForm({ action, event, clients = [], businessClients = [], t
             ))}
           </div>
         </Field>
+      ) : null}
+
+      {/* ── Hidden fields for category + theme ───────────────────────────────── */}
+      <input type="hidden" name="category_id" value={selectedCategoryId ?? ""} />
+      <input type="hidden" name="theme_id" value={selectedThemeId ?? ""} />
+
+      {/* ── Category + Theme selector ─────────────────────────────────────────── */}
+      {(activeCategories.length > 0 || activeThemes.length > 0) ? (
+        <div className="rounded-lg border bg-background p-4">
+          <p className="text-sm font-bold uppercase tracking-[0.18em] text-accent">Tema de invitación</p>
+          <p className="mt-1 mb-4 text-sm text-muted-foreground">Selecciona una categoría y elige el tema visual para la invitación.</p>
+
+          {/* Category filter tabs */}
+          {activeCategories.length > 0 ? (
+            <div className="mb-4 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setSelectedCategoryId(null)}
+                className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                  !selectedCategoryId
+                    ? "border-accent bg-accent text-accent-foreground"
+                    : "border-border bg-background text-muted-foreground hover:border-accent/60 hover:text-foreground"
+                }`}
+              >
+                Todos
+              </button>
+              {activeCategories.map((cat) => (
+                <button
+                  key={cat.id}
+                  type="button"
+                  onClick={() => setSelectedCategoryId(cat.id)}
+                  className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                    selectedCategoryId === cat.id
+                      ? "border-accent bg-accent text-accent-foreground"
+                      : "border-border bg-background text-muted-foreground hover:border-accent/60 hover:text-foreground"
+                  }`}
+                >
+                  {cat.name}
+                </button>
+              ))}
+            </div>
+          ) : null}
+
+          {/* Theme grid */}
+          {filteredThemes.length > 0 ? (
+            <div className="grid gap-3 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5">
+              {/* "None" option */}
+              <button
+                type="button"
+                onClick={() => setSelectedThemeId(null)}
+                className={`rounded-lg border bg-background p-3 text-left transition hover:border-accent ${
+                  !selectedThemeId ? "ring-2 ring-accent" : ""
+                }`}
+              >
+                <div className="flex aspect-[4/3] items-center justify-center rounded-md border border-dashed border-muted-foreground/40 bg-muted/30">
+                  <span className="text-xs text-muted-foreground">Sin tema</span>
+                </div>
+                <p className="mt-2 text-xs font-semibold text-muted-foreground">Sin tema</p>
+              </button>
+
+              {filteredThemes.map((theme) => (
+                <button
+                  key={theme.id}
+                  type="button"
+                  onClick={() => handleThemeSelect(theme)}
+                  className={`rounded-lg border bg-background p-3 text-left transition hover:border-accent ${
+                    selectedThemeId === theme.id ? "ring-2 ring-accent" : ""
+                  }`}
+                >
+                  {theme.thumbnail_url ? (
+                    <div
+                      className="aspect-[4/3] rounded-md bg-cover bg-center"
+                      style={{ backgroundImage: `url(${theme.thumbnail_url})` }}
+                    />
+                  ) : (
+                    <div
+                      className="aspect-[4/3] rounded-md bg-gradient-to-br from-neutral-900 via-rose-950 to-neutral-800"
+                    />
+                  )}
+                  <p className="mt-2 text-xs font-semibold">{theme.name}</p>
+                  {theme.is_premium ? (
+                    <span className="mt-0.5 inline-block text-[10px] font-medium text-amber-500">✦ Premium</span>
+                  ) : null}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">No hay temas disponibles para esta categoría.</p>
+          )}
+        </div>
       ) : null}
 
       <div className="rounded-lg border bg-background p-4">

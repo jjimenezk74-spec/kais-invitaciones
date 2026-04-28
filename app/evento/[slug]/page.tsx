@@ -17,6 +17,7 @@ import {
   InvalidPersonalLink,
   InactivePersonalLink
 } from "./_screens";
+import { RoyalWeddingPack, RoyalWeddingDivider } from "@/components/decorations/royal-wedding-pack";
 
 type PageProps = {
   params: Promise<{ slug: string }>;
@@ -115,6 +116,11 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
     ? resolvePremiumThemeDesign(invitationTheme, null, event.design_config)
     : resolveLegacyDesign(template?.config, event.theme_color, event.design_config, template?.slug);
 
+  // Royal Wedding Pack: SVG overlay shown for royal-wedding theme or luxury-gold preset
+  const showRoyalPack =
+    invitationTheme?.slug === "royal-wedding" ||
+    design.designConfig.decorationPreset === "luxury-gold";
+
   return (
     <main
       className={[
@@ -131,6 +137,9 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
         ? undefined
         : { ["--template-primary" as string]: design.primary, ["--template-secondary" as string]: design.secondary }}
     >
+      {/* Royal Wedding Pack SVG overlay — must be first child so sections paint above it */}
+      {showRoyalPack && <RoyalWeddingPack />}
+
       <div className="fixed left-3 top-[max(0.75rem,env(safe-area-inset-top))] z-50 sm:left-5">
         <BackButton from={normalizeSearchParam(query.from)} />
       </div>
@@ -218,6 +227,8 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
           ) : null}
         </div>
       </section>
+
+      {showRoyalPack && <RoyalWeddingDivider />}
 
       <section id="rsvp" className="kais-section bg-[#0a0405]">
         <div className="pointer-events-none absolute inset-x-0 top-0 h-px kais-hairline" />
@@ -327,6 +338,8 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
           </div>
         </div>
       </section>
+
+      {showRoyalPack && <RoyalWeddingDivider />}
 
       <section id="fotos" className="kais-section">
         <div className="pointer-events-none absolute inset-x-0 top-0 h-px kais-hairline" />

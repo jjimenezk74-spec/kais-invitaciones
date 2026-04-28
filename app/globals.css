@@ -2288,3 +2288,174 @@ main.kais-stage.kais-theme-executive-black.kais-decor-premium .kais-section h2::
     transition: none !important;
   }
 }
+
+
+/* ════════════════════════════════════════════════════════════════════════════
+   ROYAL WEDDING PACK — SVG Decoration Layer
+   Applied when:  theme.slug === "royal-wedding"
+              OR  decorationPreset === "luxury-gold"
+   All layers: pointer-events none, z-index behind sections.
+   ════════════════════════════════════════════════════════════════════════════ */
+
+/* ── Shimmer keyframe (very slow, subtle) ─────────────────────────────────── */
+@keyframes kais-rwp-shimmer {
+  0%, 100% { opacity: 0.52; }
+  50%       { opacity: 0.80; }
+}
+
+/* ── Overlay wrapper — absolute inside <main>, full page span ─────────────── */
+/* Rendered as first child so it's below sections in DOM painting order.       */
+.kais-rwp-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+
+/* ── Frame border lines ───────────────────────────────────────────────────── */
+.kais-rwp-frame-top,
+.kais-rwp-frame-bottom {
+  position: absolute;
+  left: 2.5rem;
+  right: 2.5rem;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--kt-accent, #d4af37) 18%,
+    var(--kt-accent-2, #f5d572) 50%,
+    var(--kt-accent, #d4af37) 82%,
+    transparent 100%
+  );
+  opacity: 0.42;
+  animation: kais-rwp-shimmer 8s ease-in-out infinite;
+}
+.kais-rwp-frame-top    { top: 0; }
+.kais-rwp-frame-bottom { bottom: 0; }
+
+.kais-rwp-frame-left,
+.kais-rwp-frame-right {
+  position: absolute;
+  top: 3rem;
+  bottom: 3rem;
+  width: 1px;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    var(--kt-accent, #d4af37) 15%,
+    var(--kt-accent-2, #f5d572) 50%,
+    var(--kt-accent, #d4af37) 85%,
+    transparent 100%
+  );
+  opacity: 0.30;
+}
+.kais-rwp-frame-left  { left: 0; }
+.kais-rwp-frame-right { right: 0; }
+
+/* ── Corner ornaments ─────────────────────────────────────────────────────── */
+.kais-rwp-corner {
+  position: absolute;
+  width: 88px;
+  height: 88px;
+  color: var(--kt-accent, #d4af37);
+  animation: kais-rwp-shimmer 6s ease-in-out infinite;
+}
+.kais-rwp-corner svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.kais-rwp-tl { top: 1.25rem; left: 1.25rem; }
+.kais-rwp-tr { top: 1.25rem; right: 1.25rem; }
+.kais-rwp-bl { bottom: 1.25rem; left: 1.25rem; }
+.kais-rwp-br { bottom: 1.25rem; right: 1.25rem; }
+
+/* Stagger shimmer between corners for organic feel */
+.kais-rwp-tr { animation-delay: 1.2s; }
+.kais-rwp-bl { animation-delay: 2.4s; }
+.kais-rwp-br { animation-delay: 3.6s; }
+
+/* ── Crown wrapper — top of page ─────────────────────────────────────────── */
+.kais-rwp-crown-wrap {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  pointer-events: none;
+  z-index: 0;
+  width: min(220px, 52vw);
+  color: var(--kt-accent, #d4af37);
+  opacity: 0.58;
+  animation: kais-rwp-shimmer 7s ease-in-out infinite;
+  animation-delay: 0.5s;
+}
+.kais-rwp-crown {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+/* Radial glow beneath the crown */
+.kais-rwp-crown-glow {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -40%);
+  width: 160%;
+  height: 60px;
+  background: radial-gradient(
+    ellipse at center,
+    color-mix(in srgb, var(--kt-accent, #d4af37) 22%, transparent) 0%,
+    transparent 70%
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── Section Divider ─────────────────────────────────────────────────────── */
+.kais-rwp-divider-wrap {
+  width: 100%;
+  max-width: 560px;
+  margin-inline: auto;
+  padding: 2rem 1.25rem;
+  color: var(--kt-accent, #d4af37);
+  opacity: 0.62;
+  pointer-events: none;
+}
+.kais-rwp-divider-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* ── Desktop expansions ───────────────────────────────────────────────────── */
+@media (min-width: 1024px) {
+  /* Larger corners */
+  .kais-rwp-corner { width: 116px; height: 116px; }
+  .kais-rwp-tl { top: 1.75rem; left: 1.75rem; }
+  .kais-rwp-tr { top: 1.75rem; right: 1.75rem; }
+  .kais-rwp-bl { bottom: 1.75rem; left: 1.75rem; }
+  .kais-rwp-br { bottom: 1.75rem; right: 1.75rem; }
+
+  /* Wider frame lines */
+  .kais-rwp-frame-top,
+  .kais-rwp-frame-bottom { left: 4rem; right: 4rem; opacity: 0.48; }
+  .kais-rwp-frame-left,
+  .kais-rwp-frame-right  { opacity: 0.35; }
+
+  /* Bigger crown */
+  .kais-rwp-crown-wrap { width: min(270px, 28vw); opacity: 0.65; }
+
+  /* Wider divider */
+  .kais-rwp-divider-wrap { max-width: 720px; padding: 2.5rem 2rem; }
+}
+
+/* ── prefers-reduced-motion ───────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .kais-rwp-overlay *,
+  .kais-rwp-crown-wrap {
+    animation: none !important;
+    transition: none !important;
+  }
+}

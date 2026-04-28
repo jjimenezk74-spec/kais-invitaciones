@@ -5,7 +5,7 @@ import { submitRsvp, trackVisit, uploadEventPhoto } from "@/app/actions/events";
 import { Countdown } from "@/components/countdown";
 import { BackButton } from "@/components/back-button";
 import { EventHero } from "@/components/public-invitation/event-hero";
-import { resolveInvitationDesign, resolveThemeDesign } from "@/lib/invitation-design";
+import { resolvePremiumThemeDesign, resolveLegacyDesign } from "@/lib/invitation-design";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { fetchThemeById } from "@/lib/invitation-themes.server";
 import { createClient } from "@/lib/supabase/server";
@@ -109,9 +109,11 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
   const photoStatus = normalizeSearchParam(query.foto);
   const photoError = normalizeSearchParam(query.foto_error);
   const isConfirmed = Boolean(invitedGuestRsvp) || rsvpStatus === "ok";
+  // Premium theme: design comes entirely from --kt-* CSS vars; no legacy colors.
+  // Legacy path: use template config + event.theme_color as before.
   const design = invitationTheme
-    ? resolveThemeDesign(invitationTheme, event.theme_color, event.design_config)
-    : resolveInvitationDesign(template?.config, event.theme_color, event.design_config, template?.slug);
+    ? resolvePremiumThemeDesign(invitationTheme, null, event.design_config)
+    : resolveLegacyDesign(template?.config, event.theme_color, event.design_config, template?.slug);
 
   return (
     <main

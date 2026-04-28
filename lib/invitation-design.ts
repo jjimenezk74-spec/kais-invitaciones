@@ -29,23 +29,22 @@ export type ResolvedDesign = {
   designClassName: string;
 };
 
-// ─── Theme-system resolver (new) ─────────────────────────────────────────────
+// ─── Premium Theme resolver ─────────────────────────────────────────────────
 
 /**
- * Resolves the final display config for the new theme system.
+ * Resolves the final display config for a premium theme event.
+ * ONLY emits: kais-stage, kais-theme-active, kais-theme-{slug},
+ * font/decoration classes. Never emits kais-bg-*, kais-motion-*,
+ * kais-template-*, or legacy color styles.
+ *
  * Merge priority (lowest → highest):
  *   DEFAULT_INVITATION_DESIGN_CONFIG
  *   → theme.default_design_config
  *   → event.design_config
- *
- * Fields that are explicitly set in a higher-priority source override
- * lower-priority ones, including explicit "default" / "none" / "minimal".
- * Undefined / null fields in a source are skipped so lower-priority
- * values can fill the gap.
  */
-export function resolveThemeDesign(
+export function resolvePremiumThemeDesign(
   theme: InvitationTheme | null | undefined,
-  fallbackPrimary: string,
+  fallbackPrimary: string | null,
   eventDesignConfig?: Partial<InvitationDesignConfig> | null
 ): ResolvedDesign {
   const merged = mergeDesignConfigs(
@@ -56,7 +55,7 @@ export function resolveThemeDesign(
 
   return {
     designConfig,
-    primary: fallbackPrimary,
+    primary: fallbackPrimary ?? "#d4af37",
     secondary: "#f8fafc",
     stageClassName: "kais-stage relative font-sans",
     // Theme system owns background + motion — never emit kais-bg-* or kais-motion-*
@@ -64,6 +63,9 @@ export function resolveThemeDesign(
     designClassName: getThemeOnlyDesignClassName(designConfig)
   };
 }
+
+/** @deprecated Use resolvePremiumThemeDesign instead */
+export const resolveThemeDesign = resolvePremiumThemeDesign;
 
 /**
  * For theme-based events: only font + decoration classes.
@@ -101,13 +103,14 @@ export function mergeDesignConfigs(
   return result;
 }
 
-// ─── Legacy template resolver (backward compat) ───────────────────────────────
+// ─── Legacy template resolver ───────────────────────────────────────────────
 
 /**
  * Resolves design for the legacy InvitationTemplateConfig system.
+ * Used ONLY for events without a theme_id.
  * Kept as-is so existing invitation_templates continue to work.
  */
-export function resolveInvitationDesign(
+export function resolveLegacyDesign(
   config: InvitationTemplateConfig | null | undefined,
   fallbackPrimary: string,
   eventDesignConfig?: Partial<InvitationDesignConfig> | null,
@@ -129,6 +132,9 @@ export function resolveInvitationDesign(
     designClassName: getDesignClassName(designConfig, templateSlug)
   };
 }
+
+/** @deprecated Use resolveLegacyDesign instead */
+export const resolveInvitationDesign = resolveLegacyDesign;
 
 // ─── Shared utilities ─────────────────────────────────────────────────────────
 

@@ -156,6 +156,9 @@ export function EventForm({ action, event, clients = [], businessClients = [], t
 
       {templates.length > 0 ? (
         <Field label="Plantilla de invitacion">
+          <p className="mb-3 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-600 dark:text-amber-400">
+            ⚠️ Los temas premium (sección de abajo) reemplazan completamente el diseño de plantilla. Si seleccionás un tema premium, esta plantilla no afecta el visual de la invitación.
+          </p>
           <div className="grid gap-3 md:grid-cols-4">
             {templates.map((template) => (
               <label key={template.id} className="cursor-pointer rounded-lg border bg-background p-3 transition hover:border-accent">

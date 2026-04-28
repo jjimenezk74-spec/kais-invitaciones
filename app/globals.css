@@ -120,9 +120,14 @@ html {
   --kt-input-focus:    #f5d572;
   --kt-blob-dark:      rgba(58,10,18,0.50);
   --kt-blob-glow:      rgba(212,175,55,0.08);
+  --kt-hero-bg:        radial-gradient(120% 80% at 50% 0%, #1a0508 0%, #080506 60%, #050304 100%);
+  --kt-section-bg:     transparent;
+  --kt-card-bg:        rgba(255,247,237,0.045);
+  --kt-text:           #f5ecd9;
+  --kt-muted:          rgba(245,236,217,0.65);
   /* ─────────────────────────────────────────────────────────────────────── */
   background: var(--kt-stage-bg);
-  color: var(--kais-ivory);
+  color: var(--kt-text, #f5ecd9);
 }
 
 .kais-section {
@@ -922,7 +927,8 @@ main.kais-stage.kais-theme-garden-romance {
   --kt-accent:         #7ab893;
   --kt-accent-2:       #a8d5b5;
   --kt-accent-3:       #4d9066;
-  --kt-stage-bg:       radial-gradient(120% 80% at 50% 0%, #071a0e 0%, #030d06 60%, #010803 100%);
+  --kt-stage-bg:       radial-gradient(ellipse at 50% 0%, #0d2b18 0%, #071a0d 50%, #030d06 100%);
+  --kt-hero-bg:        radial-gradient(ellipse at 50% 0%, #1a4530 0%, #0d2b18 40%, #071a0d 100%);
   --kt-glass-bg:       rgba(20,60,30,0.065);
   --kt-glass-bg2:      rgba(10,35,18,0.030);
   --kt-glass-border:   rgba(122,184,147,0.22);
@@ -934,6 +940,9 @@ main.kais-stage.kais-theme-garden-romance {
   --kt-hairline-peak:  rgba(168,213,181,0.85);
   --kt-ghost-border:   rgba(122,184,147,0.40);
   --kt-section-alt-bg: #030d06;
+  --kt-card-bg:        rgba(20,60,30,0.07);
+  --kt-text:           #e8f5ee;
+  --kt-muted:          rgba(232,245,238,0.65);
   --kt-input-border:   rgba(122,184,147,0.32);
   --kt-input-focus:    #a8d5b5;
   --kt-blob-dark:      rgba(3,13,6,0.50);
@@ -958,6 +967,9 @@ main.kais-stage.kais-theme-princess-pink {
   --kt-hairline-peak:  rgba(245,181,206,0.85);
   --kt-ghost-border:   rgba(232,121,160,0.40);
   --kt-section-alt-bg: #0d020a;
+  --kt-card-bg:        rgba(80,15,40,0.07);
+  --kt-text:           #f5ecd9;
+  --kt-muted:          rgba(245,236,217,0.65);
   --kt-input-border:   rgba(232,121,160,0.32);
   --kt-input-focus:    #f5b5ce;
   --kt-blob-dark:      rgba(13,2,10,0.50);
@@ -982,6 +994,9 @@ main.kais-stage.kais-theme-midnight-queen {
   --kt-hairline-peak:  rgba(212,175,55,0.85);
   --kt-ghost-border:   rgba(184,126,255,0.40);
   --kt-section-alt-bg: #060010;
+  --kt-card-bg:        rgba(40,0,80,0.08);
+  --kt-text:           #f5ecd9;
+  --kt-muted:          rgba(245,236,217,0.65);
   --kt-input-border:   rgba(184,126,255,0.32);
   --kt-input-focus:    #b87eff;
   --kt-blob-dark:      rgba(6,0,16,0.50);
@@ -994,7 +1009,8 @@ main.kais-stage.kais-theme-royal-wedding {
   --kt-accent:         #f5d572;
   --kt-accent-2:       #ffe89a;
   --kt-accent-3:       #d4af37;
-  --kt-stage-bg:       radial-gradient(120% 80% at 50% 0%, #1a1000 0%, #0d0800 60%, #080500 100%);
+  --kt-stage-bg:       radial-gradient(ellipse at 50% 0%, #3a2c12 0%, #1e1800 50%, #100c00 100%);
+  --kt-hero-bg:        radial-gradient(ellipse at 50% 0%, #5a4020 0%, #3a2c12 40%, #1e1800 100%);
   --kt-glass-bg:       rgba(60,45,0,0.065);
   --kt-glass-bg2:      rgba(35,26,0,0.030);
   --kt-glass-border:   rgba(245,213,114,0.25);
@@ -1005,11 +1021,14 @@ main.kais-stage.kais-theme-royal-wedding {
   --kt-hairline-mid:   rgba(245,213,114,0.60);
   --kt-hairline-peak:  rgba(255,232,154,0.92);
   --kt-ghost-border:   rgba(245,213,114,0.45);
-  --kt-section-alt-bg: #0d0800;
+  --kt-section-alt-bg: #150e00;
+  --kt-card-bg:        rgba(60,45,0,0.08);
+  --kt-text:           #f5ecd9;
+  --kt-muted:          rgba(245,236,217,0.65);
   --kt-input-border:   rgba(245,213,114,0.35);
   --kt-input-focus:    #ffe89a;
-  --kt-blob-dark:      rgba(13,8,0,0.50);
-  --kt-blob-glow:      rgba(245,213,114,0.10);
+  --kt-blob-dark:      rgba(26,16,0,0.45);
+  --kt-blob-glow:      rgba(245,213,114,0.12);
   background: var(--kt-stage-bg);
 }
 
@@ -1030,6 +1049,9 @@ main.kais-stage.kais-theme-ivory-minimal {
   --kt-hairline-peak:  rgba(232,224,204,0.80);
   --kt-ghost-border:   rgba(200,194,176,0.38);
   --kt-section-alt-bg: #0d0d0b;
+  --kt-card-bg:        rgba(35,32,26,0.07);
+  --kt-text:           #f5ecd9;
+  --kt-muted:          rgba(245,236,217,0.65);
   --kt-input-border:   rgba(200,194,176,0.30);
   --kt-input-focus:    #e8e0cc;
   --kt-blob-dark:      rgba(13,13,11,0.50);
@@ -1054,6 +1076,9 @@ main.kais-stage.kais-theme-luxury-night {
   --kt-hairline-peak:  rgba(245,213,114,0.95);
   --kt-ghost-border:   rgba(212,175,55,0.50);
   --kt-section-alt-bg: #070707;
+  --kt-card-bg:        rgba(25,20,0,0.07);
+  --kt-text:           #f5ecd9;
+  --kt-muted:          rgba(245,236,217,0.65);
   --kt-input-border:   rgba(212,175,55,0.38);
   --kt-input-focus:    #f5d572;
   --kt-blob-dark:      rgba(7,7,7,0.50);
@@ -1078,6 +1103,9 @@ main.kais-stage.kais-theme-neon-party {
   --kt-hairline-peak:  rgba(255,0,204,0.85);
   --kt-ghost-border:   rgba(0,255,200,0.38);
   --kt-section-alt-bg: #06001a;
+  --kt-card-bg:        rgba(20,0,60,0.08);
+  --kt-text:           #f5ecd9;
+  --kt-muted:          rgba(245,236,217,0.65);
   --kt-input-border:   rgba(255,0,204,0.32);
   --kt-input-focus:    #ff66e0;
   --kt-blob-dark:      rgba(6,0,26,0.50);
@@ -1102,6 +1130,9 @@ main.kais-stage.kais-theme-safari-kids {
   --kt-hairline-peak:  rgba(255,213,79,0.88);
   --kt-ghost-border:   rgba(249,168,37,0.42);
   --kt-section-alt-bg: #0d0702;
+  --kt-card-bg:        rgba(80,40,10,0.07);
+  --kt-text:           #f5ecd9;
+  --kt-muted:          rgba(245,236,217,0.65);
   --kt-input-border:   rgba(249,168,37,0.34);
   --kt-input-focus:    #ffd54f;
   --kt-blob-dark:      rgba(13,7,2,0.50);
@@ -1126,6 +1157,9 @@ main.kais-stage.kais-theme-candy-land {
   --kt-hairline-peak:  rgba(255,77,170,0.85);
   --kt-ghost-border:   rgba(255,77,170,0.42);
   --kt-section-alt-bg: #0d0015;
+  --kt-card-bg:        rgba(60,0,80,0.07);
+  --kt-text:           #f5ecd9;
+  --kt-muted:          rgba(245,236,217,0.65);
   --kt-input-border:   rgba(255,77,170,0.32);
   --kt-input-focus:    #ff9dce;
   --kt-blob-dark:      rgba(13,0,21,0.50);
@@ -1150,6 +1184,9 @@ main.kais-stage.kais-theme-executive-black {
   --kt-hairline-peak:  rgba(176,190,197,0.82);
   --kt-ghost-border:   rgba(144,164,174,0.38);
   --kt-section-alt-bg: #050607;
+  --kt-card-bg:        rgba(10,15,20,0.07);
+  --kt-text:           #f5ecd9;
+  --kt-muted:          rgba(245,236,217,0.65);
   --kt-input-border:   rgba(144,164,174,0.30);
   --kt-input-focus:    #b0bec5;
   --kt-blob-dark:      rgba(5,6,7,0.50);
@@ -1183,6 +1220,9 @@ main.kais-stage.kais-theme-legacy-night {
   --kt-hairline-peak:  rgba(212,175,55,0.85);
   --kt-ghost-border:   rgba(212,175,55,0.42);
   --kt-section-alt-bg: #01070f;
+  --kt-card-bg:        rgba(5,20,40,0.07);
+  --kt-text:           #f5ecd9;
+  --kt-muted:          rgba(245,236,217,0.65);
   --kt-input-border:   rgba(74,144,196,0.32);
   --kt-input-focus:    #4a90c4;
   --kt-blob-dark:      rgba(1,7,15,0.50);
@@ -1234,8 +1274,8 @@ main.kais-stage.kais-theme-active.kais-motion-elegant-glow::before {
 
 /* Hero no-image fallback — inherits theme background from parent <main> */
 .kais-hero-fallback {
-  background: var(--kt-stage-bg,
-    radial-gradient(120% 80% at 50% 0%, #1a0508 0%, #080506 60%, #050304 100%));
+  background: var(--kt-hero-bg, var(--kt-stage-bg,
+    radial-gradient(120% 80% at 50% 0%, #1a0508 0%, #080506 60%, #050304 100%)));
 }
 
 /* ===========================================================
@@ -1541,4 +1581,74 @@ main.kais-stage.kais-theme-legacy-night .kais-veil-desktop {
       rgba(1,7,15,0.10) 0%,
       transparent 30%,
       rgba(1,7,15,0.55) 100%);
+}
+
+/* ===========================================================
+   KAIS · MISSING BLOB VARIANTS + TEXT COLOR OVERRIDES
+   These fire only when .kais-theme-active is on <main>.
+   =========================================================== */
+
+/* ── Additional blob class overrides (variants not yet covered) ─────────── */
+main.kais-stage.kais-theme-active .bg-\[\#3a0a12\]\/35 {
+  background-color: var(--kt-blob-dark) !important;
+}
+main.kais-stage.kais-theme-active .bg-\[\#d4af37\]\/\[0\.06\] {
+  background-color: var(--kt-blob-glow) !important;
+}
+main.kais-stage.kais-theme-active .bg-\[\#d4af37\]\/\[0\.07\] {
+  background-color: var(--kt-blob-glow) !important;
+}
+/* RSVP section hardcoded bg override */
+main.kais-stage.kais-theme-active .bg-\[\#0a0405\] {
+  background-color: var(--kt-section-alt-bg) !important;
+}
+/* Confirmed RSVP card */
+main.kais-stage.kais-theme-active .border-\[\#d4af37\]\/35 {
+  border-color: var(--kt-glass-border);
+}
+main.kais-stage.kais-theme-active .bg-\[\#d4af37\]\/10 {
+  background-color: var(--kt-glass-bg);
+}
+
+/* ── Text color overrides — accent-colored text uses --kt-accent ─────────── */
+main.kais-stage.kais-theme-active .text-\[\#d4af37\] {
+  color: var(--kt-accent);
+}
+main.kais-stage.kais-theme-active .text-\[\#d4af37\]\/80 {
+  color: var(--kt-accent);
+  opacity: 0.80;
+}
+main.kais-stage.kais-theme-active .text-\[\#d4af37\]\/60 {
+  color: var(--kt-accent);
+  opacity: 0.60;
+}
+
+/* ── Text color overrides — ivory text uses --kt-text ───────────────────── */
+main.kais-stage.kais-theme-active .text-\[\#f5ecd9\] {
+  color: var(--kt-text, #f5ecd9);
+}
+/* Opacity variants: keep parent color = --kt-text, apply opacity visually  */
+main.kais-stage.kais-theme-active .text-\[\#f5ecd9\]\/85 {
+  color: var(--kt-text, #f5ecd9);
+  opacity: 0.85;
+}
+main.kais-stage.kais-theme-active .text-\[\#f5ecd9\]\/72 {
+  color: var(--kt-text, #f5ecd9);
+  opacity: 0.72;
+}
+main.kais-stage.kais-theme-active .text-\[\#f5ecd9\]\/65 {
+  color: var(--kt-text, #f5ecd9);
+  opacity: 0.65;
+}
+main.kais-stage.kais-theme-active .text-\[\#f5ecd9\]\/55 {
+  color: var(--kt-text, #f5ecd9);
+  opacity: 0.55;
+}
+
+/* ── Garden Romance: use sage text for accent elements ──────────────────── */
+/* (--kt-accent already set to #7ab893 — text-[#d4af37] override above covers it) */
+
+/* ── Card/glass uses --kt-card-bg where defined ─────────────────────────── */
+main.kais-stage.kais-theme-active .kais-glass {
+  background: var(--kt-card-bg, var(--kt-glass-bg));
 }

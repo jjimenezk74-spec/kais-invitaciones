@@ -253,6 +253,7 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
   return (
     <main
       className={[
+        "w-full max-w-full overflow-x-hidden",
         design.stageClassName,
         design.designClassName,
         invitationTheme?.slug ? `kais-theme-${invitationTheme.slug}` : "",
@@ -268,17 +269,17 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
     >
       {/* Admin preview banner - fixed top, only visible to admin */}
       {isAdminPreview && (
-        <div className="fixed inset-x-0 top-0 z-[100] flex items-center justify-between gap-4 border-b border-amber-300 bg-amber-50 px-4 py-2.5 text-amber-900 shadow-sm">
-          <div className="flex items-center gap-2 text-sm font-semibold">
+        <div className="fixed inset-x-0 top-0 z-[100] flex max-w-full items-center justify-between gap-2 overflow-hidden border-b border-amber-300 bg-amber-50 px-3 py-2.5 text-amber-900 shadow-sm sm:gap-4 sm:px-4">
+          <div className="flex min-w-0 items-center gap-2 text-sm font-semibold">
             <Eye className="h-4 w-4 flex-shrink-0 text-amber-600" />
-            <span>Vista previa administrador</span>
+            <span className="truncate">Vista previa administrador</span>
             <span className="hidden font-normal text-amber-700 sm:inline">
               {event.status === "borrador" ? "- Evento en borrador, no visible al publico" : ""}
             </span>
           </div>
           <Link
             href={`/dashboard/eventos/${event.id}`}
-            className="rounded-md border border-amber-300 bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800 transition hover:bg-amber-200"
+            className="max-w-[46vw] shrink-0 truncate rounded-md border border-amber-300 bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800 transition hover:bg-amber-200 sm:max-w-none"
           >
             Volver al dashboard
           </Link>

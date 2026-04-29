@@ -74,7 +74,7 @@ export function LiveSlideshow({
   // ── Empty state ───────────────────────────────────────────────────────────
   if (!photo) {
     return (
-      <div className="relative flex h-screen w-screen flex-col items-center justify-center bg-black">
+      <div className="relative flex h-screen w-full max-w-full flex-col items-center justify-center bg-black">
         <p className="text-white/30 text-2xl font-semibold">Esperando fotos aprobadas…</p>
         <QrPanel qrDataUrl={qrDataUrl} uploadUrl={uploadUrl} />
       </div>
@@ -83,7 +83,7 @@ export function LiveSlideshow({
 
   return (
     <div
-      className="relative h-screen w-screen overflow-hidden bg-black"
+      className="relative h-screen w-full max-w-full overflow-hidden bg-black"
       onClick={() => setShowQr((v) => !v)}
     >
       {/* Background blur layer */}

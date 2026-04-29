@@ -57,7 +57,11 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       lang="es"
       className={`${cormorant.variable} ${greatVibes.variable} ${playfair.variable} ${cinzel.variable} ${montserrat.variable} ${inter.variable}`}
     >
-      <body className="font-sans antialiased">{children}</body>
+      <body className="font-sans antialiased">
+        <div className="min-h-dvh w-full overflow-x-hidden">
+          {children}
+        </div>
+      </body>
     </html>
   );
 }

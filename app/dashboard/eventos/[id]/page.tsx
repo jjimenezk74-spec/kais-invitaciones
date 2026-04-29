@@ -14,7 +14,8 @@ import {
 import { CopyLinkButton } from "@/components/copy-link-button";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { EVENT_TABS, EventTabNav } from "@/components/event-tab-nav";
+import { EventTabNav } from "@/components/event-tab-nav";
+import { EVENT_TABS } from "@/components/event-tabs";
 import { getCurrentUserProfile } from "@/lib/profiles";
 import {
   canAccessDashboard,

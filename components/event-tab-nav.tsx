@@ -1,20 +1,7 @@
 "use client";
 
 import Link from "next/link";
-
-export const EVENT_TABS = [
-  { key: "resumen",        label: "Resumen" },
-  { key: "invitados",      label: "Invitados" },
-  { key: "confirmaciones", label: "Confirmaciones" },
-  { key: "publicacion",    label: "Publicacion" },
-  { key: "acceso",         label: "Acceso cliente" },
-  { key: "ajustes",        label: "Ajustes" },
-] as const;
-
-export type EventTabKey = (typeof EVENT_TABS)[number]["key"];
-
-const ALL_KEYS = EVENT_TABS.map((t) => t.key) as string[];
-type EventTab = (typeof EVENT_TABS)[number];
+import { EVENT_TABS, type EventTab, type EventTabKey } from "@/components/event-tabs";
 
 export function EventTabNav({
   eventId,

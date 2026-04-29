@@ -4,7 +4,6 @@ import { CalendarPlus, MapPin, Send, Eye } from "lucide-react";
 import { submitRsvp, trackVisit } from "@/app/actions/events";
 import { Countdown } from "@/components/countdown";
 import { BackButton } from "@/components/back-button";
-import { PhotoUploadAvailability } from "@/components/photo-upload-availability";
 import { EventHero } from "@/components/public-invitation/event-hero";
 import { ThemeDecorations } from "@/components/theme-decorations";
 import { resolvePremiumThemeDesign, resolveLegacyDesign } from "@/lib/invitation-design";
@@ -13,7 +12,7 @@ import { fetchThemeById } from "@/lib/invitation-themes.server";
 import { createClient } from "@/lib/supabase/server";
 import { isKaisAdmin } from "@/lib/profiles";
 import { formatDate } from "@/lib/utils";
-import type { Event, EventDecorations, EventGuest, EventPhoto, InvitationTemplate, InvitationTheme, Rsvp, VisualDecoration } from "@/lib/types";
+import type { Event, EventDecorations, EventGuest, InvitationTemplate, InvitationTheme, Rsvp, VisualDecoration } from "@/lib/types";
 import {
   NotPublishedScreen,
   PersonalLinkRequired,
@@ -167,17 +166,7 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
     await trackVisit(event.id, headerStore.get("user-agent"));
   }
 
-  const { data: photosData } = await supabase
-    .from("event_photos")
-    .select("id,event_id,storage_path,public_url,guest_name,is_approved,status,is_public,approved_at,approved_by_event_login,created_at")
-    .eq("event_id", event.id)
-    .eq("status", "aprobada")
-    .eq("is_public", true)
-    .order("created_at", { ascending: false });
-  const photos = (photosData ?? []) as EventPhoto[];
-
   const rsvpAction = submitRsvp.bind(null, event.id);
-  const photoUploadPath = `/evento/${event.slug}/fotos${guestToken ? `?guest=${encodeURIComponent(guestToken)}` : ""}`;
   const calendarUrl = buildCalendarUrl(event);
   const [template, invitationTheme] = await Promise.all([
     event.template_id ? getInvitationTemplate(event.template_id) : Promise.resolve(null),
@@ -187,8 +176,6 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
   const rsvpStatus = normalizeSearchParam(query.rsvp);
   const rsvpError = normalizeSearchParam(query.rsvp_error);
   const rsvpAttending = normalizeSearchParam(query.rsvp_attending);
-  const photoStatus = normalizeSearchParam(query.foto);
-  const photoError = normalizeSearchParam(query.foto_error);
   const isConfirmed = Boolean(invitedGuestRsvp) || rsvpStatus === "ok";
   const confirmedAttending = invitedGuestRsvp
     ? invitedGuestRsvp.attending
@@ -481,15 +468,6 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
                       ? "Gracias por tu respuesta."
                       : "¡Gracias por confirmar tu presencia! Te esperamos con mucha alegria."}
                   </p>
-                  <div className="mt-5">
-                    <PhotoUploadAvailability
-                      date={event.event_date}
-                      time={event.event_time}
-                      uploadHref={`/evento/${event.slug}/fotos`}
-                      confirmed
-                      attending={confirmedAttending}
-                    />
-                  </div>
                 </div>
               ) : null}
 
@@ -600,84 +578,6 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
       </section>
 
       {showRoyalPack && <RoyalWeddingDivider />}
-
-      <section id="fotos" className="kais-section relative overflow-hidden">
-        <ThemeDecorations
-          themeSlug={decorationThemeSlug}
-          section="gallery"
-          decorations={slotDecorations}
-          freeDecorations={freeDecorations}
-        />
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-px kais-hairline" />
-
-        <div className="relative z-10 mx-auto grid max-w-5xl gap-14 lg:grid-cols-[0.85fr_1.15fr] lg:items-start lg:gap-20">
-          <div>
-            <div className="flex items-center gap-3">
-              <span className="block h-px w-10 kais-hairline" />
-              <p className="kais-eyebrow">Galeria . Recuerdos</p>
-            </div>
-
-            <h2
-              className="mt-7 font-display font-light italic leading-[0.95]"
-              style={{ fontSize: "clamp(2.4rem, 4.8vw, 4rem)" }}
-            >
-              Comparti tus
-              <br />
-              <span className="kais-gold-text kais-shimmer">fotos.</span>
-            </h2>
-
-            <p className="mt-6 max-w-md text-[0.95rem] leading-[1.9] text-[#f5ecd9]/65">
-              Cuando llegue el momento, podras subir tus recuerdos al album.
-            </p>
-
-            {photoStatus === "ok" && !isAdminPreview ? (
-              <p className="mt-6 inline-flex"><span className="kais-status-success">Foto recibida</span></p>
-            ) : null}
-            {photoError && !isAdminPreview ? (
-              <p className="mt-6 inline-flex"><span className="kais-status-error">{photoError}</span></p>
-            ) : null}
-
-            {isConfirmed && !isAdminPreview ? (
-              <div className="mt-9">
-                <PhotoUploadAvailability
-                  date={event.event_date}
-                  time={event.event_time}
-                  uploadHref={photoUploadPath}
-                  confirmed
-                  attending={confirmedAttending}
-                />
-              </div>
-            ) : null}
-          </div>
-
-          <div>
-            {photos.length === 0 ? (
-              <div className="kais-glass flex min-h-[280px] flex-col items-center justify-center rounded-[1.6rem] p-10 text-center">
-                <span className="block h-px w-10 kais-hairline" />
-                <p className="kais-eyebrow mt-5">Proximamente</p>
-                <p className="mt-4 max-w-xs font-display text-xl italic text-[#f5ecd9]/75">
-                  Las fotos aprobadas apareceran aqui.
-                </p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 gap-3 sm:gap-4">
-                {photos.map((photo, i) => (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    key={photo.id}
-                    src={photo.public_url}
-                    alt=""
-                    loading="lazy"
-                    className={`w-full object-cover transition-transform duration-700 hover:scale-[1.03] ${
-                      i % 3 === 0 ? "aspect-[3/4]" : "aspect-[4/5]"
-                    } rounded-2xl border border-[#d4af37]/15`}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      </section>
 
       <footer className="relative overflow-hidden px-5 py-14 text-center">
         <ThemeDecorations

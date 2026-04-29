@@ -4,6 +4,7 @@
  * Renderiza: Lista de invitados -- diseno premium
  */
 import { Users, ExternalLink, MessageCircle, BellRing, ShieldOff, ShieldCheck, Trash2, Upload } from "lucide-react";
+import { redirect } from "next/navigation";
 import { createEventGuest, deleteEventGuest, toggleEventGuestBlocked } from "@/app/actions/events";
 import { GuestAddForm } from "@/components/guest-add-form";
 import { GuestSearchInput } from "@/components/guest-search-input";
@@ -11,6 +12,8 @@ import { CopyLinkButton } from "@/components/copy-link-button";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { perfEnd, perfStart, timed } from "@/lib/perf";
+import { canManageGuests } from "@/lib/permissions";
+import { getCurrentUserProfile } from "@/lib/profiles";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Event, EventGuest } from "@/lib/types";
 import {
@@ -54,6 +57,10 @@ function EmptyGuests({ guestMode }: { guestMode: string }) {
 }
 
 export async function GuestSection({ event }: { event: Event }) {
+  const { user, profile } = await getCurrentUserProfile();
+  if (!user) redirect("/login");
+  if (!canManageGuests(profile)) redirect("/dashboard?error=Tu rol no tiene permisos para gestionar invitados.");
+
   const sectionLabel = perfStart(`guest-section-${event.id}`);
   const admin = createAdminClient();
   const { data: guestsData } = await timed(

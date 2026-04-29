@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/app/actions/events";
-import { isKaisAdmin } from "@/lib/profiles";
+import { canManageEvents } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/server";
@@ -9,7 +9,7 @@ import type { Event, Profile } from "@/lib/types";
 
 export default async function AdminPage() {
   const profile = await getCurrentProfile();
-  if (!isKaisAdmin(profile?.role)) redirect("/dashboard");
+  if (!canManageEvents(profile)) redirect("/dashboard");
 
   const supabase = await createClient();
   const [{ data: clientsData }, { data: eventsData }, { count: rsvps = 0 }, { count: photos = 0 }] = await Promise.all([

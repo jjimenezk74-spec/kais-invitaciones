@@ -5,26 +5,33 @@ import type { User } from "@supabase/supabase-js";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { perfEnd, perfStart } from "@/lib/perf";
+import {
+  canCreateEvents as canCreateEventsPermission,
+  canManageClients as canManageClientsPermission,
+  canManagePhotos,
+  canManageUsers,
+  isAdminLike
+} from "@/lib/permissions";
 import type { Profile } from "@/lib/types";
 
 export function isKaisAdmin(role?: string | null) {
-  return role === "super_admin" || role === "admin" || role === "admin_kais";
+  return isAdminLike(role);
 }
 
 export function isSuperAdmin(role?: string | null) {
-  return role === "super_admin";
+  return canManageUsers(role);
 }
 
 export function canCreateEvents(role?: string | null) {
-  return role === "super_admin" || role === "admin" || role === "admin_kais";
+  return canCreateEventsPermission(role);
 }
 
 export function canManageClients(role?: string | null) {
-  return role === "super_admin" || role === "admin_kais" || role === "vendedor";
+  return canManageClientsPermission(role);
 }
 
 export function canModerateEvents(role?: string | null) {
-  return isKaisAdmin(role) || role === "soporte_evento";
+  return canManagePhotos(role);
 }
 
 export const getCurrentUserProfile = cache(async function getCurrentUserProfile() {

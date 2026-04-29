@@ -28,6 +28,8 @@ type Props = {
   event: Event;
   eventClient?: Client | null;
   canManage: boolean;
+  canPublish?: boolean;
+  canDelete?: boolean;
   url: string;
   showEditor?: boolean;
   mode?: Mode;
@@ -50,10 +52,12 @@ function EventStatusBadge({ status }: { status: Event["status"] }) {
 function PublicacionCard({
   event,
   eventClient,
+  canPublish,
   url,
 }: {
   event: Event;
   eventClient?: Client | null;
+  canPublish: boolean;
   url: string;
 }) {
   const isDraft       = event.status !== "publicado";
@@ -79,21 +83,23 @@ function PublicacionCard({
                 : "La invitacion publica esta disponible para compartir."}
             </p>
           </div>
-          <form action={publishAction}>
-            <Button variant={isDraft ? "default" : "outline"}>
-              {isDraft ? (
-                <>
-                  <Globe className="h-4 w-4" />
-                  Publicar evento
-                </>
-              ) : (
-                <>
-                  <GlobeLock className="h-4 w-4" />
-                  Volver a borrador
-                </>
-              )}
-            </Button>
-          </form>
+          {canPublish ? (
+            <form action={publishAction}>
+              <Button variant={isDraft ? "default" : "outline"}>
+                {isDraft ? (
+                  <>
+                    <Globe className="h-4 w-4" />
+                    Publicar evento
+                  </>
+                ) : (
+                  <>
+                    <GlobeLock className="h-4 w-4" />
+                    Volver a borrador
+                  </>
+                )}
+              </Button>
+            </form>
+          ) : null}
         </div>
 
         {eventClient ? (
@@ -275,6 +281,8 @@ export async function DetallesSection({
   event,
   eventClient: eventClientProp,
   canManage,
+  canPublish = canManage,
+  canDelete = canManage,
   url,
   showEditor = false,
   mode,
@@ -310,12 +318,12 @@ export async function DetallesSection({
   return (
     <>
       {showPub && (
-        <PublicacionCard event={event} eventClient={eventClient} url={url} />
+        <PublicacionCard event={event} eventClient={eventClient} canPublish={canPublish} url={url} />
       )}
       {showAjustes && (
         <>
-          <EditarCard event={event} showEditor={showEditor} editorData={editorData} />
-          {canManage && <ZonaRiesgoCard event={event} />}
+          {canManage ? <EditarCard event={event} showEditor={showEditor} editorData={editorData} /> : null}
+          {canDelete && <ZonaRiesgoCard event={event} />}
         </>
       )}
     </>

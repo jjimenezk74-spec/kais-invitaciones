@@ -4,8 +4,11 @@
  * Renderiza: Confirmaciones card -- diseno premium
  */
 import { UserCheck } from "lucide-react";
+import { redirect } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { perfEnd, perfStart, timed } from "@/lib/perf";
+import { canViewRsvps } from "@/lib/permissions";
+import { getCurrentUserProfile } from "@/lib/profiles";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Rsvp } from "@/lib/types";
 
@@ -38,6 +41,10 @@ function EmptyRsvps() {
 }
 
 export async function RsvpSection({ eventId }: { eventId: string }) {
+  const { user, profile } = await getCurrentUserProfile();
+  if (!user) redirect("/login");
+  if (!canViewRsvps(profile)) redirect("/dashboard?error=Tu rol no tiene permisos para ver confirmaciones.");
+
   const sectionLabel = perfStart(`rsvp-section-${eventId}`);
   const admin = createAdminClient();
   const [{ data: rsvpsData }, { data: guestQuotaData }] = await Promise.all([

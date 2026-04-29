@@ -3,7 +3,16 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { normalizeInvitationDesignConfig } from "@/lib/invitation-design";
-import { canCreateEvents, canModerateEvents, getCurrentUserProfile, isKaisAdmin } from "@/lib/profiles";
+import {
+  canCreateEvents,
+  canDeleteEvents,
+  canEditEventDesign,
+  canManageEvents,
+  canManageGuests,
+  canManagePhotos,
+  canViewRsvps,
+} from "@/lib/permissions";
+import { getCurrentUserProfile, isKaisAdmin } from "@/lib/profiles";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { slugify } from "@/lib/utils";
@@ -43,7 +52,7 @@ export async function createEvent(formData: FormData) {
   if (!user) redirect("/login");
 
   const profile = await getCurrentProfile();
-  if (!canCreateEvents(profile?.role)) {
+  if (!canCreateEvents(profile)) {
     redirect("/dashboard?error=Tu rol no tiene permisos para crear eventos.");
   }
 
@@ -125,6 +134,11 @@ export async function updateEvent(eventId: string, formData: FormData) {
 
   if (!user) redirect("/login");
 
+  const profile = await getCurrentProfile();
+  if (!canManageEvents(profile)) {
+    redirect(`/dashboard/eventos/${eventId}?error=Tu rol no tiene permisos para editar todos los datos del evento.`);
+  }
+
   let musicUrl: string | null;
   let coverImageUrl = nullable(formData.get("cover_image_url"));
   let mobileCoverImageUrl = nullable(formData.get("mobile_cover_image_url"));
@@ -188,7 +202,7 @@ export async function saveVisualDecorationsOnly(eventId: string, visualDecoratio
   }
 
   const profile = await getCurrentProfile();
-  if (!canCreateEvents(profile?.role)) {
+  if (!canEditEventDesign(profile)) {
     return { ok: false, error: "Tu rol no tiene permisos para editar decoraciones." };
   }
 
@@ -289,7 +303,7 @@ export async function deleteEvent(eventId: string) {
     redirect("/login?error=Inicia sesion para eliminar eventos.");
   }
 
-  if (!isKaisAdmin(profile?.role)) {
+  if (!canDeleteEvents(profile)) {
     redirect("/dashboard?error=Solo administradores KAIS pueden eliminar eventos.");
   }
 
@@ -444,7 +458,7 @@ export async function submitRsvp(eventId: string, formData: FormData) {
 
 export async function createEventGuest(eventId: string, formData: FormData) {
   const { profile } = await getCurrentUserProfile();
-  if (!isKaisAdmin(profile?.role)) {
+  if (!canManageGuests(profile)) {
     redirect(`/dashboard/eventos/${eventId}?error=Solo admin KAIS puede gestionar invitados.`);
   }
 
@@ -479,7 +493,7 @@ export async function createEventGuest(eventId: string, formData: FormData) {
 
 export async function deleteEventGuest(guestId: string, eventId: string) {
   const { profile } = await getCurrentUserProfile();
-  if (!isKaisAdmin(profile?.role)) {
+  if (!canManageGuests(profile)) {
     redirect(`/dashboard/eventos/${eventId}?error=Solo admin KAIS puede eliminar invitados.`);
   }
 
@@ -492,7 +506,7 @@ export async function deleteEventGuest(guestId: string, eventId: string) {
 
 export async function toggleEventGuestBlocked(guestId: string, eventId: string, blocked: boolean) {
   const { profile } = await getCurrentUserProfile();
-  if (!isKaisAdmin(profile?.role)) {
+  if (!canManageGuests(profile)) {
     redirect(`/dashboard/eventos/${eventId}?error=Solo admin KAIS puede bloquear invitados.`);
   }
 
@@ -550,7 +564,7 @@ export async function uploadEventPhoto(eventId: string, slug: string, formData: 
 export async function approvePhoto(photoId: string, eventId: string, approved: boolean) {
   const { profile } = await getCurrentUserProfile();
 
-  if (!canModerateEvents(profile?.role)) {
+  if (!canManagePhotos(profile)) {
     redirect("/dashboard?error=Tu usuario no tiene permisos para moderar fotos.");
   }
 
@@ -569,6 +583,14 @@ export async function approvePhoto(photoId: string, eventId: string, approved: b
 }
 
 export async function exportRsvpsCsv(eventId: string) {
+  const { user, profile } = await getCurrentUserProfile();
+  if (!user) {
+    redirect("/login?error=Inicia sesion para exportar RSVP.");
+  }
+  if (!canViewRsvps(profile)) {
+    redirect("/dashboard?error=Tu rol no tiene permisos para exportar confirmaciones.");
+  }
+
   const supabase = createAdminClient();
   const { data, error } = await supabase
     .from("rsvps")
@@ -667,7 +689,7 @@ async function ensurePartialEventEditPermission(scope: string) {
   }
 
   const profile = await getCurrentProfile();
-  if (!canCreateEvents(profile?.role)) {
+  if (!canEditEventDesign(profile)) {
     return { ok: false as const, error: `Tu rol no tiene permisos para editar ${scope}.` };
   }
 

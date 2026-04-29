@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
-import { isSuperAdmin } from "@/lib/profiles";
+import { canManageUsers } from "@/lib/permissions";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentProfile } from "@/app/actions/events";
 import type { Profile, UserRole } from "@/lib/types";
@@ -20,7 +20,7 @@ export default async function InternalUsersPage({
 }) {
   const [profile, query] = await Promise.all([getCurrentProfile(), searchParams]);
 
-  if (!isSuperAdmin(profile?.role)) {
+  if (!canManageUsers(profile)) {
     redirect("/dashboard?error=Solo super_admin puede gestionar usuarios internos.");
   }
 

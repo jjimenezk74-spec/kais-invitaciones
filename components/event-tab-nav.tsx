@@ -14,20 +14,24 @@ export const EVENT_TABS = [
 export type EventTabKey = (typeof EVENT_TABS)[number]["key"];
 
 const ALL_KEYS = EVENT_TABS.map((t) => t.key) as string[];
+type EventTab = (typeof EVENT_TABS)[number];
 
 export function EventTabNav({
   eventId,
   activeTab,
+  tabs = EVENT_TABS,
 }: {
   eventId: string;
   activeTab: string;
+  tabs?: readonly EventTab[];
 }) {
-  const resolved = ALL_KEYS.includes(activeTab) ? activeTab : "resumen";
+  const allowedKeys = tabs.map((tab) => tab.key);
+  const resolved = allowedKeys.includes(activeTab as EventTabKey) ? activeTab : tabs[0]?.key ?? "resumen";
 
   return (
     <div className="overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0">
       <nav className="flex min-w-max gap-1 rounded-xl border border-border bg-muted/40 p-1">
-        {EVENT_TABS.map((tab) => {
+        {tabs.map((tab) => {
           const isActive = resolved === tab.key;
           return (
             <Link

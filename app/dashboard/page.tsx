@@ -4,7 +4,7 @@ import { getCurrentProfile } from "@/app/actions/events";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { perfEnd, perfStart, timed } from "@/lib/perf";
-import { canCreateEvents } from "@/lib/profiles";
+import { canCreateEvents } from "@/lib/permissions";
 import { createClient } from "@/lib/supabase/server";
 import type { Event } from "@/lib/types";
 import { publicEventUrl } from "@/lib/utils";
@@ -96,7 +96,7 @@ export default async function DashboardPage({
               <p className="mt-4 rounded-lg bg-amber-50 p-3 text-sm font-semibold text-amber-800">{query.warning}</p>
             ) : null}
           </div>
-          {canCreateEvents(profile?.role) ? (
+          {canCreateEvents(profile) ? (
             <Button asChild className="bg-[#6f1029] text-white hover:bg-[#581023]">
               <Link href="/dashboard/eventos/nuevo">
                 <Plus className="h-4 w-4" />

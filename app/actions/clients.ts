@@ -2,7 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { canManageClients, getCurrentUserProfile } from "@/lib/profiles";
+import { canManageClients } from "@/lib/permissions";
+import { getCurrentUserProfile } from "@/lib/profiles";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function createClientRecord(formData: FormData) {
@@ -77,7 +78,7 @@ async function assertCanManageClients() {
     redirect("/login?error=Inicia sesion para gestionar clientes.");
   }
 
-  if (!canManageClients(profile?.role)) {
+  if (!canManageClients(profile)) {
     redirect("/dashboard?error=Tu rol no tiene permisos para gestionar clientes.");
   }
 

@@ -2,7 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { getCurrentUserProfile, isSuperAdmin } from "@/lib/profiles";
+import { canManageUsers } from "@/lib/permissions";
+import { getCurrentUserProfile } from "@/lib/profiles";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { UserRole } from "@/lib/types";
 
@@ -126,7 +127,7 @@ async function assertSuperAdmin() {
     redirect("/login?error=Inicia sesion para gestionar usuarios internos.");
   }
 
-  if (!isSuperAdmin(profile?.role)) {
+  if (!canManageUsers(profile)) {
     redirect("/dashboard?error=Solo super_admin puede gestionar usuarios internos.");
   }
 

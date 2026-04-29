@@ -3,7 +3,8 @@ import { notFound, redirect } from "next/navigation";
 import { ArrowLeft, ExternalLink, MonitorPlay, QrCode } from "lucide-react";
 import { PhotoAdminGrid } from "@/components/live-album/photo-admin-grid";
 import { getAllLivePhotos } from "@/app/actions/live-photos";
-import { canModerateEvents, getCurrentUserProfile } from "@/lib/profiles";
+import { canManagePhotos } from "@/lib/permissions";
+import { getCurrentUserProfile } from "@/lib/profiles";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { absoluteUrl } from "@/lib/utils";
 import type { Event } from "@/lib/types";
@@ -20,7 +21,7 @@ export async function generateMetadata({ params }: Props) {
 export default async function LiveAlbumAdminPage({ params }: Props) {
   const { id } = await params;
   const { profile } = await getCurrentUserProfile();
-  if (!canModerateEvents(profile?.role)) redirect("/dashboard");
+  if (!canManagePhotos(profile)) redirect("/dashboard");
 
   const admin = createAdminClient();
   const { data } = await admin

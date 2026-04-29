@@ -4,7 +4,7 @@ import { createEvent, getCurrentProfile } from "@/app/actions/events";
 import { EventForm } from "@/components/event-form";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { canCreateEvents, isKaisAdmin } from "@/lib/profiles";
+import { canCreateEvents, canManageEvents } from "@/lib/permissions";
 import { timed } from "@/lib/perf";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -20,11 +20,11 @@ export default async function NewEventPage({
   const supabase = await createClient();
   const profile = await getCurrentProfile();
   const admin = createAdminClient();
-  if (!canCreateEvents(profile?.role)) {
+  if (!canCreateEvents(profile)) {
     redirect("/dashboard?error=Tu rol no tiene permisos para crear eventos.");
   }
   const [{ data: clientsData }, { data: businessClientsData }, categories, themes] = await Promise.all([
-    isKaisAdmin(profile?.role)
+    canManageEvents(profile)
       ? timed(
           "new-event-profile-clients",
           supabase
@@ -67,7 +67,7 @@ export default async function NewEventPage({
           <CardTitle className="font-display text-2xl text-[#3b1721]">Configuracion del evento</CardTitle>
         </CardHeader>
         <CardContent className="p-4 md:p-6">
-          <EventForm action={createEvent} clients={clients} businessClients={businessClients} categories={activeCategories} themes={activeThemes} showOwner={isKaisAdmin(profile?.role)} />
+          <EventForm action={createEvent} clients={clients} businessClients={businessClients} categories={activeCategories} themes={activeThemes} showOwner={canManageEvents(profile)} />
         </CardContent>
       </Card>
     </div>

@@ -2,7 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { canModerateEvents, getCurrentUserProfile } from "@/lib/profiles";
+import { canManagePhotos } from "@/lib/permissions";
+import { getCurrentUserProfile } from "@/lib/profiles";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { LivePhoto } from "@/lib/types";
 
@@ -10,7 +11,7 @@ import type { LivePhoto } from "@/lib/types";
 
 async function requireModerator() {
   const { profile } = await getCurrentUserProfile();
-  if (!canModerateEvents(profile?.role)) redirect("/dashboard");
+  if (!canManagePhotos(profile)) redirect("/dashboard");
   return profile;
 }
 

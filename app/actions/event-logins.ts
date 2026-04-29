@@ -12,7 +12,8 @@ import {
   setEventLoginSession,
   verifyPassword
 } from "@/lib/event-login-auth";
-import { getCurrentUserProfile, isKaisAdmin } from "@/lib/profiles";
+import { canManageEventAccess } from "@/lib/permissions";
+import { getCurrentUserProfile } from "@/lib/profiles";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Event, EventLogin, EventPhoto } from "@/lib/types";
 
@@ -187,7 +188,7 @@ async function assertAdmin() {
     redirect("/login?error=Inicia sesion para gestionar accesos.");
   }
 
-  if (!isKaisAdmin(profile?.role)) {
+  if (!canManageEventAccess(profile)) {
     redirect("/dashboard?error=Tu usuario no tiene permisos de administrador KAIS para gestionar accesos.");
   }
 }

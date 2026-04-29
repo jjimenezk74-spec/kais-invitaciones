@@ -2,14 +2,15 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { canCreateEvents, getCurrentUserProfile } from "@/lib/profiles";
+import { canPublishEvents } from "@/lib/permissions";
+import { getCurrentUserProfile } from "@/lib/profiles";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { EventStatus } from "@/lib/types";
 
 export async function setEventStatus(eventId: string, newStatus: EventStatus) {
   const { user, profile } = await getCurrentUserProfile();
   if (!user) redirect("/login");
-  if (!canCreateEvents(profile?.role)) {
+  if (!canPublishEvents(profile)) {
     redirect(
       `/dashboard/eventos/${eventId}?error=Sin permisos para cambiar el estado del evento.`
     );

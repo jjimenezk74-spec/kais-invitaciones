@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import {
   ArrowLeft,
   Download,
@@ -13,8 +14,19 @@ import {
 import { CopyLinkButton } from "@/components/copy-link-button";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { EventTabNav } from "@/components/event-tab-nav";
-import { getCurrentUserProfile, isKaisAdmin } from "@/lib/profiles";
+import { EVENT_TABS, EventTabNav } from "@/components/event-tab-nav";
+import { getCurrentUserProfile } from "@/lib/profiles";
+import {
+  canAccessDashboard,
+  canDeleteEvents,
+  canEditEventDesign,
+  canManageEventAccess,
+  canManageEvents,
+  canManageGuests,
+  canPublishEvents,
+  canViewEventDetail,
+  canViewRsvps,
+} from "@/lib/permissions";
 import { perfEnd, perfStart, timed } from "@/lib/perf";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { setEventStatus } from "@/app/actions/event-status";
@@ -188,18 +200,45 @@ export default async function EventDetailPage({
   }>;
 }) {
   const [{ id }, query] = await Promise.all([params, searchParams]);
-  const activeTab      = VALID_TABS.includes(query.tab ?? "") ? (query.tab ?? "resumen") : "resumen";
-  const needsFullEvent = activeTab === "ajustes";
-  const eventSelect    = needsFullEvent
-    ? "*"
-    : "id,client_id,title,status,slug,event_date,event_time,guest_mode";
   const perfLabel = perfStart(`event-page-${id}`);
 
+  const { user, profile } = await timed("event-page-profile", getCurrentUserProfile());
+  if (!user) redirect("/login?error=Inicia sesion para entrar al panel.");
+  if (!canAccessDashboard(profile)) {
+    redirect("/login?error=Tu usuario interno esta desactivado. Contacta al super admin de KAIS.");
+  }
+  if (!canViewEventDetail(profile)) {
+    redirect("/dashboard?error=Tu rol no tiene permisos para abrir el detalle completo del evento.");
+  }
+
+  const permissions = {
+    manageEvents: canManageEvents(profile),
+    publishEvents: canPublishEvents(profile),
+    deleteEvents: canDeleteEvents(profile),
+    manageGuests: canManageGuests(profile),
+    viewRsvps: canViewRsvps(profile),
+    manageEventAccess: canManageEventAccess(profile),
+    editEventDesign: canEditEventDesign(profile),
+  };
+
+  const availableTabs = EVENT_TABS.filter((tab) => {
+    if (tab.key === "resumen") return true;
+    if (tab.key === "invitados") return permissions.manageGuests;
+    if (tab.key === "confirmaciones") return permissions.viewRsvps;
+    if (tab.key === "publicacion") return permissions.publishEvents;
+    if (tab.key === "acceso") return permissions.manageEventAccess;
+    if (tab.key === "ajustes") return permissions.manageEvents;
+    return false;
+  });
+  const requestedTab = VALID_TABS.includes(query.tab ?? "") ? (query.tab ?? "resumen") : "resumen";
+  const activeTab = availableTabs.some((tab) => tab.key === requestedTab) ? requestedTab : "resumen";
+  const needsFullEvent = activeTab === "ajustes";
+  const eventSelect = needsFullEvent
+    ? "*"
+    : "id,client_id,title,status,slug,event_date,event_time,guest_mode";
+
   const admin = createAdminClient();
-  const [{ profile }, { data: eventData }] = await Promise.all([
-    timed("event-page-profile", getCurrentUserProfile()),
-    timed("event-page-event", admin.from("events").select(eventSelect).eq("id", id).single()),
-  ]);
+  const { data: eventData } = await timed("event-page-event", admin.from("events").select(eventSelect).eq("id", id).single());
 
   const event = eventData as Event | null;
   if (!event) return <p>Evento no encontrado.</p>;
@@ -217,7 +256,6 @@ export default async function EventDetailPage({
 
   perfEnd(perfLabel);
 
-  const canManage      = isKaisAdmin(profile?.role);
   const url            = publicEventUrl(event.slug);
   const clientPanelUrl = absoluteUrl("/evento-login");
   const isDraft        = event.status !== "publicado";
@@ -291,7 +329,7 @@ export default async function EventDetailPage({
 
             <CopyLinkButton value={url} />
 
-            {canManage && (
+            {permissions.publishEvents && (
               <form action={publishAction}>
                 <Button size="sm" variant={isDraft ? "default" : "outline"}>
                   {isDraft ? (
@@ -309,18 +347,20 @@ export default async function EventDetailPage({
               </form>
             )}
 
-            <Button variant="outline" size="sm" asChild>
-              <a href={`/api/events/${event.id}/rsvps.csv`}>
-                <Download className="h-4 w-4" />
-                CSV
-              </a>
-            </Button>
+            {permissions.viewRsvps && (
+              <Button variant="outline" size="sm" asChild>
+                <a href={`/api/events/${event.id}/rsvps.csv`}>
+                  <Download className="h-4 w-4" />
+                  CSV
+                </a>
+              </Button>
+            )}
           </div>
         </div>
       </div>
 
       {/* Tab nav */}
-      <EventTabNav eventId={event.id} activeTab={activeTab} />
+      <EventTabNav eventId={event.id} activeTab={activeTab} tabs={availableTabs} />
 
       {/* Tab content */}
 
@@ -330,12 +370,12 @@ export default async function EventDetailPage({
         </Suspense>
       )}
 
-      {activeTab === "invitados" && canManage && (
+      {activeTab === "invitados" && permissions.manageGuests && (
         <Suspense fallback={<TableSkeleton />}>
           <GuestSection event={event} />
         </Suspense>
       )}
-      {activeTab === "invitados" && !canManage && (
+      {activeTab === "invitados" && !permissions.manageGuests && (
         <Card>
           <CardContent className="py-12 text-center text-sm text-muted-foreground">
             Solo administradores KAIS pueden gestionar la lista de invitados.
@@ -343,7 +383,7 @@ export default async function EventDetailPage({
         </Card>
       )}
 
-      {activeTab === "confirmaciones" && (
+      {activeTab === "confirmaciones" && permissions.viewRsvps && (
         <Suspense fallback={<TableSkeleton />}>
           <RsvpSection eventId={event.id} />
         </Suspense>
@@ -354,7 +394,9 @@ export default async function EventDetailPage({
           <DetallesSection
             event={event}
             eventClient={eventClient}
-            canManage={canManage}
+            canManage={permissions.manageEvents}
+            canPublish={permissions.publishEvents}
+            canDelete={permissions.deleteEvents}
             url={url}
             mode="publicacion"
           />
@@ -365,7 +407,7 @@ export default async function EventDetailPage({
         <Suspense fallback={<CardSkeleton rows={3} />}>
           <AccesoSection
             event={event}
-            canManage={canManage}
+            canManage={permissions.manageEventAccess}
             profileRole={profile?.role}
             loginUsername={query.login_username}
             loginPassword={query.login_password}
@@ -380,7 +422,9 @@ export default async function EventDetailPage({
           <DetallesSection
             event={event}
             eventClient={eventClient}
-            canManage={canManage}
+            canManage={permissions.manageEvents}
+            canPublish={permissions.publishEvents}
+            canDelete={permissions.deleteEvents}
             url={url}
             showEditor={query.edit === "1"}
             mode="ajustes"

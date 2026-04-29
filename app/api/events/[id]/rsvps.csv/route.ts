@@ -1,10 +1,21 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { canViewRsvps } from "@/lib/permissions";
+import { getCurrentUserProfile } from "@/lib/profiles";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const supabase = await createClient();
-  const { data, error } = await supabase
+  const { user, profile } = await getCurrentUserProfile();
+
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (!canViewRsvps(profile)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const admin = createAdminClient();
+  const { data, error } = await admin
     .from("rsvps")
     .select("id,guest_name,phone,email,attending,companions,message,dietary_restrictions,created_at")
     .eq("event_id", id)
@@ -14,7 +25,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
 
   const rsvpIds = (data ?? []).map((row) => row.id).filter(Boolean);
   const { data: guestRows } = rsvpIds.length
-    ? await supabase.from("event_guests").select("rsvp_id,max_companions").eq("event_id", id).in("rsvp_id", rsvpIds)
+    ? await admin.from("event_guests").select("rsvp_id,max_companions").eq("event_id", id).in("rsvp_id", rsvpIds)
     : { data: [] };
   const cupoByRsvpId = new Map((guestRows ?? []).map((guest) => [guest.rsvp_id, Number(guest.max_companions ?? 0) + 1]));
 

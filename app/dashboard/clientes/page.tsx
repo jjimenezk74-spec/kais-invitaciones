@@ -16,7 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { perfEnd, perfStart, timed } from "@/lib/perf";
-import { canManageClients } from "@/lib/profiles";
+import { canManageClients } from "@/lib/permissions";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Client, CommercialPlan, Event } from "@/lib/types";
 
@@ -40,7 +40,7 @@ export default async function ClientsPage({
 }) {
   const [profile, query] = await Promise.all([getCurrentProfile(), searchParams]);
 
-  if (!canManageClients(profile?.role)) {
+  if (!canManageClients(profile)) {
     redirect("/dashboard?error=Tu rol no tiene permisos para gestionar clientes.");
   }
 

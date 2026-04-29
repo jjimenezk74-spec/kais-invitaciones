@@ -514,33 +514,38 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
                     <option value="no">No podre asistir</option>
                   </select>
                 </LuxeField>
-                <LuxeField label="Acompanantes adicionales">
-                  <input
-                    name="companions"
-                    type="number"
-                    min={0}
-                    max={invitedGuest?.max_companions}
-                    defaultValue={String(invitedGuestRsvp?.companions ?? 0)}
-                    disabled={isConfirmed || isAdminPreview}
-                    className="kais-input-luxe"
-                  />
-                </LuxeField>
+                {invitedGuest?.max_companions === 0 ? (
+                  <div className="rounded-2xl border border-[#d4af37]/25 bg-[#d4af37]/10 px-4 py-3">
+                    <p className="text-sm font-semibold text-[#f5ecd9]">Invitacion individual.</p>
+                  </div>
+                ) : (
+                  <LuxeField label="Â¿Cuantos acompanantes traeras?">
+                    <input
+                      name="companions"
+                      type="number"
+                      min={0}
+                      max={invitedGuest?.max_companions}
+                      defaultValue={String(invitedGuestRsvp?.companions ?? 0)}
+                      disabled={isConfirmed || isAdminPreview}
+                      className="kais-input-luxe"
+                    />
+                    {invitedGuest ? (
+                      <p className="mt-2 text-xs leading-5 text-[#f5ecd9]/65">
+                        Tu cupo permite hasta {invitedGuest.max_companions} acompanante{invitedGuest.max_companions === 1 ? "" : "s"}.
+                      </p>
+                    ) : null}
+                  </LuxeField>
+                )}
               </div>
 
-              {invitedGuest ? (
+              {invitedGuest && invitedGuest.max_companions > 0 ? (
                 <div className="rounded-2xl border border-[#d4af37]/25 bg-[#d4af37]/10 px-4 py-3">
-                  {invitedGuest.max_companions <= 0 ? (
-                    <p className="text-sm font-semibold text-[#f5ecd9]">Invitacion individual</p>
-                  ) : (
-                    <div className="grid gap-1">
-                      <p className="text-sm font-semibold text-[#f5ecd9]">
-                        Podes confirmar hasta {invitedGuest.max_companions + 1} personas en total.
-                      </p>
-                      <p className="text-xs leading-5 text-[#f5ecd9]/70">
-                        Esto incluye tu asistencia y tus acompanantes.
-                      </p>
-                    </div>
-                  )}
+                  <p className="text-sm font-semibold text-[#f5ecd9]">
+                    Podes venir con hasta {invitedGuest.max_companions} acompanante{invitedGuest.max_companions === 1 ? "" : "s"}.
+                  </p>
+                  <p className="mt-1 text-xs leading-5 text-[#f5ecd9]/70">
+                    Tu cupo total es de {invitedGuest.max_companions + 1} personas, incluyendo tu asistencia.
+                  </p>
                 </div>
               ) : null}
 

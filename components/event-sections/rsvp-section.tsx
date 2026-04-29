@@ -40,17 +40,30 @@ function EmptyRsvps() {
 export async function RsvpSection({ eventId }: { eventId: string }) {
   const sectionLabel = perfStart(`rsvp-section-${eventId}`);
   const admin = createAdminClient();
-  const { data: rsvpsData } = await timed(
-    "[KAIS PERF] rsvp full-list",
-    admin
-      .from("rsvps")
-      .select("id,event_id,guest_name,phone,email,attending,companions,message,dietary_restrictions,created_at")
-      .eq("event_id", eventId)
-      .order("created_at", { ascending: false })
-  );
+  const [{ data: rsvpsData }, { data: guestQuotaData }] = await Promise.all([
+    timed(
+      "[KAIS PERF] rsvp full-list",
+      admin
+        .from("rsvps")
+        .select("id,event_id,guest_name,phone,email,attending,companions,message,dietary_restrictions,created_at")
+        .eq("event_id", eventId)
+        .order("created_at", { ascending: false })
+    ),
+    timed(
+      "[KAIS PERF] rsvp guest-quotas",
+      admin
+        .from("event_guests")
+        .select("rsvp_id,max_companions")
+        .eq("event_id", eventId)
+        .not("rsvp_id", "is", null)
+    )
+  ]);
   perfEnd(sectionLabel);
 
   const rsvps = (rsvpsData ?? []) as Rsvp[];
+  const quotaByRsvpId = new Map(
+    (guestQuotaData ?? []).map((guest) => [guest.rsvp_id as string, Number(guest.max_companions ?? 0) + 1])
+  );
   const attendingCount    = rsvps.filter((r) => r.attending).length;
   const notAttendingCount = rsvps.filter((r) => !r.attending).length;
 
@@ -85,7 +98,7 @@ export async function RsvpSection({ eventId }: { eventId: string }) {
                   <tr className="border-b text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                     <th className="py-3 pr-4">Nombre</th>
                     <th className="pr-4">Estado</th>
-                    <th className="pr-4 text-center">Acomp.</th>
+                    <th className="pr-4 text-center">Asisten</th>
                     <th className="pr-4">Contacto</th>
                     <th className="pr-2">Mensaje</th>
                   </tr>
@@ -98,7 +111,23 @@ export async function RsvpSection({ eventId }: { eventId: string }) {
                     >
                       <td className="py-3 pr-4 font-medium text-foreground">{rsvp.guest_name}</td>
                       <td className="pr-4"><AttendingBadge attending={rsvp.attending} /></td>
-                      <td className="pr-4 text-center font-semibold">{rsvp.companions}</td>
+                      <td className="pr-4 text-center">
+                        {rsvp.attending ? (
+                          <>
+                            <p className="font-semibold">
+                              {rsvp.companions + 1}
+                              {quotaByRsvpId.has(rsvp.id) ? ` de ${quotaByRsvpId.get(rsvp.id)}` : ""}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {rsvp.companions <= 0
+                                ? "Sin acompanante"
+                                : `+${rsvp.companions} acompanante${rsvp.companions === 1 ? "" : "s"}`}
+                            </p>
+                          </>
+                        ) : (
+                          <span className="text-sm font-semibold text-red-600">No asiste</span>
+                        )}
+                      </td>
                       <td className="pr-4 text-muted-foreground">
                         {rsvp.email || rsvp.phone || <span className="opacity-40">-</span>}
                       </td>

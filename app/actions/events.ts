@@ -572,13 +572,18 @@ export async function exportRsvpsCsv(eventId: string) {
   const supabase = createAdminClient();
   const { data, error } = await supabase
     .from("rsvps")
-    .select("guest_name,phone,email,attending,companions,message,dietary_restrictions,created_at")
+    .select("id,guest_name,phone,email,attending,companions,message,dietary_restrictions,created_at")
     .eq("event_id", eventId)
     .order("created_at", { ascending: false });
 
   if (error) throw new Error(error.message);
   const rows = data ?? [];
-  const header = ["nombre", "telefono", "email", "asistira", "acompanantes", "mensaje", "restriccion_alimentaria", "fecha"];
+  const rsvpIds = rows.map((row) => row.id);
+  const { data: guestRows } = rsvpIds.length
+    ? await supabase.from("event_guests").select("rsvp_id,max_companions").eq("event_id", eventId).in("rsvp_id", rsvpIds)
+    : { data: [] };
+  const cupoByRsvpId = new Map((guestRows ?? []).map((guest) => [guest.rsvp_id, Number(guest.max_companions ?? 0) + 1]));
+  const header = ["nombre", "telefono", "email", "asistira", "cupo_total", "acompanantes_confirmados", "total_confirmado", "mensaje", "restriccion_alimentaria", "fecha"];
   return [
     header.join(","),
     ...rows.map((row) =>
@@ -587,7 +592,9 @@ export async function exportRsvpsCsv(eventId: string) {
         row.phone,
         row.email,
         row.attending ? "si" : "no",
+        cupoByRsvpId.get(row.id) ?? "",
         row.companions,
+        row.attending ? Number(row.companions ?? 0) + 1 : 0,
         row.message,
         row.dietary_restrictions,
         row.created_at

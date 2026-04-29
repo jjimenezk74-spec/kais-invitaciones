@@ -142,7 +142,7 @@ export async function GuestSection({ event }: { event: Event }) {
                         <p className="text-xs text-muted-foreground">
                           {guest.max_companions <= 0
                             ? "Invitacion individual"
-                            : `+${guest.max_companions} acompanante${guest.max_companions === 1 ? "" : "s"}`}
+                            : `Titular + ${guest.max_companions} acompanante${guest.max_companions === 1 ? "" : "s"}`}
                         </p>
                       </td>
                       <td className="py-3 pr-2">

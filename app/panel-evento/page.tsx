@@ -164,7 +164,7 @@ export default async function PanelEventoPage({
                         <p className="text-xs text-muted-foreground">
                           {guest.max_companions <= 0
                             ? "Invitacion individual"
-                            : `+${guest.max_companions} acompanante${guest.max_companions === 1 ? "" : "s"}`}
+                            : `Titular + ${guest.max_companions} acompanante${guest.max_companions === 1 ? "" : "s"}`}
                         </p>
                       </td>
                       <td className="max-w-xs break-all text-xs text-muted-foreground">
@@ -199,7 +199,7 @@ export default async function PanelEventoPage({
                 <tr>
                   <th className="py-3">Nombre</th>
                   <th>Asistira</th>
-                  <th>Acompanantes adicionales</th>
+                  <th>Asisten</th>
                   <th>Contacto</th>
                   <th>Mensaje</th>
                 </tr>
@@ -209,7 +209,20 @@ export default async function PanelEventoPage({
                   <tr key={rsvp.id} className="border-b">
                     <td className="py-3 font-medium">{rsvp.guest_name}</td>
                     <td>{rsvp.attending ? "Si" : "No"}</td>
-                    <td>{rsvp.companions}</td>
+                    <td>
+                      {rsvp.attending ? (
+                        <>
+                          <p className="font-semibold">{rsvp.companions + 1}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {rsvp.companions <= 0
+                              ? "Sin acompanante"
+                              : `+${rsvp.companions} acompanante${rsvp.companions === 1 ? "" : "s"}`}
+                          </p>
+                        </>
+                      ) : (
+                        <span className="font-semibold text-red-600">No asiste</span>
+                      )}
+                    </td>
                     <td>{rsvp.email || rsvp.phone || "-"}</td>
                     <td>{rsvp.message || "-"}</td>
                   </tr>

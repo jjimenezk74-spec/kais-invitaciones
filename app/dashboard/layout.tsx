@@ -2,18 +2,24 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { signOut } from "@/app/actions/auth";
 import { canCreateEvents, canManageClients, isKaisAdmin, isSuperAdmin, getCurrentUserProfile } from "@/lib/profiles";
+import { perfEnd, perfStart } from "@/lib/perf";
 import { Button } from "@/components/ui/button";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const layoutPerf = perfStart("dashboard-layout");
   const { user, profile } = await getCurrentUserProfile();
 
   if (!user) {
+    perfEnd(layoutPerf);
     redirect("/login?error=Inicia sesion para entrar al panel.");
   }
 
   if (!profile) {
+    perfEnd(layoutPerf);
     redirect("/login?error=Sesion iniciada, pero no se encontro el perfil del usuario.");
   }
+
+  perfEnd(layoutPerf);
 
   return (
     <div className="min-h-screen bg-background">

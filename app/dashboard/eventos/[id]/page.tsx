@@ -1,440 +1,393 @@
+import { Suspense } from "react";
 import Link from "next/link";
-import { ArrowLeft, Check, Download, ExternalLink, ImageIcon, KeyRound, LayoutDashboard, QrCode, UserCheck, X } from "lucide-react";
 import {
-  createEventLogin,
-  resetEventLoginPassword,
-  toggleEventLoginActive,
-  updateEventLoginExpiration
-} from "@/app/actions/event-logins";
-import {
-  approvePhoto,
-  createEventGuest,
-  deleteEvent,
-  deleteEventGuest,
-  toggleEventGuestBlocked,
-  updateEvent
-} from "@/app/actions/events";
+  ArrowLeft,
+  Download,
+  ExternalLink,
+  Eye,
+  Globe,
+  GlobeLock,
+  ImageIcon,
+  MonitorPlay,
+} from "lucide-react";
 import { CopyLinkButton } from "@/components/copy-link-button";
-import { DeleteEventButton } from "@/components/delete-event-button";
-import { EventForm } from "@/components/event-form";
-import { QrDownload } from "@/components/qr-download";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { canModerateEvents, getCurrentUserProfile, isKaisAdmin } from "@/lib/profiles";
-import { createClient } from "@/lib/supabase/server";
+import { EventTabNav } from "@/components/event-tab-nav";
+import { getCurrentUserProfile, isKaisAdmin } from "@/lib/profiles";
+import { perfEnd, perfStart, timed } from "@/lib/perf";
 import { createAdminClient } from "@/lib/supabase/admin";
-import type { Client, Event, EventCategory, EventGuest, EventLogin, EventPhoto, InvitationTemplate, InvitationTheme, Rsvp } from "@/lib/types";
-import { fetchActiveCategories, fetchActiveThemes } from "@/lib/invitation-themes.server";
-import {
-  absoluteUrl,
-  buildCredentialsMessage,
-  buildGuestReminderMessage,
-  buildGuestWhatsAppMessage,
-  buildWhatsAppUrl,
-  guestEventUrl,
-  publicEventUrl
-} from "@/lib/utils";
+import { setEventStatus } from "@/app/actions/event-status";
+import type { Client, Event } from "@/lib/types";
+import { absoluteUrl, publicEventUrl } from "@/lib/utils";
+import { DetallesSection } from "@/components/event-sections/detalles-section";
+import { AccesoSection } from "@/components/event-sections/acceso-section";
+import { GuestSection } from "@/components/event-sections/guest-section";
+import { RsvpSection } from "@/components/event-sections/rsvp-section";
+
+function CardSkeleton({ rows = 3 }: { rows?: number }) {
+  return (
+    <div className="animate-pulse rounded-2xl border border-border bg-card p-6">
+      <div className="mb-5 h-5 w-36 rounded bg-muted" />
+      <div className="grid gap-3">
+        {Array.from({ length: rows }).map((_, i) => (
+          <div key={i} className="h-11 w-full rounded-lg bg-muted" />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function TableSkeleton() {
+  return (
+    <div className="animate-pulse rounded-2xl border border-border bg-card p-6">
+      <div className="mb-5 h-5 w-36 rounded bg-muted" />
+      {Array.from({ length: 5 }).map((_, i) => (
+        <div key={i} className="mb-3 flex gap-4 border-b pb-3">
+          <div className="h-4 w-32 rounded bg-muted" />
+          <div className="h-4 w-10 rounded bg-muted" />
+          <div className="h-4 w-16 rounded bg-muted" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function MetricsSkeleton() {
+  return (
+    <div className="grid gap-6">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="animate-pulse rounded-2xl border border-border bg-card p-5">
+            <div className="mb-3 h-4 w-16 rounded bg-muted" />
+            <div className="h-9 w-12 rounded bg-muted" />
+          </div>
+        ))}
+      </div>
+      <div className="animate-pulse rounded-2xl border border-border bg-card p-6">
+        <div className="mb-4 h-5 w-32 rounded bg-muted" />
+        <div className="h-20 w-full rounded-xl bg-muted" />
+      </div>
+    </div>
+  );
+}
+
+function StatusBadge({ status }: { status: Event["status"] }) {
+  const map = {
+    borrador:  { label: "Borrador",  cls: "bg-amber-50 text-amber-700 border-amber-200" },
+    publicado: { label: "Publicado", cls: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+    inactivo:  { label: "Inactivo",  cls: "bg-gray-100 text-gray-600 border-gray-200" },
+  } as const;
+  const s = map[status] ?? map.borrador;
+  return (
+    <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${s.cls}`}>
+      {s.label}
+    </span>
+  );
+}
+
+async function MetricsSection({ event }: { event: Event }) {
+  const admin = createAdminClient();
+  const label = perfStart(`metrics-${event.id}`);
+  const [
+    { count: rsvpsTotal     = 0 },
+    { count: rsvpsAttending = 0 },
+    { count: photosCount    = 0 },
+    { count: liveTotal      = 0 },
+    { count: guestsCount    = 0 },
+  ] = await Promise.all([
+    timed("m-rsvps",  admin.from("rsvps").select("id", { count: "exact", head: true }).eq("event_id", event.id)),
+    timed("m-attend", admin.from("rsvps").select("id", { count: "exact", head: true }).eq("event_id", event.id).eq("attending", true)),
+    timed("m-photos", admin.from("event_photos").select("id", { count: "exact", head: true }).eq("event_id", event.id)),
+    timed("m-live",   admin.from("live_photos").select("id", { count: "exact", head: true }).eq("event_id", event.id)),
+    timed("m-guests", admin.from("event_guests").select("id", { count: "exact", head: true }).eq("event_id", event.id)),
+  ]);
+  perfEnd(label);
+
+  const metrics = [
+    { label: "RSVP",      value: rsvpsTotal     ?? 0 },
+    { label: "Asisten",   value: rsvpsAttending ?? 0 },
+    { label: "Invitados", value: guestsCount    ?? 0 },
+    { label: "Fotos",     value: photosCount    ?? 0 },
+  ];
+
+  return (
+    <div className="grid gap-6">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {metrics.map((m) => (
+          <Card key={m.label}>
+            <CardContent className="p-5">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{m.label}</p>
+              <p className="mt-2 text-4xl font-bold text-foreground">{m.value}</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between gap-4 border-b border-border pb-4">
+          <CardTitle className="flex items-center gap-2">
+            <MonitorPlay className="h-5 w-5 text-accent" />
+            KAIS Live Album
+          </CardTitle>
+          <Button asChild size="sm">
+            <Link href={`/dashboard/eventos/${event.id}/fotos`}>Gestionar</Link>
+          </Button>
+        </CardHeader>
+        <CardContent className="pt-5">
+          <div className="mb-4 grid grid-cols-3 divide-x divide-border rounded-xl border border-border bg-muted/40">
+            <div className="flex flex-col items-center gap-0.5 py-4">
+              <span className="text-2xl font-bold text-foreground">{liveTotal ?? 0}</span>
+              <span className="text-[0.7rem] font-semibold uppercase tracking-wider text-muted-foreground">Total</span>
+            </div>
+            <div className="flex flex-col items-center gap-0.5 py-4">
+              <span className="text-2xl font-bold text-amber-500">-</span>
+              <span className="text-[0.7rem] font-semibold uppercase tracking-wider text-muted-foreground">Pendientes</span>
+            </div>
+            <div className="flex flex-col items-center gap-0.5 py-4">
+              <span className="text-2xl font-bold text-emerald-600">-</span>
+              <span className="text-[0.7rem] font-semibold uppercase tracking-wider text-muted-foreground">Aprobadas</span>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Link href={`/live/${event.slug}`} target="_blank" rel="noreferrer"
+              className="flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-2 text-xs font-semibold transition hover:bg-muted">
+              <MonitorPlay className="h-3.5 w-3.5" />
+              Pantalla en vivo
+            </Link>
+            <Link href={`/evento/${event.slug}/fotos`} target="_blank" rel="noreferrer"
+              className="flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-2 text-xs font-semibold transition hover:bg-muted">
+              <ImageIcon className="h-3.5 w-3.5" />
+              Enlace de subida
+            </Link>
+            <Link href={`/evento/${event.slug}/album`} target="_blank" rel="noreferrer"
+              className="flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-2 text-xs font-semibold transition hover:bg-muted">
+              Album publico
+            </Link>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+const VALID_TABS = ["resumen", "invitados", "confirmaciones", "publicacion", "acceso", "ajustes"];
 
 export default async function EventDetailPage({
   params,
-  searchParams
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
   searchParams: Promise<{
+    tab?: string;
     error?: string;
     saved?: string;
+    edit?: string;
     login_username?: string;
     login_password?: string;
     access_existing?: string;
   }>;
 }) {
   const [{ id }, query] = await Promise.all([params, searchParams]);
-  const supabase = await createClient();
+  const activeTab      = VALID_TABS.includes(query.tab ?? "") ? (query.tab ?? "resumen") : "resumen";
+  const needsFullEvent = activeTab === "ajustes";
+  const eventSelect    = needsFullEvent
+    ? "*"
+    : "id,client_id,title,status,slug,event_date,event_time,guest_mode";
+  const perfLabel = perfStart(`event-page-${id}`);
+
   const admin = createAdminClient();
-  const { profile } = await getCurrentUserProfile();
-  const canManageClientAccess = isKaisAdmin(profile?.role);
-  const canModerateEventPhotos = canModerateEvents(profile?.role);
-  const { data } = await supabase.from("events").select("*").eq("id", id).single();
-  const event = data as Event | null;
+  const [{ profile }, { data: eventData }] = await Promise.all([
+    timed("event-page-profile", getCurrentUserProfile()),
+    timed("event-page-event", admin.from("events").select(eventSelect).eq("id", id).single()),
+  ]);
+
+  const event = eventData as Event | null;
   if (!event) return <p>Evento no encontrado.</p>;
 
-  const [{ data: rsvpsData }, { data: photosData }, { data: guestsData }, { data: clientsData }, { data: templatesData }, { count: visits = 0 }, categories, themes] = await Promise.all([
-    supabase.from("rsvps").select("*").eq("event_id", event.id).order("created_at", { ascending: false }),
-    supabase.from("event_photos").select("*").eq("event_id", event.id).order("created_at", { ascending: false }),
-    admin.from("event_guests").select("*").eq("event_id", event.id).order("created_at", { ascending: false }),
-    admin.from("clients").select("*").order("name", { ascending: true }),
-    admin.from("invitation_templates").select("*").eq("active", true).order("created_at", { ascending: true }),
-    supabase.from("analytics_visits").select("*", { count: "exact", head: true }).eq("event_id", event.id),
-    fetchActiveCategories(),
-    fetchActiveThemes()
-  ]);
-  const rsvps = (rsvpsData ?? []) as Rsvp[];
-  const photos = (photosData ?? []) as EventPhoto[];
-  const guests = (guestsData ?? []) as EventGuest[];
-  const businessClients = (clientsData ?? []) as Client[];
-  const templates = (templatesData ?? []) as InvitationTemplate[];
-  const activeCategories = categories as EventCategory[];
-  const activeThemes = themes as InvitationTheme[];
-  const eventClient = businessClients.find((client) => client.id === event.client_id) ?? null;
-  const eventTemplate = templates.find((template) => template.id === event.template_id) ?? null;
-  const { data: loginData } = canManageClientAccess
-    ? await admin.from("event_logins").select("*").eq("event_id", event.id).order("created_at", { ascending: false })
-    : { data: [] };
-  const eventLogins = (loginData ?? []) as EventLogin[];
-  const latestCredentials =
-    query.login_username && query.login_password
-      ? buildCredentialsMessage(query.login_username, query.login_password)
-      : null;
+  const eventClient: Client | null = event.client_id
+    ? await timed(
+        "event-page-client",
+        admin
+          .from("clients")
+          .select("id,name,contact_name,plan_id,phone,whatsapp,email,notes,status,created_at,created_by")
+          .eq("id", event.client_id)
+          .maybeSingle()
+      ).then(({ data }) => (data as Client | null) ?? null)
+    : null;
 
-  const url = publicEventUrl(event.slug);
+  perfEnd(perfLabel);
+
+  const canManage      = isKaisAdmin(profile?.role);
+  const url            = publicEventUrl(event.slug);
   const clientPanelUrl = absoluteUrl("/evento-login");
-  const update = updateEvent.bind(null, event.id);
+  const isDraft        = event.status !== "publicado";
+  const previewUrl     = `/evento/${event.slug}?preview=admin`;
+  const publishAction  = setEventStatus.bind(null, event.id, isDraft ? "publicado" : "borrador");
 
   return (
-    <div className="grid gap-8">
-      <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
-        <div>
-          <div className="mb-4 flex flex-wrap gap-2">
-            <Button variant="outline" size="sm" asChild>
-              <Link href="/dashboard">
-                <ArrowLeft className="h-4 w-4" />
-                Volver a eventos
-              </Link>
-            </Button>
-            <Button variant="outline" size="sm" asChild>
-              <Link href="/dashboard">
-                <LayoutDashboard className="h-4 w-4" />
-                Ir al dashboard
-              </Link>
-            </Button>
-          </div>
-          <p className="text-sm font-bold uppercase tracking-[0.18em] text-accent">Evento</p>
-          <h1 className="font-display text-4xl font-bold">{event.title}</h1>
-          <p className="mt-2 break-all text-sm text-muted-foreground">{url}</p>
-          {query.error ? <p className="mt-3 rounded-md bg-red-50 p-3 text-sm font-semibold text-red-700">{query.error}</p> : null}
-          {query.saved ? <p className="mt-3 rounded-md bg-secondary p-3 text-sm font-semibold">Evento guardado correctamente.</p> : null}
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="outline" asChild>
-            <Link href={`/evento/${event.slug}`}>
-              <ExternalLink className="h-4 w-4" />
-              Ver invitacion publica
+    <div className="grid gap-6">
+
+      {/* Header premium */}
+      <div className="rounded-2xl border border-[#eadfd2] bg-[#fffaf3] p-6 shadow-[0_24px_70px_rgba(74,23,36,0.07)]">
+        <div className="mb-4">
+          <Button variant="outline" size="sm" asChild>
+            <Link href="/dashboard">
+              <ArrowLeft className="h-4 w-4" />
+              Volver
             </Link>
           </Button>
-          <CopyLinkButton value={url} />
-          <Button variant="outline" asChild>
-            <a href={`/api/events/${event.id}/rsvps.csv`}>
-              <Download className="h-4 w-4" />
-              CSV
-            </a>
-          </Button>
+        </div>
+
+        <div className="flex flex-wrap items-start justify-between gap-5">
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-bold uppercase tracking-[0.22em] text-accent">
+              KAIS Dashboard - Evento
+            </p>
+            <h1 className="mt-1 break-words font-display text-3xl font-bold text-[#3b1721] md:text-4xl">
+              {event.title}
+            </h1>
+            <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
+              <StatusBadge status={event.status} />
+              {eventClient && (
+                <>
+                  <span className="opacity-30">-</span>
+                  <span>{eventClient.name}</span>
+                </>
+              )}
+              <span className="opacity-30">-</span>
+              <span className="break-all text-xs opacity-70">{url}</span>
+            </div>
+
+            {query.error && (
+              <p className="mt-3 rounded-md bg-red-50 px-3 py-2 text-sm font-medium text-red-700">
+                {query.error}
+              </p>
+            )}
+            {query.saved && (
+              <p className="mt-3 rounded-md bg-secondary px-3 py-2 text-sm font-medium text-foreground">
+                {query.saved === "status"
+                  ? "Estado actualizado correctamente."
+                  : "Evento guardado correctamente."}
+              </p>
+            )}
+          </div>
+
+          <div className="flex flex-shrink-0 flex-wrap items-center gap-2">
+            {isDraft ? (
+              <Button variant="outline" size="sm" asChild>
+                <Link href={previewUrl} target="_blank" rel="noreferrer">
+                  <Eye className="h-4 w-4" />
+                  Ver borrador
+                </Link>
+              </Button>
+            ) : (
+              <Button variant="outline" size="sm" asChild>
+                <Link href={`/evento/${event.slug}`} target="_blank" rel="noreferrer">
+                  <ExternalLink className="h-4 w-4" />
+                  Ver invitacion
+                </Link>
+              </Button>
+            )}
+
+            <CopyLinkButton value={url} />
+
+            {canManage && (
+              <form action={publishAction}>
+                <Button size="sm" variant={isDraft ? "default" : "outline"}>
+                  {isDraft ? (
+                    <>
+                      <Globe className="h-4 w-4" />
+                      Publicar
+                    </>
+                  ) : (
+                    <>
+                      <GlobeLock className="h-4 w-4" />
+                      A borrador
+                    </>
+                  )}
+                </Button>
+              </form>
+            )}
+
+            <Button variant="outline" size="sm" asChild>
+              <a href={`/api/events/${event.id}/rsvps.csv`}>
+                <Download className="h-4 w-4" />
+                CSV
+              </a>
+            </Button>
+          </div>
         </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Publicacion</CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-5">
-          <div className="rounded-lg border bg-background p-4">
-            <p className="text-sm font-semibold">Cliente asociado</p>
-            {eventClient ? (
-              <p className="mt-2 text-sm text-muted-foreground">
-                {eventClient.name} {eventClient.contact_name ? `· ${eventClient.contact_name}` : ""}
-              </p>
-            ) : (
-              <p className="mt-2 text-sm text-muted-foreground">KAIS / sin cliente asociado</p>
-            )}
-          </div>
-          <div className="rounded-lg border bg-background p-4">
-            <p className="text-sm font-semibold">Plantilla</p>
-            <p className="mt-2 text-sm text-muted-foreground">{eventTemplate?.name ?? "Sin plantilla seleccionada"}</p>
-          </div>
-          <div className="grid gap-4 md:grid-cols-[0.75fr_1.25fr] md:items-center">
-            <div>
-              <p className="text-sm text-muted-foreground">Estado actual</p>
-              <p className="mt-1 text-2xl font-bold capitalize">{event.status}</p>
-              {event.status === "publicado" ? (
-                <p className="mt-2 text-sm text-muted-foreground">La invitacion publica esta disponible para compartir.</p>
-              ) : (
-                <p className="mt-2 text-sm text-muted-foreground">Cambia el estado a publicado para compartir la invitacion con invitados.</p>
-              )}
-            </div>
-            <div className="rounded-lg border bg-background p-4">
-              <p className="text-sm font-semibold">URL publica completa</p>
-              <p className="mt-2 break-all text-sm text-muted-foreground">{url}</p>
-              <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-                <Button asChild>
-                  <Link href={`/evento/${event.slug}`}>
-                    <ExternalLink className="h-4 w-4" />
-                    Ver invitacion publica
-                  </Link>
-                </Button>
-                <CopyLinkButton value={url} />
-              </div>
-            </div>
-          </div>
-          <div className="rounded-lg border bg-background p-4">
-            <div className="mb-4 flex items-center gap-2">
-              <QrCode className="h-5 w-5 text-accent" />
-              <p className="font-semibold">Descargar QR</p>
-            </div>
-            <QrDownload value={url} filename={`kais-${event.slug}`} />
-          </div>
-        </CardContent>
-      </Card>
+      {/* Tab nav */}
+      <EventTabNav eventId={event.id} activeTab={activeTab} />
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <KeyRound className="h-5 w-5" />
-            Acceso del cliente
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-5">
-          {!canManageClientAccess ? (
-            <div className="rounded-lg border border-red-100 bg-red-50 p-4 text-sm text-red-700">
-              Tu sesion esta activa, pero tu rol actual es <span className="font-semibold">{profile?.role ?? "sin perfil"}</span>. Para generar accesos de cliente necesitas rol admin o admin_kais.
-            </div>
-          ) : null}
-          <div className="rounded-lg border bg-background p-4">
-            <p className="text-sm font-semibold">Panel del cliente</p>
-            <p className="mt-2 break-all text-sm text-muted-foreground">{clientPanelUrl}</p>
-          </div>
-          {latestCredentials ? (
-            <div className="rounded-lg border bg-secondary p-4">
-              <p className="font-semibold">Credenciales generadas</p>
-              <pre className="mt-3 whitespace-pre-wrap rounded-md bg-white p-3 text-sm text-foreground">{latestCredentials}</pre>
-              <div className="mt-3">
-                <CopyLinkButton value={latestCredentials} label="Copiar acceso para WhatsApp" copiedLabel="Acceso copiado" />
-              </div>
-            </div>
-          ) : null}
-          {query.access_existing ? (
-            <div className="rounded-lg border bg-background p-4">
-              <p className="font-semibold">Este evento ya tiene acceso creado</p>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Usuario: <span className="font-semibold text-foreground">{query.access_existing}</span>. Usa resetear contrasena si necesitas enviar una nueva clave.
-              </p>
-            </div>
-          ) : null}
+      {/* Tab content */}
 
-          {canManageClientAccess ? (
-            <form action={createEventLogin.bind(null, event.id)}>
-              <Button className="w-full sm:w-fit">
-                <KeyRound className="h-4 w-4" />
-                Generar acceso del cliente
-              </Button>
-            </form>
-          ) : null}
+      {activeTab === "resumen" && (
+        <Suspense fallback={<MetricsSkeleton />}>
+          <MetricsSection event={event} />
+        </Suspense>
+      )}
 
-          <div className="grid gap-3">
-            {eventLogins.map((login) => (
-              <div key={login.id} className="grid gap-4 rounded-lg border bg-background p-4 lg:grid-cols-[1fr_auto] lg:items-center">
-                <div>
-                  <p className="font-semibold">{login.username}</p>
-                  <p className="text-sm text-muted-foreground">
-                    Estado: {login.active ? "activo" : "desactivado"} · Expira: {login.expires_at ? new Date(login.expires_at).toLocaleString("es-PY") : "sin expiracion"}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    Ultimo ingreso: {login.last_login_at ? new Date(login.last_login_at).toLocaleString("es-PY") : "sin ingresos"}
-                  </p>
-                </div>
-                <div className="flex flex-col gap-2 sm:flex-row">
-                  <form action={resetEventLoginPassword.bind(null, login.id, event.id)}>
-                    <Button variant="outline" size="sm">Reset contrasena</Button>
-                  </form>
-                  <form action={toggleEventLoginActive.bind(null, login.id, event.id, !login.active)}>
-                    <Button variant={login.active ? "danger" : "outline"} size="sm">
-                      {login.active ? "Desactivar" : "Activar"}
-                    </Button>
-                  </form>
-                </div>
-                <form action={updateEventLoginExpiration.bind(null, login.id, event.id)} className="flex flex-col gap-2 sm:flex-row lg:col-span-2">
-                  <input
-                    name="expires_at"
-                    type="datetime-local"
-                    className="h-10 rounded-md border bg-white px-3 text-sm"
-                    defaultValue={login.expires_at ? login.expires_at.slice(0, 16) : ""}
-                  />
-                  <Button variant="outline" size="sm">Guardar expiracion</Button>
-                </form>
-              </div>
-            ))}
-            {eventLogins.length === 0 ? <p className="text-sm text-muted-foreground">Todavia no hay acceso de cliente para este evento.</p> : null}
-          </div>
-        </CardContent>
-      </Card>
-
-      <div className="grid gap-4 md:grid-cols-4">
+      {activeTab === "invitados" && canManage && (
+        <Suspense fallback={<TableSkeleton />}>
+          <GuestSection event={event} />
+        </Suspense>
+      )}
+      {activeTab === "invitados" && !canManage && (
         <Card>
-          <CardHeader><CardTitle>RSVP</CardTitle></CardHeader>
-          <CardContent className="text-3xl font-bold">{rsvps.length}</CardContent>
-        </Card>
-        <Card>
-          <CardHeader><CardTitle>Asisten</CardTitle></CardHeader>
-          <CardContent className="text-3xl font-bold">{rsvps.filter((r) => r.attending).length}</CardContent>
-        </Card>
-        <Card>
-          <CardHeader><CardTitle>Fotos</CardTitle></CardHeader>
-          <CardContent className="text-3xl font-bold">{photos.length}</CardContent>
-        </Card>
-        <Card>
-          <CardHeader><CardTitle>Visitas</CardTitle></CardHeader>
-          <CardContent className="text-3xl font-bold">{visits ?? 0}</CardContent>
-        </Card>
-      </div>
-
-      {canManageClientAccess ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Lista de invitados</CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-5">
-            <form action={createEventGuest.bind(null, event.id)} className="grid gap-4 md:grid-cols-5">
-              <input name="guest_name" className="h-10 rounded-md border bg-white px-3 text-sm" placeholder="Nombre" required />
-              <input name="phone" className="h-10 rounded-md border bg-white px-3 text-sm" placeholder="WhatsApp 595..." required />
-              <input name="email" className="h-10 rounded-md border bg-white px-3 text-sm" placeholder="Email opcional" />
-              <input name="max_companions" type="number" min="0" className="h-10 rounded-md border bg-white px-3 text-sm" placeholder="Acompanantes" defaultValue="0" />
-              <Button>Agregar invitado</Button>
-            </form>
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[900px] text-left text-sm">
-                <thead className="border-b text-muted-foreground">
-                  <tr>
-                    <th className="py-3">Invitado</th>
-                    <th>Estado</th>
-                    <th>Acompanantes</th>
-                    <th>Enlace</th>
-                    <th>Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {guests.map((guest) => {
-                    const link = guestEventUrl(event.slug, guest.token);
-                    const whatsapp = buildWhatsAppUrl(guest.phone, buildGuestWhatsAppMessage(guest.guest_name, event.title, link));
-                    const reminder = buildWhatsAppUrl(guest.phone, buildGuestReminderMessage(guest.guest_name, event.title, link));
-                    return (
-                      <tr key={guest.id} className="border-b align-top">
-                        <td className="py-3">
-                          <p className="font-medium">{guest.guest_name}</p>
-                          <p className="text-muted-foreground">{guest.phone}</p>
-                        </td>
-                        <td>{guest.status}</td>
-                        <td>{guest.max_companions}</td>
-                        <td className="max-w-xs break-all text-xs text-muted-foreground">{link}</td>
-                        <td>
-                          <div className="flex flex-wrap gap-2">
-                            <CopyLinkButton value={link} label="Copiar enlace" />
-                            <Button size="sm" variant="outline" asChild><a href={whatsapp} target="_blank">Enviar WhatsApp</a></Button>
-                            <Button size="sm" variant="outline" asChild><a href={reminder} target="_blank">Recordatorio</a></Button>
-                            <div className="w-full rounded-md border bg-white p-2">
-                              <p className="mb-2 text-xs font-semibold text-muted-foreground">QR acceso invitado</p>
-                              <QrDownload value={link} filename={`kais-${event.slug}-${guest.guest_name.replace(/[^a-zA-Z0-9]+/g, "-")}`} />
-                            </div>
-                            <form action={toggleEventGuestBlocked.bind(null, guest.id, event.id, guest.status !== "bloqueado")}>
-                              <Button size="sm" variant="outline">{guest.status === "bloqueado" ? "Desbloquear" : "Bloquear"}</Button>
-                            </form>
-                            <form action={deleteEventGuest.bind(null, guest.id, event.id)}>
-                              <Button size="sm" variant="danger">Eliminar</Button>
-                            </form>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-              {guests.length === 0 ? <p className="mt-3 text-sm text-muted-foreground">Todavia no hay invitados precargados.</p> : null}
-            </div>
+          <CardContent className="py-12 text-center text-sm text-muted-foreground">
+            Solo administradores KAIS pueden gestionar la lista de invitados.
           </CardContent>
         </Card>
-      ) : null}
+      )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Editar datos</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <EventForm action={update} event={event} businessClients={businessClients} templates={templates} categories={activeCategories} themes={activeThemes} />
-        </CardContent>
-      </Card>
+      {activeTab === "confirmaciones" && (
+        <Suspense fallback={<TableSkeleton />}>
+          <RsvpSection eventId={event.id} />
+        </Suspense>
+      )}
 
-      {canManageClientAccess ? (
-        <Card className="border-red-100">
-          <CardHeader>
-            <CardTitle>Zona de riesgo</CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-4">
-            <p className="text-sm text-muted-foreground">
-              Eliminar este evento borrara tambien sus RSVP, fotos y accesos del cliente. Esta accion no se puede deshacer.
-            </p>
-            <DeleteEventButton action={deleteEvent.bind(null, event.id)} />
-          </CardContent>
-        </Card>
-      ) : null}
+      {activeTab === "publicacion" && (
+        <Suspense fallback={<CardSkeleton rows={4} />}>
+          <DetallesSection
+            event={event}
+            eventClient={eventClient}
+            canManage={canManage}
+            url={url}
+            mode="publicacion"
+          />
+        </Suspense>
+      )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2"><UserCheck className="h-5 w-5" /> Confirmaciones</CardTitle>
-        </CardHeader>
-        <CardContent className="overflow-x-auto">
-          <table className="w-full min-w-[720px] text-left text-sm">
-            <thead className="border-b text-muted-foreground">
-              <tr>
-                <th className="py-3">Nombre</th>
-                <th>Asistira</th>
-                <th>Acompanantes</th>
-                <th>Contacto</th>
-                <th>Mensaje</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rsvps.map((rsvp) => (
-                <tr key={rsvp.id} className="border-b">
-                  <td className="py-3 font-medium">{rsvp.guest_name}</td>
-                  <td>{rsvp.attending ? "Si" : "No"}</td>
-                  <td>{rsvp.companions}</td>
-                  <td>{rsvp.email || rsvp.phone || "-"}</td>
-                  <td>{rsvp.message || "-"}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </CardContent>
-      </Card>
+      {activeTab === "acceso" && (
+        <Suspense fallback={<CardSkeleton rows={3} />}>
+          <AccesoSection
+            event={event}
+            canManage={canManage}
+            profileRole={profile?.role}
+            loginUsername={query.login_username}
+            loginPassword={query.login_password}
+            accessExisting={query.access_existing}
+            clientPanelUrl={clientPanelUrl}
+          />
+        </Suspense>
+      )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2"><ImageIcon className="h-5 w-5" /> Álbum en vivo</CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-4 md:grid-cols-3">
-          <div className="rounded-lg border bg-background p-4 md:col-span-3">
-            <p className="text-sm font-semibold">Moderación del álbum</p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {photos.filter((photo) => photo.status === "aprobada" && photo.is_public).length} públicas · {photos.filter((photo) => photo.status === "pendiente").length} pendientes
-            </p>
-          </div>
-          {photos.map((photo) => (
-            <div key={photo.id} className="overflow-hidden rounded-lg border bg-background">
-              <img src={photo.public_url} alt="" className="aspect-[4/3] w-full object-cover" />
-              <div className="flex items-center justify-between p-3 text-sm">
-                <span>{photo.guest_name || "Invitado"}</span>
-                {canModerateEventPhotos ? (
-                  <form action={approvePhoto.bind(null, photo.id, event.id, !photo.is_approved)}>
-                    <Button size="sm" variant={photo.is_approved ? "outline" : "default"}>
-                      {photo.is_approved ? <X className="h-4 w-4" /> : <Check className="h-4 w-4" />}
-                      {photo.is_approved ? "Rechazar" : "Aprobar"}
-                    </Button>
-                  </form>
-                ) : null}
-                <span className="text-xs text-muted-foreground">{photo.status} · {photo.is_public ? "publica" : "privada"}</span>
-              </div>
-            </div>
-          ))}
-          {photos.length === 0 ? <p className="text-sm text-muted-foreground">Todavia no hay fotos.</p> : null}
-        </CardContent>
-      </Card>
+      {activeTab === "ajustes" && (
+        <Suspense fallback={<CardSkeleton rows={5} />}>
+          <DetallesSection
+            event={event}
+            eventClient={eventClient}
+            canManage={canManage}
+            url={url}
+            showEditor={query.edit === "1"}
+            mode="ajustes"
+          />
+        </Suspense>
+      )}
+
     </div>
   );
 }

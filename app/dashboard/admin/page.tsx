@@ -13,10 +13,10 @@ export default async function AdminPage() {
 
   const supabase = await createClient();
   const [{ data: clientsData }, { data: eventsData }, { count: rsvps = 0 }, { count: photos = 0 }] = await Promise.all([
-    supabase.from("profiles").select("*").order("created_at", { ascending: false }),
-    supabase.from("events").select("*").order("created_at", { ascending: false }),
-    supabase.from("rsvps").select("*", { count: "exact", head: true }),
-    supabase.from("event_photos").select("*", { count: "exact", head: true })
+    supabase.from("profiles").select("id,full_name,email,role,is_active,created_at").order("created_at", { ascending: false }),
+    supabase.from("events").select("id,title,hosts_names,status,slug,created_at").order("created_at", { ascending: false }),
+    supabase.from("rsvps").select("id", { count: "exact", head: true }),
+    supabase.from("event_photos").select("id", { count: "exact", head: true })
   ]);
   const clients = (clientsData ?? []) as Profile[];
   const events = (eventsData ?? []) as Event[];

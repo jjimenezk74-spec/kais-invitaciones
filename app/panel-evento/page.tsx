@@ -29,10 +29,26 @@ export default async function PanelEventoPage({
 
   const admin = createAdminClient();
   const [{ data: event }, { data: rsvpsData }, { data: photosData }, { data: guestsData }] = await Promise.all([
-    admin.from("events").select("*").eq("id", login.event_id).single(),
-    admin.from("rsvps").select("*").eq("event_id", login.event_id).order("created_at", { ascending: false }),
-    admin.from("event_photos").select("*").eq("event_id", login.event_id).order("created_at", { ascending: false }),
-    admin.from("event_guests").select("*").eq("event_id", login.event_id).order("created_at", { ascending: false })
+    admin
+      .from("events")
+      .select("id,owner_id,client_id,template_id,category_id,theme_id,title,event_type,hosts_names,event_date,event_time,address,google_maps_link,main_message,dress_code,cover_image_url,mobile_cover_image_url,music_url,decoration_top_left,decoration_top_right,decoration_bottom_left,decoration_bottom_right,decoration_side_left,decoration_side_right,visual_decorations,design_config,theme_color,status,guest_mode,slug,created_at,updated_at")
+      .eq("id", login.event_id)
+      .single(),
+    admin
+      .from("rsvps")
+      .select("id,event_id,guest_name,phone,email,attending,companions,message,dietary_restrictions,created_at")
+      .eq("event_id", login.event_id)
+      .order("created_at", { ascending: false }),
+    admin
+      .from("event_photos")
+      .select("id,event_id,storage_path,public_url,guest_name,is_approved,status,is_public,approved_at,approved_by_event_login,created_at")
+      .eq("event_id", login.event_id)
+      .order("created_at", { ascending: false }),
+    admin
+      .from("event_guests")
+      .select("id,event_id,guest_name,phone,email,token,max_companions,status,rsvp_id,last_opened_at,created_at")
+      .eq("event_id", login.event_id)
+      .order("created_at", { ascending: false })
   ]);
 
   if (!event) {

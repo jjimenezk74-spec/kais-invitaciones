@@ -15,6 +15,10 @@ import type { EventCategory, InvitationTheme } from "@/lib/types";
 // when they are already in a server context.
 export * from "@/lib/invitation-themes";
 
+const CATEGORY_SELECT = "id,slug,name,description,sort_order,is_active,created_at";
+const THEME_SELECT =
+  "id,category_id,slug,name,description,preview_image_url,thumbnail_url,default_design_config,available_options,is_premium,is_active,sort_order,created_at,updated_at";
+
 // ─── Category fetches ─────────────────────────────────────────────────────────
 
 /** Fetches all active categories ordered by sort_order. */
@@ -22,7 +26,7 @@ export async function fetchActiveCategories(): Promise<EventCategory[]> {
   const admin = createAdminClient();
   const { data } = await admin
     .from("event_categories")
-    .select("*")
+    .select(CATEGORY_SELECT)
     .eq("is_active", true)
     .order("sort_order");
   return (data ?? []) as EventCategory[];
@@ -35,7 +39,7 @@ export async function fetchActiveThemes(): Promise<InvitationTheme[]> {
   const admin = createAdminClient();
   const { data } = await admin
     .from("invitation_themes")
-    .select("*")
+    .select(THEME_SELECT)
     .eq("is_active", true)
     .order("sort_order");
   return (data ?? []) as InvitationTheme[];
@@ -46,7 +50,7 @@ export async function fetchThemesByCategoryId(categoryId: string): Promise<Invit
   const admin = createAdminClient();
   const { data } = await admin
     .from("invitation_themes")
-    .select("*")
+    .select(THEME_SELECT)
     .eq("category_id", categoryId)
     .eq("is_active", true)
     .order("sort_order");
@@ -58,7 +62,7 @@ export async function fetchThemeById(id: string): Promise<InvitationTheme | null
   const admin = createAdminClient();
   const { data } = await admin
     .from("invitation_themes")
-    .select("*")
+    .select(THEME_SELECT)
     .eq("id", id)
     .eq("is_active", true)
     .maybeSingle();
@@ -70,7 +74,7 @@ export async function fetchThemeBySlug(slug: string): Promise<InvitationTheme | 
   const admin = createAdminClient();
   const { data } = await admin
     .from("invitation_themes")
-    .select("*")
+    .select(THEME_SELECT)
     .eq("slug", slug)
     .eq("is_active", true)
     .maybeSingle();

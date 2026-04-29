@@ -9,6 +9,10 @@ type CookieToSet = {
 };
 
 export async function middleware(request: NextRequest) {
+  const shouldMeasure = process.env.NODE_ENV !== "production";
+  const perfId = Math.random().toString(36).slice(2, 8);
+  const middlewareLabel = `[KAIS PERF] middleware ${request.nextUrl.pathname} ${perfId}`;
+  if (shouldMeasure) console.time(middlewareLabel);
   let response = NextResponse.next({ request });
   const missingEnv = getMissingSupabasePublicEnv();
 
@@ -17,6 +21,7 @@ export async function middleware(request: NextRequest) {
     console.warn(message);
 
     if (request.nextUrl.pathname !== "/") {
+      if (shouldMeasure) console.timeEnd(middlewareLabel);
       return new NextResponse(renderMissingEnvPage(message), {
         status: 503,
         headers: {
@@ -27,29 +32,39 @@ export async function middleware(request: NextRequest) {
     }
 
     response.headers.set("x-kais-supabase-config", message);
+    if (shouldMeasure) console.timeEnd(middlewareLabel);
     return response;
   }
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL as string,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll();
-        },
-        setAll(cookiesToSet: CookieToSet[]) {
-          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
-          response = NextResponse.next({ request });
-          cookiesToSet.forEach(({ name, value, options }) =>
-            response.cookies.set(name, value, options)
-          );
+  const shouldRefreshSupabaseSession = request.nextUrl.pathname.startsWith("/dashboard");
+
+  if (shouldRefreshSupabaseSession) {
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL as string,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string,
+      {
+        cookies: {
+          getAll() {
+            return request.cookies.getAll();
+          },
+          setAll(cookiesToSet: CookieToSet[]) {
+            cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
+            response = NextResponse.next({ request });
+            cookiesToSet.forEach(({ name, value, options }) =>
+              response.cookies.set(name, value, options)
+            );
+          }
         }
       }
-    }
-  );
+    );
 
-  await supabase.auth.getUser();
+    const authLabel = `[KAIS PERF] middleware auth.getUser ${request.nextUrl.pathname} ${perfId}`;
+    if (shouldMeasure) console.time(authLabel);
+    await supabase.auth.getUser();
+    if (shouldMeasure) console.timeEnd(authLabel);
+  }
+
+  if (shouldMeasure) console.timeEnd(middlewareLabel);
   return response;
 }
 

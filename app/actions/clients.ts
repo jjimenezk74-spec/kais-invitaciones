@@ -43,6 +43,7 @@ export async function updateClientRecord(clientId: string, formData: FormData) {
   }
 
   revalidatePath("/dashboard/clientes");
+  redirect("/dashboard/clientes?created=Cliente actualizado correctamente.");
 }
 
 export async function toggleClientStatus(clientId: string, status: "activo" | "inactivo") {
@@ -54,6 +55,19 @@ export async function toggleClientStatus(clientId: string, status: "activo" | "i
   }
 
   revalidatePath("/dashboard/clientes");
+  redirect("/dashboard/clientes");
+}
+
+export async function deleteClientRecord(clientId: string) {
+  await assertCanManageClients();
+  const { error } = await createAdminClient().from("clients").delete().eq("id", clientId);
+
+  if (error) {
+    redirect(`/dashboard/clientes?error=${encodeURIComponent(error.message)}`);
+  }
+
+  revalidatePath("/dashboard/clientes");
+  redirect("/dashboard/clientes?created=Cliente eliminado correctamente.");
 }
 
 async function assertCanManageClients() {

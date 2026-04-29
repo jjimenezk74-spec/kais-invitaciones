@@ -137,6 +137,81 @@ html {
 @media (min-width: 768px) { .kais-section { padding: 9rem 2.5rem; } }
 @media (min-width: 1280px) { .kais-section { padding: 11rem 4rem; } }
 
+.theme-decoration-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 1;
+}
+
+.theme-decoration-img {
+  position: absolute;
+  pointer-events: none;
+  user-select: none;
+  opacity: 0.82;
+  filter: drop-shadow(0 0 18px rgba(255, 215, 140, 0.16));
+  mix-blend-mode: normal;
+  -webkit-mask-image: radial-gradient(circle, rgba(0,0,0,1) 58%, rgba(0,0,0,0) 100%);
+  mask-image: radial-gradient(circle, rgba(0,0,0,1) 58%, rgba(0,0,0,0) 100%);
+}
+
+.theme-decoration-corner {
+  width: clamp(120px, 16vw, 260px);
+  height: clamp(120px, 16vw, 260px);
+}
+
+.theme-decoration-side {
+  width: clamp(90px, 12vw, 220px);
+  height: min(70%, 520px);
+}
+
+.theme-decoration-free {
+  position: absolute;
+  pointer-events: none;
+  user-select: none;
+  z-index: 2;
+  will-change: transform, opacity;
+}
+
+.theme-decoration-float {
+  animation: kais-decoration-float 6s ease-in-out infinite;
+}
+
+.theme-decoration-pulse {
+  animation: kais-decoration-pulse 3.8s ease-in-out infinite;
+}
+
+@keyframes kais-decoration-float {
+  0%, 100% { margin-top: 0; }
+  50% { margin-top: -10px; }
+}
+
+@keyframes kais-decoration-pulse {
+  0%, 100% { scale: 1; }
+  50% { scale: 1.045; }
+}
+
+@media (max-width: 767px) {
+  .theme-decoration-img {
+    opacity: 0.68;
+    filter: drop-shadow(0 0 12px rgba(255, 215, 140, 0.12));
+  }
+
+  .theme-decoration-corner {
+    width: clamp(80px, 28vw, 140px);
+    height: clamp(80px, 28vw, 140px);
+  }
+
+  .theme-decoration-side {
+    display: none;
+  }
+
+  .theme-decoration-free {
+    max-width: 44vw;
+  }
+}
+
 /* --- Hairlines de oro --- */
 .kais-hairline {
   background-image: linear-gradient(90deg,
@@ -2581,4 +2656,41 @@ main.kais-stage.kais-theme-active .kais-grain .text-\[\#d4af37\] {
 }
 main.kais-stage.kais-theme-active .kais-grain .text-\[\#d4af37\]\/60 {
   color: rgba(212,175,55,0.60);
+}
+
+/* ── KAIS Live Album: upload button ─────────────────────────────────────────
+   Uses !important to guarantee visibility regardless of Tailwind preflight
+   or any other base-layer reset that sets button backgrounds to transparent.
+   ─────────────────────────────────────────────────────────────────────────── */
+.kais-upload-btn {
+  display:         flex !important;
+  align-items:     center !important;
+  justify-content: center !important;
+  gap:             0.625rem !important;
+  width:           100% !important;
+  min-height:      56px !important;
+  border-radius:   1rem !important;
+  font-size:       1rem !important;
+  font-weight:     700 !important;
+  color:           #ffffff !important;
+  border:          none !important;
+  cursor:          pointer !important;
+  transition:      background 0.2s, box-shadow 0.2s, transform 0.15s !important;
+}
+.kais-upload-btn:disabled {
+  cursor:  not-allowed !important;
+  opacity: 0.72 !important;
+}
+.kais-upload-btn:not(:disabled):hover {
+  transform: translateY(-2px) !important;
+}
+/* Default (no photo selected): solid near-black */
+.kais-upload-btn {
+  background:  #111827 !important;
+  box-shadow:  0 2px 8px rgba(0,0,0,0.18) !important;
+}
+/* Has photo: golden accent gradient via data attribute */
+.kais-upload-btn[data-has-file="true"] {
+  background:  linear-gradient(135deg, var(--kais-upload-accent, #d4af37) 0%, color-mix(in srgb, var(--kais-upload-accent, #d4af37) 75%, #000) 100%) !important;
+  box-shadow:  0 8px 28px -8px color-mix(in srgb, var(--kais-upload-accent, #d4af37) 55%, transparent), 0 2px 8px rgba(0,0,0,0.20) !important;
 }

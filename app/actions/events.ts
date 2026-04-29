@@ -7,7 +7,15 @@ import { canCreateEvents, canModerateEvents, getCurrentUserProfile, isKaisAdmin 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { slugify } from "@/lib/utils";
-import type { EventGuest, InvitationDesignConfig } from "@/lib/types";
+import type {
+  EventGuest,
+  InvitationDesignConfig,
+  VisualDecoration,
+  VisualDecorationDevice,
+  VisualDecorationEffect,
+  VisualDecorationGlowStrength,
+  VisualDecorationSection
+} from "@/lib/types";
 
 type ServerSupabaseClient = Awaited<ReturnType<typeof createClient>>;
 
@@ -70,6 +78,7 @@ export async function createEvent(formData: FormData) {
     cover_image_url: manualCoverUrl,
     mobile_cover_image_url: nullable(formData.get("mobile_cover_image_url")),
     music_url: musicUrl,
+    visual_decorations: getVisualDecorationsFromForm(formData),
     design_config: getDesignConfigFromForm(formData),
     theme_color: String(formData.get("theme_color") || "#111827"),
     status: getEventStatus(formData.get("status")),
@@ -149,6 +158,7 @@ export async function updateEvent(eventId: string, formData: FormData) {
     cover_image_url: coverImageUrl,
     mobile_cover_image_url: mobileCoverImageUrl,
     music_url: musicUrl,
+    visual_decorations: getVisualDecorationsFromForm(formData),
     design_config: getDesignConfigFromForm(formData),
     theme_color: String(formData.get("theme_color") || "#111827"),
     status: getEventStatus(formData.get("status")),
@@ -167,6 +177,111 @@ export async function updateEvent(eventId: string, formData: FormData) {
   redirect(`/dashboard/eventos/${eventId}?saved=updated`);
 }
 
+export async function saveVisualDecorationsOnly(eventId: string, visualDecorations: VisualDecoration[]) {
+  const supabase = await createClient();
+  const {
+    data: { user }
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { ok: false, error: "Tu sesion expiro. Inicia sesion nuevamente." };
+  }
+
+  const profile = await getCurrentProfile();
+  if (!canCreateEvents(profile?.role)) {
+    return { ok: false, error: "Tu rol no tiene permisos para editar decoraciones." };
+  }
+
+  const payload = sanitizeVisualDecorations(visualDecorations);
+  const { error } = await supabase
+    .from("events")
+    .update({ visual_decorations: payload })
+    .eq("id", eventId);
+
+  if (error) {
+    return { ok: false, error: error.message };
+  }
+
+  revalidatePath(`/dashboard/eventos/${eventId}`);
+  return { ok: true, visualDecorations: payload };
+}
+
+export async function updateEventThemeOnly(
+  eventId: string,
+  input: {
+    categoryId?: string | null;
+    themeId?: string | null;
+    designConfig?: Partial<InvitationDesignConfig> | null;
+  }
+) {
+  const permission = await ensurePartialEventEditPermission("tema");
+  if (!permission.ok) return permission;
+
+  const payload = {
+    category_id: normalizeUuid(input.categoryId),
+    theme_id: normalizeUuid(input.themeId),
+    design_config: normalizeInvitationDesignConfig({ designConfig: input.designConfig ?? undefined })
+  };
+
+  const { error } = await permission.supabase
+    .from("events")
+    .update(payload)
+    .eq("id", eventId);
+
+  if (error) {
+    return { ok: false, error: error.message };
+  }
+
+  revalidatePath(`/dashboard/eventos/${eventId}`);
+  return { ok: true, payload };
+}
+
+export async function updateEventCoverOnly(
+  eventId: string,
+  input: {
+    coverImageUrl?: string | null;
+    mobileCoverImageUrl?: string | null;
+  }
+) {
+  const permission = await ensurePartialEventEditPermission("portada");
+  if (!permission.ok) return permission;
+
+  const payload = {
+    cover_image_url: normalizeOptionalText(input.coverImageUrl),
+    mobile_cover_image_url: normalizeOptionalText(input.mobileCoverImageUrl)
+  };
+
+  const { error } = await permission.supabase
+    .from("events")
+    .update(payload)
+    .eq("id", eventId);
+
+  if (error) {
+    return { ok: false, error: error.message };
+  }
+
+  revalidatePath(`/dashboard/eventos/${eventId}`);
+  return { ok: true, payload };
+}
+
+export async function updateEventMusicOnly(eventId: string, musicUrl?: string | null) {
+  const permission = await ensurePartialEventEditPermission("musica");
+  if (!permission.ok) return permission;
+
+  const payload = { music_url: normalizeOptionalText(musicUrl) };
+  const { error } = await permission.supabase
+    .from("events")
+    .update(payload)
+    .eq("id", eventId);
+
+  if (error) {
+    return { ok: false, error: error.message };
+  }
+
+  revalidatePath(`/dashboard/eventos/${eventId}`);
+  return { ok: true, payload };
+}
+
 export async function deleteEvent(eventId: string) {
   const { user, profile } = await getCurrentUserProfile();
 
@@ -181,7 +296,7 @@ export async function deleteEvent(eventId: string) {
   const admin = createAdminClient();
   const { data: event, error: eventError } = await admin
     .from("events")
-    .select("id,title,cover_image_url,mobile_cover_image_url,music_url")
+    .select("id,title,cover_image_url,mobile_cover_image_url,music_url,decoration_top_left,decoration_top_right,decoration_bottom_left,decoration_bottom_right,decoration_side_left,decoration_side_right,visual_decorations")
     .eq("id", eventId)
     .maybeSingle();
 
@@ -194,6 +309,15 @@ export async function deleteEvent(eventId: string) {
     coverImageUrl: event.cover_image_url,
     mobileCoverImageUrl: event.mobile_cover_image_url,
     musicUrl: event.music_url,
+    decorationUrls: [
+      event.decoration_top_left,
+      event.decoration_top_right,
+      event.decoration_bottom_left,
+      event.decoration_bottom_right,
+      event.decoration_side_left,
+      event.decoration_side_right,
+      ...getVisualDecorationUrls(event.visual_decorations)
+    ],
     photoPaths: (photosData ?? []).map((photo) => photo.storage_path).filter(Boolean)
   });
 
@@ -522,6 +646,129 @@ function getDesignConfigFromForm(formData: FormData) {
   });
 }
 
+async function ensurePartialEventEditPermission(scope: string) {
+  const supabase = await createClient();
+  const {
+    data: { user }
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { ok: false as const, error: "Tu sesion expiro. Inicia sesion nuevamente." };
+  }
+
+  const profile = await getCurrentProfile();
+  if (!canCreateEvents(profile?.role)) {
+    return { ok: false as const, error: `Tu rol no tiene permisos para editar ${scope}.` };
+  }
+
+  return { ok: true as const, supabase };
+}
+
+function normalizeUuid(value?: string | null) {
+  if (!value) return null;
+  const trimmed = value.trim();
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(trimmed)
+    ? trimmed
+    : null;
+}
+
+function normalizeOptionalText(value?: string | null) {
+  const text = String(value ?? "").trim();
+  return text.length ? text : null;
+}
+
+const VISUAL_DECORATION_SECTIONS = ["hero", "info", "rsvp", "gallery", "footer"] as const;
+const VISUAL_DECORATION_EFFECTS = ["none", "glow", "soft_shadow", "float", "pulse"] as const;
+const VISUAL_DECORATION_GLOW_STRENGTHS = ["low", "medium", "high"] as const;
+
+function getVisualDecorationsFromForm(formData: FormData): VisualDecoration[] {
+  const raw = String(formData.get("visual_decorations") ?? "[]");
+
+  try {
+    const parsed = JSON.parse(raw);
+    return sanitizeVisualDecorations(parsed);
+  } catch {
+    return [];
+  }
+}
+
+function sanitizeVisualDecorations(value: unknown): VisualDecoration[] {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .map((item, index) => {
+      const record = item && typeof item === "object" ? item as Record<string, unknown> : {};
+      const section = normalizeVisualDecorationSection(record.section);
+      const url = typeof record.url === "string" ? record.url.trim() : "";
+
+      return {
+        id: normalizeText(record.id, `decor-${index + 1}`),
+        url,
+        section,
+        x: clampNumber(record.x, 0, 100, 6),
+        y: clampNumber(record.y, 0, 100, 12),
+        width: clampNumber(record.width, 40, 900, 220),
+        opacity: clampNumber(record.opacity, 0, 1, 0.85),
+        rotate: clampNumber(record.rotate, -180, 180, 0),
+        device: normalizeVisualDecorationDevice(record.device, record.desktop, record.mobile),
+        effect: normalizeVisualDecorationEffect(record.effect),
+        glowColor: normalizeHexColor(record.glowColor, "#f4d27a"),
+        glowStrength: normalizeVisualDecorationGlowStrength(record.glowStrength)
+      };
+    })
+    .filter((item) => item.url);
+}
+
+function getVisualDecorationUrls(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+
+  return value.flatMap((item) => {
+    if (!item || typeof item !== "object") return [];
+    const url = (item as { url?: unknown }).url;
+    return typeof url === "string" && url.trim() ? [url.trim()] : [];
+  });
+}
+
+function normalizeVisualDecorationSection(value: unknown): VisualDecorationSection {
+  return VISUAL_DECORATION_SECTIONS.includes(value as VisualDecorationSection)
+    ? value as VisualDecorationSection
+    : "info";
+}
+
+function normalizeVisualDecorationDevice(device: unknown, desktop: unknown, mobile: unknown): VisualDecorationDevice {
+  if (device === "mobile" || device === "desktop") return device;
+  if (mobile === true && desktop !== true) return "mobile";
+  return "desktop";
+}
+
+function normalizeVisualDecorationEffect(value: unknown): VisualDecorationEffect {
+  if (value === "golden_glow") return "glow";
+  return VISUAL_DECORATION_EFFECTS.includes(value as VisualDecorationEffect)
+    ? value as VisualDecorationEffect
+    : "none";
+}
+
+function normalizeVisualDecorationGlowStrength(value: unknown): VisualDecorationGlowStrength {
+  return VISUAL_DECORATION_GLOW_STRENGTHS.includes(value as VisualDecorationGlowStrength)
+    ? value as VisualDecorationGlowStrength
+    : "medium";
+}
+
+function normalizeHexColor(value: unknown, fallback: string) {
+  const text = typeof value === "string" ? value.trim() : "";
+  return /^#[0-9a-f]{6}$/i.test(text) ? text : fallback;
+}
+
+function normalizeText(value: unknown, fallback: string) {
+  return typeof value === "string" && value.trim() ? value.trim().slice(0, 80) : fallback;
+}
+
+function clampNumber(value: unknown, min: number, max: number, fallback: number) {
+  const numberValue = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(numberValue)) return fallback;
+  return Math.min(max, Math.max(min, numberValue));
+}
+
 async function getMusicUrlFromForm(formData: FormData, supabase: ServerSupabaseClient, userId: string) {
   const manualUrl = nullable(formData.get("music_url"));
   const file = formData.get("music_file");
@@ -615,11 +862,13 @@ async function deleteEventStorageFiles({
   coverImageUrl,
   mobileCoverImageUrl,
   musicUrl,
+  decorationUrls,
   photoPaths
 }: {
   coverImageUrl: string | null;
   mobileCoverImageUrl: string | null;
   musicUrl: string | null;
+  decorationUrls: Array<string | null>;
   photoPaths: string[];
 }) {
   const admin = createAdminClient();
@@ -629,7 +878,8 @@ async function deleteEventStorageFiles({
       [
         ...photoPaths,
         getStoragePathFromPublicUrl(coverImageUrl, "event-photos"),
-        getStoragePathFromPublicUrl(mobileCoverImageUrl, "event-photos")
+        getStoragePathFromPublicUrl(mobileCoverImageUrl, "event-photos"),
+        ...decorationUrls.map((url) => getStoragePathFromPublicUrl(url, "event-photos"))
       ].filter(Boolean) as string[]
     )
   );

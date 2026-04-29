@@ -4,8 +4,9 @@ import Image from "next/image";
 import { CalendarPlus, ChevronDown, MapPin } from "lucide-react";
 import { Countdown } from "@/components/countdown";
 import { EventMusicPlayer } from "@/components/event-music-player";
+import { ThemeDecorations } from "@/components/theme-decorations";
 import { formatDate } from "@/lib/utils";
-import type { Event } from "@/lib/types";
+import type { Event, EventDecorations, VisualDecoration } from "@/lib/types";
 
 type EventHeroData = Pick<
   Event,
@@ -24,6 +25,9 @@ type EventHeroProps = {
   event: EventHeroData;
   calendarUrl: string;
   invitedGuestName?: string | null;
+  themeSlug?: string | null;
+  decorations?: EventDecorations;
+  freeDecorations?: VisualDecoration[] | null;
   showMusic?: boolean;
   showScrollCue?: boolean;
 };
@@ -32,6 +36,9 @@ export function EventHero({
   event,
   calendarUrl,
   invitedGuestName,
+  themeSlug,
+  decorations,
+  freeDecorations,
   showMusic = true,
   showScrollCue = true
 }: EventHeroProps) {
@@ -43,6 +50,13 @@ export function EventHero({
 
   return (
     <section className="kais-grain relative isolate overflow-hidden" style={{ minHeight: "100svh" }}>
+      <ThemeDecorations
+        themeSlug={themeSlug}
+        section="hero"
+        decorations={decorations ?? {}}
+        freeDecorations={freeDecorations}
+      />
+
       {showMusic ? (
         <div className="kais-music-float">
           <EventMusicPlayer url={event.music_url} compact />

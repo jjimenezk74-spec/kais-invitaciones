@@ -1,16 +1,18 @@
 import { headers } from "next/headers";
 import Link from "next/link";
-import { CalendarPlus, Camera, MapPin, Send } from "lucide-react";
+import { CalendarPlus, Camera, MapPin, Send, Eye } from "lucide-react";
 import { submitRsvp, trackVisit, uploadEventPhoto } from "@/app/actions/events";
 import { Countdown } from "@/components/countdown";
 import { BackButton } from "@/components/back-button";
 import { EventHero } from "@/components/public-invitation/event-hero";
+import { ThemeDecorations } from "@/components/theme-decorations";
 import { resolvePremiumThemeDesign, resolveLegacyDesign } from "@/lib/invitation-design";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { fetchThemeById } from "@/lib/invitation-themes.server";
 import { createClient } from "@/lib/supabase/server";
+import { isKaisAdmin } from "@/lib/profiles";
 import { formatDate } from "@/lib/utils";
-import type { Event, EventGuest, EventPhoto, InvitationTemplate, InvitationTheme, Rsvp } from "@/lib/types";
+import type { Event, EventDecorations, EventGuest, EventPhoto, InvitationTemplate, InvitationTheme, Rsvp, VisualDecoration } from "@/lib/types";
 import {
   NotPublishedScreen,
   PersonalLinkRequired,
@@ -28,25 +30,93 @@ type PageProps = {
     foto_error?: string | string[];
     guest?: string | string[];
     from?: string | string[];
+    preview?: string | string[];
   }>;
 };
+
+type PublicEventRow = Event & {
+  theme_slug?: string | null;
+  theme?: { slug?: string | null; name?: string | null } | null;
+  invitation_theme?: { slug?: string | null; name?: string | null } | null;
+  invitation_themes?: { slug?: string | null; name?: string | null } | null;
+  selected_theme?: { slug?: string | null; name?: string | null } | null;
+};
+
+const PUBLIC_EVENT_SELECT = [
+  "id",
+  "owner_id",
+  "client_id",
+  "template_id",
+  "category_id",
+  "theme_id",
+  "title",
+  "event_type",
+  "hosts_names",
+  "event_date",
+  "event_time",
+  "address",
+  "google_maps_link",
+  "main_message",
+  "dress_code",
+  "cover_image_url",
+  "mobile_cover_image_url",
+  "music_url",
+  "decoration_top_left",
+  "decoration_top_right",
+  "decoration_bottom_left",
+  "decoration_bottom_right",
+  "decoration_side_left",
+  "decoration_side_right",
+  "visual_decorations",
+  "design_config",
+  "theme_color",
+  "status",
+  "guest_mode",
+  "slug",
+  "created_at",
+  "updated_at"
+].join(",");
 
 export default async function PublicEventPage({ params, searchParams }: PageProps) {
   const { slug } = await params;
   const query = searchParams ? await searchParams : {};
   const supabase = await createClient();
-  const { data } = await supabase.from("events").select("*").eq("slug", slug).maybeSingle();
-  const event = data as Event | null;
+  const { data } = await supabase.from("events").select(PUBLIC_EVENT_SELECT).eq("slug", slug).maybeSingle();
+  const eventRow = data as PublicEventRow | null;
+  const event = eventRow as Event | null;
 
-  if (!event || event.status !== "publicado") {
+  if (!event) return <NotPublishedScreen />;
+
+  // --- Admin preview: verify BEFORE any access restrictions ---
+  // Must run first so isAdminPreview can suppress all blocks below.
+  const isPreviewMode = normalizeSearchParam(query.preview) === "admin";
+  let isAdminPreview = false;
+
+  if (isPreviewMode) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { data: profileData } = await createAdminClient()
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .maybeSingle();
+      if (isKaisAdmin((profileData as { role?: string } | null)?.role)) {
+        isAdminPreview = true;
+      }
+    }
+  }
+
+  // Status gate - skip for verified admin preview
+  if (event.status !== "publicado" && !isAdminPreview) {
     return <NotPublishedScreen />;
   }
 
+  // Guest token / lista_invitados gate - skip entirely for admin preview
   const guestToken = normalizeSearchParam(query.guest);
   let invitedGuest: EventGuest | null = null;
   let invitedGuestRsvp: Rsvp | null = null;
 
-  if (event.guest_mode === "lista_invitados") {
+  if (event.guest_mode === "lista_invitados" && !isAdminPreview) {
     console.info("[KAIS GUEST LINK]", { slug, guestToken, eventId: event.id, guestMode: event.guest_mode });
 
     if (!guestToken) {
@@ -57,7 +127,7 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
     const admin = createAdminClient();
     const { data: guestData, error: guestError } = await admin
       .from("event_guests")
-      .select("*")
+      .select("id,event_id,guest_name,phone,email,token,max_companions,status,rsvp_id,last_opened_at,created_at")
       .eq("token", guestToken)
       .eq("event_id", event.id)
       .maybeSingle();
@@ -80,17 +150,24 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
       .eq("id", invitedGuest.id);
 
     if (invitedGuest.rsvp_id) {
-      const { data: rsvpData } = await admin.from("rsvps").select("*").eq("id", invitedGuest.rsvp_id).maybeSingle();
+      const { data: rsvpData } = await admin
+        .from("rsvps")
+        .select("id,event_id,guest_name,phone,email,attending,companions,message,dietary_restrictions,created_at")
+        .eq("id", invitedGuest.rsvp_id)
+        .maybeSingle();
       invitedGuestRsvp = (rsvpData ?? null) as Rsvp | null;
     }
   }
 
-  const headerStore = await headers();
-  await trackVisit(event.id, headerStore.get("user-agent"));
+  // Skip analytics for admin previews (avoid polluting visit counts)
+  if (!isAdminPreview) {
+    const headerStore = await headers();
+    await trackVisit(event.id, headerStore.get("user-agent"));
+  }
 
   const { data: photosData } = await supabase
     .from("event_photos")
-    .select("*")
+    .select("id,event_id,storage_path,public_url,guest_name,is_approved,status,is_public,approved_at,approved_by_event_login,created_at")
     .eq("event_id", event.id)
     .eq("status", "aprobada")
     .eq("is_public", true)
@@ -110,16 +187,73 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
   const photoStatus = normalizeSearchParam(query.foto);
   const photoError = normalizeSearchParam(query.foto_error);
   const isConfirmed = Boolean(invitedGuestRsvp) || rsvpStatus === "ok";
-  // Premium theme: design comes entirely from --kt-* CSS vars; no legacy colors.
-  // Legacy path: use template config + event.theme_color as before.
+
   const design = invitationTheme
     ? resolvePremiumThemeDesign(invitationTheme, null, event.design_config)
     : resolveLegacyDesign(template?.config, event.theme_color, event.design_config, template?.slug);
 
-  // Royal Wedding Pack: SVG overlay shown for royal-wedding theme or luxury-gold preset
   const showRoyalPack =
     invitationTheme?.slug === "royal-wedding" ||
     design.designConfig.decorationPreset === "luxury-gold";
+  const resolvedThemeSlug =
+    invitationTheme?.slug ??
+    eventRow?.theme_slug ??
+    eventRow?.invitation_themes?.slug ??
+    eventRow?.invitation_theme?.slug ??
+    eventRow?.selected_theme?.slug ??
+    eventRow?.theme?.slug ??
+    eventRow?.invitation_themes?.name ??
+    eventRow?.invitation_theme?.name ??
+    eventRow?.selected_theme?.name ??
+    eventRow?.theme?.name ??
+    null;
+  const slotDecorations: EventDecorations = {
+    top_left: event.decoration_top_left,
+    top_right: event.decoration_top_right,
+    bottom_left: event.decoration_bottom_left,
+    bottom_right: event.decoration_bottom_right,
+    side_left: event.decoration_side_left,
+    side_right: event.decoration_side_right
+  };
+  const freeDecorations = normalizeVisualDecorations(event.visual_decorations);
+  const hasAnyDecoration = Boolean(
+    event.decoration_top_left ||
+    event.decoration_top_right ||
+    event.decoration_bottom_left ||
+    event.decoration_bottom_right ||
+    event.decoration_side_left ||
+    event.decoration_side_right ||
+    freeDecorations.length > 0
+  );
+  const decorationThemeSlug = resolvedThemeSlug ?? (hasAnyDecoration ? "luxury-night" : null);
+  const decorationDebug = {
+    top_left: Boolean(event.decoration_top_left),
+    top_right: Boolean(event.decoration_top_right),
+    bottom_left: Boolean(event.decoration_bottom_left),
+    bottom_right: Boolean(event.decoration_bottom_right),
+    side_left: Boolean(event.decoration_side_left),
+    side_right: Boolean(event.decoration_side_right)
+  };
+
+  if (process.env.NODE_ENV !== "production") {
+    console.log("[PUBLIC EVENT DECORATIONS]", {
+      themeSlug: eventRow?.theme_slug ?? decorationThemeSlug,
+      theme_id: event.theme_id,
+      decoration_top_left: event.decoration_top_left,
+      decoration_top_right: event.decoration_top_right,
+      decoration_bottom_left: event.decoration_bottom_left,
+      decoration_bottom_right: event.decoration_bottom_right,
+      decoration_side_left: event.decoration_side_left,
+      decoration_side_right: event.decoration_side_right,
+      visual_decorations: freeDecorations.length
+    });
+    console.info("[KAIS DECORATIONS SERVER]", {
+      slug,
+      eventId: event.id,
+      themeSlug: decorationThemeSlug,
+      decorations: decorationDebug
+    });
+  }
 
   return (
     <main
@@ -137,16 +271,47 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
         ? undefined
         : { ["--template-primary" as string]: design.primary, ["--template-secondary" as string]: design.secondary }}
     >
-      {/* Royal Wedding Pack SVG overlay — must be first child so sections paint above it */}
+      {/* Admin preview banner - fixed top, only visible to admin */}
+      {isAdminPreview && (
+        <div className="fixed inset-x-0 top-0 z-[100] flex items-center justify-between gap-4 border-b border-amber-300 bg-amber-50 px-4 py-2.5 text-amber-900 shadow-sm">
+          <div className="flex items-center gap-2 text-sm font-semibold">
+            <Eye className="h-4 w-4 flex-shrink-0 text-amber-600" />
+            <span>Vista previa administrador</span>
+            <span className="hidden font-normal text-amber-700 sm:inline">
+              {event.status === "borrador" ? "- Evento en borrador, no visible al publico" : ""}
+            </span>
+          </div>
+          <Link
+            href={`/dashboard/eventos/${event.id}`}
+            className="rounded-md border border-amber-300 bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800 transition hover:bg-amber-200"
+          >
+            Volver al dashboard
+          </Link>
+        </div>
+      )}
+
+      {/* Royal Wedding Pack SVG overlay */}
       {showRoyalPack && <RoyalWeddingPack />}
 
-      <div className="fixed left-3 top-[max(0.75rem,env(safe-area-inset-top))] z-50 sm:left-5">
+      <div
+        className={[
+          "fixed left-3 z-50 sm:left-5",
+          isAdminPreview
+            ? "top-[calc(max(0.75rem,env(safe-area-inset-top))+2.75rem)]"
+            : "top-[max(0.75rem,env(safe-area-inset-top))]"
+        ].join(" ")}
+      >
         <BackButton from={normalizeSearchParam(query.from)} />
       </div>
 
-      <EventHero event={event} calendarUrl={calendarUrl} invitedGuestName={invitedGuest?.guest_name} />
-
-
+      <EventHero
+        event={event}
+        calendarUrl={calendarUrl}
+        invitedGuestName={invitedGuest?.guest_name}
+        themeSlug={decorationThemeSlug}
+        decorations={slotDecorations}
+        freeDecorations={freeDecorations}
+      />
 
       <section className="relative px-5 py-20 sm:py-24 lg:hidden" aria-label="Cuenta regresiva y mensaje">
         <div className="pointer-events-none absolute inset-x-0 top-0 h-px kais-hairline" />
@@ -167,7 +332,7 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
           <div className="mt-12 flex flex-wrap items-center justify-center gap-x-6 gap-y-4">
             <a href={event.google_maps_link ?? "#detalles"} target="_blank" rel="noreferrer" className="kais-ghost-link">
               <MapPin className="h-3.5 w-3.5" />
-              Cómo llegar
+              Como llegar
             </a>
             <a href={calendarUrl} target="_blank" rel="noreferrer" className="kais-ghost-link">
               <CalendarPlus className="h-3.5 w-3.5" />
@@ -177,14 +342,20 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
         </div>
       </section>
 
-      <section id="detalles" className="kais-section">
+      <section id="detalles" className="kais-section relative overflow-hidden">
+        <ThemeDecorations
+          themeSlug={decorationThemeSlug}
+          section="info"
+          decorations={slotDecorations}
+          freeDecorations={freeDecorations}
+        />
         <div className="pointer-events-none absolute -left-20 top-24 h-64 w-64 rounded-full bg-[#3a0a12]/35 blur-3xl" />
         <div className="pointer-events-none absolute -right-32 bottom-16 h-72 w-72 rounded-full bg-[#d4af37]/[0.06] blur-3xl" />
 
-        <div className="relative mx-auto max-w-5xl text-center">
+        <div className="relative z-10 mx-auto max-w-5xl text-center">
           <div className="flex items-center justify-center gap-3">
             <span className="block h-px w-10 kais-hairline" />
-            <p className="kais-eyebrow">Una noche · Inolvidable</p>
+            <p className="kais-eyebrow">Una noche . Inolvidable</p>
             <span className="block h-px w-10 kais-hairline" />
           </div>
 
@@ -221,7 +392,7 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
 
           {event.dress_code ? (
             <div className="mt-16">
-              <p className="kais-eyebrow">Código de vestimenta</p>
+              <p className="kais-eyebrow">Codigo de vestimenta</p>
               <p className="mt-3 font-display text-xl italic text-[#f5ecd9]/85 md:text-2xl">{event.dress_code}</p>
             </div>
           ) : null}
@@ -230,15 +401,21 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
 
       {showRoyalPack && <RoyalWeddingDivider />}
 
-      <section id="rsvp" className="kais-section bg-[#0a0405]">
+      <section id="rsvp" className="kais-section relative overflow-hidden bg-[#0a0405]">
+        <ThemeDecorations
+          themeSlug={decorationThemeSlug}
+          section="rsvp"
+          decorations={slotDecorations}
+          freeDecorations={freeDecorations}
+        />
         <div className="pointer-events-none absolute inset-x-0 top-0 h-px kais-hairline" />
         <div className="pointer-events-none absolute -right-20 top-1/3 h-72 w-72 rounded-full bg-[#d4af37]/[0.07] blur-3xl" />
 
-        <div className="relative mx-auto grid max-w-5xl gap-14 lg:grid-cols-[0.9fr_1.1fr] lg:items-start lg:gap-20">
+        <div className="relative z-10 mx-auto grid max-w-5xl gap-14 lg:grid-cols-[0.9fr_1.1fr] lg:items-start lg:gap-20">
           <div>
             <div className="flex items-center gap-3">
               <span className="block h-px w-10 kais-hairline" />
-              <p className="kais-eyebrow">RSVP · Asistencia</p>
+              <p className="kais-eyebrow">RSVP . Asistencia</p>
             </div>
 
             <h2
@@ -249,34 +426,47 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
               <br />
               es el regalo
               <br />
-              <span className="kais-gold-text kais-shimmer">más bonito.</span>
+              <span className="kais-gold-text kais-shimmer">mas bonito.</span>
             </h2>
 
             <p className="mt-7 max-w-md text-[0.95rem] leading-[1.9] text-[#f5ecd9]/65">
-              {isConfirmed
-                ? "Tu asistencia ya fue confirmada. Para realizar cambios, contactá a los anfitriones."
-                : invitedGuest
-                  ? `Hola ${invitedGuest.guest_name}, podés confirmar tu asistencia.`
-                  : "Tu respuesta ayuda a los anfitriones a preparar cada detalle del evento."}
+              {isAdminPreview
+                ? "Vista previa - el formulario RSVP es solo lectura en modo administrador."
+                : isConfirmed
+                  ? "Tu asistencia ya fue confirmada. Para realizar cambios, contacta a los anfitriones."
+                  : invitedGuest
+                    ? `Hola ${invitedGuest.guest_name}, podes confirmar tu asistencia.`
+                    : "Tu respuesta ayuda a los anfitriones a preparar cada detalle del evento."}
             </p>
 
-            {isConfirmed ? (
-              <p className="mt-7 inline-flex"><span className="kais-status-success">Confirmación recibida</span></p>
+            {isConfirmed && !isAdminPreview ? (
+              <p className="mt-7 inline-flex"><span className="kais-status-success">Confirmacion recibida</span></p>
             ) : null}
-            {rsvpError ? (
+            {rsvpError && !isAdminPreview ? (
               <p className="mt-7 inline-flex"><span className="kais-status-error">{rsvpError}</span></p>
             ) : null}
+            {isAdminPreview && (
+              <p className="mt-6 inline-flex items-center gap-1.5 rounded-lg border border-amber-300/50 bg-amber-900/30 px-3 py-1.5 text-xs font-semibold text-amber-300">
+                <Eye className="h-3 w-3" />
+                Solo lectura en vista previa
+              </p>
+            )}
           </div>
 
           <div className="kais-glass relative rounded-[2rem] p-6 sm:p-9 md:p-11">
+            {isAdminPreview && (
+              <div className="mb-5 rounded-xl border border-amber-400/30 bg-amber-900/20 px-4 py-3 text-xs font-semibold text-amber-300">
+                Vista previa administrador - el envio de RSVP esta deshabilitado.
+              </div>
+            )}
             <form action={rsvpAction} className="grid gap-5 md:gap-7">
               <input type="hidden" name="slug" value={event.slug} />
               <input type="hidden" name="guest_token" value={guestToken} />
 
-              {isConfirmed ? (
+              {isConfirmed && !isAdminPreview ? (
                 <div className="rounded-2xl border border-[#d4af37]/35 bg-[#d4af37]/10 p-4 text-[#f5ecd9]">
-                  <p className="text-[0.68rem] font-semibold uppercase tracking-[0.28em] text-[#d4af37]">Confirmación recibida</p>
-                  <p className="mt-2 text-sm leading-6 text-[#f5ecd9]/72">Tu asistencia ya fue confirmada. Para realizar cambios, contactá a los anfitriones.</p>
+                  <p className="text-[0.68rem] font-semibold uppercase tracking-[0.28em] text-[#d4af37]">Confirmacion recibida</p>
+                  <p className="mt-2 text-sm leading-6 text-[#f5ecd9]/72">Tu asistencia ya fue confirmada. Para realizar cambios, contacta a los anfitriones.</p>
                 </div>
               ) : null}
 
@@ -285,26 +475,42 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
                   name="guest_name"
                   required
                   defaultValue={invitedGuest?.guest_name ?? ""}
-                  readOnly={Boolean(invitedGuest) || isConfirmed}
-                  disabled={isConfirmed}
+                  readOnly={Boolean(invitedGuest) || isConfirmed || isAdminPreview}
+                  disabled={isConfirmed || isAdminPreview}
                   className="kais-input-luxe"
                 />
               </LuxeField>
 
               <div className="grid gap-5 md:grid-cols-2 md:gap-7">
                 <LuxeField label="Telefono">
-                  <input name="phone" defaultValue={invitedGuest?.phone ?? invitedGuestRsvp?.phone ?? ""} disabled={isConfirmed} className="kais-input-luxe" />
+                  <input
+                    name="phone"
+                    defaultValue={invitedGuest?.phone ?? invitedGuestRsvp?.phone ?? ""}
+                    disabled={isConfirmed || isAdminPreview}
+                    className="kais-input-luxe"
+                  />
                 </LuxeField>
                 <LuxeField label="Email">
-                  <input name="email" type="email" defaultValue={invitedGuest?.email ?? invitedGuestRsvp?.email ?? ""} disabled={isConfirmed} className="kais-input-luxe" />
+                  <input
+                    name="email"
+                    type="email"
+                    defaultValue={invitedGuest?.email ?? invitedGuestRsvp?.email ?? ""}
+                    disabled={isConfirmed || isAdminPreview}
+                    className="kais-input-luxe"
+                  />
                 </LuxeField>
               </div>
 
               <div className="grid gap-5 md:grid-cols-2 md:gap-7">
                 <LuxeField label="Asistira?">
-                  <select name="attending" defaultValue={invitedGuestRsvp?.attending === false ? "no" : "si"} disabled={isConfirmed} className="kais-input-luxe">
-                    <option value="si">Sí, con gusto</option>
-                    <option value="no">No podré asistir</option>
+                  <select
+                    name="attending"
+                    defaultValue={invitedGuestRsvp?.attending === false ? "no" : "si"}
+                    disabled={isConfirmed || isAdminPreview}
+                    className="kais-input-luxe"
+                  >
+                    <option value="si">Si, con gusto</option>
+                    <option value="no">No podre asistir</option>
                   </select>
                 </LuxeField>
                 <LuxeField label="Acompanantes">
@@ -314,26 +520,40 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
                     min={0}
                     max={invitedGuest?.max_companions}
                     defaultValue={String(invitedGuestRsvp?.companions ?? 0)}
-                    disabled={isConfirmed}
+                    disabled={isConfirmed || isAdminPreview}
                     className="kais-input-luxe"
                   />
                 </LuxeField>
               </div>
 
               <LuxeField label="Restriccion alimentaria">
-                <input name="dietary_restrictions" placeholder="Opcional" defaultValue={invitedGuestRsvp?.dietary_restrictions ?? ""} disabled={isConfirmed} className="kais-input-luxe" />
+                <input
+                  name="dietary_restrictions"
+                  placeholder="Opcional"
+                  defaultValue={invitedGuestRsvp?.dietary_restrictions ?? ""}
+                  disabled={isConfirmed || isAdminPreview}
+                  className="kais-input-luxe"
+                />
               </LuxeField>
 
               <LuxeField label="Mensaje para los anfitriones">
-                <textarea name="message" rows={3} defaultValue={invitedGuestRsvp?.message ?? ""} disabled={isConfirmed} className="kais-input-luxe resize-none" />
+                <textarea
+                  name="message"
+                  rows={3}
+                  defaultValue={invitedGuestRsvp?.message ?? ""}
+                  disabled={isConfirmed || isAdminPreview}
+                  className="kais-input-luxe resize-none"
+                />
               </LuxeField>
 
-              {!isConfirmed ? <div className="mt-2">
-                <button type="submit" className="kais-cta w-full sm:w-fit">
-                  <Send className="h-3.5 w-3.5" />
-                  Enviar confirmación
-                </button>
-              </div> : null}
+              {!isConfirmed && !isAdminPreview ? (
+                <div className="mt-2">
+                  <button type="submit" className="kais-cta w-full sm:w-fit">
+                    <Send className="h-3.5 w-3.5" />
+                    Enviar confirmacion
+                  </button>
+                </div>
+              ) : null}
             </form>
           </div>
         </div>
@@ -341,47 +561,55 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
 
       {showRoyalPack && <RoyalWeddingDivider />}
 
-      <section id="fotos" className="kais-section">
+      <section id="fotos" className="kais-section relative overflow-hidden">
+        <ThemeDecorations
+          themeSlug={decorationThemeSlug}
+          section="gallery"
+          decorations={slotDecorations}
+          freeDecorations={freeDecorations}
+        />
         <div className="pointer-events-none absolute inset-x-0 top-0 h-px kais-hairline" />
 
-        <div className="relative mx-auto grid max-w-5xl gap-14 lg:grid-cols-[0.85fr_1.15fr] lg:items-start lg:gap-20">
+        <div className="relative z-10 mx-auto grid max-w-5xl gap-14 lg:grid-cols-[0.85fr_1.15fr] lg:items-start lg:gap-20">
           <div>
             <div className="flex items-center gap-3">
               <span className="block h-px w-10 kais-hairline" />
-              <p className="kais-eyebrow">Galería · Recuerdos</p>
+              <p className="kais-eyebrow">Galeria . Recuerdos</p>
             </div>
 
             <h2
               className="mt-7 font-display font-light italic leading-[0.95]"
               style={{ fontSize: "clamp(2.4rem, 4.8vw, 4rem)" }}
             >
-              Compartí tus
+              Compartit tus
               <br />
               <span className="kais-gold-text kais-shimmer">momentos.</span>
             </h2>
 
             <p className="mt-6 max-w-md text-[0.95rem] leading-[1.9] text-[#f5ecd9]/65">
-              Subí las fotos que más te gustaron del evento. Aparecerán acá una vez aprobadas.
+              Subi las fotos que mas te gustaron del evento. Apareceran aca una vez aprobadas.
             </p>
 
-            {photoStatus === "ok" ? (
+            {photoStatus === "ok" && !isAdminPreview ? (
               <p className="mt-6 inline-flex"><span className="kais-status-success">Foto recibida</span></p>
             ) : null}
-            {photoError ? (
+            {photoError && !isAdminPreview ? (
               <p className="mt-6 inline-flex"><span className="kais-status-error">{photoError}</span></p>
             ) : null}
 
             <form action={photoAction} className="kais-glass mt-9 grid gap-6 rounded-[1.6rem] p-6 sm:p-8">
               <LuxeField label="Tu nombre">
-                <input name="guest_name" className="kais-input-luxe" />
+                <input name="guest_name" disabled={isAdminPreview} className="kais-input-luxe" />
               </LuxeField>
               <LuxeField label="Foto">
-                <input name="photo" type="file" accept="image/*" required className="kais-input-luxe" />
+                <input name="photo" type="file" accept="image/*" required disabled={isAdminPreview} className="kais-input-luxe" />
               </LuxeField>
-              <button type="submit" className="kais-cta w-full sm:w-fit">
-                <Camera className="h-3.5 w-3.5" />
-                Subir foto
-              </button>
+              {!isAdminPreview && (
+                <button type="submit" className="kais-cta w-full sm:w-fit">
+                  <Camera className="h-3.5 w-3.5" />
+                  Subir foto
+                </button>
+              )}
             </form>
           </div>
 
@@ -389,9 +617,9 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
             {photos.length === 0 ? (
               <div className="kais-glass flex min-h-[280px] flex-col items-center justify-center rounded-[1.6rem] p-10 text-center">
                 <span className="block h-px w-10 kais-hairline" />
-                <p className="kais-eyebrow mt-5">Próximamente</p>
+                <p className="kais-eyebrow mt-5">Proximamente</p>
                 <p className="mt-4 max-w-xs font-display text-xl italic text-[#f5ecd9]/75">
-                  Las fotos aprobadas aparecerán aquí.
+                  Las fotos aprobadas apareceran aqui.
                 </p>
               </div>
             ) : (
@@ -414,10 +642,16 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
         </div>
       </section>
 
-      <footer className="relative px-5 py-14 text-center">
+      <footer className="relative overflow-hidden px-5 py-14 text-center">
+        <ThemeDecorations
+          themeSlug={decorationThemeSlug}
+          section="footer"
+          decorations={slotDecorations}
+          freeDecorations={freeDecorations}
+        />
         <div className="pointer-events-none absolute inset-x-0 top-0 h-px kais-hairline" />
-        <p className="kais-eyebrow text-[0.62rem]">Una experiencia de</p>
-        <p className="mt-4 font-display text-2xl italic">
+        <p className="kais-eyebrow relative z-10 text-[0.62rem]">Una experiencia de</p>
+        <p className="relative z-10 mt-4 font-display text-2xl italic">
           <Link href="/" className="kais-gold-text kais-shimmer">KAIS Invitaciones</Link>
         </p>
       </footer>
@@ -432,6 +666,18 @@ function LuxeField({ label, children }: { label: string; children: React.ReactNo
       <div className="mt-2.5">{children}</div>
     </label>
   );
+}
+
+function normalizeVisualDecorations(value: unknown): VisualDecoration[] {
+  if (Array.isArray(value)) return value.filter((decoration) => Boolean(decoration?.url)) as VisualDecoration[];
+  if (typeof value !== "string") return [];
+
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed.filter((decoration) => Boolean(decoration?.url)) as VisualDecoration[] : [];
+  } catch {
+    return [];
+  }
 }
 
 function buildCalendarUrl(event: Event) {
@@ -451,7 +697,7 @@ async function getInvitationTemplate(templateId: string) {
   const admin = createAdminClient();
   const { data } = await admin
     .from("invitation_templates")
-    .select("*")
+    .select("id,name,slug,category,preview_image,config,active,created_at")
     .eq("id", templateId)
     .eq("active", true)
     .maybeSingle();

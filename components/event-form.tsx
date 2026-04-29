@@ -1,24 +1,25 @@
 "use client";
 
 import { Save } from "lucide-react";
+import type { ReactNode } from "react";
 import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Field } from "@/components/field";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Field } from "@/components/field";
+import { saveVisualDecorationsOnly, updateEventCoverOnly, updateEventMusicOnly, updateEventThemeOnly } from "@/app/actions/events";
 import { DEFAULT_INVITATION_DESIGN_CONFIG, normalizeInvitationDesignConfig } from "@/lib/invitation-design";
 import { applyThemeToDesignConfig } from "@/lib/invitation-themes";
 import { getThemePreview } from "@/lib/theme-preview";
 import { createClientSupabaseBrowser } from "@/lib/supabase/browser";
-import type { Client, Event, EventCategory, InvitationTemplate, InvitationTheme, Profile } from "@/lib/types";
+import type { Client, Event, EventCategory, InvitationDesignConfig, InvitationTheme, Profile, VisualDecoration, VisualDecorationDevice, VisualDecorationSection } from "@/lib/types";
 
 type EventFormProps = {
   action: (formData: FormData) => Promise<void> | void;
   event?: Event;
   clients?: Profile[];
   businessClients?: Client[];
-  templates?: InvitationTemplate[];
   categories?: EventCategory[];
   themes?: InvitationTheme[];
   showOwner?: boolean;
@@ -35,15 +36,63 @@ const MAX_AUDIO_FILE_SIZE = 10 * 1024 * 1024;
 const MAX_TOTAL_UPLOAD_SIZE = 20 * 1024 * 1024;
 const ALLOWED_COVER_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp"];
 const ALLOWED_AUDIO_EXTENSIONS = [".mp3", ".wav", ".ogg"];
+const ALLOWED_DECORATION_EXTENSIONS = [".png", ".webp"];
+const MAX_DECORATION_FILE_SIZE = 5 * 1024 * 1024;
+const visualDecorationSections: Array<[VisualDecorationSection, string]> = [
+  ["hero", "Hero"],
+  ["info", "Informacion"],
+  ["rsvp", "RSVP"],
+  ["gallery", "Galeria"],
+  ["footer", "Footer"]
+];
+const visualDecorationDevices: Array<[VisualDecorationDevice, string]> = [
+  ["desktop", "Desktop"],
+  ["mobile", "Mobile"]
+];
+const decorationEffects = [
+  ["none", "Sin efecto"],
+  ["glow", "Glow"],
+  ["soft_shadow", "Sombra suave"],
+  ["float", "Flotar"],
+  ["pulse", "Pulso"]
+] as const;
+const glowColorOptions = [
+  ["#f4d27a", "Dorado"],
+  ["#ffffff", "Blanco"],
+  ["#f7a8c8", "Rosa"],
+  ["#8fc7ff", "Azul"],
+  ["#b18cff", "Violeta"],
+  ["#ff6b6b", "Rojo"],
+  ["#78d98b", "Verde"],
+  ["custom", "Personalizado"]
+] as const;
 
-export function EventForm({ action, event, clients = [], businessClients = [], templates = [], categories = [], themes = [], showOwner = false }: EventFormProps) {
+export function EventForm({
+  action,
+  event,
+  clients = [],
+  businessClients = [],
+  categories = [],
+  themes = [],
+  showOwner = false
+}: EventFormProps) {
   const shouldShowOwnerSelect = showOwner && clients.length > 0;
   const designConfig = normalizeInvitationDesignConfig({ designConfig: event?.design_config ?? undefined });
   const [uploadError, setUploadError] = useState("");
   const [uploadStatus, setUploadStatus] = useState("");
   const [isUploading, setIsUploading] = useState(false);
+  const [isSavingTheme, setIsSavingTheme] = useState(false);
+  const [themeToast, setThemeToast] = useState("");
+  const [isSavingCover, setIsSavingCover] = useState(false);
+  const [coverToast, setCoverToast] = useState("");
+  const [isSavingMusic, setIsSavingMusic] = useState(false);
+  const [musicToast, setMusicToast] = useState("");
+  const [isSavingVisualDecorations, setIsSavingVisualDecorations] = useState(false);
+  const [visualDecorationToast, setVisualDecorationToast] = useState("");
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(event?.category_id ?? null);
   const [selectedThemeId, setSelectedThemeId] = useState<string | null>(event?.theme_id ?? null);
+  const [visualDecorations, setVisualDecorations] = useState<VisualDecoration[]>(() => normalizeVisualDecorationState(event?.visual_decorations));
+  const [activeDecorationDevice, setActiveDecorationDevice] = useState<VisualDecorationDevice>("desktop");
   const submitAfterUploadRef = useRef(false);
   const formRef = useRef<HTMLFormElement>(null);
 
@@ -52,11 +101,13 @@ export function EventForm({ action, event, clients = [], businessClients = [], t
   const filteredThemes = selectedCategoryId
     ? activeThemes.filter((t) => t.category_id === selectedCategoryId)
     : activeThemes;
+  const activeDeviceDecorations = visualDecorations.filter((decoration) => decoration.device === activeDecorationDevice);
 
   function handleThemeSelect(theme: InvitationTheme) {
     setSelectedThemeId(theme.id);
     const form = formRef.current;
     if (!form) return;
+
     const config = applyThemeToDesignConfig(theme);
     if (config.fontPreset) setInputValue(form, "design_font_preset", config.fontPreset);
     if (config.backgroundVariant) setInputValue(form, "design_background_variant", config.backgroundVariant);
@@ -65,11 +116,191 @@ export function EventForm({ action, event, clients = [], businessClients = [], t
     if (config.decorationPreset) setInputValue(form, "design_decoration_preset", config.decorationPreset);
   }
 
+  function addVisualDecoration(device: VisualDecorationDevice) {
+    setVisualDecorations((current) => [
+      ...current,
+      {
+        id: createDecorationId(),
+        url: "",
+        section: "info",
+        device,
+        x: 6,
+        y: 12,
+        width: device === "mobile" ? 110 : 220,
+        opacity: 0.85,
+        rotate: 0,
+        effect: "none",
+        glowColor: "#f4d27a",
+        glowStrength: "medium"
+      }
+    ]);
+    setActiveDecorationDevice(device);
+  }
+
+  function updateVisualDecoration(id: string, patch: Partial<VisualDecoration>) {
+    setVisualDecorations((current) => current.map((decoration) => decoration.id === id ? { ...decoration, ...patch } : decoration));
+  }
+
+  function removeVisualDecoration(id: string) {
+    setVisualDecorations((current) => current.filter((decoration) => decoration.id !== id));
+  }
+
+  async function handleApplyThemeOnly() {
+    const form = formRef.current;
+    if (!form) return;
+
+    if (!event?.id) {
+      setUploadError("Guarda el evento primero para aplicar cambios parciales.");
+      return;
+    }
+
+    setIsSavingTheme(true);
+    setUploadError("");
+    setThemeToast("");
+
+    try {
+      const result = await updateEventThemeOnly(event.id, {
+        categoryId: getInputValue(form, "category_id"),
+        themeId: getInputValue(form, "theme_id"),
+        designConfig: getDesignConfigStateFromForm(form)
+      });
+
+      if (!result.ok) {
+        throw new Error(result.error ?? "No se pudo aplicar el tema.");
+      }
+
+      setThemeToast("Tema aplicado");
+      window.setTimeout(() => setThemeToast(""), 3200);
+    } catch (saveError) {
+      setUploadError(saveError instanceof Error ? saveError.message : "No se pudo aplicar el tema.");
+    } finally {
+      setIsSavingTheme(false);
+    }
+  }
+
+  async function handleSaveCoverOnly() {
+    const form = formRef.current;
+    if (!form) return;
+
+    if (!event?.id) {
+      setUploadError("Guarda el evento primero para aplicar cambios parciales.");
+      return;
+    }
+
+    const error = validateCoverUploads(form);
+    if (error) {
+      setUploadError(error);
+      return;
+    }
+
+    setIsSavingCover(true);
+    setUploadError("");
+    setCoverToast("");
+
+    try {
+      const coverPayload = await uploadCoverFilesToSupabase(form, setUploadStatus);
+      const result = await updateEventCoverOnly(event.id, coverPayload);
+
+      if (!result.ok) {
+        throw new Error(result.error ?? "No se pudo guardar la portada.");
+      }
+
+      clearFileInput(form, "cover_image_file");
+      clearFileInput(form, "mobile_cover_image_file");
+      setCoverToast("Portada actualizada");
+      window.setTimeout(() => setCoverToast(""), 3200);
+    } catch (saveError) {
+      setUploadError(saveError instanceof Error ? saveError.message : "No se pudo guardar la portada.");
+    } finally {
+      setIsSavingCover(false);
+      setUploadStatus("");
+    }
+  }
+
+  async function handleSaveMusicOnly() {
+    const form = formRef.current;
+    if (!form) return;
+
+    if (!event?.id) {
+      setUploadError("Guarda el evento primero para aplicar cambios parciales.");
+      return;
+    }
+
+    const error = validateMusicUpload(form);
+    if (error) {
+      setUploadError(error);
+      return;
+    }
+
+    setIsSavingMusic(true);
+    setUploadError("");
+    setMusicToast("");
+
+    try {
+      const musicUrl = await uploadMusicFileToSupabase(form, setUploadStatus);
+      const result = await updateEventMusicOnly(event.id, musicUrl);
+
+      if (!result.ok) {
+        throw new Error(result.error ?? "No se pudo guardar la musica.");
+      }
+
+      clearFileInput(form, "music_file");
+      setMusicToast("Musica actualizada");
+      window.setTimeout(() => setMusicToast(""), 3200);
+    } catch (saveError) {
+      setUploadError(saveError instanceof Error ? saveError.message : "No se pudo guardar la musica.");
+    } finally {
+      setIsSavingMusic(false);
+      setUploadStatus("");
+    }
+  }
+
+  async function handleSaveVisualDecorationsOnly() {
+    const form = formRef.current;
+    if (!form) return;
+
+    if (!event?.id) {
+      setUploadError("Guarda el evento primero para poder persistir decoraciones libres.");
+      return;
+    }
+
+    const error = validateVisualDecorationUploads(form);
+    if (error) {
+      setUploadError(error);
+      return;
+    }
+
+    setIsSavingVisualDecorations(true);
+    setUploadError("");
+    setVisualDecorationToast("");
+
+    try {
+      const nextDecorations = await uploadVisualDecorationFilesToSupabase(form, setUploadStatus);
+      const result = await saveVisualDecorationsOnly(event.id, nextDecorations);
+
+      if (!result.ok) {
+        throw new Error(result.error ?? "No se pudo guardar la decoracion libre.");
+      }
+
+      const savedDecorations = result.visualDecorations ?? nextDecorations;
+      setVisualDecorations(savedDecorations);
+      setInputValue(form, "visual_decorations", JSON.stringify(savedDecorations));
+      savedDecorations.forEach((decoration) => clearFileInput(form, getVisualDecorationFileInputName(decoration.id)));
+      setVisualDecorationToast("Decoracion actualizada");
+      window.setTimeout(() => setVisualDecorationToast(""), 3200);
+    } catch (saveError) {
+      setUploadError(saveError instanceof Error ? saveError.message : "No se pudo guardar la decoracion libre.");
+    } finally {
+      setIsSavingVisualDecorations(false);
+      setUploadStatus("");
+    }
+  }
+
   return (
     <form
       ref={formRef}
       action={action}
-      className="grid gap-5"
+      className="grid gap-6"
       onSubmit={async (submitEvent) => {
         if (submitAfterUploadRef.current) {
           submitAfterUploadRef.current = false;
@@ -97,6 +328,7 @@ export function EventForm({ action, event, clients = [], businessClients = [], t
             clearFileInput(form, "cover_image_file");
             clearFileInput(form, "mobile_cover_image_file");
             clearFileInput(form, "music_file");
+            visualDecorations.forEach((decoration) => clearFileInput(form, getVisualDecorationFileInputName(decoration.id)));
             submitAfterUploadRef.current = true;
             form.requestSubmit();
           } catch (uploadFailure) {
@@ -112,378 +344,438 @@ export function EventForm({ action, event, clients = [], businessClients = [], t
       }}
     >
       {uploadError ? (
-        <div id="event-form-upload-error" className="rounded-md border border-red-100 bg-red-50 p-4 text-sm font-semibold text-red-700">
+        <div id="event-form-upload-error" className="rounded-xl border border-red-100 bg-red-50 p-4 text-sm font-semibold text-red-700">
           {uploadError}
         </div>
       ) : null}
       {uploadStatus ? (
-        <div className="rounded-md border border-amber-100 bg-amber-50 p-4 text-sm font-semibold text-amber-800">
+        <div className="rounded-xl border border-amber-100 bg-amber-50 p-4 text-sm font-semibold text-amber-800">
           {uploadStatus}
         </div>
       ) : null}
-      {shouldShowOwnerSelect ? (
-        <Field label="Cliente">
-          <Select name="owner_id" defaultValue={event?.owner_id}>
-            {clients.map((client) => (
-              <option key={client.id} value={client.id}>
-                {client.full_name || client.email}
-              </option>
-            ))}
-          </Select>
-        </Field>
-      ) : null}
-      {showOwner && clients.length === 0 ? (
-        <div className="rounded-md border bg-muted/40 p-4 text-sm text-muted-foreground">
-          No hay clientes internos. El evento quedará asignado a KAIS.
-        </div>
-      ) : null}
 
-      <Field label="Cliente contratante">
-        {businessClients.length > 0 ? (
-          <Select name="client_id" defaultValue={event?.client_id ?? ""}>
-            <option value="">KAIS / sin cliente asociado</option>
-            {businessClients.map((client) => (
-              <option key={client.id} value={client.id}>
-                {client.name}
-              </option>
-            ))}
-          </Select>
-        ) : (
-          <div className="rounded-md border bg-muted/40 p-4 text-sm text-muted-foreground">
-            No hay clientes registrados. El evento quedará asignado a KAIS.
-          </div>
-        )}
-      </Field>
-
-      {templates.length > 0 ? (
-        <Field label="Plantilla de invitacion">
-          <p className="mb-3 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-600 dark:text-amber-400">
-            ⚠️ Los temas premium (sección de abajo) reemplazan completamente el diseño de plantilla. Si seleccionás un tema premium, esta plantilla no afecta el visual de la invitación.
-          </p>
-          <div className="grid gap-3 md:grid-cols-4">
-            {templates.map((template) => (
-              <label key={template.id} className="cursor-pointer rounded-lg border bg-background p-3 transition hover:border-accent">
-                <input
-                  name="template_id"
-                  type="radio"
-                  value={template.id}
-                  defaultChecked={event?.template_id === template.id || (!event?.template_id && template.slug === "rosas-rojas-15")}
-                  className="sr-only peer"
-                />
-                <div
-                  className="aspect-[4/3] rounded-md border border-white/20 bg-gradient-to-br from-neutral-950 via-red-950 to-rose-800 shadow-soft peer-checked:ring-2 peer-checked:ring-accent"
-                  style={{ background: templatePreviewBackground(template.slug, template.config.primary, template.config.secondary) }}
-                />
-                <p className="mt-3 text-sm font-semibold">{template.name}</p>
-                <p className="text-xs text-muted-foreground">{template.category}</p>
-              </label>
-            ))}
-          </div>
-        </Field>
-      ) : null}
-
-      {/* ── Hidden fields for category + theme ───────────────────────────────── */}
+      <input type="hidden" name="template_id" value={event?.template_id ?? ""} />
+      <input type="hidden" name="theme_color" value={event?.theme_color ?? "#111827"} />
       <input type="hidden" name="category_id" value={selectedCategoryId ?? ""} />
       <input type="hidden" name="theme_id" value={selectedThemeId ?? ""} />
+      <input type="hidden" name="visual_decorations" value={JSON.stringify(visualDecorations)} readOnly />
 
-      {/* ── Category + Theme selector ─────────────────────────────────────────── */}
-      {(activeCategories.length > 0 || activeThemes.length > 0) ? (
-        <div className="rounded-xl border bg-background p-5">
-          <p className="text-sm font-bold uppercase tracking-[0.18em] text-accent">Tema de invitación</p>
-          <p className="mt-1 mb-5 text-sm text-muted-foreground">
-            Elige la atmósfera visual de tu invitación. Cada tema preselecciona fuente, fondo y animación.
-          </p>
+      <div className="grid gap-6 xl:grid-cols-2 xl:items-start">
+        <div className="grid gap-6">
+          <FormSection title="Datos principales" description="Informacion base para gestionar el evento.">
+            <div className="grid gap-5 md:grid-cols-2">
+              {shouldShowOwnerSelect ? (
+                <Field label="Cliente interno">
+                  <Select name="owner_id" defaultValue={event?.owner_id}>
+                    {clients.map((client) => (
+                      <option key={client.id} value={client.id}>
+                        {client.full_name || client.email}
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
+              ) : null}
 
-          {/* Category filter pills */}
-          {activeCategories.length > 0 ? (
-            <div className="mb-5 flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => setSelectedCategoryId(null)}
-                className={`rounded-full border px-3 py-1 text-xs font-semibold tracking-wide transition-all ${
-                  !selectedCategoryId
-                    ? "border-accent bg-accent text-accent-foreground shadow-sm"
-                    : "border-border bg-background text-muted-foreground hover:border-accent/50 hover:text-foreground"
-                }`}
-              >
-                Todos
-              </button>
-              {activeCategories.map((cat) => (
-                <button
-                  key={cat.id}
-                  type="button"
-                  onClick={() => setSelectedCategoryId(cat.id)}
-                  className={`rounded-full border px-3 py-1 text-xs font-semibold tracking-wide transition-all ${
-                    selectedCategoryId === cat.id
-                      ? "border-accent bg-accent text-accent-foreground shadow-sm"
-                      : "border-border bg-background text-muted-foreground hover:border-accent/50 hover:text-foreground"
-                  }`}
-                >
-                  {cat.name}
-                </button>
-              ))}
+              {showOwner && clients.length === 0 ? (
+                <div className="rounded-xl border border-[#eadfd2] bg-[#fbf7f0] p-4 text-sm text-muted-foreground md:col-span-2">
+                  No hay clientes internos. El evento quedara asignado a KAIS.
+                </div>
+              ) : null}
+
+              <Field label="Cliente contratante">
+                {businessClients.length > 0 ? (
+                  <Select name="client_id" defaultValue={event?.client_id ?? ""}>
+                    <option value="">KAIS / sin cliente asociado</option>
+                    {businessClients.map((client) => (
+                      <option key={client.id} value={client.id}>
+                        {client.name}
+                      </option>
+                    ))}
+                  </Select>
+                ) : (
+                  <div className="rounded-xl border border-[#eadfd2] bg-[#fbf7f0] p-4 text-sm text-muted-foreground">
+                    No hay clientes registrados. El evento quedara asignado a KAIS.
+                  </div>
+                )}
+              </Field>
+
+              <Field label="Titulo">
+                <Input name="title" defaultValue={event?.title} placeholder="Boda de Ana y Luis" required />
+              </Field>
+
+              <Field label="Estado">
+                <Select name="status" defaultValue={event?.status ?? "borrador"}>
+                  {statuses.map((status) => (
+                    <option key={status} value={status}>
+                      {status}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+
+              <Field label="Tipo de evento">
+                <Select name="event_type" defaultValue={event?.event_type ?? "boda"}>
+                  {eventTypes.map((type) => (
+                    <option key={type} value={type}>
+                      {type}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
             </div>
-          ) : null}
+          </FormSection>
 
-          {/* Theme grid */}
-          {filteredThemes.length > 0 ? (
-            <div className="grid gap-3 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5">
+          <FormSection title="Celebracion" description="Fecha, lugar y datos practicos para los invitados.">
+            <div className="grid gap-5 md:grid-cols-2">
+              <Field label="Nombres de anfitriones">
+                <Input name="hosts_names" defaultValue={event?.hosts_names} placeholder="Ana & Luis" required />
+              </Field>
 
-              {/* "None" card */}
-              <button
-                type="button"
-                onClick={() => setSelectedThemeId(null)}
-                className={`group overflow-hidden rounded-xl border-2 text-left transition-all focus:outline-none ${
-                  !selectedThemeId
-                    ? "border-accent shadow-md"
-                    : "border-border hover:border-accent/40"
-                }`}
-              >
-                <div className="relative flex aspect-[4/3] items-center justify-center bg-muted/30">
-                  <span className="text-2xl text-muted-foreground/30 select-none">∅</span>
-                  {!selectedThemeId && (
-                    <div className="absolute top-2 left-2 flex h-4 w-4 items-center justify-center rounded-full bg-accent">
-                      <svg viewBox="0 0 8 8" className="h-2.5 w-2.5 text-accent-foreground" fill="none" stroke="currentColor" strokeWidth="1.5">
-                        <polyline points="1,4 3,6 7,2" />
-                      </svg>
-                    </div>
-                  )}
-                </div>
-                <div className="px-3 py-2">
-                  <p className="text-xs font-semibold text-muted-foreground">Sin tema</p>
-                  <p className="mt-0.5 text-[10px] text-muted-foreground/60">Diseño personalizado</p>
-                </div>
-              </button>
+              <Field label="Fecha">
+                <Input name="event_date" type="date" defaultValue={event?.event_date} required />
+              </Field>
 
-              {filteredThemes.map((theme) => {
-                const preview = getThemePreview(theme.slug);
-                const isSelected = selectedThemeId === theme.id;
-                return (
+              <Field label="Hora">
+                <Input name="event_time" type="time" defaultValue={event?.event_time} required />
+              </Field>
+
+              <div className="md:col-span-2">
+                <Field label="Direccion">
+                  <Input name="address" defaultValue={event?.address} placeholder="Salon, ciudad, pais" required />
+                </Field>
+              </div>
+
+              <Field label="Google Maps">
+                <Input name="google_maps_link" defaultValue={event?.google_maps_link ?? ""} placeholder="https://maps.google.com/..." />
+              </Field>
+            </div>
+          </FormSection>
+
+          <FormSection title="Contenido" description="Texto emocional y detalles para los invitados.">
+            <div className="grid gap-5">
+              <Field label="Mensaje principal">
+                <Textarea name="main_message" defaultValue={event?.main_message ?? ""} placeholder="Una frase especial para tus invitados" />
+              </Field>
+              <Field label="Codigo de vestimenta">
+                <Input name="dress_code" defaultValue={event?.dress_code ?? ""} placeholder="Elegante sport" />
+              </Field>
+            </div>
+          </FormSection>
+
+          <FormSection title="Multimedia" description="Portadas y musica del evento.">
+            <div className="grid gap-5 md:grid-cols-2">
+              <Field label="URL portada">
+                <Input name="cover_image_url" defaultValue={event?.cover_image_url ?? ""} placeholder="https://..." />
+              </Field>
+              <Field label="Foto de portada" hint="JPG/PNG/WEBP maximo 5MB. Si pesa mas, comprime la imagen antes de subirla.">
+                <Input name="cover_image_file" type="file" accept="image/jpeg,image/png,image/webp" />
+              </Field>
+              <Field label="Portada movil" hint="JPG/PNG/WEBP maximo 5MB. Usa una imagen vertical y comprimida para mejor carga movil.">
+                <Input name="mobile_cover_image_url" defaultValue={event?.mobile_cover_image_url ?? ""} placeholder="https://..." />
+                <Input name="mobile_cover_image_file" type="file" accept="image/jpeg,image/png,image/webp" />
+              </Field>
+              <div className="flex flex-col gap-3 md:col-span-2 md:items-end">
+                <Button type="button" variant="outline" className="w-full border-accent/40 sm:w-fit" disabled={!event?.id || isSavingCover} onClick={handleSaveCoverOnly}>
+                  {!event?.id ? "Guarda el evento primero" : isSavingCover ? "Guardando..." : "Guardar portada"}
+                </Button>
+                {coverToast ? (
+                  <div className="rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-center text-xs font-semibold text-emerald-800 sm:w-fit">
+                    {coverToast}
+                  </div>
+                ) : null}
+              </div>
+              <div className="md:col-span-2">
+                <Field label="Musica opcional" hint="MP3/WAV/OGG maximo 10MB. Si pesa mas, usa un enlace o comprime el audio.">
+                  <Input name="music_url" defaultValue={event?.music_url ?? ""} placeholder="https://..." />
+                  <Input name="music_file" type="file" accept=".mp3,.wav,.ogg,audio/mpeg,audio/wav,audio/ogg" />
+                </Field>
+              </div>
+              <div className="flex flex-col gap-3 md:col-span-2 md:items-end">
+                <Button type="button" variant="outline" className="w-full border-accent/40 sm:w-fit" disabled={!event?.id || isSavingMusic} onClick={handleSaveMusicOnly}>
+                  {!event?.id ? "Guarda el evento primero" : isSavingMusic ? "Guardando..." : "Guardar musica"}
+                </Button>
+                {musicToast ? (
+                  <div className="rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-center text-xs font-semibold text-emerald-800 sm:w-fit">
+                    {musicToast}
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          </FormSection>
+
+          <FormSection title="RSVP" description="Modo de confirmacion para invitados.">
+            <Field label="Modo de RSVP">
+              <Select name="guest_mode" defaultValue={event?.guest_mode ?? "publico"}>
+                {guestModes.map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          </FormSection>
+
+        </div>
+
+        <div className="grid gap-6">
+          {(activeCategories.length > 0 || activeThemes.length > 0) ? (
+            <FormSection title="Tema visual" description="Sistema visual principal. Reemplaza la seleccion antigua de plantilla.">
+              {activeCategories.length > 0 ? (
+                <div className="mb-5 flex flex-wrap gap-2">
                   <button
-                    key={theme.id}
                     type="button"
-                    onClick={() => handleThemeSelect(theme)}
-                    className={`group overflow-hidden rounded-xl border-2 text-left transition-all focus:outline-none ${
-                      isSelected
-                        ? "border-accent shadow-lg"
-                        : "border-border hover:border-accent/40 hover:shadow-md"
+                    onClick={() => setSelectedCategoryId(null)}
+                    className={`rounded-full border px-3 py-1 text-xs font-semibold tracking-wide transition-all ${
+                      !selectedCategoryId
+                        ? "border-accent bg-accent text-accent-foreground shadow-sm"
+                        : "border-[#eadfd2] bg-white text-muted-foreground hover:border-accent/50 hover:text-foreground"
                     }`}
-                    style={isSelected ? { boxShadow: `0 4px 20px ${preview.accentColor}33` } : undefined}
                   >
-                    {/* ── Preview area ── */}
-                    <div
-                      className="relative flex aspect-[4/3] items-center justify-center overflow-hidden"
-                      style={{ background: preview.gradient }}
+                    Todos
+                  </button>
+                  {activeCategories.map((cat) => (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => setSelectedCategoryId(cat.id)}
+                      className={`rounded-full border px-3 py-1 text-xs font-semibold tracking-wide transition-all ${
+                        selectedCategoryId === cat.id
+                          ? "border-accent bg-accent text-accent-foreground shadow-sm"
+                          : "border-[#eadfd2] bg-white text-muted-foreground hover:border-accent/50 hover:text-foreground"
+                      }`}
                     >
-                      {/* Shimmer overlay */}
-                      {preview.shimmer ? (
-                        <div className="absolute inset-0 pointer-events-none" style={{ background: preview.shimmer }} />
-                      ) : null}
+                      {cat.name}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
 
-                      {/* Focal icon */}
-                      <span
-                        className="relative z-10 select-none text-5xl drop-shadow-xl transition-transform duration-300 group-hover:scale-110"
-                        style={{ filter: `drop-shadow(0 0 8px ${preview.accentColor}88)` }}
-                      >
-                        {preview.icon}
-                      </span>
-
-                      {/* Horizontal accent lines at bottom */}
-                      <div className="absolute bottom-3 left-1/2 z-10 flex -translate-x-1/2 flex-col items-center gap-0.5">
-                        <div className="h-px w-10 opacity-70" style={{ background: preview.accentColor }} />
-                        <div className="h-px w-5 opacity-40" style={{ background: preview.accentColor }} />
-                      </div>
-
-                      {/* Premium badge */}
-                      {theme.is_premium ? (
-                        <div
-                          className="absolute top-2 right-2 z-10 rounded-full px-1.5 py-0.5 text-[8px] font-bold tracking-widest uppercase"
-                          style={{
-                            background: `${preview.accentColor}22`,
-                            color: preview.accentColor,
-                            border: `1px solid ${preview.accentColor}55`,
-                            backdropFilter: "blur(4px)",
-                          }}
-                        >
-                          PREMIUM
-                        </div>
-                      ) : null}
-
-                      {/* Selected checkmark */}
-                      {isSelected ? (
-                        <div className="absolute top-2 left-2 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-accent shadow">
-                          <svg viewBox="0 0 8 8" className="h-3 w-3 text-accent-foreground" fill="none" stroke="currentColor" strokeWidth="1.5">
-                            <polyline points="1,4 3,6 7,2" />
-                          </svg>
-                        </div>
-                      ) : null}
+              {filteredThemes.length > 0 ? (
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedThemeId(null)}
+                    className={`group overflow-hidden rounded-2xl border-2 bg-white text-left transition-all focus:outline-none ${
+                      !selectedThemeId ? "border-accent shadow-lg" : "border-[#eadfd2] hover:border-accent/50 hover:shadow-md"
+                    }`}
+                  >
+                    <div className="relative flex aspect-[16/10] items-center justify-center bg-gradient-to-br from-[#fffaf3] to-[#eadfd2]">
+                      <span className="select-none text-3xl font-display text-muted-foreground/35">Original</span>
+                      {!selectedThemeId ? <SelectedBadge /> : null}
                     </div>
-
-                    {/* ── Info area ── */}
-                    <div className="px-3 py-2.5">
-                      <p className="text-xs font-bold leading-tight">{theme.name}</p>
-                      {theme.description ? (
-                        <p className="mt-0.5 line-clamp-2 text-[10px] leading-snug text-muted-foreground">
-                          {theme.description}
-                        </p>
-                      ) : null}
+                    <div className="px-4 py-3">
+                      <p className="text-sm font-bold">Sin tema</p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">Diseno personalizado</p>
                     </div>
                   </button>
-                );
-              })}
+
+                  {filteredThemes.map((theme) => {
+                    const preview = getThemePreview(theme.slug);
+                    const isSelected = selectedThemeId === theme.id;
+
+                    return (
+                      <button
+                        key={theme.id}
+                        type="button"
+                        onClick={() => handleThemeSelect(theme)}
+                        className={`group overflow-hidden rounded-2xl border-2 bg-white text-left transition-all focus:outline-none ${
+                          isSelected ? "border-accent shadow-lg" : "border-[#eadfd2] hover:border-accent/50 hover:shadow-md"
+                        }`}
+                        style={isSelected ? { boxShadow: `0 8px 30px ${preview.accentColor}30` } : undefined}
+                      >
+                        <div className="relative flex aspect-[16/10] items-center justify-center overflow-hidden" style={{ background: preview.gradient }}>
+                          {preview.shimmer ? <div className="pointer-events-none absolute inset-0" style={{ background: preview.shimmer }} /> : null}
+                          <span
+                            className="relative z-10 select-none text-5xl drop-shadow-xl transition-transform duration-300 group-hover:scale-110"
+                            style={{ filter: `drop-shadow(0 0 8px ${preview.accentColor}88)` }}
+                          >
+                            {preview.icon}
+                          </span>
+                          <div className="absolute bottom-3 left-1/2 z-10 flex -translate-x-1/2 flex-col items-center gap-0.5">
+                            <div className="h-px w-10 opacity-70" style={{ background: preview.accentColor }} />
+                            <div className="h-px w-5 opacity-40" style={{ background: preview.accentColor }} />
+                          </div>
+                          {theme.is_premium ? (
+                            <div
+                              className="absolute right-2 top-2 z-10 rounded-full px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-widest"
+                              style={{
+                                background: `${preview.accentColor}22`,
+                                color: preview.accentColor,
+                                border: `1px solid ${preview.accentColor}55`,
+                                backdropFilter: "blur(4px)"
+                              }}
+                            >
+                              Premium
+                            </div>
+                          ) : null}
+                          {isSelected ? <SelectedBadge /> : null}
+                        </div>
+                        <div className="px-4 py-3">
+                          <p className="text-sm font-bold leading-tight">{theme.name}</p>
+                          {theme.description ? (
+                            <p className="mt-1 line-clamp-2 text-xs leading-snug text-muted-foreground">{theme.description}</p>
+                          ) : null}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">No hay temas disponibles para esta categoria.</p>
+              )}
+              <div className="mt-5 flex flex-col items-stretch gap-3 sm:items-end">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full border-accent/40 sm:w-fit"
+                  disabled={!event?.id || isSavingTheme}
+                  onClick={handleApplyThemeOnly}
+                >
+                  {!event?.id ? "Guarda el evento primero" : isSavingTheme ? "Guardando..." : "Aplicar tema"}
+                </Button>
+                {themeToast ? (
+                  <div className="rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-center text-xs font-semibold text-emerald-800 sm:w-fit">
+                    {themeToast}
+                  </div>
+                ) : null}
+              </div>
+            </FormSection>
+          ) : null}
+
+          <FormSection title="Decoracion libre" description="Ubica ornamentos manualmente dentro de una seccion de la invitacion.">
+            <div className="mb-5 rounded-xl border border-[#eadfd2] bg-[#fbf7f0] px-4 py-3 text-xs leading-5 text-muted-foreground">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <span>Configura posiciones independientes para desktop y mobile.</span>
+                <div className="flex flex-wrap gap-2">
+                  {visualDecorationDevices.map(([device, label]) => (
+                    <button
+                      key={device}
+                      type="button"
+                      onClick={() => setActiveDecorationDevice(device)}
+                      className={`rounded-full border px-3 py-1 text-xs font-bold transition ${
+                        activeDecorationDevice === device
+                          ? "border-accent bg-accent text-accent-foreground"
+                          : "border-[#d8c7b5] bg-white text-muted-foreground hover:border-accent/50"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:justify-end">
+                <Button type="button" variant="outline" className="border-accent/40 sm:w-fit" onClick={() => addVisualDecoration("desktop")}>
+                  Agregar decoracion desktop
+                </Button>
+                <Button type="button" variant="outline" className="border-accent/40 sm:w-fit" onClick={() => addVisualDecoration("mobile")}>
+                  Agregar decoracion mobile
+                </Button>
+              </div>
             </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">No hay temas disponibles para esta categoría.</p>
-          )}
+
+            {activeDeviceDecorations.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-[#d8c7b5] bg-white/70 p-6 text-center text-sm text-muted-foreground">
+                No hay decoraciones para {activeDecorationDevice === "desktop" ? "desktop" : "mobile"}.
+              </div>
+            ) : (
+              <div className="grid gap-4">
+                {activeDeviceDecorations.map((decoration, index) => (
+                  <FreeDecorationEditor
+                    key={decoration.id}
+                    decoration={decoration}
+                    index={index}
+                    onChange={(patch) => updateVisualDecoration(decoration.id, patch)}
+                    onRemove={() => removeVisualDecoration(decoration.id)}
+                  />
+                ))}
+              </div>
+            )}
+
+            <div className="mt-5 flex justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full border-accent/40 sm:w-fit"
+                disabled={isSavingVisualDecorations}
+                onClick={handleSaveVisualDecorationsOnly}
+              >
+                {isSavingVisualDecorations ? "Guardando..." : "Guardar decoracion libre"}
+              </Button>
+            </div>
+            {visualDecorationToast ? (
+              <div className="mt-4 rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-center text-xs font-semibold text-emerald-800 sm:ml-auto sm:w-fit">
+                {visualDecorationToast}
+              </div>
+            ) : null}
+          </FormSection>
+
+          <details className="group rounded-2xl border border-[#eadfd2] bg-white p-5 shadow-[0_18px_45px_rgba(74,23,36,0.06)]">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-4">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-accent">Personalizacion avanzada (opcional)</p>
+                <p className="mt-1 text-sm text-muted-foreground">Fuente, fondo, animacion y decoracion fina.</p>
+              </div>
+              <span className="rounded-full border border-[#eadfd2] px-3 py-1 text-xs font-semibold text-muted-foreground transition group-open:bg-[#fbf7f0]">
+                Abrir
+              </span>
+            </summary>
+            <div className="mt-5 border-t border-[#eadfd2] pt-5">
+              <div className="mb-4 flex justify-end">
+                <Button type="button" variant="outline" className="w-full border-accent/40 sm:w-fit" onClick={(e) => restoreDefaultDesign(e.currentTarget.form)}>
+                  Restaurar diseno original
+                </Button>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field label="Fuente">
+                  <Select name="design_font_preset" defaultValue={designConfig.fontPreset}>
+                    <option value="default">Original</option>
+                    <option value="romantic-script">Romantica</option>
+                    <option value="luxury-serif">Luxury Serif</option>
+                    <option value="royal-classic">Royal Classic</option>
+                    <option value="modern-chic">Moderna Chic</option>
+                  </Select>
+                </Field>
+                <Field label="Fondo">
+                  <Select name="design_background_variant" defaultValue={designConfig.backgroundVariant}>
+                    <option value="default">Original</option>
+                    <option value="dark-roses">Rosas oscuras</option>
+                    <option value="satin-red">Rojo satinado</option>
+                    <option value="gold-glow">Brillo dorado</option>
+                    <option value="romantic-floral">Floral romantico</option>
+                  </Select>
+                </Field>
+                <Field label="Animacion">
+                  <Select name="design_animation_preset" defaultValue={designConfig.animationPreset}>
+                    <option value="none">Sin animacion</option>
+                    <option value="soft-petals">Petalos suaves</option>
+                    <option value="gold-sparkles">Brillos dorados</option>
+                    <option value="elegant-glow">Glow elegante</option>
+                  </Select>
+                </Field>
+                <Field label="Detalles decorativos">
+                  <Select name="design_decoration_level" defaultValue={designConfig.decorationLevel}>
+                    <option value="minimal">Original</option>
+                    <option value="medium">Medio</option>
+                    <option value="premium">Premium</option>
+                  </Select>
+                </Field>
+                <Field label="Preset decorativo">
+                  <Select name="design_decoration_preset" defaultValue={designConfig.decorationPreset ?? "none"}>
+                    <option value="none">Sin decoracion</option>
+                    <option value="luxury-gold">Luxury Gold</option>
+                    <option value="floral-romance">Floral Romance</option>
+                    <option value="royal-classic">Royal Classic</option>
+                    <option value="minimal-chic">Minimal Chic</option>
+                    <option value="kids-fantasy">Kids Fantasy</option>
+                  </Select>
+                </Field>
+              </div>
+            </div>
+          </details>
         </div>
-      ) : null}
-
-      <div className="rounded-lg border bg-background p-4">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="text-sm font-bold uppercase tracking-[0.18em] text-accent">Diseño de invitación</p>
-            <p className="mt-1 text-sm text-muted-foreground">Personaliza la apariencia premium de la invitacion.</p>
-          </div>
-          <Button type="button" variant="outline" className="w-full border-accent/40 sm:w-fit" onClick={(e) => restoreDefaultDesign(e.currentTarget.form)}>
-            Restaurar diseño original
-          </Button>
-        </div>
-        <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-          <Field label="Fuente">
-            <Select name="design_font_preset" defaultValue={designConfig.fontPreset}>
-              <option value="default">Default</option>
-              <option value="romantic-script">Romantic Script</option>
-              <option value="luxury-serif">Luxury Serif</option>
-              <option value="royal-classic">Royal Classic</option>
-              <option value="modern-chic">Modern Chic</option>
-            </Select>
-          </Field>
-          <Field label="Fondo">
-            <Select name="design_background_variant" defaultValue={designConfig.backgroundVariant}>
-              <option value="default">Default</option>
-              <option value="dark-roses">Dark Roses</option>
-              <option value="satin-red">Satin Red</option>
-              <option value="gold-glow">Gold Glow</option>
-              <option value="romantic-floral">Romantic Floral</option>
-            </Select>
-          </Field>
-          <Field label="Animación">
-            <Select name="design_animation_preset" defaultValue={designConfig.animationPreset}>
-              <option value="none">Ninguna</option>
-              <option value="soft-petals">Soft Petals</option>
-              <option value="gold-sparkles">Gold Sparkles</option>
-              <option value="elegant-glow">Elegant Glow</option>
-            </Select>
-          </Field>
-          <Field label="Detalles decorativos">
-            <Select name="design_decoration_level" defaultValue={designConfig.decorationLevel}>
-              <option value="minimal">Minimal</option>
-              <option value="medium">Medium</option>
-              <option value="premium">Premium</option>
-            </Select>
-          </Field>
-          <Field label="Decoración visual">
-            <Select name="design_decoration_preset" defaultValue={designConfig.decorationPreset ?? "none"}>
-              <option value="none">Sin decoración</option>
-              <option value="luxury-gold">✦ Luxury Gold</option>
-              <option value="floral-romance">❧ Floral Romance</option>
-              <option value="royal-classic">♛ Royal Classic</option>
-              <option value="minimal-chic">— Minimal Chic</option>
-              <option value="kids-fantasy">★ Kids Fantasy</option>
-            </Select>
-          </Field>
-        </div>
       </div>
 
-      <div className="grid gap-5 md:grid-cols-2">
-        <Field label="Título">
-          <Input name="title" defaultValue={event?.title} placeholder="Boda de Ana y Luis" required />
-        </Field>
-        <Field label="Tipo de evento">
-          <Select name="event_type" defaultValue={event?.event_type ?? "boda"}>
-            {eventTypes.map((type) => (
-              <option key={type} value={type}>
-                {type}
-              </option>
-            ))}
-          </Select>
-        </Field>
-      </div>
-
-      <Field label="Nombres de anfitriones">
-        <Input name="hosts_names" defaultValue={event?.hosts_names} placeholder="Ana & Luis" required />
-      </Field>
-
-      <div className="grid gap-5 md:grid-cols-2">
-        <Field label="Fecha">
-          <Input name="event_date" type="date" defaultValue={event?.event_date} required />
-        </Field>
-        <Field label="Hora">
-          <Input name="event_time" type="time" defaultValue={event?.event_time} required />
-        </Field>
-      </div>
-
-      <Field label="Dirección">
-        <Input name="address" defaultValue={event?.address} placeholder="Salón, ciudad, país" required />
-      </Field>
-
-      <div className="grid gap-5 md:grid-cols-2">
-        <Field label="Google Maps">
-          <Input name="google_maps_link" defaultValue={event?.google_maps_link ?? ""} placeholder="https://maps.google.com/..." />
-        </Field>
-        <Field label="Código de vestimenta">
-          <Input name="dress_code" defaultValue={event?.dress_code ?? ""} placeholder="Elegante sport" />
-        </Field>
-      </div>
-
-      <Field label="Mensaje principal">
-        <Textarea name="main_message" defaultValue={event?.main_message ?? ""} placeholder="Una frase especial para tus invitados" />
-      </Field>
-
-      <div className="grid gap-5 md:grid-cols-3">
-        <Field label="URL portada">
-          <Input name="cover_image_url" defaultValue={event?.cover_image_url ?? ""} placeholder="https://..." />
-        </Field>
-        <Field label="Foto de portada" hint="JPG/PNG/WEBP máximo 5MB. Si pesa más, comprime la imagen antes de subirla.">
-          <Input name="cover_image_file" type="file" accept="image/jpeg,image/png,image/webp" />
-        </Field>
-        <Field label="Portada móvil" hint="JPG/PNG/WEBP máximo 5MB. Usa una imagen vertical y comprimida para mejor carga móvil.">
-          <Input name="mobile_cover_image_url" defaultValue={event?.mobile_cover_image_url ?? ""} placeholder="https://..." />
-          <Input name="mobile_cover_image_file" type="file" accept="image/jpeg,image/png,image/webp" />
-        </Field>
-        <Field
-          label="Música opcional"
-          hint="MP3/WAV/OGG máximo 10MB. Si pesa más, usa un enlace o comprime el audio."
-        >
-          <Input name="music_url" defaultValue={event?.music_url ?? ""} placeholder="https://..." />
-          <Input name="music_file" type="file" accept=".mp3,.wav,.ogg,audio/mpeg,audio/wav,audio/ogg" />
-        </Field>
-        <Field label="Color tema">
-          <Input name="theme_color" type="color" defaultValue={event?.theme_color ?? "#111827"} />
-        </Field>
-      </div>
-
-      <Field label="Estado">
-        <Select name="status" defaultValue={event?.status ?? "borrador"}>
-          {statuses.map((status) => (
-            <option key={status} value={status}>
-              {status}
-            </option>
-          ))}
-        </Select>
-      </Field>
-
-      <Field label="Modo de RSVP">
-        <Select name="guest_mode" defaultValue={event?.guest_mode ?? "publico"}>
-          {guestModes.map(([value, label]) => (
-            <option key={value} value={value}>
-              {label}
-            </option>
-          ))}
-        </Select>
-      </Field>
-
-      <Button className="w-full sm:w-fit">
+      <Button className="w-full rounded-xl py-6 text-base shadow-[0_16px_32px_rgba(74,23,36,0.18)] sm:w-fit">
         <Save className="h-4 w-4" />
         {isUploading ? "Subiendo archivos..." : "Guardar evento"}
       </Button>
@@ -491,24 +783,264 @@ export function EventForm({ action, event, clients = [], businessClients = [], t
   );
 }
 
+function FreeDecorationEditor({
+  decoration,
+  index,
+  onChange,
+  onRemove
+}: {
+  decoration: VisualDecoration;
+  index: number;
+  onChange: (patch: Partial<VisualDecoration>) => void;
+  onRemove: () => void;
+}) {
+  const selectedPresetColor = glowColorOptions.some(([value]) => value === decoration.glowColor)
+    ? decoration.glowColor
+    : "custom";
+
+  return (
+    <div className="rounded-2xl border border-[#eadfd2] bg-[#fffaf3] p-4">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
+        <div className="flex min-h-36 items-center justify-center overflow-hidden rounded-xl border border-[#eadfd2] bg-[linear-gradient(45deg,#f7efe4_25%,transparent_25%),linear-gradient(-45deg,#f7efe4_25%,transparent_25%),linear-gradient(45deg,transparent_75%,#f7efe4_75%),linear-gradient(-45deg,transparent_75%,#f7efe4_75%)] bg-[length:18px_18px] bg-[position:0_0,0_9px,9px_-9px,-9px_0px] p-4 lg:w-40">
+          {decoration.url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={decoration.url}
+              alt=""
+              className="max-h-28 max-w-full object-contain"
+              style={{ opacity: decoration.opacity, transform: `rotate(${decoration.rotate}deg)` }}
+            />
+          ) : (
+            <span className="text-center text-xs text-muted-foreground">Preview PNG/WebP</span>
+          )}
+        </div>
+
+        <div className="grid flex-1 gap-4">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="text-sm font-semibold text-[#3b1721]">Decoracion libre {index + 1}</p>
+                <span className="rounded-full border border-[#d4af37]/30 bg-white px-2 py-0.5 text-[0.62rem] font-bold uppercase tracking-[0.14em] text-[#6d1f32]">
+                  {decoration.device}
+                </span>
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">PNG/WebP transparente, maximo 5MB.</p>
+            </div>
+            <button
+              type="button"
+              onClick={onRemove}
+              className="rounded-full border border-[#d4af37]/35 px-3 py-1 text-xs font-semibold text-[#6d1f32] transition hover:bg-white"
+            >
+              Eliminar
+            </button>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <Field label="Imagen PNG/WebP">
+              <Input name={getVisualDecorationFileInputName(decoration.id)} type="file" accept="image/png,image/webp" />
+              {decoration.url ? (
+                <Input
+                  className="mt-2"
+                  value={decoration.url}
+                  onChange={(event) => onChange({ url: event.currentTarget.value })}
+                  placeholder="URL publica"
+                />
+              ) : null}
+            </Field>
+
+            <Field label="Seccion">
+              <Select
+                value={decoration.section}
+                onChange={(event) => onChange({ section: event.currentTarget.value as VisualDecorationSection })}
+              >
+                {visualDecorationSections.map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+
+            <RangeField label="Posicion X %" value={decoration.x} min={0} max={100} step={1} onChange={(x) => onChange({ x })} />
+            <RangeField label="Posicion Y %" value={decoration.y} min={0} max={100} step={1} onChange={(y) => onChange({ y })} />
+            <RangeField label="Tamano px" value={decoration.width} min={40} max={900} step={10} onChange={(width) => onChange({ width })} />
+            <RangeField label="Opacidad" value={decoration.opacity} min={0} max={1} step={0.05} onChange={(opacity) => onChange({ opacity })} />
+            <RangeField label="Rotacion" value={decoration.rotate} min={-180} max={180} step={1} onChange={(rotate) => onChange({ rotate })} />
+            <Field label="Efecto">
+              <Select
+                value={decoration.effect}
+                onChange={(event) => onChange({ effect: event.currentTarget.value as VisualDecoration["effect"] })}
+              >
+                {decorationEffects.map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field label="Color glow">
+              <Select
+                value={selectedPresetColor}
+                onChange={(event) => {
+                  const value = event.currentTarget.value;
+                  onChange({ glowColor: value === "custom" ? "#f4d27b" : value });
+                }}
+              >
+                {glowColorOptions.map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </Select>
+              {selectedPresetColor === "custom" ? (
+                <Input
+                  className="mt-2 h-11"
+                  type="color"
+                  value={decoration.glowColor}
+                  onChange={(event) => onChange({ glowColor: event.currentTarget.value })}
+                />
+              ) : null}
+            </Field>
+            <Field label="Intensidad glow">
+              <Select
+                value={decoration.glowStrength}
+                onChange={(event) => onChange({ glowStrength: event.currentTarget.value as VisualDecoration["glowStrength"] })}
+              >
+                <option value="low">Baja</option>
+                <option value="medium">Media</option>
+                <option value="high">Alta</option>
+              </Select>
+            </Field>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RangeField({
+  label,
+  value,
+  min,
+  max,
+  step,
+  onChange
+}: {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  step: number;
+  onChange: (value: number) => void;
+}) {
+  return (
+    <label className="grid gap-2">
+      <span className="flex items-center justify-between text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">
+        {label}
+        <span className="font-mono text-[0.68rem] text-[#6d1f32]">{value}</span>
+      </span>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(event) => onChange(Number(event.currentTarget.value))}
+        className="accent-[#6d1f32]"
+      />
+    </label>
+  );
+}
+
+function FormSection({ title, description, children }: { title: string; description?: string; children: ReactNode }) {
+  return (
+    <section className="rounded-2xl border border-[#eadfd2] bg-white p-5 shadow-[0_18px_45px_rgba(74,23,36,0.06)]">
+      <div className="mb-5">
+        <p className="text-xs font-bold uppercase tracking-[0.18em] text-accent">{title}</p>
+        {description ? <p className="mt-1 text-sm text-muted-foreground">{description}</p> : null}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function SelectedBadge() {
+  return (
+    <div className="absolute left-2 top-2 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-accent shadow">
+      <svg viewBox="0 0 8 8" className="h-3 w-3 text-accent-foreground" fill="none" stroke="currentColor" strokeWidth="1.5">
+        <polyline points="1,4 3,6 7,2" />
+      </svg>
+    </div>
+  );
+}
+
 function validateUploads(form: HTMLFormElement) {
   const coverFile = getFile(form, "cover_image_file");
   const mobileCoverFile = getFile(form, "mobile_cover_image_file");
   const musicFile = getFile(form, "music_file");
-  const files = [coverFile, mobileCoverFile, musicFile].filter(Boolean) as File[];
+  const freeDecorationFiles = getVisualDecorationFiles(form);
+  const files = [
+    coverFile,
+    mobileCoverFile,
+    musicFile,
+    ...freeDecorationFiles.map((item) => item.file)
+  ].filter(Boolean) as File[];
   const totalSize = files.reduce((sum, file) => sum + file.size, 0);
 
   const coverError = validateFile(coverFile, "La portada desktop", MAX_COVER_FILE_SIZE, ALLOWED_COVER_EXTENSIONS);
   if (coverError) return coverError;
 
-  const mobileCoverError = validateFile(mobileCoverFile, "La portada móvil", MAX_COVER_FILE_SIZE, ALLOWED_COVER_EXTENSIONS);
+  const mobileCoverError = validateFile(mobileCoverFile, "La portada movil", MAX_COVER_FILE_SIZE, ALLOWED_COVER_EXTENSIONS);
   if (mobileCoverError) return mobileCoverError;
 
-  const musicError = validateFile(musicFile, "La música", MAX_AUDIO_FILE_SIZE, ALLOWED_AUDIO_EXTENSIONS);
+  const musicError = validateFile(musicFile, "La musica", MAX_AUDIO_FILE_SIZE, ALLOWED_AUDIO_EXTENSIONS);
   if (musicError) return musicError;
 
+  for (const { file, label } of freeDecorationFiles) {
+    const decorationError = validateFile(file, label, MAX_DECORATION_FILE_SIZE, ALLOWED_DECORATION_EXTENSIONS);
+    if (decorationError) return decorationError;
+  }
+
   if (totalSize > MAX_TOTAL_UPLOAD_SIZE) {
-    return "Los archivos seleccionados no deben superar 20MB en total. Comprime imágenes/audio o sube menos archivos a la vez.";
+    return "Los archivos seleccionados no deben superar 20MB en total. Comprime imagenes/audio o sube menos archivos a la vez.";
+  }
+
+  return "";
+}
+
+function validateCoverUploads(form: HTMLFormElement) {
+  const coverFile = getFile(form, "cover_image_file");
+  const mobileCoverFile = getFile(form, "mobile_cover_image_file");
+  const totalSize = [coverFile, mobileCoverFile].filter(Boolean).reduce((sum, file) => sum + (file?.size ?? 0), 0);
+
+  const coverError = validateFile(coverFile, "La portada desktop", MAX_COVER_FILE_SIZE, ALLOWED_COVER_EXTENSIONS);
+  if (coverError) return coverError;
+
+  const mobileCoverError = validateFile(mobileCoverFile, "La portada movil", MAX_COVER_FILE_SIZE, ALLOWED_COVER_EXTENSIONS);
+  if (mobileCoverError) return mobileCoverError;
+
+  if (totalSize > MAX_TOTAL_UPLOAD_SIZE) {
+    return "Las portadas seleccionadas no deben superar 20MB en total.";
+  }
+
+  return "";
+}
+
+function validateMusicUpload(form: HTMLFormElement) {
+  return validateFile(getFile(form, "music_file"), "La musica", MAX_AUDIO_FILE_SIZE, ALLOWED_AUDIO_EXTENSIONS);
+}
+
+function validateVisualDecorationUploads(form: HTMLFormElement) {
+  const freeDecorationFiles = getVisualDecorationFiles(form);
+  const totalSize = freeDecorationFiles.reduce((sum, item) => sum + item.file.size, 0);
+
+  for (const { file, label } of freeDecorationFiles) {
+    const decorationError = validateFile(file, label, MAX_DECORATION_FILE_SIZE, ALLOWED_DECORATION_EXTENSIONS);
+    if (decorationError) return decorationError;
+  }
+
+  if (totalSize > MAX_TOTAL_UPLOAD_SIZE) {
+    return "Las decoraciones seleccionadas no deben superar 20MB en total.";
   }
 
   return "";
@@ -520,7 +1052,12 @@ function getFile(form: HTMLFormElement, name: string) {
 }
 
 function hasPendingUploads(form: HTMLFormElement) {
-  return Boolean(getFile(form, "cover_image_file") || getFile(form, "mobile_cover_image_file") || getFile(form, "music_file"));
+  return Boolean(
+    getFile(form, "cover_image_file") ||
+    getFile(form, "mobile_cover_image_file") ||
+    getFile(form, "music_file") ||
+    getVisualDecorationFiles(form).length > 0
+  );
 }
 
 function restoreDefaultDesign(form: HTMLFormElement | null) {
@@ -544,12 +1081,13 @@ async function uploadFilesToSupabase(form: HTMLFormElement, setStatus: (status: 
   } = await supabase.auth.getUser();
 
   if (userError || !user) {
-    throw new Error("Tu sesión expiró. Inicia sesión nuevamente antes de subir archivos.");
+    throw new Error("Tu sesion expiro. Inicia sesion nuevamente antes de subir archivos.");
   }
 
   const coverFile = getFile(form, "cover_image_file");
   const mobileCoverFile = getFile(form, "mobile_cover_image_file");
   const musicFile = getFile(form, "music_file");
+  const freeDecorationFiles = getVisualDecorationFiles(form);
 
   if (coverFile) {
     setStatus("Subiendo portada desktop a Supabase Storage...");
@@ -563,7 +1101,7 @@ async function uploadFilesToSupabase(form: HTMLFormElement, setStatus: (status: 
   }
 
   if (mobileCoverFile) {
-    setStatus("Subiendo portada móvil a Supabase Storage...");
+    setStatus("Subiendo portada movil a Supabase Storage...");
     const publicUrl = await uploadPublicFile({
       bucket: "event-photos",
       file: mobileCoverFile,
@@ -574,7 +1112,7 @@ async function uploadFilesToSupabase(form: HTMLFormElement, setStatus: (status: 
   }
 
   if (musicFile) {
-    setStatus("Subiendo música a Supabase Storage...");
+    setStatus("Subiendo musica a Supabase Storage...");
     const extension = getExtension(musicFile.name);
     const publicUrl = await uploadPublicFile({
       bucket: "event-audio",
@@ -584,6 +1122,130 @@ async function uploadFilesToSupabase(form: HTMLFormElement, setStatus: (status: 
     });
     setInputValue(form, "music_url", publicUrl);
   }
+
+  if (freeDecorationFiles.length > 0) {
+    const visualDecorations = getVisualDecorationStateFromForm(form);
+
+    for (const { id, file, label } of freeDecorationFiles) {
+      setStatus(`Subiendo decoracion libre: ${label}...`);
+      const publicUrl = await uploadPublicFile({
+        bucket: "event-photos",
+        file,
+        path: `decorations/free/${user.id}/${id}/${crypto.randomUUID()}-${sanitizeFileName(file.name)}`,
+        contentType: file.type || getDecorationContentType(file.name)
+      });
+
+      const target = visualDecorations.find((decoration) => decoration.id === id);
+      if (target) target.url = publicUrl;
+    }
+
+    setInputValue(form, "visual_decorations", JSON.stringify(visualDecorations));
+  }
+}
+
+async function uploadCoverFilesToSupabase(form: HTMLFormElement, setStatus: (status: string) => void) {
+  const coverFile = getFile(form, "cover_image_file");
+  const mobileCoverFile = getFile(form, "mobile_cover_image_file");
+  let coverImageUrl = getInputValue(form, "cover_image_url");
+  let mobileCoverImageUrl = getInputValue(form, "mobile_cover_image_url");
+
+  if (!coverFile && !mobileCoverFile) {
+    return { coverImageUrl, mobileCoverImageUrl };
+  }
+
+  const userId = await getCurrentUploadUserId();
+
+  if (coverFile) {
+    setStatus("Subiendo portada desktop a Supabase Storage...");
+    coverImageUrl = await uploadPublicFile({
+      bucket: "event-photos",
+      file: coverFile,
+      path: `covers/direct/${userId}/${crypto.randomUUID()}-${sanitizeFileName(coverFile.name)}`,
+      contentType: coverFile.type || getImageContentType(coverFile.name)
+    });
+    setInputValue(form, "cover_image_url", coverImageUrl);
+  }
+
+  if (mobileCoverFile) {
+    setStatus("Subiendo portada movil a Supabase Storage...");
+    mobileCoverImageUrl = await uploadPublicFile({
+      bucket: "event-photos",
+      file: mobileCoverFile,
+      path: `covers/direct/${userId}/mobile/${crypto.randomUUID()}-${sanitizeFileName(mobileCoverFile.name)}`,
+      contentType: mobileCoverFile.type || getImageContentType(mobileCoverFile.name)
+    });
+    setInputValue(form, "mobile_cover_image_url", mobileCoverImageUrl);
+  }
+
+  return { coverImageUrl, mobileCoverImageUrl };
+}
+
+async function uploadMusicFileToSupabase(form: HTMLFormElement, setStatus: (status: string) => void) {
+  const musicFile = getFile(form, "music_file");
+  let musicUrl = getInputValue(form, "music_url");
+
+  if (!musicFile) {
+    return musicUrl;
+  }
+
+  const userId = await getCurrentUploadUserId();
+  setStatus("Subiendo musica a Supabase Storage...");
+  const extension = getExtension(musicFile.name);
+  musicUrl = await uploadPublicFile({
+    bucket: "event-audio",
+    file: musicFile,
+    path: `${userId}/${crypto.randomUUID()}${extension}`,
+    contentType: musicFile.type || getAudioContentType(extension)
+  });
+  setInputValue(form, "music_url", musicUrl);
+  return musicUrl;
+}
+
+async function uploadVisualDecorationFilesToSupabase(form: HTMLFormElement, setStatus: (status: string) => void) {
+  const freeDecorationFiles = getVisualDecorationFiles(form);
+  const visualDecorations = getVisualDecorationStateFromForm(form);
+
+  if (freeDecorationFiles.length === 0) {
+    return visualDecorations.filter((decoration) => decoration.url);
+  }
+
+  const userId = await getCurrentUploadUserId();
+
+  for (const { id, file, label } of freeDecorationFiles) {
+    setStatus(`Subiendo decoracion libre: ${label}...`);
+    const publicUrl = await uploadPublicFile({
+      bucket: "event-photos",
+      file,
+      path: `decorations/free/${userId}/${id}/${crypto.randomUUID()}-${sanitizeFileName(file.name)}`,
+      contentType: file.type || getDecorationContentType(file.name)
+    });
+
+    const target = visualDecorations.find((decoration) => decoration.id === id);
+    if (target) target.url = publicUrl;
+  }
+
+  const updatedDecorations = visualDecorations.filter((decoration) => decoration.url);
+  setInputValue(form, "visual_decorations", JSON.stringify(updatedDecorations));
+  return updatedDecorations;
+}
+
+async function getCurrentUploadUserId() {
+  const { client: supabase, error: envError } = createClientSupabaseBrowser();
+
+  if (!supabase) {
+    throw new Error(envError ?? "No se pudo inicializar Supabase para subir archivos.");
+  }
+
+  const {
+    data: { user },
+    error: userError
+  } = await supabase.auth.getUser();
+
+  if (userError || !user) {
+    throw new Error("Tu sesion expiro. Inicia sesion nuevamente antes de subir archivos.");
+  }
+
+  return user.id;
 }
 
 async function uploadPublicFile({
@@ -623,11 +1285,136 @@ function setInputValue(form: HTMLFormElement, name: string, value: string) {
   }
 }
 
+function getInputValue(form: HTMLFormElement, name: string) {
+  const el = form.elements.namedItem(name);
+  if (el instanceof HTMLInputElement || el instanceof HTMLSelectElement || el instanceof HTMLTextAreaElement) {
+    return el.value.trim();
+  }
+  return "";
+}
+
+function getDesignConfigStateFromForm(form: HTMLFormElement): Partial<InvitationDesignConfig> {
+  return normalizeInvitationDesignConfig({
+    designConfig: {
+      fontPreset: getInputValue(form, "design_font_preset"),
+      backgroundVariant: getInputValue(form, "design_background_variant"),
+      animationPreset: getInputValue(form, "design_animation_preset"),
+      decorationLevel: getInputValue(form, "design_decoration_level"),
+      decorationPreset: getInputValue(form, "design_decoration_preset")
+    } as Partial<InvitationDesignConfig>
+  });
+}
+
 function clearFileInput(form: HTMLFormElement, name: string) {
   const input = form.elements.namedItem(name);
   if (input instanceof HTMLInputElement) {
     input.value = "";
   }
+}
+
+function getVisualDecorationFiles(form: HTMLFormElement) {
+  return getVisualDecorationStateFromForm(form).flatMap((decoration, index) => {
+    const file = getFile(form, getVisualDecorationFileInputName(decoration.id));
+    return file ? [{ id: decoration.id, label: `Decoracion libre ${index + 1}`, file }] : [];
+  });
+}
+
+function getVisualDecorationStateFromForm(form: HTMLFormElement): VisualDecoration[] {
+  const input = form.elements.namedItem("visual_decorations");
+  const raw = input instanceof HTMLInputElement ? input.value : "[]";
+
+  try {
+    const parsed = JSON.parse(raw);
+    return normalizeVisualDecorationState(parsed);
+  } catch {
+    return [];
+  }
+}
+
+function normalizeVisualDecorationState(value: unknown): VisualDecoration[] {
+  if (!Array.isArray(value)) return [];
+
+  return value.flatMap((item, index) => {
+    const record = item && typeof item === "object" ? item as Record<string, unknown> : {};
+    const base = {
+      id: normalizeString(record.id, `decor-${index + 1}`),
+      url: normalizeString(record.url, ""),
+      section: normalizeSection(record.section),
+      x: clampNumber(record.x, 0, 100, 6),
+      y: clampNumber(record.y, 0, 100, 12),
+      opacity: clampNumber(record.opacity, 0, 1, 0.85),
+      rotate: clampNumber(record.rotate, -180, 180, 0)
+    };
+    const effect = normalizeDecorationEffect(record.effect);
+    const glowColor = normalizeGlowColor(record.glowColor);
+    const glowStrength = normalizeGlowStrength(record.glowStrength);
+
+    if (record.device === "desktop" || record.device === "mobile") {
+      const device = record.device;
+      return [{
+        ...base,
+        device,
+        width: clampNumber(record.width, 40, 900, device === "mobile" ? 110 : 220),
+        effect,
+        glowColor,
+        glowStrength
+      }];
+    }
+
+    const legacyDesktop = record.desktop !== false;
+    const legacyMobile = record.mobile === true;
+    const devices: VisualDecorationDevice[] = legacyMobile && !legacyDesktop
+      ? ["mobile"]
+      : legacyMobile && legacyDesktop
+        ? ["desktop", "mobile"]
+        : ["desktop"];
+
+    return devices.map((device) => ({
+      ...base,
+      id: devices.length > 1 ? `${base.id}-${device}` : base.id,
+      device,
+      width: clampNumber(record.width, 40, 900, device === "mobile" ? 110 : 220),
+      effect,
+      glowColor,
+      glowStrength
+    }));
+  });
+}
+
+function getVisualDecorationFileInputName(id: string) {
+  return `visual_decoration_file_${id}`;
+}
+
+function createDecorationId() {
+  return `decor-${typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : Date.now()}`;
+}
+
+function normalizeSection(value: unknown): VisualDecorationSection {
+  return visualDecorationSections.some(([section]) => section === value) ? value as VisualDecorationSection : "info";
+}
+
+function normalizeString(value: unknown, fallback: string) {
+  return typeof value === "string" ? value : fallback;
+}
+
+function normalizeDecorationEffect(value: unknown): VisualDecoration["effect"] {
+  if (value === "golden_glow") return "glow";
+  return decorationEffects.some(([effect]) => effect === value) ? value as VisualDecoration["effect"] : "none";
+}
+
+function normalizeGlowStrength(value: unknown): VisualDecoration["glowStrength"] {
+  return value === "low" || value === "medium" || value === "high" ? value : "medium";
+}
+
+function normalizeGlowColor(value: unknown) {
+  const text = typeof value === "string" ? value.trim() : "";
+  return /^#[0-9a-f]{6}$/i.test(text) ? text : "#f4d27a";
+}
+
+function clampNumber(value: unknown, min: number, max: number, fallback: number) {
+  const numberValue = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(numberValue)) return fallback;
+  return Math.min(max, Math.max(min, numberValue));
 }
 
 function validateFile(file: File | null, label: string, maxSize: number, allowedExtensions: string[]) {
@@ -661,6 +1448,10 @@ function getImageContentType(fileName: string) {
   return "image/webp";
 }
 
+function getDecorationContentType(fileName: string) {
+  return getExtension(fileName) === ".png" ? "image/png" : "image/webp";
+}
+
 function getAudioContentType(extension: string) {
   if (extension === ".mp3") return "audio/mpeg";
   if (extension === ".wav") return "audio/wav";
@@ -669,12 +1460,4 @@ function getAudioContentType(extension: string) {
 
 function formatBytes(bytes: number) {
   return `${Math.round(bytes / 1024 / 1024)}MB`;
-}
-
-function templatePreviewBackground(slug: string, primary?: string, secondary?: string) {
-  if (slug === "rosas-rojas-15") {
-    return "radial-gradient(circle at 15% 15%, #7f1d1d 0 12%, transparent 13%), linear-gradient(135deg, #170607, #5f0f14 58%, #d4af37)";
-  }
-
-  return `linear-gradient(135deg, ${primary ?? "#111827"}, ${secondary ?? "#e5e7eb"})`;
 }

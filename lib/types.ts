@@ -1,6 +1,34 @@
 export type UserRole = "super_admin" | "admin" | "admin_kais" | "diseñador" | "soporte_evento" | "vendedor" | "cliente";
 export type EventStatus = "borrador" | "publicado" | "inactivo";
 export type GuestMode = "publico" | "lista_invitados";
+export type DecorationSlot =
+  | "top_left"
+  | "top_right"
+  | "bottom_left"
+  | "bottom_right"
+  | "side_left"
+  | "side_right";
+export type EventDecorations = Partial<Record<DecorationSlot, string | null>>;
+export type VisualDecorationSection = "hero" | "info" | "rsvp" | "gallery" | "footer";
+export type VisualDecorationDevice = "desktop" | "mobile";
+export type VisualDecorationEffect = "none" | "glow" | "soft_shadow" | "float" | "pulse";
+export type VisualDecorationGlowStrength = "low" | "medium" | "high";
+export type VisualDecoration = {
+  id: string;
+  url: string;
+  section: VisualDecorationSection;
+  device: VisualDecorationDevice;
+  x: number;
+  y: number;
+  width: number;
+  opacity: number;
+  rotate: number;
+  effect: VisualDecorationEffect;
+  glowColor: string;
+  glowStrength: VisualDecorationGlowStrength;
+  desktop?: boolean;
+  mobile?: boolean;
+};
 export type InvitationFontPreset = "default" | "romantic-script" | "luxury-serif" | "royal-classic" | "modern-chic";
 export type InvitationBackgroundVariant = "default" | "dark-roses" | "satin-red" | "gold-glow" | "romantic-floral";
 export type InvitationAnimationPreset = "none" | "soft-petals" | "gold-sparkles" | "elegant-glow";
@@ -94,6 +122,13 @@ export type Event = {
   cover_image_url: string | null;
   mobile_cover_image_url: string | null;
   music_url: string | null;
+  decoration_top_left: string | null;
+  decoration_top_right: string | null;
+  decoration_bottom_left: string | null;
+  decoration_bottom_right: string | null;
+  decoration_side_left: string | null;
+  decoration_side_right: string | null;
+  visual_decorations: VisualDecoration[] | null;
   design_config: Partial<InvitationDesignConfig> | null;
   theme_color: string;
   status: EventStatus;
@@ -196,4 +231,17 @@ export type DashboardMetrics = {
   published: number;
   rsvps: number;
   visits: number;
+};
+
+export type LivePhoto = {
+  id: string;
+  event_id: string;
+  image_url: string;
+  storage_path: string;
+  guest_name: string | null;
+  guest_message: string | null;
+  approved: boolean;
+  featured: boolean;
+  rejected: boolean;
+  created_at: string;
 };

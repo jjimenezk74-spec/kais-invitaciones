@@ -1,8 +1,10 @@
 import "server-only";
 
+import { cache } from "react";
 import type { User } from "@supabase/supabase-js";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { perfEnd, perfStart } from "@/lib/perf";
 import type { Profile } from "@/lib/types";
 
 export function isKaisAdmin(role?: string | null) {
@@ -25,26 +27,33 @@ export function canModerateEvents(role?: string | null) {
   return isKaisAdmin(role) || role === "soporte_evento";
 }
 
-export async function getCurrentUserProfile() {
+export const getCurrentUserProfile = cache(async function getCurrentUserProfile() {
+  const totalLabel = perfStart("profile-total");
   const supabase = await createClient();
+  const authLabel = perfStart("profile-auth-getUser");
   const {
     data: { user },
     error
   } = await supabase.auth.getUser();
+  perfEnd(authLabel);
 
   if (error || !user) {
+    perfEnd(totalLabel);
     return { user: null, profile: null, error };
   }
 
+  const ensureLabel = perfStart("profile-ensure");
   const profile = await ensureProfileForUser(user);
+  perfEnd(ensureLabel);
+  perfEnd(totalLabel);
   return { user, profile, error: null };
-}
+});
 
 export async function ensureProfileForUser(user: User): Promise<Profile> {
   const supabase = await createClient();
   const { data: existingProfile, error: selectError } = await supabase
     .from("profiles")
-    .select("*")
+    .select("id,full_name,email,role,is_active,created_at")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -67,7 +76,7 @@ export async function ensureProfileForUser(user: User): Promise<Profile> {
 
   try {
     const admin = createAdminClient();
-    const { data, error } = await admin.from("profiles").upsert(payload).select("*").single();
+    const { data, error } = await admin.from("profiles").upsert(payload).select("id,full_name,email,role,is_active,created_at").single();
 
     if (error) {
       throw error;
@@ -82,7 +91,7 @@ export async function ensureProfileForUser(user: User): Promise<Profile> {
     );
   }
 
-  const { data, error } = await supabase.from("profiles").upsert(payload).select("*").single();
+  const { data, error } = await supabase.from("profiles").upsert(payload).select("id,full_name,email,role,is_active,created_at").single();
 
   if (error) {
     throw new Error(
@@ -126,7 +135,7 @@ async function promoteFirstProfileIfNeeded(profile: Profile): Promise<Profile> {
       .from("profiles")
       .update({ role: "super_admin", is_active: true })
       .eq("id", profile.id)
-      .select("*")
+      .select("id,full_name,email,role,is_active,created_at")
       .single();
 
     if (error || !data) {

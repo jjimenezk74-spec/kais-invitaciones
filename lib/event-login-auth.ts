@@ -91,7 +91,7 @@ export async function getEventLoginSession() {
   const admin = createAdminClient();
   const { data: login } = await admin
     .from("event_logins")
-    .select("*")
+    .select("id,event_id,username,password_hash,active,expires_at,last_login_at,created_at,created_by")
     .eq("id", payload.loginId)
     .eq("event_id", payload.eventId)
     .maybeSingle();

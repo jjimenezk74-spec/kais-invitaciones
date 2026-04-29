@@ -2694,3 +2694,16 @@ main.kais-stage.kais-theme-active .kais-grain .text-\[\#d4af37\]\/60 {
   background:  linear-gradient(135deg, var(--kais-upload-accent, #d4af37) 0%, color-mix(in srgb, var(--kais-upload-accent, #d4af37) 75%, #000) 100%) !important;
   box-shadow:  0 8px 28px -8px color-mix(in srgb, var(--kais-upload-accent, #d4af37) 55%, transparent), 0 2px 8px rgba(0,0,0,0.20) !important;
 }
+
+/* Hide native spinner arrows on numeric fields while keeping type="number"
+   for mobile numeric keyboards and browser validation. */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type="number"] {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}

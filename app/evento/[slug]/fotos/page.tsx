@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ImageIcon } from "lucide-react";
+import { PhotoUploadAvailability } from "@/components/photo-upload-availability";
 import { PhotoUploadForm } from "@/components/live-album/photo-upload-form";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { hasEventStarted } from "@/lib/event-time";
 import { absoluteUrl } from "@/lib/utils";
 import type { Event } from "@/lib/types";
 
@@ -22,7 +24,7 @@ export default async function FotosPage({ params }: Props) {
 
   const { data } = await admin
     .from("events")
-    .select("id, slug, hosts_names, event_type, event_date, theme_color, status")
+    .select("id, slug, hosts_names, event_type, event_date, event_time, theme_color, status")
     .eq("slug", slug)
     .maybeSingle();
 
@@ -31,6 +33,10 @@ export default async function FotosPage({ params }: Props) {
 
   if (event.status !== "publicado") {
     return <UploadUnavailable slug={slug} />;
+  }
+
+  if (!hasEventStarted(event.event_date, event.event_time)) {
+    return <UploadLocked event={event} slug={slug} />;
   }
 
   const albumUrl = absoluteUrl(`/evento/${slug}/album`);
@@ -117,6 +123,27 @@ function UploadUnavailable({ slug }: { slug: string }) {
             Volver a la invitacion
           </Link>
         </div>
+      </main>
+    </div>
+  );
+}
+
+function UploadLocked({ event, slug }: { event: Event; slug: string }) {
+  return (
+    <div className="min-h-screen bg-background">
+      <main className="mx-auto flex min-h-screen max-w-lg flex-col items-center justify-center px-5 py-10">
+        <PhotoUploadAvailability
+          date={event.event_date}
+          time={event.event_time}
+          uploadHref={`/evento/${slug}/fotos`}
+          variant="plain"
+        />
+        <Link
+          href={`/evento/${slug}`}
+          className="mt-5 inline-flex rounded-xl border border-border px-5 py-2.5 text-sm font-semibold transition hover:bg-muted"
+        >
+          Volver a la invitacion
+        </Link>
       </main>
     </div>
   );

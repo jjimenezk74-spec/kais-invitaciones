@@ -1,9 +1,10 @@
 import { headers } from "next/headers";
 import Link from "next/link";
-import { CalendarPlus, Camera, MapPin, Send, Eye } from "lucide-react";
-import { submitRsvp, trackVisit, uploadEventPhoto } from "@/app/actions/events";
+import { CalendarPlus, MapPin, Send, Eye } from "lucide-react";
+import { submitRsvp, trackVisit } from "@/app/actions/events";
 import { Countdown } from "@/components/countdown";
 import { BackButton } from "@/components/back-button";
+import { PhotoUploadAvailability } from "@/components/photo-upload-availability";
 import { PhotoUploadQrCard } from "@/components/photo-upload-qr-card";
 import { EventHero } from "@/components/public-invitation/event-hero";
 import { ThemeDecorations } from "@/components/theme-decorations";
@@ -30,6 +31,7 @@ type PageProps = {
     foto?: string | string[];
     foto_error?: string | string[];
     guest?: string | string[];
+    rsvp_attending?: string | string[];
     from?: string | string[];
     preview?: string | string[];
   }>;
@@ -176,7 +178,6 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
   const photos = (photosData ?? []) as EventPhoto[];
 
   const rsvpAction = submitRsvp.bind(null, event.id);
-  const photoAction = uploadEventPhoto.bind(null, event.id, event.slug);
   const photoUploadUrl = absoluteUrl(`/evento/${event.slug}/fotos`);
   const calendarUrl = buildCalendarUrl(event);
   const [template, invitationTheme] = await Promise.all([
@@ -186,9 +187,15 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
 
   const rsvpStatus = normalizeSearchParam(query.rsvp);
   const rsvpError = normalizeSearchParam(query.rsvp_error);
+  const rsvpAttending = normalizeSearchParam(query.rsvp_attending);
   const photoStatus = normalizeSearchParam(query.foto);
   const photoError = normalizeSearchParam(query.foto_error);
   const isConfirmed = Boolean(invitedGuestRsvp) || rsvpStatus === "ok";
+  const confirmedAttending = invitedGuestRsvp
+    ? invitedGuestRsvp.attending
+    : rsvpStatus === "ok"
+      ? rsvpAttending !== "no"
+      : null;
 
   const design = invitationTheme
     ? resolvePremiumThemeDesign(invitationTheme, null, event.design_config)
@@ -434,8 +441,10 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
             <p className="mt-7 max-w-md text-[0.95rem] leading-[1.9] text-[#f5ecd9]/65">
               {isAdminPreview
                 ? "Vista previa - el formulario RSVP es solo lectura en modo administrador."
-                : isConfirmed
-                  ? "Tu asistencia ya fue confirmada. Para realizar cambios, contacta a los anfitriones."
+                : isConfirmed && confirmedAttending === false
+                  ? "Gracias por tu respuesta."
+                  : isConfirmed
+                    ? "Gracias por confirmar tu presencia. Te esperamos con mucha alegria."
                   : invitedGuest
                     ? `Hola ${invitedGuest.guest_name}, podes confirmar tu asistencia.`
                     : "Tu respuesta ayuda a los anfitriones a preparar cada detalle del evento."}
@@ -468,7 +477,20 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
               {isConfirmed && !isAdminPreview ? (
                 <div className="rounded-2xl border border-[#d4af37]/35 bg-[#d4af37]/10 p-4 text-[#f5ecd9]">
                   <p className="text-[0.68rem] font-semibold uppercase tracking-[0.28em] text-[#d4af37]">Confirmacion recibida</p>
-                  <p className="mt-2 text-sm leading-6 text-[#f5ecd9]/72">Tu asistencia ya fue confirmada. Para realizar cambios, contacta a los anfitriones.</p>
+                  <p className="mt-2 text-sm leading-6 text-[#f5ecd9]/72">
+                    {confirmedAttending === false
+                      ? "Gracias por tu respuesta."
+                      : "¡Gracias por confirmar tu presencia! Te esperamos con mucha alegria."}
+                  </p>
+                  <div className="mt-5">
+                    <PhotoUploadAvailability
+                      date={event.event_date}
+                      time={event.event_time}
+                      uploadHref={`/evento/${event.slug}/fotos`}
+                      confirmed
+                      attending={confirmedAttending}
+                    />
+                  </div>
                 </div>
               ) : null}
 
@@ -599,20 +621,13 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
               <p className="mt-6 inline-flex"><span className="kais-status-error">{photoError}</span></p>
             ) : null}
 
-            <form action={photoAction} className="kais-glass mt-9 grid gap-6 rounded-[1.6rem] p-6 sm:p-8">
-              <LuxeField label="Tu nombre">
-                <input name="guest_name" disabled={isAdminPreview} className="kais-input-luxe" />
-              </LuxeField>
-              <LuxeField label="Foto">
-                <input name="photo" type="file" accept="image/*" required disabled={isAdminPreview} className="kais-input-luxe" />
-              </LuxeField>
-              {!isAdminPreview && (
-                <button type="submit" className="kais-cta w-full sm:w-fit">
-                  <Camera className="h-3.5 w-3.5" />
-                  Subir foto
-                </button>
-              )}
-            </form>
+            <div className="mt-9">
+              <PhotoUploadAvailability
+                date={event.event_date}
+                time={event.event_time}
+                uploadHref={`/evento/${event.slug}/fotos`}
+              />
+            </div>
           </div>
 
           <div>

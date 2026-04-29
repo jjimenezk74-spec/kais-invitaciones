@@ -350,10 +350,10 @@ export async function submitRsvp(eventId: string, formData: FormData) {
     return `/evento/${slug}?${search.toString()}#rsvp`;
   };
   const errorUrl = (message: string) => rsvpUrl({ rsvp_error: message });
-  const successUrl = rsvpUrl({ rsvp: "ok" });
   let guestName = String(formData.get("guest_name") ?? "").trim();
   const companions = Number(formData.get("companions") || 0);
   const attending = String(formData.get("attending")) === "si";
+  const successUrl = rsvpUrl({ rsvp: "ok", rsvp_attending: attending ? "si" : "no" });
   let eventGuest: EventGuest | null = null;
 
   if (!slug) {

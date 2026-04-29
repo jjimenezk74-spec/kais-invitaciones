@@ -12,7 +12,7 @@ type Props = { params: Promise<{ slug: string }> };
 export async function generateMetadata({ params }: Props) {
   const { slug } = await params;
   const admin = createAdminClient();
-  const { data } = await admin.from("events").select("hosts_names, event_type").eq("slug", slug).single();
+  const { data } = await admin.from("events").select("hosts_names, event_type").eq("slug", slug).maybeSingle();
   const title = data ? `Álbum · ${data.hosts_names}` : "Álbum";
   return { title };
 }
@@ -25,10 +25,14 @@ export default async function AlbumPage({ params }: Props) {
     .from("events")
     .select("id, slug, hosts_names, event_type, event_date, theme_color, status")
     .eq("slug", slug)
-    .single();
+    .maybeSingle();
 
   const event = data as Event | null;
-  if (!event || event.status !== "publicado") notFound();
+  if (!event) notFound();
+
+  if (event.status !== "publicado") {
+    return <AlbumUnavailable slug={slug} />;
+  }
 
   const photos = await getApprovedLivePhotos(event.id);
   const featured = photos.filter((p) => p.featured);
@@ -208,5 +212,31 @@ function AlbumCard({
         </div>
       )}
     </article>
+  );
+}
+
+function AlbumUnavailable({ slug }: { slug: string }) {
+  return (
+    <div className="min-h-screen bg-background">
+      <main className="mx-auto flex min-h-screen max-w-lg flex-col items-center justify-center px-5 py-10 text-center">
+        <div className="rounded-2xl border border-border bg-card p-8 shadow-sm">
+          <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-muted">
+            <Camera className="h-6 w-6 text-muted-foreground" />
+          </div>
+          <h1 className="font-display text-2xl font-semibold text-foreground">
+            Album no disponible
+          </h1>
+          <p className="mt-3 text-sm leading-6 text-muted-foreground">
+            El album estara disponible cuando la invitacion sea publicada.
+          </p>
+          <Link
+            href={`/evento/${slug}`}
+            className="mt-6 inline-flex rounded-xl border border-border px-5 py-2.5 text-sm font-semibold transition hover:bg-muted"
+          >
+            Volver a la invitacion
+          </Link>
+        </div>
+      </main>
+    </div>
   );
 }

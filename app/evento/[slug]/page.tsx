@@ -592,10 +592,10 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
           freeDecorations={freeDecorations}
         />
         <div className="pointer-events-none absolute inset-x-0 top-0 h-px kais-hairline" />
-        <p className="kais-eyebrow relative z-10 text-[0.62rem]">Una experiencia de</p>
-        <p className="relative z-10 mt-4 font-display text-2xl italic">
-          <Link href="/" className="kais-gold-text kais-shimmer">KAIS Invitaciones</Link>
-        </p>
+        <div className="kais-brand-footer relative z-10">
+          <p className="kais-brand-footer__eyebrow">Una experiencia de</p>
+          <Link href="/" className="kais-brand-footer__name">KAIS Invitaciones</Link>
+        </div>
       </footer>
     </main>
   );

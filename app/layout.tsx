@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Cinzel, Cormorant_Garamond, Great_Vibes, Montserrat, Playfair_Display } from "next/font/google";
+import { Cinzel, Cormorant_Garamond, Great_Vibes, Inter, Montserrat, Playfair_Display } from "next/font/google";
 import "./globals.css";
 
 const cormorant = Cormorant_Garamond({
@@ -39,6 +39,13 @@ const montserrat = Montserrat({
   display: "swap"
 });
 
+const inter = Inter({
+  subsets: ["latin"],
+  weight: ["500", "600"],
+  variable: "--font-kais-sans",
+  display: "swap"
+});
+
 export const metadata: Metadata = {
   title: "KAIS INVITACIONES",
   description: "Plataforma SaaS para crear, publicar y gestionar invitaciones digitales premium."
@@ -48,7 +55,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html
       lang="es"
-      className={`${cormorant.variable} ${greatVibes.variable} ${playfair.variable} ${cinzel.variable} ${montserrat.variable}`}
+      className={`${cormorant.variable} ${greatVibes.variable} ${playfair.variable} ${cinzel.variable} ${montserrat.variable} ${inter.variable}`}
     >
       <body className="font-sans antialiased">{children}</body>
     </html>

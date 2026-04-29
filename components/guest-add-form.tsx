@@ -10,6 +10,7 @@ type Props = {
 
 export function GuestAddForm({ action }: Props) {
   const [open, setOpen] = useState(false);
+  const [totalQuota, setTotalQuota] = useState(1);
   const [isPending, startTransition] = useTransition();
   const formRef = useRef<HTMLFormElement>(null);
 
@@ -20,6 +21,7 @@ export function GuestAddForm({ action }: Props) {
       await action(fd);
       setOpen(false);
       formRef.current?.reset();
+      setTotalQuota(1);
     });
   }
 
@@ -80,15 +82,20 @@ export function GuestAddForm({ action }: Props) {
         </div>
 
         <div className="grid gap-1.5">
-          <label className="text-sm font-medium">Pases / Acompanantes</label>
+          <label className="text-sm font-medium">Cupo total</label>
           <input
-            name="max_companions"
+            name="total_quota"
             type="number"
-            min="0"
-            defaultValue="0"
+            min="1"
+            defaultValue="1"
+            onChange={(event) => setTotalQuota(Math.max(1, Math.floor(Number(event.target.value) || 1)))}
             disabled={isPending}
             className="h-10 rounded-md border bg-white px-3 text-sm disabled:opacity-60"
           />
+          <p className="text-xs text-muted-foreground">Incluye al invitado titular.</p>
+          <p className="rounded-lg border border-[#eadfd2] bg-[#fffaf2] px-3 py-2 text-xs font-semibold text-[#6f1029]">
+            {formatQuotaPreview(totalQuota)}
+          </p>
         </div>
 
         <div className="flex gap-2 md:col-span-2">
@@ -107,4 +114,10 @@ export function GuestAddForm({ action }: Props) {
       </form>
     </div>
   );
+}
+
+function formatQuotaPreview(total: number) {
+  if (total <= 1) return "Invitacion individual";
+  if (total === 2) return "Titular + 1 acompanante";
+  return `Titular + ${total - 1} acompanantes`;
 }

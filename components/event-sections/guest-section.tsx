@@ -104,7 +104,7 @@ export async function GuestSection({ event }: { event: Event }) {
                 <tr className="border-b text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   <th className="py-3 pr-4">Invitado</th>
                   <th className="pr-4">Estado</th>
-                  <th className="pr-4 text-center">Pases</th>
+                  <th className="pr-4 text-center">Cupo</th>
                   <th className="pr-4">Acciones</th>
                 </tr>
               </thead>
@@ -137,7 +137,14 @@ export async function GuestSection({ event }: { event: Event }) {
                       <td className="pr-4">
                         <GuestStatusBadge status={guest.status} />
                       </td>
-                      <td className="pr-4 text-center font-semibold">{guest.max_companions}</td>
+                      <td className="pr-4 text-center">
+                        <p className="font-semibold">{guest.max_companions + 1} personas</p>
+                        <p className="text-xs text-muted-foreground">
+                          {guest.max_companions <= 0
+                            ? "Invitacion individual"
+                            : `+${guest.max_companions} acompanante${guest.max_companions === 1 ? "" : "s"}`}
+                        </p>
+                      </td>
                       <td className="py-3 pr-2">
                         <div className="flex flex-wrap items-center gap-1.5">
                           <CopyLinkButton value={link} label="Copiar" copiedLabel="Copiado" />

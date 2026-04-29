@@ -537,7 +537,7 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
                     <option value="no">No podre asistir</option>
                   </select>
                 </LuxeField>
-                <LuxeField label="Acompanantes">
+                <LuxeField label="Acompanantes adicionales">
                   <input
                     name="companions"
                     type="number"
@@ -549,6 +549,23 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
                   />
                 </LuxeField>
               </div>
+
+              {invitedGuest ? (
+                <div className="rounded-2xl border border-[#d4af37]/25 bg-[#d4af37]/10 px-4 py-3">
+                  {invitedGuest.max_companions <= 0 ? (
+                    <p className="text-sm font-semibold text-[#f5ecd9]">Invitacion individual</p>
+                  ) : (
+                    <div className="grid gap-1">
+                      <p className="text-sm font-semibold text-[#f5ecd9]">
+                        Podes confirmar hasta {invitedGuest.max_companions + 1} personas en total.
+                      </p>
+                      <p className="text-xs leading-5 text-[#f5ecd9]/70">
+                        Esto incluye tu asistencia y tus acompanantes.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              ) : null}
 
               <LuxeField label="Restriccion alimentaria">
                 <input

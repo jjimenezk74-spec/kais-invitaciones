@@ -145,7 +145,7 @@ export default async function PanelEventoPage({
                 <tr>
                   <th className="py-3">Invitado</th>
                   <th>Estado</th>
-                  <th>Acompanantes max.</th>
+                  <th>Cupo</th>
                   <th>Enlace</th>
                   <th>WhatsApp</th>
                 </tr>
@@ -159,7 +159,14 @@ export default async function PanelEventoPage({
                     <tr key={guest.id} className="border-b align-top">
                       <td className="py-3 font-medium">{guest.guest_name}</td>
                       <td>{guest.status}</td>
-                      <td>{guest.max_companions}</td>
+                      <td>
+                        <p className="font-semibold">{guest.max_companions + 1} personas</p>
+                        <p className="text-xs text-muted-foreground">
+                          {guest.max_companions <= 0
+                            ? "Invitacion individual"
+                            : `+${guest.max_companions} acompanante${guest.max_companions === 1 ? "" : "s"}`}
+                        </p>
+                      </td>
                       <td className="max-w-xs break-all text-xs text-muted-foreground">
                         {link}
                         <div className="mt-2"><CopyLinkButton value={link} label="Copiar enlace" /></div>
@@ -192,7 +199,7 @@ export default async function PanelEventoPage({
                 <tr>
                   <th className="py-3">Nombre</th>
                   <th>Asistira</th>
-                  <th>Acompanantes</th>
+                  <th>Acompanantes adicionales</th>
                   <th>Contacto</th>
                   <th>Mensaje</th>
                 </tr>

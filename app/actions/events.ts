@@ -385,7 +385,7 @@ export async function submitRsvp(eventId: string, formData: FormData) {
     }
 
     if (companions > eventGuest.max_companions) {
-      redirect(errorUrl(`Este enlace permite hasta ${eventGuest.max_companions} acompanantes.`));
+      redirect(errorUrl(`Este enlace permite un cupo total de ${eventGuest.max_companions + 1} persona${eventGuest.max_companions + 1 === 1 ? "" : "s"}.`));
     }
 
     guestName = eventGuest.guest_name;
@@ -451,7 +451,10 @@ export async function createEventGuest(eventId: string, formData: FormData) {
   const guestName = String(formData.get("guest_name") ?? "").trim();
   const phone = String(formData.get("phone") ?? "").trim();
   const email = nullable(formData.get("email"));
-  const maxCompanions = Math.max(0, Math.floor(Number(formData.get("max_companions") || 0)));
+  // DB compatibility: event_guests.max_companions stores additional companions.
+  // UI exposes total quota including the titular guest.
+  const totalQuota = Math.max(1, Math.floor(Number(formData.get("total_quota") || formData.get("max_companions") || 1)));
+  const maxCompanions = Math.max(0, totalQuota - 1);
 
   if (!guestName || !phone) {
     redirect(`/dashboard/eventos/${eventId}?error=Nombre y telefono son obligatorios para agregar invitado.`);

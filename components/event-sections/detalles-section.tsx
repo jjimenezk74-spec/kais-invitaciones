@@ -13,6 +13,7 @@ import { updateEvent, deleteEvent } from "@/app/actions/events";
 import { setEventStatus } from "@/app/actions/event-status";
 import { CopyLinkButton } from "@/components/copy-link-button";
 import { DeleteEventButton } from "@/components/delete-event-button";
+import { PhotoUploadQrCard } from "@/components/photo-upload-qr-card";
 import { QrDownload } from "@/components/qr-download";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -57,6 +58,7 @@ function PublicacionCard({
 }) {
   const isDraft       = event.status !== "publicado";
   const previewUrl    = `/evento/${event.slug}?preview=admin`;
+  const photoUploadUrl = `${url.replace(/\/$/, "")}/fotos`;
   const publishAction = setEventStatus.bind(null, event.id, isDraft ? "publicado" : "borrador");
 
   return (
@@ -137,6 +139,20 @@ function PublicacionCard({
             <p className="text-sm font-semibold">Descargar QR</p>
           </div>
           <QrDownload value={url} filename={`kais-${event.slug}`} />
+        </div>
+
+        <div className="rounded-xl border bg-background p-4">
+          <div className="mb-4 flex items-center gap-2">
+            <QrCode className="h-4 w-4 text-accent" />
+            <div>
+              <p className="text-sm font-semibold">QR Fotos</p>
+              <p className="text-xs text-muted-foreground">Para que los invitados suban fotos del evento.</p>
+            </div>
+          </div>
+          <PhotoUploadQrCard
+            url={photoUploadUrl}
+            filename={`kais-fotos-${event.slug}`}
+          />
         </div>
       </CardContent>
     </Card>

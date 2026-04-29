@@ -4,6 +4,7 @@ import { CalendarPlus, Camera, MapPin, Send, Eye } from "lucide-react";
 import { submitRsvp, trackVisit, uploadEventPhoto } from "@/app/actions/events";
 import { Countdown } from "@/components/countdown";
 import { BackButton } from "@/components/back-button";
+import { PhotoUploadQrCard } from "@/components/photo-upload-qr-card";
 import { EventHero } from "@/components/public-invitation/event-hero";
 import { ThemeDecorations } from "@/components/theme-decorations";
 import { resolvePremiumThemeDesign, resolveLegacyDesign } from "@/lib/invitation-design";
@@ -11,7 +12,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { fetchThemeById } from "@/lib/invitation-themes.server";
 import { createClient } from "@/lib/supabase/server";
 import { isKaisAdmin } from "@/lib/profiles";
-import { formatDate } from "@/lib/utils";
+import { absoluteUrl, formatDate } from "@/lib/utils";
 import type { Event, EventDecorations, EventGuest, EventPhoto, InvitationTemplate, InvitationTheme, Rsvp, VisualDecoration } from "@/lib/types";
 import {
   NotPublishedScreen,
@@ -176,6 +177,7 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
 
   const rsvpAction = submitRsvp.bind(null, event.id);
   const photoAction = uploadEventPhoto.bind(null, event.id, event.slug);
+  const photoUploadUrl = absoluteUrl(`/evento/${event.slug}/fotos`);
   const calendarUrl = buildCalendarUrl(event);
   const [template, invitationTheme] = await Promise.all([
     event.template_id ? getInvitationTemplate(event.template_id) : Promise.resolve(null),
@@ -639,6 +641,39 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
               </div>
             )}
           </div>
+        </div>
+      </section>
+
+      <section className="kais-section relative overflow-hidden bg-[#0a0405]">
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-px kais-hairline" />
+        <div className="pointer-events-none absolute -left-24 top-16 h-72 w-72 rounded-full bg-[#3a0a12]/45 blur-3xl" />
+        <div className="pointer-events-none absolute -right-24 bottom-10 h-72 w-72 rounded-full bg-[#d4af37]/[0.07] blur-3xl" />
+
+        <div className="relative z-10 mx-auto grid max-w-5xl gap-12 lg:grid-cols-[0.95fr_1.05fr] lg:items-center lg:gap-16">
+          <div className="text-center lg:text-left">
+            <div className="flex items-center justify-center gap-3 lg:justify-start">
+              <span className="block h-px w-10 kais-hairline" />
+              <p className="kais-eyebrow">Album . En vivo</p>
+              <span className="block h-px w-10 kais-hairline lg:hidden" />
+            </div>
+            <h2
+              className="mt-7 font-display font-light italic leading-[0.95]"
+              style={{ fontSize: "clamp(2.4rem, 4.8vw, 4rem)" }}
+            >
+              Comparti tus
+              <br />
+              <span className="kais-gold-text kais-shimmer">fotos.</span>
+            </h2>
+            <p className="mx-auto mt-6 max-w-md text-[0.95rem] leading-[1.9] text-[#f5ecd9]/65 lg:mx-0">
+              Escanea el QR para subir recuerdos del evento. Las fotos apareceran en el album cuando sean aprobadas.
+            </p>
+          </div>
+
+          <PhotoUploadQrCard
+            url={photoUploadUrl}
+            filename={`kais-fotos-${event.slug}`}
+            variant="public"
+          />
         </div>
       </section>
 

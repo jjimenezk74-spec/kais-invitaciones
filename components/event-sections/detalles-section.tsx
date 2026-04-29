@@ -21,6 +21,13 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { fetchActiveCategories, fetchActiveThemes } from "@/lib/invitation-themes.server";
 import { perfEnd, perfStart, timed } from "@/lib/perf";
 import type { Client, Event, EventCategory, InvitationTheme } from "@/lib/types";
+import {
+  getAlbumShareMessage,
+  getInvitationShareMessage,
+  getPhotoUploadShareMessage,
+  getWhatsAppUrl
+} from "@/lib/share-messages";
+import { shortAlbumUrl, shortPhotoUploadUrl } from "@/lib/utils";
 
 type Mode = "publicacion" | "ajustes" | "full";
 
@@ -62,7 +69,11 @@ function PublicacionCard({
 }) {
   const isDraft       = event.status !== "publicado";
   const previewUrl    = `/evento/${event.slug}?preview=admin`;
-  const photoUploadUrl = `${url.replace(/\/$/, "")}/fotos`;
+  const photoUploadUrl = shortPhotoUploadUrl(event.slug);
+  const albumUrl = shortAlbumUrl(event.slug);
+  const invitationMessage = getInvitationShareMessage(event, url);
+  const photoMessage = getPhotoUploadShareMessage(event, photoUploadUrl);
+  const albumMessage = getAlbumShareMessage(event, albumUrl);
   const publishAction = setEventStatus.bind(null, event.id, isDraft ? "publicado" : "borrador");
 
   return (
@@ -135,7 +146,13 @@ function PublicacionCard({
                 </Link>
               </Button>
             )}
-            <CopyLinkButton value={url} />
+            <CopyLinkButton value={url} label="Copiar enlace" />
+            <CopyLinkButton value={invitationMessage} label="Copiar mensaje" copiedLabel="Mensaje copiado" />
+            <Button variant="outline" asChild>
+              <a href={getWhatsAppUrl(invitationMessage)} target="_blank" rel="noreferrer">
+                WhatsApp
+              </a>
+            </Button>
           </div>
         </div>
 
@@ -158,7 +175,21 @@ function PublicacionCard({
           <PhotoUploadQrCard
             url={photoUploadUrl}
             filename={`kais-fotos-${event.slug}`}
+            shareMessage={photoMessage}
           />
+          <div className="mt-3 rounded-xl border bg-background p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Album corto</p>
+            <p className="mt-1 break-all text-sm text-muted-foreground">{albumUrl}</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <CopyLinkButton value={albumUrl} label="Copiar enlace album" />
+              <CopyLinkButton value={albumMessage} label="Copiar mensaje album" copiedLabel="Mensaje copiado" />
+              <Button variant="outline" asChild>
+                <a href={getWhatsAppUrl(albumMessage)} target="_blank" rel="noreferrer">
+                  WhatsApp album
+                </a>
+              </Button>
+            </div>
+          </div>
         </div>
       </CardContent>
     </Card>

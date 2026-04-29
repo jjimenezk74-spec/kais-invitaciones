@@ -59,7 +59,7 @@ export async function createEvent(formData: FormData) {
   const requestedOwnerId = String(formData.get("owner_id") ?? "").trim();
   const ownerId = requestedOwnerId || user.id;
   const title = String(formData.get("title") ?? "Nuevo evento");
-  const slug = `${slugify(title)}-${crypto.randomUUID().slice(0, 8)}`;
+  const requestedSlug = String(formData.get("slug") ?? "").trim();
   let musicUrl: string | null;
   const manualCoverUrl = nullable(formData.get("cover_image_url"));
   const coverFile = getOptionalFile(formData.get("cover_image_file"));
@@ -72,6 +72,10 @@ export async function createEvent(formData: FormData) {
   } catch (error) {
     redirect(`/dashboard/eventos/nuevo?error=${encodeURIComponent(getErrorMessage(error))}`);
   }
+
+  const slug = requestedSlug || `${slugify(title)}-${crypto.randomUUID().slice(0, 8)}`;
+  const slugError = await validateUniqueSlug(slug);
+  if (slugError) redirect(`/dashboard/eventos/nuevo?error=${encodeURIComponent(slugError)}`);
 
   const payload = {
     owner_id: isKaisAdmin(profile?.role) ? ownerId : user.id,
@@ -96,7 +100,7 @@ export async function createEvent(formData: FormData) {
     template_id: nullable(formData.get("template_id")),
     category_id: nullableUuid(formData.get("category_id")),
     theme_id: nullableUuid(formData.get("theme_id")),
-    slug
+    slug: normalizeEventSlug(slug)
   };
 
   const { data, error } = await supabase.from("events").insert(payload).select("id").single();
@@ -182,6 +186,17 @@ export async function updateEvent(eventId: string, formData: FormData) {
     category_id: nullableUuid(formData.get("category_id")),
     theme_id: nullableUuid(formData.get("theme_id"))
   };
+
+  const requestedSlug = String(formData.get("slug") ?? "").trim();
+  const normalizedSlug = normalizeEventSlug(requestedSlug);
+  if (!normalizedSlug) {
+    redirect(`/dashboard/eventos/${eventId}?error=${encodeURIComponent("El enlace corto es obligatorio.")}`);
+  }
+  const slugError = await validateUniqueSlug(normalizedSlug, eventId);
+  if (slugError) {
+    redirect(`/dashboard/eventos/${eventId}?error=${encodeURIComponent(slugError)}`);
+  }
+  Object.assign(payload, { slug: normalizedSlug });
 
   const { error } = await supabase.from("events").update(payload).eq("id", eventId);
   if (error) redirect(`/dashboard/eventos/${eventId}?error=${encodeURIComponent(error.message)}`);
@@ -643,6 +658,33 @@ export async function getCurrentProfile() {
 function nullable(value: FormDataEntryValue | null) {
   const text = String(value ?? "").trim();
   return text.length ? text : null;
+}
+
+function normalizeEventSlug(value: string) {
+  return slugify(value).slice(0, 70);
+}
+
+async function validateUniqueSlug(value: string, currentEventId?: string) {
+  const slug = normalizeEventSlug(value);
+
+  if (!slug) {
+    return "El enlace corto debe incluir letras, numeros o guiones.";
+  }
+
+  if (!/^[a-z0-9-]+$/.test(slug)) {
+    return "El enlace corto solo puede usar minusculas, numeros y guiones.";
+  }
+
+  const query = createAdminClient().from("events").select("id").eq("slug", slug).limit(1);
+  const { data, error } = currentEventId
+    ? await query.neq("id", currentEventId)
+    : await query;
+
+  if (error) {
+    return `No se pudo validar el enlace corto. Detalle: ${error.message}`;
+  }
+
+  return data && data.length > 0 ? "Ese enlace corto ya existe. Usa otro slug." : "";
 }
 
 /** Returns null for empty strings and values that aren't valid UUIDs. */

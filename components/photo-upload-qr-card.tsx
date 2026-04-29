@@ -9,11 +9,13 @@ type PhotoUploadQrCardProps = {
   url: string;
   filename: string;
   variant?: "dashboard" | "public";
+  shareMessage?: string;
 };
 
-export function PhotoUploadQrCard({ url, filename, variant = "dashboard" }: PhotoUploadQrCardProps) {
+export function PhotoUploadQrCard({ url, filename, variant = "dashboard", shareMessage }: PhotoUploadQrCardProps) {
   const [png, setPng] = useState("");
   const [copied, setCopied] = useState(false);
+  const [copiedMessage, setCopiedMessage] = useState(false);
   const isPublic = variant === "public";
 
   useEffect(() => {
@@ -34,6 +36,16 @@ export function PhotoUploadQrCard({ url, filename, variant = "dashboard" }: Phot
       window.setTimeout(() => setCopied(false), 1800);
     } catch {
       setCopied(false);
+    }
+  }
+
+  async function copyMessage() {
+    try {
+      await navigator.clipboard.writeText(shareMessage ?? url);
+      setCopiedMessage(true);
+      window.setTimeout(() => setCopiedMessage(false), 1800);
+    } catch {
+      setCopiedMessage(false);
     }
   }
 
@@ -103,6 +115,19 @@ export function PhotoUploadQrCard({ url, filename, variant = "dashboard" }: Phot
             {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
             {copied ? "Copiado" : "Copiar enlace"}
           </Button>
+          {shareMessage ? (
+            <>
+              <Button variant="outline" onClick={copyMessage}>
+                {copiedMessage ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                {copiedMessage ? "Mensaje copiado" : "Copiar mensaje"}
+              </Button>
+              <Button variant="outline" asChild>
+                <a href={`https://wa.me/?text=${encodeURIComponent(shareMessage)}`} target="_blank" rel="noreferrer">
+                  WhatsApp
+                </a>
+              </Button>
+            </>
+          ) : null}
         </div>
       </div>
     </div>

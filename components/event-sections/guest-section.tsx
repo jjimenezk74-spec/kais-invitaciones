@@ -3,7 +3,7 @@
  * Carga: event_guests (admin client)
  * Renderiza: Lista de invitados -- diseno premium
  */
-import { Users, ExternalLink, MessageCircle, BellRing, ShieldOff, ShieldCheck, Trash2, Upload } from "lucide-react";
+import { Users, ExternalLink, MessageCircle, ShieldOff, ShieldCheck, Trash2, Upload } from "lucide-react";
 import { redirect } from "next/navigation";
 import { createEventGuest, deleteEventGuest, toggleEventGuestBlocked } from "@/app/actions/events";
 import { GuestAddForm } from "@/components/guest-add-form";
@@ -17,11 +17,9 @@ import { getCurrentUserProfile } from "@/lib/profiles";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Event, EventGuest } from "@/lib/types";
 import {
-  buildGuestReminderMessage,
-  buildGuestWhatsAppMessage,
-  buildWhatsAppUrl,
   guestEventUrl,
 } from "@/lib/utils";
+import { getGuestInvitationShareMessage, getWhatsAppUrl } from "@/lib/share-messages";
 
 function GuestStatusBadge({ status }: { status: EventGuest["status"] }) {
   const map: Record<EventGuest["status"], { label: string; cls: string }> = {
@@ -118,14 +116,8 @@ export async function GuestSection({ event }: { event: Event }) {
               <tbody>
                 {guests.map((guest) => {
                   const link     = guestEventUrl(event.slug, guest.token);
-                  const whatsapp = buildWhatsAppUrl(
-                    guest.phone,
-                    buildGuestWhatsAppMessage(guest.guest_name, event.title, link),
-                  );
-                  const reminder = buildWhatsAppUrl(
-                    guest.phone,
-                    buildGuestReminderMessage(guest.guest_name, event.title, link),
-                  );
+                  const message = getGuestInvitationShareMessage(event, guest, link);
+                  const whatsapp = getWhatsAppUrl(message, guest.phone);
                   return (
                     <tr
                       key={guest.id}
@@ -154,17 +146,12 @@ export async function GuestSection({ event }: { event: Event }) {
                       </td>
                       <td className="py-3 pr-2">
                         <div className="flex flex-wrap items-center gap-1.5">
-                          <CopyLinkButton value={link} label="Copiar" copiedLabel="Copiado" />
+                          <CopyLinkButton value={link} label="Copiar enlace" copiedLabel="Copiado" />
+                          <CopyLinkButton value={message} label="Copiar invitacion" copiedLabel="Mensaje copiado" />
                           <Button size="sm" variant="outline" asChild>
                             <a href={whatsapp} target="_blank" rel="noreferrer">
                               <MessageCircle className="h-3.5 w-3.5" />
                               WhatsApp
-                            </a>
-                          </Button>
-                          <Button size="sm" variant="outline" asChild>
-                            <a href={reminder} target="_blank" rel="noreferrer">
-                              <BellRing className="h-3.5 w-3.5" />
-                              Recordar
                             </a>
                           </Button>
                           <Button size="sm" variant="outline" asChild>

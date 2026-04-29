@@ -403,6 +403,10 @@ export function EventForm({
                 <Input name="title" defaultValue={event?.title} placeholder="Boda de Ana y Luis" required />
               </Field>
 
+              <Field label="Enlace corto" hint="Solo minusculas, numeros y guiones. Ejemplo: maria15">
+                <Input name="slug" defaultValue={event?.slug ?? ""} placeholder="maria15" pattern="[a-z0-9-]+" />
+              </Field>
+
               <Field label="Estado">
                 <Select name="status" defaultValue={event?.status ?? "borrador"}>
                   {statuses.map((status) => (

@@ -31,7 +31,7 @@ import { perfEnd, perfStart, timed } from "@/lib/perf";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { setEventStatus } from "@/app/actions/event-status";
 import type { Client, Event } from "@/lib/types";
-import { absoluteUrl, publicEventUrl } from "@/lib/utils";
+import { absoluteUrl, publicEventUrl, shortAlbumUrl, shortPhotoUploadUrl } from "@/lib/utils";
 import { DetallesSection } from "@/components/event-sections/detalles-section";
 import { AccesoSection } from "@/components/event-sections/acceso-section";
 import { GuestSection } from "@/components/event-sections/guest-section";
@@ -166,12 +166,12 @@ async function MetricsSection({ event }: { event: Event }) {
               <MonitorPlay className="h-3.5 w-3.5" />
               Pantalla en vivo
             </Link>
-            <Link href={`/evento/${event.slug}/fotos`} target="_blank" rel="noreferrer"
+            <Link href={shortPhotoUploadUrl(event.slug)} target="_blank" rel="noreferrer"
               className="flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-2 text-xs font-semibold transition hover:bg-muted">
               <ImageIcon className="h-3.5 w-3.5" />
               Enlace de subida
             </Link>
-            <Link href={`/evento/${event.slug}/album`} target="_blank" rel="noreferrer"
+            <Link href={shortAlbumUrl(event.slug)} target="_blank" rel="noreferrer"
               className="flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-2 text-xs font-semibold transition hover:bg-muted">
               Album publico
             </Link>

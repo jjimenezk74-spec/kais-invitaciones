@@ -14,11 +14,31 @@ export function absoluteUrl(path = "") {
 }
 
 export function publicEventUrl(slug: string) {
-  return absoluteUrl(`/evento/${slug}`);
+  return shortEventUrl(slug);
 }
 
 export function guestEventUrl(slug: string, token: string) {
-  return absoluteUrl(`/evento/${slug}?guest=${encodeURIComponent(token)}`);
+  return shortGuestEventUrl(slug, token);
+}
+
+export function legacyPublicEventUrl(slug: string) {
+  return absoluteUrl(`/evento/${slug}`);
+}
+
+export function shortEventUrl(slug: string) {
+  return absoluteUrl(`/e/${slug}`);
+}
+
+export function shortGuestEventUrl(slug: string, token: string) {
+  return absoluteUrl(`/e/${slug}?g=${encodeURIComponent(token)}`);
+}
+
+export function shortPhotoUploadUrl(slug: string) {
+  return absoluteUrl(`/f/${slug}`);
+}
+
+export function shortAlbumUrl(slug: string) {
+  return absoluteUrl(`/a/${slug}`);
 }
 
 export function buildGuestWhatsAppMessage(guestName: string, eventTitle: string, guestLink: string) {

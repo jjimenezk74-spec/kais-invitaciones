@@ -450,10 +450,10 @@ function PhotoLightbox({
                 type="button"
                 onClick={handleComment}
                 disabled={isPending || !authorName.trim() || !commentText.trim()}
-                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-amber-100 bg-amber-300 text-black shadow-lg shadow-black/25 transition hover:-translate-y-0.5 hover:bg-amber-200 active:translate-y-0 disabled:cursor-not-allowed disabled:border-white/15 disabled:bg-white/18 disabled:text-white/45 disabled:shadow-none"
+                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-amber-100 bg-amber-300 text-black shadow-lg shadow-black/25 transition hover:-translate-y-0.5 hover:bg-amber-200 active:scale-95 disabled:cursor-not-allowed disabled:border-amber-100/30 disabled:bg-amber-300/40 disabled:text-black/40 disabled:shadow-none"
                 aria-label="Enviar comentario"
               >
-                <Send className="h-5 w-5" />
+                <Send className="h-5 w-5 text-current" strokeWidth={2.5} />
               </button>
             </div>
             {error ? <p className="text-sm font-semibold text-red-200">{error}</p> : null}

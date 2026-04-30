@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { LivePhoto } from "@/lib/types";
 
 type LiveComment = {
@@ -39,6 +39,7 @@ type EventLiveViewProps = {
 const SLIDE_DURATION = 6500;
 const POLL_INTERVAL = 2500;
 const MAX_FLOATING_REACTIONS = 5;
+const COMMENT_VISIBLE_DURATION = 7200;
 
 export function EventLiveView({
   eventId,
@@ -51,12 +52,14 @@ export function EventLiveView({
   const [comments, setComments] = useState(initialComments);
   const [reactions, setReactions] = useState(initialReactions);
   const [floatingReactions, setFloatingReactions] = useState<FloatingReaction[]>([]);
+  const [visibleComment, setVisibleComment] = useState<LiveComment | null>(initialComments[0] ?? null);
+  const [commentVisible, setCommentVisible] = useState(Boolean(initialComments[0]));
   const [index, setIndex] = useState(0);
   const [visible, setVisible] = useState(true);
   const seenReactionIds = useRef(new Set(initialReactions.map((reaction) => reaction.id)));
+  const seenCommentIds = useRef(new Set(initialComments.map((comment) => comment.id)));
 
   const currentPhoto = photos.length > 0 ? photos[index % photos.length] : null;
-  const recentComments = useMemo(() => comments.slice(0, 4), [comments]);
 
   const pollLiveData = useCallback(async () => {
     try {
@@ -72,6 +75,16 @@ export function EventLiveView({
       setPhotos(data.photos);
       setComments(data.comments);
       setReactions(data.reactions);
+
+      const newComment = data.comments.find((comment) => !seenCommentIds.current.has(comment.id));
+      for (const comment of data.comments) {
+        seenCommentIds.current.add(comment.id);
+      }
+
+      if (newComment) {
+        setVisibleComment(newComment);
+        setCommentVisible(true);
+      }
 
       const newReactions = data.reactions
         .filter((reaction) => !seenReactionIds.current.has(reaction.id))
@@ -124,6 +137,12 @@ export function EventLiveView({
     }, 5200);
     return () => clearTimeout(timeout);
   }, [floatingReactions]);
+
+  useEffect(() => {
+    if (!visibleComment || !commentVisible) return;
+    const timeout = setTimeout(() => setCommentVisible(false), COMMENT_VISIBLE_DURATION);
+    return () => clearTimeout(timeout);
+  }, [visibleComment, commentVisible]);
 
   useEffect(() => {
     const previousCursor = document.body.style.cursor;
@@ -184,26 +203,21 @@ export function EventLiveView({
         </p>
       </section>
 
-      <section className="absolute bottom-10 left-8 z-10 flex w-[min(42rem,calc(100vw-4rem))] flex-col gap-4 md:left-12">
-        {recentComments.length > 0 ? (
-          recentComments.map((comment, commentIndex) => (
-            <article
-              key={comment.id}
-              className="kais-live-comment-card max-w-xl rounded-3xl border border-white/15 bg-black/42 px-6 py-4 shadow-2xl shadow-black/40 backdrop-blur-xl"
-              style={{ animationDelay: `${commentIndex * 0.12}s` }}
-            >
-              <p className="text-lg font-black text-white">{comment.author_name}</p>
-              <p className="mt-1 line-clamp-2 text-2xl font-semibold leading-tight text-white/86">
-                {comment.comment_text}
-              </p>
-            </article>
-          ))
-        ) : (
-          <div className="max-w-lg rounded-3xl border border-white/10 bg-black/28 px-6 py-4 text-xl font-semibold text-white/55 backdrop-blur-xl">
-            Esperando comentarios del álbum...
-          </div>
-        )}
-      </section>
+      {visibleComment ? (
+        <section className="absolute bottom-10 left-8 z-10 w-[min(32rem,calc(100vw-4rem))] md:left-12">
+          <article
+            key={visibleComment.id}
+            className={`max-w-[520px] rounded-3xl border border-white/15 bg-black/44 px-6 py-4 shadow-2xl shadow-black/40 backdrop-blur-xl transition-all duration-700 ${
+              commentVisible ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"
+            }`}
+          >
+            <p className="text-lg font-black text-white">{visibleComment.author_name}</p>
+            <p className="mt-1 line-clamp-2 text-2xl font-semibold leading-tight text-white/86">
+              {visibleComment.comment_text}
+            </p>
+          </article>
+        </section>
+      ) : null}
 
       <section className="pointer-events-none absolute inset-0 z-20 overflow-hidden">
         {floatingReactions.map((reaction) => (

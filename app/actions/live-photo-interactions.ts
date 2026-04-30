@@ -103,7 +103,7 @@ export async function addLivePhotoComment(payload: {
 
   if (error) {
     console.error("[addLivePhotoComment] insert error:", error);
-    return { error: "No se pudo publicar. Intenta nuevamente.", comment: null };
+    return { error: buildPublicDbError("No se pudo publicar. Intenta nuevamente.", error), comment: null };
   }
 
   return {
@@ -137,21 +137,36 @@ export async function addLivePhotoReaction(payload: {
   const allowed = await assertPublicPhotoBelongsToEvent(admin, eventId, photoId);
   if (!allowed.ok) return { error: allowed.error, counts: null };
 
-  const { error } = await admin
+  const { data: existingReaction, error: existingError } = await admin
     .from("live_photo_reactions")
-    .upsert(
-      {
+    .select("id")
+    .eq("event_id", eventId)
+    .eq("photo_id", photoId)
+    .eq("emoji", payload.emoji)
+    .eq("anonymous_session_id", anonymousSessionId)
+    .maybeSingle();
+
+  if (existingError) {
+    console.error("[addLivePhotoReaction] lookup error:", existingError);
+    return { error: buildPublicDbError("No se pudo guardar la reaccion.", existingError), counts: null };
+  }
+
+  if (!existingReaction) {
+    const { error: insertError } = await admin
+      .from("live_photo_reactions")
+      .insert({
+        id: crypto.randomUUID(),
         event_id: eventId,
         photo_id: photoId,
         emoji: payload.emoji,
         anonymous_session_id: anonymousSessionId,
-      },
-      { onConflict: "photo_id,anonymous_session_id,emoji", ignoreDuplicates: true },
-    );
+        created_at: new Date().toISOString(),
+      });
 
-  if (error) {
-    console.error("[addLivePhotoReaction] upsert error:", error);
-    return { error: "No se pudo guardar la reaccion.", counts: null };
+    if (insertError) {
+      console.error("[addLivePhotoReaction] insert error:", insertError);
+      return { error: buildPublicDbError("No se pudo guardar la reaccion.", insertError), counts: null };
+    }
   }
 
   const { data, error: countError } = await admin
@@ -162,7 +177,7 @@ export async function addLivePhotoReaction(payload: {
 
   if (countError) {
     console.error("[addLivePhotoReaction] count error:", countError);
-    return { error: null, counts: null };
+    return { error: buildPublicDbError("No se pudo contar la reaccion.", countError), counts: null };
   }
 
   const counts = createEmptyReactionCount();
@@ -192,6 +207,16 @@ function sanitizeText(value: string) {
 function sanitizeSessionId(value: string) {
   const clean = value.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 120);
   return clean.length >= 8 ? clean : "";
+}
+
+function buildPublicDbError(message: string, error: { code?: string; message?: string; details?: string }) {
+  const code = error.code ? ` Código: ${error.code}` : "";
+  if (error.code === "42P01") return `${message} Falta crear la tabla en Supabase.${code}`;
+  if (error.code === "42703") return `${message} Falta una columna en Supabase.${code}`;
+  if (error.code === "23503") return `${message} La foto no pertenece al evento.${code}`;
+  if (error.code === "42501") return `${message} Permisos insuficientes en Supabase.${code}`;
+  if (error.code === "23514") return `${message} El dato no cumple las reglas de la tabla.${code}`;
+  return `${message}${code}`;
 }
 
 async function assertPublicPhotoBelongsToEvent(

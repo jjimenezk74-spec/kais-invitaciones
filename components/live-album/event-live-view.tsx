@@ -140,26 +140,29 @@ export function EventLiveView({
       {currentPhoto ? (
         <>
           <div
-            className="absolute inset-0 scale-110 bg-cover bg-center opacity-75 blur-3xl transition-opacity duration-700"
+            className="absolute inset-0 scale-[1.08] bg-cover bg-center opacity-75 blur-3xl transition-opacity duration-700"
             style={{
               backgroundImage: `url(${currentPhoto.image_url})`,
-              filter: "blur(36px) brightness(0.48) saturate(1.1)",
-              opacity: visible ? 0.82 : 0,
+              filter: "blur(38px) brightness(0.45) saturate(1.12)",
+              opacity: visible ? 0.72 : 0,
             }}
           />
+          <div className="absolute inset-0 bg-black/28" />
           <div
-            className="absolute inset-0 transition-opacity duration-700"
+            className="absolute inset-0 flex items-center justify-center px-4 py-8 transition-opacity duration-700 md:px-10 md:py-12"
             style={{ opacity: visible ? 1 : 0 }}
           >
-            <Image
-              src={currentPhoto.image_url}
-              alt={currentPhoto.guest_name ?? "Foto del evento"}
-              fill
-              priority
-              draggable={false}
-              className="select-none object-cover [-webkit-user-drag:none]"
-              sizes="100dvw"
-            />
+            <div className="relative h-[min(88vh,calc(100vh-4rem))] w-full max-w-[94vw]">
+              <Image
+                src={currentPhoto.image_url}
+                alt={currentPhoto.guest_name ?? "Foto del evento"}
+                fill
+                priority
+                draggable={false}
+                className="select-none rounded-[1.75rem] object-contain drop-shadow-[0_28px_70px_rgba(0,0,0,0.62)] [-webkit-user-drag:none]"
+                sizes="94dvw"
+              />
+            </div>
           </div>
         </>
       ) : (

@@ -6,5 +6,5 @@ type PageProps = {
 
 export default async function ShortPhotoUploadPage({ params }: PageProps) {
   const { slug } = await params;
-  redirect(`/evento/${slug}/fotos`);
+  redirect(`/evento/${slug}/album`);
 }

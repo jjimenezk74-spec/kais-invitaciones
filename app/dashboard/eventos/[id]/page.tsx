@@ -12,6 +12,7 @@ import {
   MonitorPlay,
 } from "lucide-react";
 import { CopyLinkButton } from "@/components/copy-link-button";
+import { LiveScreenActions } from "@/components/live-screen-actions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EventTabNav } from "@/components/event-tab-nav";
@@ -162,11 +163,10 @@ async function MetricsSection({ event }: { event: Event }) {
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Link href={`/live/${event.slug}`} target="_blank" rel="noreferrer"
-              className="flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-2 text-xs font-semibold transition hover:bg-muted">
-              <MonitorPlay className="h-3.5 w-3.5" />
-              Pantalla en vivo
-            </Link>
+            <LiveScreenActions
+              livePath={`/evento/${event.slug}/live`}
+              liveUrl={absoluteUrl(`/evento/${event.slug}/live`)}
+            />
             <Link href={shortPhotoUploadUrl(event.slug)} target="_blank" rel="noreferrer"
               className="flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-2 text-xs font-semibold transition hover:bg-muted">
               <ImageIcon className="h-3.5 w-3.5" />

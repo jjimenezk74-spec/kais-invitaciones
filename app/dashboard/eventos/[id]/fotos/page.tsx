@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { ArrowLeft, ExternalLink, MonitorPlay, QrCode } from "lucide-react";
+import { ArrowLeft, ExternalLink, QrCode } from "lucide-react";
 import { PhotoAdminGrid } from "@/components/live-album/photo-admin-grid";
+import { LiveScreenActions } from "@/components/live-screen-actions";
 import { getAllLivePhotos } from "@/app/actions/live-photos";
 import { canManagePhotos } from "@/lib/permissions";
 import { getCurrentUserProfile } from "@/lib/profiles";
@@ -40,7 +41,8 @@ export default async function LiveAlbumAdminPage({ params }: Props) {
   const featured = photos.filter((p) => p.featured).length;
 
   const uploadUrl = absoluteUrl(`/evento/${event.slug}/fotos`);
-  const liveUrl = absoluteUrl(`/live/${event.slug}`);
+  const livePath = `/evento/${event.slug}/live`;
+  const liveUrl = absoluteUrl(livePath);
   const albumUrl = absoluteUrl(`/evento/${event.slug}/album`);
 
   return (
@@ -86,16 +88,7 @@ export default async function LiveAlbumAdminPage({ params }: Props) {
 
       {/* Quick links */}
       <div className="flex flex-wrap gap-3">
-        <a
-          href={liveUrl}
-          target="_blank"
-          rel="noreferrer"
-          className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5 text-sm font-semibold shadow-sm transition hover:bg-muted"
-        >
-          <MonitorPlay className="h-4 w-4" />
-          Pantalla en vivo
-          <ExternalLink className="h-3.5 w-3.5 text-muted-foreground" />
-        </a>
+        <LiveScreenActions livePath={livePath} liveUrl={liveUrl} />
         <a
           href={uploadUrl}
           target="_blank"

@@ -126,12 +126,17 @@ export function EventLiveView({
   }, [floatingReactions]);
 
   useEffect(() => {
+    const previousCursor = document.body.style.cursor;
     document.documentElement.classList.add("kais-live-screen-active");
-    return () => document.documentElement.classList.remove("kais-live-screen-active");
+    document.body.style.cursor = "none";
+    return () => {
+      document.documentElement.classList.remove("kais-live-screen-active");
+      document.body.style.cursor = previousCursor;
+    };
   }, []);
 
   return (
-    <main className="relative h-dvh w-full overflow-hidden bg-black text-white">
+    <main className="fixed inset-0 h-screen w-screen overflow-hidden bg-black text-white">
       {currentPhoto ? (
         <>
           <div

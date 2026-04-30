@@ -65,9 +65,11 @@ create unique index if not exists idx_live_photo_reactions_unique_session_emoji
 alter table public.live_photo_comments enable row level security;
 alter table public.live_photo_reactions enable row level security;
 
-grant usage on schema public to anon, authenticated;
+grant usage on schema public to anon, authenticated, service_role;
 grant select, insert on public.live_photo_comments to anon, authenticated;
 grant select, insert on public.live_photo_reactions to anon, authenticated;
+grant all on public.live_photo_comments to service_role;
+grant all on public.live_photo_reactions to service_role;
 
 drop policy if exists "live_photo_comments: public view approved event comments" on public.live_photo_comments;
 drop policy if exists "live_photo_comments: public insert approved event comments" on public.live_photo_comments;
@@ -77,13 +79,13 @@ drop policy if exists "Allow public insert comments" on public.live_photo_commen
 create policy "Allow public read comments"
   on public.live_photo_comments
   for select
-  to anon, authenticated
+  to anon, authenticated, service_role
   using (true);
 
 create policy "Allow public insert comments"
   on public.live_photo_comments
   for insert
-  to anon, authenticated
+  to anon, authenticated, service_role
   with check (
     event_id is not null
     and photo_id is not null
@@ -99,13 +101,13 @@ drop policy if exists "Allow public insert reactions" on public.live_photo_react
 create policy "Allow public read reactions"
   on public.live_photo_reactions
   for select
-  to anon, authenticated
+  to anon, authenticated, service_role
   using (true);
 
 create policy "Allow public insert reactions"
   on public.live_photo_reactions
   for insert
-  to anon, authenticated
+  to anon, authenticated, service_role
   with check (
     event_id is not null
     and photo_id is not null

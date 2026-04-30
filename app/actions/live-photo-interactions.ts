@@ -75,6 +75,8 @@ export async function addLivePhotoComment(payload: {
   const photoId = payload.photoId?.trim();
   const authorName = sanitizeText(payload.authorName);
   const commentText = sanitizeText(payload.commentText);
+  const commentId = crypto.randomUUID();
+  const createdAt = new Date().toISOString();
 
   if (!eventId || !photoId) return { error: "El comentario no es valido.", comment: null };
   if (!authorName || authorName.length > 80) {
@@ -88,23 +90,33 @@ export async function addLivePhotoComment(payload: {
   const allowed = await assertPublicPhotoBelongsToEvent(admin, eventId, photoId);
   if (!allowed.ok) return { error: allowed.error, comment: null };
 
-  const { data, error } = await admin
+  const { error } = await admin
     .from("live_photo_comments")
     .insert({
+      id: commentId,
       event_id: eventId,
       photo_id: photoId,
       author_name: authorName,
       comment_text: commentText,
-    })
-    .select("id, photo_id, event_id, author_name, comment_text, created_at")
-    .single();
+      created_at: createdAt,
+    });
 
   if (error) {
     console.error("[addLivePhotoComment] insert error:", error);
     return { error: "No se pudo publicar. Intenta nuevamente.", comment: null };
   }
 
-  return { error: null, comment: data as LivePhotoComment };
+  return {
+    error: null,
+    comment: {
+      id: commentId,
+      event_id: eventId,
+      photo_id: photoId,
+      author_name: authorName,
+      comment_text: commentText,
+      created_at: createdAt,
+    },
+  };
 }
 
 export async function addLivePhotoReaction(payload: {

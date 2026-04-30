@@ -111,7 +111,7 @@ export default async function LiveAlbumAdminPage({ params }: Props) {
       </div>
 
       {/* Photo grid */}
-      <PhotoAdminGrid photos={photos} eventId={id} />
+      <PhotoAdminGrid photos={photos} eventId={id} eventSlug={event.slug} />
     </div>
   );
 }

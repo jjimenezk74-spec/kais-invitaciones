@@ -84,19 +84,141 @@ export async function deleteLivePhoto(photoId: string, eventId: string) {
   await requireModerator();
   const admin = createAdminClient();
 
-  // Remove from storage first.
-  const { data: photo } = await admin
+  const { data: photo, error: photoError } = await admin
     .from("live_photos")
-    .select("storage_path")
+    .select("id,event_id,storage_path")
     .eq("id", photoId)
-    .single();
+    .eq("event_id", eventId)
+    .maybeSingle();
 
-  if (photo?.storage_path) {
-    await admin.storage.from("live-photos").remove([photo.storage_path]);
+  if (photoError || !photo) {
+    console.error("[deleteLivePhoto] lookup error:", photoError);
+    return { error: "No se pudo encontrar la foto para eliminar." };
   }
 
-  await admin.from("live_photos").delete().eq("id", photoId);
+  if (photo?.storage_path) {
+    const { error: storageError } = await admin.storage.from("live-photos").remove([photo.storage_path]);
+    if (storageError) {
+      console.error("[deleteLivePhoto] storage remove error:", storageError);
+      return { error: "No se pudo eliminar la foto completamente." };
+    }
+  }
+
+  const [commentsResult, reactionsResult] = await Promise.all([
+    admin.from("live_photo_comments").delete().eq("event_id", eventId).eq("photo_id", photoId),
+    admin.from("live_photo_reactions").delete().eq("event_id", eventId).eq("photo_id", photoId),
+  ]);
+
+  if (commentsResult.error || reactionsResult.error) {
+    console.error("[deleteLivePhoto] interactions delete error:", {
+      comments: commentsResult.error,
+      reactions: reactionsResult.error,
+    });
+    return { error: "No se pudo eliminar la foto completamente." };
+  }
+
+  const { error: deleteError } = await admin
+    .from("live_photos")
+    .delete()
+    .eq("id", photoId)
+    .eq("event_id", eventId);
+
+  if (deleteError) {
+    console.error("[deleteLivePhoto] db delete error:", deleteError);
+    return { error: "No se pudo eliminar la foto completamente." };
+  }
+
   revalidatePath(`/dashboard/eventos/${eventId}/fotos`);
+  revalidatePath(`/dashboard/eventos/${eventId}`);
+  return { error: null };
+}
+
+export async function deleteAllLivePhotos(eventId: string) {
+  await requireModerator();
+  const admin = createAdminClient();
+
+  const { data: photos, error: photosError } = await admin
+    .from("live_photos")
+    .select("id,storage_path")
+    .eq("event_id", eventId);
+
+  if (photosError) {
+    console.error("[deleteAllLivePhotos] lookup error:", photosError);
+    return { error: "No se pudieron consultar las fotos del evento." };
+  }
+
+  const storagePaths = (photos ?? [])
+    .map((photo) => photo.storage_path)
+    .filter((path): path is string => Boolean(path));
+
+  if (storagePaths.length > 0) {
+    const { error: storageError } = await admin.storage.from("live-photos").remove(storagePaths);
+    if (storageError) {
+      console.error("[deleteAllLivePhotos] storage remove error:", storageError);
+      return { error: "No se pudo eliminar la foto completamente." };
+    }
+  }
+
+  const [commentsResult, reactionsResult] = await Promise.all([
+    admin.from("live_photo_comments").delete().eq("event_id", eventId),
+    admin.from("live_photo_reactions").delete().eq("event_id", eventId),
+  ]);
+
+  if (commentsResult.error || reactionsResult.error) {
+    console.error("[deleteAllLivePhotos] interactions delete error:", {
+      comments: commentsResult.error,
+      reactions: reactionsResult.error,
+    });
+    return { error: "No se pudieron eliminar las interacciones del álbum." };
+  }
+
+  const { error: deleteError } = await admin.from("live_photos").delete().eq("event_id", eventId);
+  if (deleteError) {
+    console.error("[deleteAllLivePhotos] db delete error:", deleteError);
+    return { error: "No se pudieron eliminar los registros del álbum." };
+  }
+
+  revalidatePath(`/dashboard/eventos/${eventId}/fotos`);
+  revalidatePath(`/dashboard/eventos/${eventId}`);
+  return { error: null };
+}
+
+export async function createLiveAlbumDownloadLinks(eventId: string) {
+  await requireModerator();
+  const admin = createAdminClient();
+
+  const { data: photos, error } = await admin
+    .from("live_photos")
+    .select("id,guest_name,storage_path,created_at")
+    .eq("event_id", eventId)
+    .eq("approved", true)
+    .eq("rejected", false)
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    console.error("[createLiveAlbumDownloadLinks] photos lookup error:", error);
+    return { error: "No se pudo preparar la descarga del álbum.", links: [] };
+  }
+
+  const links = [];
+  for (const [index, photo] of (photos ?? []).entries()) {
+    if (!photo.storage_path) continue;
+    const extension = photo.storage_path.split(".").pop() ?? "jpg";
+    const guestName = (photo.guest_name ?? "foto").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+    const filename = `${String(index + 1).padStart(3, "0")}-${guestName || "foto"}.${extension}`;
+    const { data, error: signedError } = await admin.storage
+      .from("live-photos")
+      .createSignedUrl(photo.storage_path, 60 * 60, { download: filename });
+
+    if (signedError || !data?.signedUrl) {
+      console.error("[createLiveAlbumDownloadLinks] signed url error:", signedError);
+      return { error: "No se pudo preparar la descarga del álbum.", links: [] };
+    }
+
+    links.push({ id: photo.id, filename, url: data.signedUrl });
+  }
+
+  return { error: null, links };
 }
 
 // ─── Public insert (called from guest upload form via Server Action) ───────────

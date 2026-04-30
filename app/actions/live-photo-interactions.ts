@@ -38,11 +38,11 @@ export async function getPublicLivePhotoInteractions(
   ]);
 
   if (commentsResult.error) {
-    console.error("[live-photo-interactions] comments read error:", commentsResult.error.message);
+    console.error("[live-photo-interactions] comments read error:", commentsResult.error);
   }
 
   if (reactionsResult.error) {
-    console.error("[live-photo-interactions] reactions read error:", reactionsResult.error.message);
+    console.error("[live-photo-interactions] reactions read error:", reactionsResult.error);
   }
 
   const commentsByPhotoId: Record<string, LivePhotoComment[]> = {};
@@ -73,12 +73,16 @@ export async function addLivePhotoComment(payload: {
 }): Promise<{ error: string | null; comment: LivePhotoComment | null }> {
   const eventId = payload.eventId?.trim();
   const photoId = payload.photoId?.trim();
-  const authorName = sanitizeText(payload.authorName, 80);
-  const commentText = sanitizeText(payload.commentText, 300);
+  const authorName = sanitizeText(payload.authorName);
+  const commentText = sanitizeText(payload.commentText);
 
-  if (!eventId || !photoId) return { error: "Foto no válida.", comment: null };
-  if (!authorName) return { error: "Escribe tu nombre para comentar.", comment: null };
-  if (!commentText) return { error: "Escribe un comentario.", comment: null };
+  if (!eventId || !photoId) return { error: "El comentario no es valido.", comment: null };
+  if (!authorName || authorName.length > 80) {
+    return { error: "El comentario no es valido.", comment: null };
+  }
+  if (!commentText || commentText.length > 300) {
+    return { error: "El comentario no es valido.", comment: null };
+  }
 
   const admin = createAdminClient();
   const allowed = await assertPublicPhotoBelongsToEvent(admin, eventId, photoId);
@@ -96,8 +100,8 @@ export async function addLivePhotoComment(payload: {
     .single();
 
   if (error) {
-    console.error("[addLivePhotoComment] insert error:", error.message);
-    return { error: "No se pudo publicar el comentario.", comment: null };
+    console.error("[addLivePhotoComment] insert error:", error);
+    return { error: "No se pudo publicar. Intenta nuevamente.", comment: null };
   }
 
   return { error: null, comment: data as LivePhotoComment };
@@ -113,9 +117,9 @@ export async function addLivePhotoReaction(payload: {
   const photoId = payload.photoId?.trim();
   const anonymousSessionId = sanitizeSessionId(payload.anonymousSessionId);
 
-  if (!eventId || !photoId) return { error: "Foto no válida.", counts: null };
-  if (!isReactionEmoji(payload.emoji)) return { error: "Reacción no válida.", counts: null };
-  if (!anonymousSessionId) return { error: "Sesión anónima no válida.", counts: null };
+  if (!eventId || !photoId) return { error: "Foto no valida.", counts: null };
+  if (!isReactionEmoji(payload.emoji)) return { error: "Reaccion no valida.", counts: null };
+  if (!anonymousSessionId) return { error: "Sesion anonima no valida.", counts: null };
 
   const admin = createAdminClient();
   const allowed = await assertPublicPhotoBelongsToEvent(admin, eventId, photoId);
@@ -134,8 +138,8 @@ export async function addLivePhotoReaction(payload: {
     );
 
   if (error) {
-    console.error("[addLivePhotoReaction] upsert error:", error.message);
-    return { error: "No se pudo guardar la reacción.", counts: null };
+    console.error("[addLivePhotoReaction] upsert error:", error);
+    return { error: "No se pudo guardar la reaccion.", counts: null };
   }
 
   const { data, error: countError } = await admin
@@ -145,7 +149,7 @@ export async function addLivePhotoReaction(payload: {
     .eq("photo_id", photoId);
 
   if (countError) {
-    console.error("[addLivePhotoReaction] count error:", countError.message);
+    console.error("[addLivePhotoReaction] count error:", countError);
     return { error: null, counts: null };
   }
 
@@ -165,13 +169,12 @@ function isReactionEmoji(value: string): value is LivePhotoReactionEmoji {
   return LIVE_PHOTO_REACTION_EMOJIS.includes(value as LivePhotoReactionEmoji);
 }
 
-function sanitizeText(value: string, maxLength: number) {
+function sanitizeText(value: string) {
   return value
     .replace(/[\u0000-\u001F\u007F]/g, " ")
     .replace(/[<>]/g, "")
     .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, maxLength);
+    .trim();
 }
 
 function sanitizeSessionId(value: string) {
@@ -184,28 +187,36 @@ async function assertPublicPhotoBelongsToEvent(
   eventId: string,
   photoId: string,
 ) {
-  const { data, error } = await admin
+  const { data: photo, error: photoError } = await admin
     .from("live_photos")
-    .select("id, event_id, approved, rejected, events!inner(status)")
+    .select("id, event_id, approved, rejected")
     .eq("id", photoId)
     .eq("event_id", eventId)
     .maybeSingle();
 
-  if (error) {
-    console.error("[live-photo-interactions] photo lookup error:", error.message);
+  if (photoError) {
+    console.error("[live-photo-interactions] photo lookup error:", photoError);
     return { ok: false, error: "No se pudo validar la foto." };
   }
 
-  const row = data as {
-    approved: boolean;
-    rejected: boolean;
-    events?: { status?: string } | { status?: string }[];
-  } | null;
+  const row = photo as { approved: boolean; rejected: boolean } | null;
+  if (!row || !row.approved || row.rejected) {
+    return { ok: false, error: "Esta foto no esta disponible." };
+  }
 
-  const eventStatus = Array.isArray(row?.events) ? row?.events[0]?.status : row?.events?.status;
+  const { data: event, error: eventError } = await admin
+    .from("events")
+    .select("id, status")
+    .eq("id", eventId)
+    .maybeSingle();
 
-  if (!row || !row.approved || row.rejected || eventStatus !== "publicado") {
-    return { ok: false, error: "Esta foto no está disponible." };
+  if (eventError) {
+    console.error("[live-photo-interactions] event lookup error:", eventError);
+    return { ok: false, error: "No se pudo validar el evento." };
+  }
+
+  if (!event || event.status !== "publicado") {
+    return { ok: false, error: "Esta foto no esta disponible." };
   }
 
   return { ok: true, error: null };

@@ -329,6 +329,11 @@ function PhotoLightbox({
   };
 
   const handleComment = () => {
+    if (!authorName.trim() || !commentText.trim() || commentText.trim().length > 300) {
+      setError("El comentario no es válido.");
+      return;
+    }
+
     startTransition(async () => {
       const result = await addLivePhotoComment({
         eventId,
@@ -447,7 +452,7 @@ function PhotoLightbox({
               <button
                 type="button"
                 onClick={handleComment}
-                disabled={isPending}
+                disabled={isPending || !authorName.trim() || !commentText.trim()}
                 className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-black transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
                 style={{ background: accent }}
                 aria-label="Enviar comentario"

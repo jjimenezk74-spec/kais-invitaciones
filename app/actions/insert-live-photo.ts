@@ -2,6 +2,8 @@
 
 import { createClient } from "@supabase/supabase-js";
 
+const ALLOWED_IMAGE_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp"];
+
 /**
  * insertLivePhoto
  * ───────────────
@@ -30,6 +32,14 @@ export async function insertLivePhoto(payload: {
   }
 
   // ── Cliente con service role — sin helpers intermedios ──────────────────
+  if (!isStoragePathForEvent(payload.storage_path, payload.event_id)) {
+    return { error: "La foto no pertenece al evento indicado." };
+  }
+
+  if (!isAllowedImagePath(payload.storage_path)) {
+    return { error: "Solo se permiten fotos JPG, PNG o WEBP." };
+  }
+
   const supabase = createClient(url, serviceRoleKey, {
     auth: {
       autoRefreshToken: false,
@@ -70,4 +80,13 @@ export async function insertLivePhoto(payload: {
 
   console.log("[insertLivePhoto] INSERT OK for event:", payload.event_id);
   return { error: null };
+}
+
+function isStoragePathForEvent(storagePath: string, eventId: string) {
+  return storagePath.startsWith(`${eventId}/`) && !storagePath.includes("..");
+}
+
+function isAllowedImagePath(storagePath: string) {
+  const normalized = storagePath.toLowerCase().split("?")[0];
+  return ALLOWED_IMAGE_EXTENSIONS.some((extension) => normalized.endsWith(extension));
 }

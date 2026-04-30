@@ -14,6 +14,10 @@ type PhotoUploadFormProps = {
   accentColor?: string;
 };
 
+const MAX_PHOTO_SIZE = 10 * 1024 * 1024;
+const ALLOWED_PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp"];
+const ALLOWED_PHOTO_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp"];
+
 export function PhotoUploadForm({ eventId, accentColor = "#d4af37" }: PhotoUploadFormProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [preview, setPreview]       = useState<string | null>(null);
@@ -29,8 +33,8 @@ export function PhotoUploadForm({ eventId, accentColor = "#d4af37" }: PhotoUploa
   const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = e.target.files?.[0];
     if (!selected) return;
-    if (selected.size > 10 * 1024 * 1024) { setErrorMsg("La imagen no puede superar 10 MB."); return; }
-    if (!selected.type.startsWith("image/")) { setErrorMsg("Solo se permiten archivos de imagen."); return; }
+    const validationError = validatePhotoFile(selected);
+    if (validationError) { setErrorMsg(validationError); return; }
     setErrorMsg("");
     setFile(selected);
     setPreview(URL.createObjectURL(selected));
@@ -195,7 +199,7 @@ export function PhotoUploadForm({ eventId, accentColor = "#d4af37" }: PhotoUploa
         <input
           ref={fileInputRef}
           type="file"
-          accept="image/*"
+          accept="image/jpeg,image/png,image/webp"
           capture="environment"
           className="sr-only"
           onChange={handleFileChange}
@@ -264,4 +268,24 @@ export function PhotoUploadForm({ eventId, accentColor = "#d4af37" }: PhotoUploa
 
     </form>
   );
+}
+
+function validatePhotoFile(file: File) {
+  const extension = getFileExtension(file.name);
+  const hasValidType = !file.type || ALLOWED_PHOTO_TYPES.includes(file.type);
+  const hasValidExtension = ALLOWED_PHOTO_EXTENSIONS.includes(extension);
+
+  if (!hasValidType || !hasValidExtension) {
+    return "Solo se permiten fotos JPG, PNG o WEBP.";
+  }
+
+  if (file.size > MAX_PHOTO_SIZE) {
+    return "La imagen no puede superar 10 MB.";
+  }
+
+  return "";
+}
+
+function getFileExtension(fileName: string) {
+  return fileName.toLowerCase().match(/\.[a-z0-9]+$/)?.[0] ?? "";
 }

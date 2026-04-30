@@ -10,7 +10,6 @@ import type { Event } from "@/lib/types";
 
 type Props = {
   params: Promise<{ slug: string }>;
-  searchParams?: Promise<{ guest?: string | string[] }>;
 };
 
 export async function generateMetadata({ params }: Props) {
@@ -21,15 +20,13 @@ export async function generateMetadata({ params }: Props) {
   return { title };
 }
 
-export default async function FotosPage({ params, searchParams }: Props) {
+export default async function FotosPage({ params }: Props) {
   const { slug } = await params;
-  const query = searchParams ? await searchParams : {};
-  const guestToken = normalizeSearchParam(query.guest);
   const admin = createAdminClient();
 
   const { data } = await admin
     .from("events")
-    .select("id, slug, hosts_names, event_type, event_date, event_time, theme_color, status, guest_mode")
+    .select("id, slug, hosts_names, event_type, event_date, event_time, theme_color, status")
     .eq("slug", slug)
     .maybeSingle();
 
@@ -42,13 +39,6 @@ export default async function FotosPage({ params, searchParams }: Props) {
 
   if (!hasEventStarted(event.event_date, event.event_time)) {
     return <UploadLocked event={event} slug={slug} />;
-  }
-
-  if (event.guest_mode === "lista_invitados") {
-    const access = await validateGuestPhotoAccess(event.id, guestToken);
-    if (!access.allowed) {
-      return <UploadAccessRequired slug={slug} message={access.message} />;
-    }
   }
 
   const albumUrl = absoluteUrl(`/evento/${slug}/album`);
@@ -125,33 +115,8 @@ function UploadUnavailable({ slug }: { slug: string }) {
             Subida de fotos no disponible
           </h1>
           <p className="mt-3 text-sm leading-6 text-muted-foreground">
-            Este enlace pertenece a un evento que todavia no esta publicado. Cuando la invitacion este activa,
-            los invitados podran subir fotos desde aqui.
+            La subida de fotos esta desactivada para este evento.
           </p>
-          <Link
-            href={`/evento/${slug}`}
-            className="mt-6 inline-flex rounded-xl border border-border px-5 py-2.5 text-sm font-semibold transition hover:bg-muted"
-          >
-            Volver a la invitacion
-          </Link>
-        </div>
-      </main>
-    </div>
-  );
-}
-
-function UploadAccessRequired({ slug, message }: { slug: string; message: string }) {
-  return (
-    <div className="min-h-screen bg-background">
-      <main className="mx-auto flex min-h-screen max-w-lg flex-col items-center justify-center px-5 py-10 text-center">
-        <div className="rounded-2xl border border-border bg-card p-8 shadow-sm">
-          <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-muted">
-            <ImageIcon className="h-6 w-6 text-muted-foreground" />
-          </div>
-          <h1 className="font-display text-2xl font-semibold text-foreground">
-            Subida de fotos no disponible
-          </h1>
-          <p className="mt-3 text-sm leading-6 text-muted-foreground">{message}</p>
           <Link
             href={`/evento/${slug}`}
             className="mt-6 inline-flex rounded-xl border border-border px-5 py-2.5 text-sm font-semibold transition hover:bg-muted"
@@ -183,48 +148,4 @@ function UploadLocked({ event, slug }: { event: Event; slug: string }) {
       </main>
     </div>
   );
-}
-
-async function validateGuestPhotoAccess(eventId: string, guestToken: string) {
-  if (!guestToken) {
-    return {
-      allowed: false,
-      message: "Este evento requiere un enlace personal confirmado para subir fotos al album."
-    };
-  }
-
-  const admin = createAdminClient();
-  const { data: guest } = await admin
-    .from("event_guests")
-    .select("id,status,rsvp_id")
-    .eq("event_id", eventId)
-    .eq("token", guestToken)
-    .maybeSingle();
-
-  if (!guest || guest.status === "bloqueado" || !guest.rsvp_id) {
-    return {
-      allowed: false,
-      message: "Primero confirma tu asistencia desde tu enlace personal."
-    };
-  }
-
-  const { data: rsvp } = await admin
-    .from("rsvps")
-    .select("attending")
-    .eq("id", guest.rsvp_id)
-    .maybeSingle();
-
-  if (!rsvp?.attending) {
-    return {
-      allowed: false,
-      message: "Solo los invitados que confirmaron asistencia pueden subir fotos al album."
-    };
-  }
-
-  return { allowed: true, message: "" };
-}
-
-function normalizeSearchParam(value: string | string[] | undefined) {
-  const raw = Array.isArray(value) ? value[0] : value;
-  return String(raw ?? "").trim();
 }

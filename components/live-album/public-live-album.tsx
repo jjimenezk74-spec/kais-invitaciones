@@ -78,8 +78,7 @@ export function PublicLiveAlbum({
           <button
             type="button"
             onClick={() => setShowUploader((value) => !value)}
-            className="inline-flex shrink-0 items-center gap-2 rounded-full px-4 py-2 text-xs font-black uppercase tracking-[0.16em] text-black shadow-lg transition hover:-translate-y-0.5"
-            style={{ background: accent }}
+            className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full border border-amber-100 bg-amber-300 px-5 py-2.5 text-xs font-black uppercase tracking-[0.16em] text-black shadow-lg shadow-black/30 transition hover:-translate-y-0.5 hover:bg-amber-200 active:translate-y-0"
           >
             <Camera className="h-4 w-4" />
             Subir foto
@@ -147,8 +146,7 @@ export function PublicLiveAlbum({
             <button
               type="button"
               onClick={() => setShowUploader(true)}
-              className="mt-7 rounded-full px-6 py-3 text-sm font-black uppercase tracking-[0.16em] text-black shadow-lg transition hover:-translate-y-0.5"
-              style={{ background: accent }}
+              className="mt-7 min-h-11 rounded-full border border-amber-100 bg-amber-300 px-7 py-3 text-sm font-black uppercase tracking-[0.16em] text-black shadow-lg shadow-black/30 transition hover:-translate-y-0.5 hover:bg-amber-200 active:translate-y-0"
             >
               Subir foto
             </button>
@@ -177,8 +175,7 @@ export function PublicLiveAlbum({
       <button
         type="button"
         onClick={() => setShowUploader(true)}
-        className="fixed bottom-5 right-5 z-40 inline-flex h-14 w-14 items-center justify-center rounded-full text-black shadow-2xl shadow-black/40 transition hover:-translate-y-0.5 md:hidden"
-        style={{ background: accent }}
+        className="fixed bottom-5 right-5 z-40 inline-flex h-14 w-14 items-center justify-center rounded-full border border-amber-100 bg-amber-300 text-black shadow-2xl shadow-black/40 transition hover:-translate-y-0.5 hover:bg-amber-200 active:translate-y-0 md:hidden"
         aria-label="Subir foto"
       >
         <Camera className="h-6 w-6" />
@@ -438,7 +435,7 @@ function PhotoLightbox({
               onChange={(event) => onAuthorNameChange(event.target.value)}
               maxLength={80}
               placeholder="Tu nombre"
-              className="w-full rounded-2xl border border-white/10 bg-white/[0.08] px-4 py-3 text-sm text-white outline-none placeholder:text-stone-500 focus:border-white/30"
+              className="min-h-12 w-full rounded-2xl border border-white/30 bg-white/[0.14] px-4 py-3 text-sm font-semibold text-white shadow-inner shadow-black/20 outline-none placeholder:text-stone-300 transition focus:border-amber-200 focus:bg-white/[0.18] focus:ring-2 focus:ring-amber-200/40"
             />
             <div className="flex gap-2">
               <input
@@ -447,17 +444,16 @@ function PhotoLightbox({
                 onChange={(event) => setCommentText(event.target.value)}
                 maxLength={300}
                 placeholder="Escribe un comentario..."
-                className="min-w-0 flex-1 rounded-2xl border border-white/10 bg-white/[0.08] px-4 py-3 text-sm text-white outline-none placeholder:text-stone-500 focus:border-white/30"
+                className="min-h-12 min-w-0 flex-1 rounded-2xl border border-white/30 bg-white/[0.14] px-4 py-3 text-sm font-semibold text-white shadow-inner shadow-black/20 outline-none placeholder:text-stone-300 transition focus:border-amber-200 focus:bg-white/[0.18] focus:ring-2 focus:ring-amber-200/40"
               />
               <button
                 type="button"
                 onClick={handleComment}
                 disabled={isPending || !authorName.trim() || !commentText.trim()}
-                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-black transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
-                style={{ background: accent }}
+                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-amber-100 bg-amber-300 text-black shadow-lg shadow-black/25 transition hover:-translate-y-0.5 hover:bg-amber-200 active:translate-y-0 disabled:cursor-not-allowed disabled:border-white/15 disabled:bg-white/18 disabled:text-white/45 disabled:shadow-none"
                 aria-label="Enviar comentario"
               >
-                <Send className="h-4 w-4" />
+                <Send className="h-5 w-5" />
               </button>
             </div>
             {error ? <p className="text-sm font-semibold text-red-200">{error}</p> : null}

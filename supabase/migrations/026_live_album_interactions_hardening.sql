@@ -40,6 +40,7 @@ alter table public.live_photo_comments
 
 alter table public.live_photo_reactions
   drop constraint if exists live_photo_reactions_allowed_emoji,
+  drop constraint if exists live_photo_reactions_emoji_length,
   drop constraint if exists live_photo_reactions_session_length,
   add constraint live_photo_reactions_emoji_length
     check (char_length(trim(emoji)) between 1 and 8),

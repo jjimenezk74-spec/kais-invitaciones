@@ -21,6 +21,8 @@ type LiveReaction = {
   created_at: string;
 };
 
+type ReactionSummary = Record<string, number>;
+
 export async function GET(
   _req: Request,
   { params }: { params: Promise<{ eventId: string }> },
@@ -32,7 +34,7 @@ export async function GET(
   }
 
   const admin = createAdminClient();
-  const [photosResult, commentsResult, reactionsResult] = await Promise.all([
+  const [photosResult, commentsResult, reactionsResult, reactionSummaryResult] = await Promise.all([
     admin
       .from("live_photos")
       .select("id,event_id,image_url,storage_path,guest_name,guest_message,approved,featured,rejected,created_at")
@@ -53,6 +55,11 @@ export async function GET(
       .eq("event_id", eventId)
       .order("created_at", { ascending: false })
       .limit(20),
+    admin
+      .from("live_photo_reactions")
+      .select("emoji")
+      .eq("event_id", eventId)
+      .limit(500),
   ]);
 
   if (photosResult.error) {
@@ -64,12 +71,21 @@ export async function GET(
   if (reactionsResult.error) {
     console.error("[live-album-api] reactions error:", reactionsResult.error);
   }
+  if (reactionSummaryResult.error) {
+    console.error("[live-album-api] reaction summary error:", reactionSummaryResult.error);
+  }
+
+  const reactionSummary: ReactionSummary = {};
+  for (const reaction of (reactionSummaryResult.data ?? []) as { emoji: string }[]) {
+    reactionSummary[reaction.emoji] = (reactionSummary[reaction.emoji] ?? 0) + 1;
+  }
 
   return NextResponse.json(
     {
       photos: (photosResult.data ?? []) as LivePhoto[],
       comments: (commentsResult.data ?? []) as LiveComment[],
       reactions: (reactionsResult.data ?? []) as LiveReaction[],
+      reactionSummary,
     },
     { headers: { "Cache-Control": "no-store" } },
   );

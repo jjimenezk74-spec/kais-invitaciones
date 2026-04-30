@@ -1,8 +1,10 @@
 import { notFound } from "next/navigation";
+import QRCode from "qrcode";
 import { getPublicLivePhotoInteractions } from "@/app/actions/live-photo-interactions";
 import { getApprovedLivePhotos } from "@/app/actions/live-photos";
 import { EventLiveView } from "@/components/live-album/event-live-view";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { shortPhotoUploadUrl } from "@/lib/utils";
 import type { Event } from "@/lib/types";
 
 type Props = { params: Promise<{ slug: string }> };
@@ -59,6 +61,21 @@ export default async function EventLivePage({ params }: Props) {
       })),
     ),
   );
+  const initialReactionSummary = Object.values(interactions.reactionsByPhotoId).reduce<Record<string, number>>(
+    (summary, counts) => {
+      for (const [emoji, count] of Object.entries(counts)) {
+        summary[emoji] = (summary[emoji] ?? 0) + count;
+      }
+      return summary;
+    },
+    {},
+  );
+  const uploadUrl = shortPhotoUploadUrl(event.slug);
+  const qrDataUrl = await QRCode.toDataURL(uploadUrl, {
+    width: 220,
+    margin: 2,
+    color: { dark: "#111827", light: "#ffffff" },
+  });
 
   return (
     <EventLiveView
@@ -67,6 +84,9 @@ export default async function EventLivePage({ params }: Props) {
       initialPhotos={photos}
       initialComments={initialComments}
       initialReactions={initialReactions}
+      initialReactionSummary={initialReactionSummary}
+      uploadUrl={uploadUrl}
+      qrDataUrl={qrDataUrl}
     />
   );
 }

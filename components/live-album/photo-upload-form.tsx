@@ -200,7 +200,6 @@ export function PhotoUploadForm({ eventId, accentColor = "#d4af37" }: PhotoUploa
           ref={fileInputRef}
           type="file"
           accept="image/jpeg,image/png,image/webp"
-          capture="environment"
           className="sr-only"
           onChange={handleFileChange}
         />

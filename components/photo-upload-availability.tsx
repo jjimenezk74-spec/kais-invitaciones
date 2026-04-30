@@ -49,7 +49,7 @@ export function PhotoUploadAvailability({
       {confirmed && attending === true ? (
         <div className="grid gap-1">
           <p className={titleClass(variant)}>¡Gracias por confirmar tu presencia!</p>
-          <p className={textClass(variant)}>Te esperamos con mucha alegria.</p>
+          <p className={textClass(variant)}>Te esperamos con mucha alegría.</p>
         </div>
       ) : null}
 

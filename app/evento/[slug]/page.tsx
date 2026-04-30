@@ -429,9 +429,9 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
               {isAdminPreview
                 ? "Vista previa - el formulario RSVP es solo lectura en modo administrador."
                 : isConfirmed && confirmedAttending === false
-                  ? "Gracias por tu respuesta."
+                  ? "Tu respuesta quedó registrada."
                   : isConfirmed
-                    ? "Gracias por confirmar tu presencia. Te esperamos con mucha alegria."
+                    ? "Tu confirmación quedó registrada."
                   : invitedGuest
                     ? `Hola ${invitedGuest.guest_name}, podes confirmar tu asistencia.`
                     : "Tu respuesta ayuda a los anfitriones a preparar cada detalle del evento."}
@@ -467,7 +467,7 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
                   <p className="mt-2 text-sm leading-6 text-[#f5ecd9]/72">
                     {confirmedAttending === false
                       ? "Gracias por tu respuesta."
-                      : "¡Gracias por confirmar tu presencia! Te esperamos con mucha alegria."}
+                      : "Gracias por confirmar tu presencia. Te esperamos con mucha alegría."}
                   </p>
                 </div>
               ) : null}
@@ -517,10 +517,10 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
                 </LuxeField>
                 {invitedGuest?.max_companions === 0 ? (
                   <div className="rounded-2xl border border-[#d4af37]/25 bg-[#d4af37]/10 px-4 py-3">
-                    <p className="text-sm font-semibold text-[#f5ecd9]">Invitacion individual.</p>
+                    <p className="text-sm font-semibold text-[#f5ecd9]">Invitación individual.</p>
                   </div>
                 ) : (
-                  <LuxeField label="Â¿Cuantos acompanantes traeras?">
+                  <LuxeField label="¿Cuántos acompañantes traerás?">
                     <input
                       name="companions"
                       type="number"

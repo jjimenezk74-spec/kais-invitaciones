@@ -7,7 +7,7 @@ import { getAllLivePhotos } from "@/app/actions/live-photos";
 import { canManagePhotos } from "@/lib/permissions";
 import { getCurrentUserProfile } from "@/lib/profiles";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { absoluteUrl } from "@/lib/utils";
+import { absoluteUrl, shortLiveScreenUrl } from "@/lib/utils";
 import type { Event } from "@/lib/types";
 
 type Props = { params: Promise<{ id: string }> };
@@ -41,8 +41,8 @@ export default async function LiveAlbumAdminPage({ params }: Props) {
   const featured = photos.filter((p) => p.featured).length;
 
   const uploadUrl = absoluteUrl(`/evento/${event.slug}/fotos`);
-  const livePath = `/evento/${event.slug}/live`;
-  const liveUrl = absoluteUrl(livePath);
+  const livePath = `/l/${event.slug}`;
+  const liveUrl = shortLiveScreenUrl(event.slug);
   const albumUrl = absoluteUrl(`/evento/${event.slug}/album`);
 
   return (

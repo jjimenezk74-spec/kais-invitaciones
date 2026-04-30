@@ -36,12 +36,12 @@ export function LiveScreenActions({ livePath, liveUrl }: LiveScreenActionsProps)
       <button
         type="button"
         onClick={copyLiveUrl}
-        title="Copiar enlace pantalla"
-        aria-label="Copiar enlace pantalla"
+        title="Copiar enlace corto para TV"
+        aria-label="Copiar enlace corto para TV"
         className="flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-2 text-xs font-semibold transition hover:bg-muted"
       >
         {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-        {copied ? "Copiado" : "Copiar enlace pantalla"}
+        {copied ? "Copiado" : "Copiar enlace TV"}
       </button>
     </>
   );

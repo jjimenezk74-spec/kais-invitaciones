@@ -33,7 +33,7 @@ import { perfEnd, perfStart, timed } from "@/lib/perf";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { setEventStatus } from "@/app/actions/event-status";
 import type { Client, Event } from "@/lib/types";
-import { absoluteUrl, publicEventUrl, shortAlbumUrl, shortPhotoUploadUrl } from "@/lib/utils";
+import { absoluteUrl, publicEventUrl, shortAlbumUrl, shortLiveScreenUrl, shortPhotoUploadUrl } from "@/lib/utils";
 import { DetallesSection } from "@/components/event-sections/detalles-section";
 import { AccesoSection } from "@/components/event-sections/acceso-section";
 import { GuestSection } from "@/components/event-sections/guest-section";
@@ -164,8 +164,8 @@ async function MetricsSection({ event }: { event: Event }) {
           </div>
           <div className="flex flex-wrap gap-2">
             <LiveScreenActions
-              livePath={`/evento/${event.slug}/live`}
-              liveUrl={absoluteUrl(`/evento/${event.slug}/live`)}
+              livePath={`/l/${event.slug}`}
+              liveUrl={shortLiveScreenUrl(event.slug)}
             />
             <Link href={shortPhotoUploadUrl(event.slug)} target="_blank" rel="noreferrer"
               className="flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-2 text-xs font-semibold transition hover:bg-muted">

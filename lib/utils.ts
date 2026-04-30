@@ -41,6 +41,10 @@ export function shortAlbumUrl(slug: string) {
   return absoluteUrl(`/a/${slug}`);
 }
 
+export function shortLiveScreenUrl(slug: string) {
+  return absoluteUrl(`/l/${slug}`);
+}
+
 export function buildGuestWhatsAppMessage(guestName: string, eventTitle: string, guestLink: string) {
   return [
     `Hola ${guestName}, estas invitado/a a ${eventTitle}.`,

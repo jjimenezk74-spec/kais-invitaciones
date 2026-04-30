@@ -41,6 +41,50 @@ body {
   overflow-x: hidden;
 }
 
+.kais-live-screen-active,
+.kais-live-screen-active body {
+  cursor: none;
+  overflow: hidden;
+}
+
+@keyframes kais-live-reaction-rise {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 24px, 0) scale(0.78);
+  }
+  14% {
+    opacity: 1;
+    transform: translate3d(-8px, -24vh, 0) scale(1);
+  }
+  78% {
+    opacity: 0.9;
+    transform: translate3d(12px, -68vh, 0) scale(1.08);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(-6px, -86vh, 0) scale(0.92);
+  }
+}
+
+@keyframes kais-live-comment-enter {
+  from {
+    opacity: 0;
+    transform: translate3d(-22px, 14px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.kais-live-reaction-bubble {
+  animation: kais-live-reaction-rise 5.2s ease-out forwards;
+}
+
+.kais-live-comment-card {
+  animation: kais-live-comment-enter 0.7s ease-out both;
+}
+
 body {
   margin: 0;
   background: hsl(var(--background));

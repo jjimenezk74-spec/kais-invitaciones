@@ -41,7 +41,7 @@ Luego reemplaza los valores de Supabase desde **Supabase Dashboard > Project Set
 - `NEXT_PUBLIC_SUPABASE_URL`: Project URL.
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`: anon/public key.
 - `SUPABASE_SERVICE_ROLE_KEY`: service_role key, solo para servidor.
-- `NEXT_PUBLIC_APP_URL`: URL de la app, por ejemplo `http://localhost:3000` en desarrollo.
+- `NEXT_PUBLIC_APP_URL`: URL de la app. Usa `http://localhost:3000` en desarrollo y `https://kais.click` en producción.
 
 Después de editar `.env.local`, reinicia el servidor:
 
@@ -153,13 +153,13 @@ git push -u origin main
 Agrega estas variables en **Project Settings > Environment Variables** para Production y Preview:
 
 ```bash
-NEXT_PUBLIC_APP_URL=https://tu-dominio.vercel.app
+NEXT_PUBLIC_APP_URL=https://kais.click
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 ```
 
-Cuando tengas dominio propio, cambia `NEXT_PUBLIC_APP_URL` a `https://tudominio.com` y redeploya. Esta URL se usa para enlaces públicos y QR enviados por WhatsApp.
+En producción, mantené `NEXT_PUBLIC_APP_URL=https://kais.click` y redeployá si cambiás la variable. Esta URL se usa para enlaces públicos, QR y mensajes enviados por WhatsApp.
 
 ### 4. Configurar Supabase para producción
 
@@ -176,10 +176,10 @@ En Supabase ejecuta las migraciones en orden:
 
 En **Authentication > URL Configuration**:
 
-- Site URL: `https://tu-dominio.vercel.app` o tu dominio real.
+- Site URL: `https://kais.click`.
 - Redirect URLs:
   - `http://localhost:3000/**`
-  - `https://tu-dominio.vercel.app/**`
+  - `https://kais.click/**`
   - opcional para previews: `https://*-tu-usuario.vercel.app/**`
 
 Storage requerido:
@@ -207,8 +207,8 @@ Checklist de prueba:
 ### 5. Obtener enlace público final
 
 1. Haz deploy en Vercel.
-2. Copia el dominio de producción, por ejemplo `https://kais-invitaciones.vercel.app`.
-3. Actualiza `NEXT_PUBLIC_APP_URL` en Vercel con ese dominio.
+2. Verifica que el dominio de producción sea `https://kais.click`.
+3. Actualiza `NEXT_PUBLIC_APP_URL` en Vercel con `https://kais.click`.
 4. Haz **Redeploy**.
 5. Crea o publica un evento.
-6. Comparte `/evento/[slug]` o descarga el QR desde el detalle del evento.
+6. Comparte los enlaces cortos como `/e/[slug]`, `/f/[slug]`, `/a/[slug]` o `/l/[slug]`.

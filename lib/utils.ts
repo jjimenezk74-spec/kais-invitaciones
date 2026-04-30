@@ -6,9 +6,13 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function absoluteUrl(path = "") {
+  const configuredBase = process.env.NEXT_PUBLIC_APP_URL?.trim();
   const base =
-    process.env.NEXT_PUBLIC_APP_URL ??
-    (process.env.NEXT_PUBLIC_VERCEL_URL ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}` : "http://localhost:3000");
+    configuredBase && !configuredBase.includes("vercel.app")
+      ? configuredBase
+      : configuredBase?.includes("localhost") || configuredBase?.includes("127.0.0.1")
+        ? configuredBase
+        : "https://kais.click";
 
   return `${base.replace(/\/$/, "")}${path.startsWith("/") ? path : `/${path}`}`;
 }

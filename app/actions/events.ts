@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { normalizeInvitationDesignConfig } from "@/lib/invitation-design";
+import { eventHasFeature } from "@/lib/event-features";
 import {
   canCreateEvents,
   canDeleteEvents,
@@ -296,6 +297,23 @@ export async function updateEventCoverOnly(
 export async function updateEventMusicOnly(eventId: string, musicUrl?: string | null) {
   const permission = await ensurePartialEventEditPermission("musica");
   if (!permission.ok) return permission;
+
+  const { data: eventFeatures, error: eventFeaturesError } = await permission.supabase
+    .from("events")
+    .select("id,package_key,enabled_features,disabled_features")
+    .eq("id", eventId)
+    .maybeSingle();
+
+  if (eventFeaturesError || !eventFeatures) {
+    return { ok: false, error: "No se pudo validar el paquete contratado del evento." };
+  }
+
+  if (!eventHasFeature(eventFeatures, "music")) {
+    return {
+      ok: false,
+      error: "El paquete contratado para este evento no incluye musica."
+    };
+  }
 
   const payload = { music_url: normalizeOptionalText(musicUrl) };
   const { error } = await permission.supabase

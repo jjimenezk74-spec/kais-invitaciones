@@ -9,6 +9,7 @@ import { ThemeDecorations } from "@/components/theme-decorations";
 import { resolvePremiumThemeDesign, resolveLegacyDesign } from "@/lib/invitation-design";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { fetchThemeById } from "@/lib/invitation-themes.server";
+import { eventHasFeature } from "@/lib/event-features";
 import { createClient } from "@/lib/supabase/server";
 import { isKaisAdmin } from "@/lib/profiles";
 import { formatDate } from "@/lib/utils";
@@ -47,6 +48,9 @@ const PUBLIC_EVENT_SELECT = [
   "id",
   "owner_id",
   "client_id",
+  "package_key",
+  "enabled_features",
+  "disabled_features",
   "template_id",
   "category_id",
   "theme_id",
@@ -307,6 +311,7 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
         themeSlug={decorationThemeSlug}
         decorations={slotDecorations}
         freeDecorations={freeDecorations}
+        showMusic={eventHasFeature(event, "music")}
       />
 
       <section className="relative px-5 py-20 sm:py-24 lg:hidden" aria-label="Cuenta regresiva y mensaje">

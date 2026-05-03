@@ -1,6 +1,7 @@
 export type UserRole = "super_admin" | "admin" | "admin_kais" | "diseñador" | "soporte_evento" | "vendedor" | "cliente";
 export type EventStatus = "borrador" | "publicado" | "inactivo";
 export type GuestMode = "publico" | "lista_invitados";
+export type EventPackageKey = "essential" | "premium" | "experience" | "luxury";
 export type DecorationSlot =
   | "top_left"
   | "top_right"
@@ -107,6 +108,9 @@ export type Event = {
   id: string;
   owner_id: string;
   client_id: string | null;
+  package_key: EventPackageKey;
+  enabled_features: string[];
+  disabled_features: string[];
   template_id: string | null;
   category_id: string | null;
   theme_id: string | null;

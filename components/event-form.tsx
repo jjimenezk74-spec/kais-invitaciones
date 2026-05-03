@@ -105,7 +105,9 @@ export function EventForm({
   const [visualDecorations, setVisualDecorations] = useState<VisualDecoration[]>(() => normalizeVisualDecorationState(event?.visual_decorations));
   const [activeDecorationDevice, setActiveDecorationDevice] = useState<VisualDecorationDevice>("desktop");
   const [activeStep, setActiveStep] = useState<WizardStepId>("datos");
+  const [draftToast, setDraftToast] = useState("");
   const submitAfterUploadRef = useRef(false);
+  const finalSubmitIntentRef = useRef(false);
   const formRef = useRef<HTMLFormElement>(null);
 
   const activeCategories = categories.filter((c) => c.is_active).sort((a, b) => a.sort_order - b.sort_order);
@@ -139,7 +141,12 @@ export function EventForm({
     const form = formRef.current;
     if (!form) return;
     setInputValue(form, "status", "borrador");
-    form.requestSubmit();
+    setDraftToast("Borrador preparado. Se guardará cuando presiones el botón final.");
+    window.setTimeout(() => setDraftToast(""), 3200);
+  }
+
+  function requestFinalSubmit() {
+    finalSubmitIntentRef.current = true;
   }
 
   function handleThemeSelect(theme: InvitationTheme) {
@@ -346,10 +353,17 @@ export function EventForm({
           return;
         }
 
+        if (!finalSubmitIntentRef.current) {
+          submitEvent.preventDefault();
+          setUploadError("");
+          return;
+        }
+
         const form = submitEvent.currentTarget;
         const error = validateUploads(form);
         if (error) {
           submitEvent.preventDefault();
+          finalSubmitIntentRef.current = false;
           setUploadError(error);
           window.requestAnimationFrame(() => {
             document.getElementById("event-form-upload-error")?.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -371,6 +385,7 @@ export function EventForm({
             submitAfterUploadRef.current = true;
             form.requestSubmit();
           } catch (uploadFailure) {
+            finalSubmitIntentRef.current = false;
             setUploadError(uploadFailure instanceof Error ? uploadFailure.message : "No se pudieron subir los archivos. Intenta nuevamente.");
           } finally {
             setIsUploading(false);
@@ -845,9 +860,11 @@ export function EventForm({
         activeStepIndex={activeStepIndex}
         isLastStep={isLastStep}
         isUploading={isUploading}
+        draftToast={draftToast}
         onBack={goBack}
         onNext={goNext}
         onSaveDraft={saveDraft}
+        onFinalSubmit={requestFinalSubmit}
       />
     </form>
   );
@@ -944,19 +961,28 @@ function WizardActions({
   activeStepIndex,
   isLastStep,
   isUploading,
+  draftToast,
   onBack,
   onNext,
-  onSaveDraft
+  onSaveDraft,
+  onFinalSubmit
 }: {
   activeStepIndex: number;
   isLastStep: boolean;
   isUploading: boolean;
+  draftToast: string;
   onBack: () => void;
   onNext: () => void;
   onSaveDraft: () => void;
+  onFinalSubmit: () => void;
 }) {
   return (
     <div className="sticky bottom-0 z-20 -mx-4 border-t border-[#eadfd2] bg-[#fffaf3]/95 px-4 py-4 backdrop-blur md:static md:mx-0 md:rounded-3xl md:border md:px-5">
+      {draftToast ? (
+        <p className="mb-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-800">
+          {draftToast}
+        </p>
+      ) : null}
       <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
         <Button type="button" variant="outline" className="border-[#d8c7b5]" disabled={activeStepIndex === 0} onClick={onBack}>
           <ArrowLeft className="h-4 w-4" />
@@ -968,7 +994,11 @@ function WizardActions({
             Guardar borrador
           </Button>
           {isLastStep ? (
-            <Button className="rounded-xl bg-[#5b1728] px-6 py-6 text-base text-white shadow-[0_16px_32px_rgba(74,23,36,0.18)] hover:bg-[#48111f]">
+            <Button
+              type="submit"
+              className="rounded-xl bg-[#5b1728] px-6 py-6 text-base text-white shadow-[0_16px_32px_rgba(74,23,36,0.18)] hover:bg-[#48111f]"
+              onClick={onFinalSubmit}
+            >
               <Save className="h-4 w-4" />
               {isUploading ? "Subiendo archivos..." : "Crear invitación / Guardar evento"}
             </Button>

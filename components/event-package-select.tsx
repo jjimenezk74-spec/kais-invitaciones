@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { updateEventPackage } from "@/app/actions/events";
 import { Select } from "@/components/ui/select";
+import { PACKAGE_FEATURES, type EventFeatureKey } from "@/lib/event-features";
 import type { EventPackageKey } from "@/lib/types";
 
 const packageOptions: Array<{ value: EventPackageKey; label: string }> = [
@@ -11,6 +12,24 @@ const packageOptions: Array<{ value: EventPackageKey; label: string }> = [
   { value: "experience", label: "Experience" },
   { value: "luxury", label: "Luxury" },
 ];
+
+const featureLabels: Record<EventFeatureKey, string> = {
+  countdown: "Cuenta regresiva",
+  music: "Música",
+  rsvp: "Confirmación RSVP",
+  guest_list: "Lista de invitados",
+  live_album: "Álbum en vivo",
+  album_comments: "Comentarios en álbum",
+  album_reactions: "Reacciones en álbum",
+  photo_upload: "Subida de fotos",
+  photo_qr: "QR de fotos",
+  gallery: "Galería",
+  custom_themes: "Temas personalizados",
+  free_decorations: "Decoración libre",
+  client_access: "Acceso cliente",
+  analytics: "Métricas",
+  csv_export: "Exportación CSV",
+};
 
 export function EventPackageSelect({
   eventId,
@@ -57,6 +76,16 @@ export function EventPackageSelect({
       {message ? (
         <p className="text-xs font-semibold text-muted-foreground">{message}</p>
       ) : null}
+      <div className="rounded-lg border border-[#eadfd2] bg-white/70 p-3">
+        <p className="mb-2 text-[0.68rem] font-bold uppercase tracking-[0.16em] text-muted-foreground">
+          Incluye
+        </p>
+        <ul className="grid gap-1 text-xs font-medium text-[#3b1721]">
+          {PACKAGE_FEATURES[value].map((feature) => (
+            <li key={feature}>• {featureLabels[feature]}</li>
+          ))}
+        </ul>
+      </div>
     </div>
   );
 }

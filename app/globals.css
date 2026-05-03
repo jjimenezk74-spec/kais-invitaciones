@@ -2369,6 +2369,34 @@ main.kais-stage.kais-theme-kpop-warriors footer {
   }
 }
 
+/* K-Pop Warriors mobile: keep the music trigger as a clean floating sphere. */
+@media (max-width: 767px) {
+  main.kais-stage.kais-theme-kpop-warriors .kais-music-float {
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    filter: none !important;
+  }
+
+  main.kais-stage.kais-theme-kpop-warriors .kais-music-float > div {
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    animation: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  main.kais-stage.kais-theme-kpop-warriors .kais-disc {
+    border-radius: 9999px !important;
+    overflow: hidden;
+  }
+
+  main.kais-stage.kais-theme-kpop-warriors .kais-disc::after {
+    border-radius: 9999px;
+  }
+}
+
 /* ── ALL themes: ghost link uses theme ghost colour ─────────────────────── */
 main.kais-stage.kais-theme-active .kais-ghost-link {
   color: var(--kt-ghost-color, var(--kt-text, #f5ecd9));

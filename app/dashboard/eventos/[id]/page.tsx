@@ -21,6 +21,7 @@ import { LiveScreenActions } from "@/components/live-screen-actions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EventTabNav } from "@/components/event-tab-nav";
+import { EventPackageSelect } from "@/components/event-package-select";
 import { EVENT_TABS } from "@/components/event-tabs";
 import { getCurrentUserProfile } from "@/lib/profiles";
 import {
@@ -268,7 +269,7 @@ export default async function EventDetailPage({
   const needsFullEvent = activeTab === "ajustes";
   const eventSelect = needsFullEvent
     ? "*"
-    : "id,client_id,title,status,slug,event_date,event_time,guest_mode,theme_id";
+    : "id,client_id,package_key,title,status,slug,event_date,event_time,guest_mode,theme_id";
 
   const admin = createAdminClient();
   const { data: eventData } = await timed("event-page-event", admin.from("events").select(eventSelect).eq("id", id).single());
@@ -358,6 +359,24 @@ export default async function EventDetailPage({
                 {query.error}
               </p>
             )}
+
+            <div className="mt-4 max-w-xs">
+              {permissions.manageEvents ? (
+                <EventPackageSelect
+                  eventId={event.id}
+                  defaultValue={event.package_key}
+                />
+              ) : (
+                <div className="grid gap-2">
+                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-muted-foreground">
+                    Paquete contratado
+                  </p>
+                  <p className="rounded-md border border-[#eadfd2] bg-white px-3 py-2 text-sm font-semibold text-[#3b1721]">
+                    {event.package_key}
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="flex flex-shrink-0 flex-wrap items-center gap-2">

@@ -18,6 +18,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { slugify } from "@/lib/utils";
 import type {
+  EventPackageKey,
   EventGuest,
   InvitationDesignConfig,
   VisualDecoration,
@@ -43,6 +44,7 @@ const ALLOWED_COVER_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const MAX_COVER_FILE_SIZE = 5 * 1024 * 1024;
 const EVENT_STATUSES = ["borrador", "publicado", "inactivo"] as const;
 const GUEST_MODES = ["publico", "lista_invitados"] as const;
+const EVENT_PACKAGE_KEYS = ["essential", "premium", "experience", "luxury"] as const;
 
 export async function createEvent(formData: FormData) {
   const supabase = await createClient();
@@ -327,6 +329,35 @@ export async function updateEventMusicOnly(eventId: string, musicUrl?: string | 
 
   revalidatePath(`/dashboard/eventos/${eventId}`);
   return { ok: true, payload };
+}
+
+export async function updateEventPackage(eventId: string, packageKey: EventPackageKey) {
+  const { user, profile } = await getCurrentUserProfile();
+
+  if (!user) {
+    return { ok: false, error: "Inicia sesion para cambiar el paquete del evento." };
+  }
+
+  if (!canManageEvents(profile)) {
+    return { ok: false, error: "Tu rol no tiene permisos para cambiar el paquete contratado." };
+  }
+
+  if (!EVENT_PACKAGE_KEYS.includes(packageKey)) {
+    return { ok: false, error: "Paquete invalido." };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("events")
+    .update({ package_key: packageKey })
+    .eq("id", eventId);
+
+  if (error) {
+    return { ok: false, error: error.message };
+  }
+
+  revalidatePath(`/dashboard/eventos/${eventId}`);
+  return { ok: true, packageKey };
 }
 
 export async function deleteEvent(eventId: string) {

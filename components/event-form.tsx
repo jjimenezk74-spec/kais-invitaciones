@@ -91,7 +91,7 @@ export function EventForm({
   const designConfig = normalizeInvitationDesignConfig({ designConfig: event?.design_config ?? undefined });
   const [uploadError, setUploadError] = useState("");
   const [uploadStatus, setUploadStatus] = useState("");
-  const [isUploading, setIsUploading] = useState(false);
+  const [isFinalSubmitting, setIsFinalSubmitting] = useState(false);
   const [isSavingTheme, setIsSavingTheme] = useState(false);
   const [themeToast, setThemeToast] = useState("");
   const [isSavingCover, setIsSavingCover] = useState(false);
@@ -106,7 +106,6 @@ export function EventForm({
   const [activeDecorationDevice, setActiveDecorationDevice] = useState<VisualDecorationDevice>("desktop");
   const [activeStep, setActiveStep] = useState<WizardStepId>("datos");
   const [draftToast, setDraftToast] = useState("");
-  const submitAfterUploadRef = useRef(false);
   const finalSubmitIntentRef = useRef(false);
   const formRef = useRef<HTMLFormElement>(null);
 
@@ -344,21 +343,16 @@ export function EventForm({
       action={action}
       className="grid gap-6"
       onSubmit={async (submitEvent) => {
-        if (submitAfterUploadRef.current) {
-          submitAfterUploadRef.current = false;
-          return;
-        }
-
         if (!finalSubmitIntentRef.current) {
           submitEvent.preventDefault();
           setUploadError("");
           return;
         }
 
+        submitEvent.preventDefault();
         const form = submitEvent.currentTarget;
         const error = validateUploads(form);
         if (error) {
-          submitEvent.preventDefault();
           finalSubmitIntentRef.current = false;
           setUploadError(error);
           window.requestAnimationFrame(() => {
@@ -367,30 +361,25 @@ export function EventForm({
           return;
         }
 
-        if (hasPendingUploads(form)) {
-          submitEvent.preventDefault();
-          setUploadError("");
-          setIsUploading(true);
+        setUploadError("");
+        setIsFinalSubmitting(true);
 
-          try {
+        try {
+          if (hasPendingUploads(form)) {
             await uploadFilesToSupabase(form, setUploadStatus);
             clearFileInput(form, "cover_image_file");
             clearFileInput(form, "mobile_cover_image_file");
             clearFileInput(form, "music_file");
             visualDecorations.forEach((decoration) => clearFileInput(form, getVisualDecorationFileInputName(decoration.id)));
-            submitAfterUploadRef.current = true;
-            form.requestSubmit();
-          } catch (uploadFailure) {
-            finalSubmitIntentRef.current = false;
-            setUploadError(uploadFailure instanceof Error ? uploadFailure.message : "No se pudieron subir los archivos. Intenta nuevamente.");
-          } finally {
-            setIsUploading(false);
-            setUploadStatus("");
           }
-          return;
+          await action(new FormData(form));
+        } catch (submitFailure) {
+          if (isNextRedirectError(submitFailure)) throw submitFailure;
+          finalSubmitIntentRef.current = false;
+          setUploadError(submitFailure instanceof Error ? submitFailure.message : "No se pudo crear la invitación. Intenta nuevamente.");
+          setIsFinalSubmitting(false);
+          setUploadStatus("");
         }
-
-        setUploadError("");
       }}
     >
       {uploadError ? (
@@ -869,7 +858,7 @@ export function EventForm({
       <WizardActions
         activeStepIndex={activeStepIndex}
         isLastStep={isLastStep}
-        isUploading={isUploading}
+        isFinalSubmitting={isFinalSubmitting}
         draftToast={draftToast}
         onBack={goBack}
         onNext={goNext}
@@ -970,7 +959,7 @@ function SummaryRow({ label, value }: { label: string; value: string }) {
 function WizardActions({
   activeStepIndex,
   isLastStep,
-  isUploading,
+  isFinalSubmitting,
   draftToast,
   onBack,
   onNext,
@@ -979,7 +968,7 @@ function WizardActions({
 }: {
   activeStepIndex: number;
   isLastStep: boolean;
-  isUploading: boolean;
+  isFinalSubmitting: boolean;
   draftToast: string;
   onBack: () => void;
   onNext: () => void;
@@ -1007,10 +996,11 @@ function WizardActions({
             <Button
               type="submit"
               className="rounded-xl bg-[#5b1728] px-6 py-6 text-base text-white shadow-[0_16px_32px_rgba(74,23,36,0.18)] hover:bg-[#48111f]"
+              disabled={isFinalSubmitting}
               onClick={onFinalSubmit}
             >
               <Save className="h-4 w-4" />
-              {isUploading ? "Subiendo..." : "Crear invitación"}
+              {isFinalSubmitting ? "Creando invitación..." : "Crear invitación"}
             </Button>
           ) : (
             <Button type="button" className="rounded-xl bg-[#5b1728] px-6 text-white hover:bg-[#48111f]" onClick={onNext}>
@@ -1680,6 +1670,15 @@ function sanitizeFileName(fileName: string) {
 
 function getExtension(fileName: string) {
   return fileName.toLowerCase().match(/\.[a-z0-9]+$/)?.[0] ?? "";
+}
+
+function isNextRedirectError(error: unknown) {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "digest" in error &&
+    String((error as { digest?: unknown }).digest).startsWith("NEXT_REDIRECT")
+  );
 }
 
 function getImageContentType(fileName: string) {

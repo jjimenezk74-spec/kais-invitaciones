@@ -17,6 +17,7 @@ const featureLabels: Record<EventFeatureKey, string> = {
   countdown: "Cuenta regresiva",
   music: "Música",
   rsvp: "Confirmación RSVP",
+  external_rsvp_whatsapp: "RSVP por WhatsApp",
   guest_list: "Lista de invitados",
   live_album: "Álbum en vivo",
   album_comments: "Comentarios en álbum",

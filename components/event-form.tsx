@@ -496,6 +496,9 @@ export function EventForm({
               <Field label="Google Maps">
                 <Input name="google_maps_link" defaultValue={event?.google_maps_link ?? ""} placeholder="https://maps.google.com/..." />
               </Field>
+              <Field label="WhatsApp para RSVP" hint="Usar con la feature RSVP por WhatsApp. Incluye codigo de pais. Ejemplo: 595981123456">
+                <Input name="whatsapp_phone" defaultValue={event?.whatsapp_phone ?? ""} placeholder="595981123456" />
+              </Field>
             </div>
           </FormSection>
           </div>

@@ -2,6 +2,7 @@ export const EVENT_FEATURES = [
   "countdown",
   "music",
   "rsvp",
+  "external_rsvp_whatsapp",
   "guest_list",
   "live_album",
   "album_comments",
@@ -21,7 +22,7 @@ export type EventFeatureKey = (typeof EVENT_FEATURES)[number];
 export type PackageKey = "essential" | "premium" | "experience" | "luxury";
 
 export const PACKAGE_FEATURES: Record<PackageKey, readonly EventFeatureKey[]> = {
-  essential: ["countdown"],
+  essential: ["countdown", "external_rsvp_whatsapp"],
 
   premium: [
     "countdown",

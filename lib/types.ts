@@ -121,6 +121,7 @@ export type Event = {
   event_time: string;
   address: string;
   google_maps_link: string | null;
+  whatsapp_phone: string | null;
   main_message: string | null;
   dress_code: string | null;
   cover_image_url: string | null;

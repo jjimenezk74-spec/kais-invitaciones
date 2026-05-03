@@ -333,8 +333,8 @@ export default async function EventDetailPage({
           </Button>
         </div>
 
-        <div className="flex flex-wrap items-start justify-between gap-5">
-          <div className="min-w-0 flex-1">
+        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start">
+          <div className="min-w-0">
             <p className="text-xs font-bold uppercase tracking-[0.22em] text-accent">
               KAIS Dashboard - Evento
             </p>
@@ -360,71 +360,71 @@ export default async function EventDetailPage({
               </p>
             )}
 
-            <div className="mt-4 max-w-xs">
-              {permissions.manageEvents ? (
-                <EventPackageSelect
-                  eventId={event.id}
-                  defaultValue={event.package_key}
-                />
+            <div className="mt-5 flex flex-wrap items-center gap-2">
+              {permissions.publishEvents && (
+                <form action={publishAction}>
+                  <Button size="sm" variant={isDraft ? "default" : "outline"}>
+                    {isDraft ? (
+                      <>
+                        <Globe className="h-4 w-4" />
+                        Publicar
+                      </>
+                    ) : (
+                      <>
+                        <GlobeLock className="h-4 w-4" />
+                        A borrador
+                      </>
+                    )}
+                  </Button>
+                </form>
+              )}
+
+              {isDraft ? (
+                <Button variant="outline" size="sm" asChild>
+                  <Link href={previewUrl} target="_blank" rel="noreferrer">
+                    <Eye className="h-4 w-4" />
+                    Ver borrador
+                  </Link>
+                </Button>
               ) : (
-                <div className="grid gap-2">
-                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-muted-foreground">
-                    Paquete contratado
-                  </p>
-                  <p className="rounded-md border border-[#eadfd2] bg-white px-3 py-2 text-sm font-semibold text-[#3b1721]">
-                    {event.package_key}
-                  </p>
-                </div>
+                <Button variant="outline" size="sm" asChild>
+                  <Link href={`/evento/${event.slug}`} target="_blank" rel="noreferrer">
+                    <ExternalLink className="h-4 w-4" />
+                    Ver invitacion
+                  </Link>
+                </Button>
+              )}
+
+              <CopyLinkButton value={url} />
+
+              {permissions.viewRsvps && (
+                <Button variant="ghost" size="sm" asChild>
+                  <a href={`/api/events/${event.id}/rsvps.csv`}>
+                    <Download className="h-4 w-4" />
+                    CSV
+                  </a>
+                </Button>
               )}
             </div>
           </div>
 
-          <div className="flex flex-shrink-0 flex-wrap items-center gap-2">
-            {permissions.publishEvents && (
-              <form action={publishAction}>
-                <Button size="sm" variant={isDraft ? "default" : "outline"}>
-                  {isDraft ? (
-                    <>
-                      <Globe className="h-4 w-4" />
-                      Publicar
-                    </>
-                  ) : (
-                    <>
-                      <GlobeLock className="h-4 w-4" />
-                      A borrador
-                    </>
-                  )}
-                </Button>
-              </form>
-            )}
-
-            {isDraft ? (
-              <Button variant="outline" size="sm" asChild>
-                <Link href={previewUrl} target="_blank" rel="noreferrer">
-                  <Eye className="h-4 w-4" />
-                  Ver borrador
-                </Link>
-              </Button>
+          <aside className="rounded-2xl border border-[#eadfd2] bg-white/75 p-4 shadow-[0_14px_35px_rgba(74,23,36,0.05)]">
+            {permissions.manageEvents ? (
+              <EventPackageSelect
+                eventId={event.id}
+                defaultValue={event.package_key}
+              />
             ) : (
-              <Button variant="outline" size="sm" asChild>
-                <Link href={`/evento/${event.slug}`} target="_blank" rel="noreferrer">
-                  <ExternalLink className="h-4 w-4" />
-                  Ver invitacion
-                </Link>
-              </Button>
+              <div className="grid gap-2">
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-muted-foreground">
+                  Paquete contratado
+                </p>
+                <p className="rounded-md border border-[#eadfd2] bg-white px-3 py-2 text-sm font-semibold text-[#3b1721]">
+                  {event.package_key}
+                </p>
+              </div>
             )}
-
-            <CopyLinkButton value={url} />
-
-            {permissions.viewRsvps && (
-              <Button variant="ghost" size="sm" asChild>
-                <a href={`/api/events/${event.id}/rsvps.csv`}>
-                  <Download className="h-4 w-4" />
-                  CSV
-                </a>
-              </Button>
-            )}
-          </div>
+          </aside>
         </div>
       </div>
 

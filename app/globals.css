@@ -2407,6 +2407,31 @@ main.kais-stage.kais-theme-kpop-warriors footer {
   main.kais-stage.kais-theme-kpop-warriors .kais-disc::after {
     border-radius: 9999px;
   }
+
+  main.kais-stage.kais-theme-kpop-warriors .kais-music-float > div > div.absolute {
+    right: 0 !important;
+    top: calc(100% + 0.45rem) !important;
+    width: min(11.75rem, calc(100vw - 5rem)) !important;
+    padding: 0.65rem !important;
+    transform-origin: top right;
+  }
+
+  main.kais-stage.kais-theme-kpop-warriors .kais-music-float > div > div.absolute > div:first-child {
+    margin-bottom: 0.45rem !important;
+  }
+
+  main.kais-stage.kais-theme-kpop-warriors .kais-music-float > div > div.absolute p {
+    letter-spacing: 0.22em !important;
+  }
+
+  main.kais-stage.kais-theme-kpop-warriors .kais-music-float > div > div.absolute button {
+    height: 2rem !important;
+    width: 2rem !important;
+  }
+
+  main.kais-stage.kais-theme-kpop-warriors .kais-music-float > div > div.absolute input[type="range"] {
+    height: 0.35rem !important;
+  }
 }
 
 /* ── ALL themes: ghost link uses theme ghost colour ─────────────────────── */

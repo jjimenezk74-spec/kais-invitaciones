@@ -1,6 +1,6 @@
 "use client";
 
-import { Save } from "lucide-react";
+import { ArrowLeft, ArrowRight, Save } from "lucide-react";
 import type { ReactNode } from "react";
 import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -67,6 +67,17 @@ const glowColorOptions = [
   ["custom", "Personalizado"]
 ] as const;
 
+const wizardSteps = [
+  { id: "datos", label: "Datos" },
+  { id: "diseno", label: "Diseño" },
+  { id: "contenido", label: "Contenido" },
+  { id: "multimedia", label: "Multimedia" },
+  { id: "rsvp", label: "RSVP" },
+  { id: "avanzado", label: "Avanzado" }
+] as const;
+
+type WizardStepId = (typeof wizardSteps)[number]["id"];
+
 export function EventForm({
   action,
   event,
@@ -93,6 +104,7 @@ export function EventForm({
   const [selectedThemeId, setSelectedThemeId] = useState<string | null>(event?.theme_id ?? null);
   const [visualDecorations, setVisualDecorations] = useState<VisualDecoration[]>(() => normalizeVisualDecorationState(event?.visual_decorations));
   const [activeDecorationDevice, setActiveDecorationDevice] = useState<VisualDecorationDevice>("desktop");
+  const [activeStep, setActiveStep] = useState<WizardStepId>("datos");
   const submitAfterUploadRef = useRef(false);
   const formRef = useRef<HTMLFormElement>(null);
 
@@ -102,6 +114,33 @@ export function EventForm({
     ? activeThemes.filter((t) => t.category_id === selectedCategoryId)
     : activeThemes;
   const activeDeviceDecorations = visualDecorations.filter((decoration) => decoration.device === activeDecorationDevice);
+  const activeStepIndex = wizardSteps.findIndex((step) => step.id === activeStep);
+  const isLastStep = activeStepIndex === wizardSteps.length - 1;
+  const currentTheme = activeThemes.find((theme) => theme.id === selectedThemeId);
+
+  function goToStep(step: WizardStepId) {
+    setActiveStep(step);
+    window.requestAnimationFrame(() => {
+      document.getElementById("event-form-wizard")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }
+
+  function goNext() {
+    const nextStep = wizardSteps[Math.min(activeStepIndex + 1, wizardSteps.length - 1)];
+    goToStep(nextStep.id);
+  }
+
+  function goBack() {
+    const previousStep = wizardSteps[Math.max(activeStepIndex - 1, 0)];
+    goToStep(previousStep.id);
+  }
+
+  function saveDraft() {
+    const form = formRef.current;
+    if (!form) return;
+    setInputValue(form, "status", "borrador");
+    form.requestSubmit();
+  }
 
   function handleThemeSelect(theme: InvitationTheme) {
     setSelectedThemeId(theme.id);
@@ -360,9 +399,14 @@ export function EventForm({
       <input type="hidden" name="theme_id" value={selectedThemeId ?? ""} />
       <input type="hidden" name="visual_decorations" value={JSON.stringify(visualDecorations)} readOnly />
 
-      <div className="grid gap-6 xl:grid-cols-2 xl:items-start">
-        <div className="grid gap-6">
-          <FormSection title="Datos principales" description="Informacion base para gestionar el evento.">
+      <div id="event-form-wizard" className="rounded-3xl border border-[#eadfd2] bg-[#fffaf3] p-3 shadow-[0_22px_60px_rgba(74,23,36,0.07)]">
+        <WizardStepNav activeStep={activeStep} onSelect={goToStep} />
+      </div>
+
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px] xl:items-start">
+        <div className={activeStep === "diseno" || activeStep === "avanzado" ? "hidden" : "grid gap-6"}>
+          <div className={activeStep === "datos" ? "grid gap-6" : "hidden"}>
+          <FormSection title="Datos principales" description="Información base para gestionar el evento.">
             <div className="grid gap-5 md:grid-cols-2">
               {shouldShowOwnerSelect ? (
                 <Field label="Cliente interno">
@@ -429,7 +473,7 @@ export function EventForm({
             </div>
           </FormSection>
 
-          <FormSection title="Celebracion" description="Fecha, lugar y datos practicos para los invitados.">
+          <FormSection title="Celebración" description="Fecha, lugar y datos prácticos para los invitados.">
             <div className="grid gap-5 md:grid-cols-2">
               <Field label="Nombres de anfitriones">
                 <Input name="hosts_names" defaultValue={event?.hosts_names} placeholder="Ana & Luis" required />
@@ -454,7 +498,9 @@ export function EventForm({
               </Field>
             </div>
           </FormSection>
+          </div>
 
+          <div className={activeStep === "contenido" ? "grid gap-6" : "hidden"}>
           <FormSection title="Contenido" description="Texto emocional y detalles para los invitados.">
             <div className="grid gap-5">
               <Field label="Mensaje principal">
@@ -465,8 +511,10 @@ export function EventForm({
               </Field>
             </div>
           </FormSection>
+          </div>
 
-          <FormSection title="Multimedia" description="Portadas y musica del evento.">
+          <div className={activeStep === "multimedia" ? "grid gap-6" : "hidden"}>
+          <FormSection title="Multimedia" description="Portadas y música del evento.">
             <div className="grid gap-5 md:grid-cols-2">
               <Field label="URL portada">
                 <Input name="cover_image_url" defaultValue={event?.cover_image_url ?? ""} placeholder="https://..." />
@@ -506,8 +554,10 @@ export function EventForm({
               </div>
             </div>
           </FormSection>
+          </div>
 
-          <FormSection title="RSVP" description="Modo de confirmacion para invitados.">
+          <div className={activeStep === "rsvp" ? "grid gap-6" : "hidden"}>
+          <FormSection title="RSVP" description="Modo de confirmación para invitados.">
             <Field label="Modo de RSVP">
               <Select name="guest_mode" defaultValue={event?.guest_mode ?? "publico"}>
                 {guestModes.map(([value, label]) => (
@@ -518,10 +568,12 @@ export function EventForm({
               </Select>
             </Field>
           </FormSection>
+          </div>
 
         </div>
 
-        <div className="grid gap-6">
+        <div className={activeStep === "diseno" || activeStep === "avanzado" ? "grid gap-6 xl:col-span-2" : "hidden"}>
+          <div className={activeStep === "diseno" ? "grid gap-6" : "hidden"}>
           {(activeCategories.length > 0 || activeThemes.length > 0) ? (
             <FormSection title="Tema visual" description="Sistema visual principal. Reemplaza la seleccion antigua de plantilla.">
               {activeCategories.length > 0 ? (
@@ -645,7 +697,9 @@ export function EventForm({
               </div>
             </FormSection>
           ) : null}
+          </div>
 
+          <div className={activeStep === "avanzado" ? "grid gap-6" : "hidden"}>
           <FormSection title="Decoracion libre" description="Ubica ornamentos manualmente dentro de una seccion de la invitacion.">
             <div className="mb-5 rounded-xl border border-[#eadfd2] bg-[#fbf7f0] px-4 py-3 text-xs leading-5 text-muted-foreground">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -776,14 +830,157 @@ export function EventForm({
               </div>
             </div>
           </details>
+          </div>
         </div>
+
+        <EventSummaryPanel
+          activeStep={activeStep}
+          event={event}
+          currentThemeName={currentTheme?.name}
+          isHidden={activeStep === "diseno" || activeStep === "avanzado"}
+        />
       </div>
 
-      <Button className="w-full rounded-xl py-6 text-base shadow-[0_16px_32px_rgba(74,23,36,0.18)] sm:w-fit">
-        <Save className="h-4 w-4" />
-        {isUploading ? "Subiendo archivos..." : "Guardar evento"}
-      </Button>
+      <WizardActions
+        activeStepIndex={activeStepIndex}
+        isLastStep={isLastStep}
+        isUploading={isUploading}
+        onBack={goBack}
+        onNext={goNext}
+        onSaveDraft={saveDraft}
+      />
     </form>
+  );
+}
+
+function WizardStepNav({
+  activeStep,
+  onSelect
+}: {
+  activeStep: WizardStepId;
+  onSelect: (step: WizardStepId) => void;
+}) {
+  return (
+    <nav className="flex gap-2 overflow-x-auto p-1" aria-label="Pasos para crear evento">
+      {wizardSteps.map((step, index) => {
+        const isActive = step.id === activeStep;
+        return (
+          <button
+            key={step.id}
+            type="button"
+            onClick={() => onSelect(step.id)}
+            className={`flex min-w-fit items-center gap-2 rounded-2xl px-4 py-3 text-sm font-bold transition ${
+              isActive
+                ? "bg-[#5b1728] text-white shadow-[0_14px_34px_rgba(91,23,40,0.22)]"
+                : "bg-white text-[#6f5a62] hover:bg-[#f7efe7] hover:text-[#3b1721]"
+            }`}
+          >
+            <span
+              className={`flex h-6 w-6 items-center justify-center rounded-full text-xs ${
+                isActive ? "bg-white/18 text-white" : "bg-[#f3e8dc] text-[#6d1f32]"
+              }`}
+            >
+              {index + 1}
+            </span>
+            {step.label}
+          </button>
+        );
+      })}
+    </nav>
+  );
+}
+
+function EventSummaryPanel({
+  activeStep,
+  event,
+  currentThemeName,
+  isHidden
+}: {
+  activeStep: WizardStepId;
+  event?: Event;
+  currentThemeName?: string;
+  isHidden: boolean;
+}) {
+  if (isHidden) return null;
+
+  const stepLabel = wizardSteps.find((step) => step.id === activeStep)?.label ?? "Evento";
+
+  return (
+    <aside className="hidden xl:block">
+      <div className="sticky top-6 overflow-hidden rounded-3xl border border-[#eadfd2] bg-[#3b1721] text-white shadow-[0_24px_70px_rgba(74,23,36,0.18)]">
+        <div className="bg-[radial-gradient(circle_at_top_right,rgba(212,175,55,0.22),transparent_32%),linear-gradient(135deg,#3b1721,#16080d)] p-6">
+          <p className="text-xs font-black uppercase tracking-[0.24em] text-[#d4af37]">Resumen</p>
+          <h3 className="mt-4 font-display text-3xl leading-tight">
+            {event?.hosts_names || event?.title || "Nueva invitación"}
+          </h3>
+          <p className="mt-3 text-sm leading-6 text-white/68">
+            Estás configurando el paso <span className="font-semibold text-white">{stepLabel}</span>.
+          </p>
+        </div>
+        <div className="grid gap-3 border-t border-white/10 p-5 text-sm">
+          <SummaryRow label="Estado" value={event?.status ?? "borrador"} />
+          <SummaryRow label="Fecha" value={event?.event_date ?? "Pendiente"} />
+          <SummaryRow label="Tema" value={currentThemeName ?? "Original"} />
+          <SummaryRow label="Enlace" value={event?.slug ? `/e/${event.slug}` : "Se genera al guardar"} />
+        </div>
+        <div className="border-t border-white/10 bg-white/5 p-5 text-xs leading-5 text-white/58">
+          Tip: completa lo esencial y guarda como borrador. Podrás volver a editar diseño, multimedia y decoración.
+        </div>
+      </div>
+    </aside>
+  );
+}
+
+function SummaryRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-white/6 px-4 py-3">
+      <span className="text-white/46">{label}</span>
+      <span className="truncate text-right font-semibold text-white">{value}</span>
+    </div>
+  );
+}
+
+function WizardActions({
+  activeStepIndex,
+  isLastStep,
+  isUploading,
+  onBack,
+  onNext,
+  onSaveDraft
+}: {
+  activeStepIndex: number;
+  isLastStep: boolean;
+  isUploading: boolean;
+  onBack: () => void;
+  onNext: () => void;
+  onSaveDraft: () => void;
+}) {
+  return (
+    <div className="sticky bottom-0 z-20 -mx-4 border-t border-[#eadfd2] bg-[#fffaf3]/95 px-4 py-4 backdrop-blur md:static md:mx-0 md:rounded-3xl md:border md:px-5">
+      <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <Button type="button" variant="outline" className="border-[#d8c7b5]" disabled={activeStepIndex === 0} onClick={onBack}>
+          <ArrowLeft className="h-4 w-4" />
+          Atrás
+        </Button>
+
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <Button type="button" variant="outline" className="border-[#d8c7b5]" onClick={onSaveDraft}>
+            Guardar borrador
+          </Button>
+          {isLastStep ? (
+            <Button className="rounded-xl bg-[#5b1728] px-6 py-6 text-base text-white shadow-[0_16px_32px_rgba(74,23,36,0.18)] hover:bg-[#48111f]">
+              <Save className="h-4 w-4" />
+              {isUploading ? "Subiendo archivos..." : "Crear invitación / Guardar evento"}
+            </Button>
+          ) : (
+            <Button type="button" className="rounded-xl bg-[#5b1728] px-6 text-white hover:bg-[#48111f]" onClick={onNext}>
+              Continuar
+              <ArrowRight className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
 

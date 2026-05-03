@@ -2373,9 +2373,17 @@ main.kais-stage.kais-theme-kpop-warriors footer {
 @media (max-width: 767px) {
   main.kais-stage.kais-theme-kpop-warriors .kais-music-float {
     background: transparent !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
     border: 0 !important;
     box-shadow: none !important;
     filter: none !important;
+    padding: 0 !important;
+  }
+
+  main.kais-stage.kais-theme-kpop-warriors .kais-music-float::before,
+  main.kais-stage.kais-theme-kpop-warriors .kais-music-float::after {
+    display: none !important;
   }
 
   main.kais-stage.kais-theme-kpop-warriors .kais-music-float > div {
@@ -2383,6 +2391,7 @@ main.kais-stage.kais-theme-kpop-warriors footer {
     border: 0 !important;
     box-shadow: none !important;
     animation: none !important;
+    padding: 0 !important;
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
   }
@@ -2390,6 +2399,9 @@ main.kais-stage.kais-theme-kpop-warriors footer {
   main.kais-stage.kais-theme-kpop-warriors .kais-disc {
     border-radius: 9999px !important;
     overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   main.kais-stage.kais-theme-kpop-warriors .kais-disc::after {

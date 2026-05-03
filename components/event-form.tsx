@@ -141,7 +141,7 @@ export function EventForm({
     const form = formRef.current;
     if (!form) return;
     setInputValue(form, "status", "borrador");
-    setDraftToast("Borrador preparado. Se guardará cuando presiones el botón final.");
+    setDraftToast("Borrador preparado.");
     window.setTimeout(() => setDraftToast(""), 3200);
   }
 
@@ -196,7 +196,6 @@ export function EventForm({
     if (!form) return;
 
     if (!event?.id) {
-      setUploadError("Guarda el evento primero para aplicar cambios parciales.");
       return;
     }
 
@@ -229,7 +228,6 @@ export function EventForm({
     if (!form) return;
 
     if (!event?.id) {
-      setUploadError("Guarda el evento primero para aplicar cambios parciales.");
       return;
     }
 
@@ -268,7 +266,6 @@ export function EventForm({
     if (!form) return;
 
     if (!event?.id) {
-      setUploadError("Guarda el evento primero para aplicar cambios parciales.");
       return;
     }
 
@@ -306,7 +303,6 @@ export function EventForm({
     if (!form) return;
 
     if (!event?.id) {
-      setUploadError("Guarda el evento primero para poder persistir decoraciones libres.");
       return;
     }
 
@@ -398,12 +394,12 @@ export function EventForm({
       }}
     >
       {uploadError ? (
-        <div id="event-form-upload-error" className="rounded-xl border border-red-100 bg-red-50 p-4 text-sm font-semibold text-red-700">
+        <div id="event-form-upload-error" className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
           {uploadError}
         </div>
       ) : null}
       {uploadStatus ? (
-        <div className="rounded-xl border border-amber-100 bg-amber-50 p-4 text-sm font-semibold text-amber-800">
+        <div className="rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">
           {uploadStatus}
         </div>
       ) : null}
@@ -541,32 +537,36 @@ export function EventForm({
                 <Input name="mobile_cover_image_url" defaultValue={event?.mobile_cover_image_url ?? ""} placeholder="https://..." />
                 <Input name="mobile_cover_image_file" type="file" accept="image/jpeg,image/png,image/webp" />
               </Field>
-              <div className="flex flex-col gap-3 md:col-span-2 md:items-end">
-                <Button type="button" variant="outline" className="w-full border-accent/40 sm:w-fit" disabled={!event?.id || isSavingCover} onClick={handleSaveCoverOnly}>
-                  {!event?.id ? "Guarda el evento primero" : isSavingCover ? "Guardando..." : "Guardar portada"}
-                </Button>
-                {coverToast ? (
-                  <div className="rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-center text-xs font-semibold text-emerald-800 sm:w-fit">
-                    {coverToast}
-                  </div>
-                ) : null}
-              </div>
+              {event?.id ? (
+                <div className="flex flex-col gap-3 md:col-span-2 md:items-end">
+                  <Button type="button" variant="outline" className="w-full border-accent/40 sm:w-fit" disabled={isSavingCover} onClick={handleSaveCoverOnly}>
+                    {isSavingCover ? "Guardando..." : "Guardar portada"}
+                  </Button>
+                  {coverToast ? (
+                    <div className="rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-center text-xs font-semibold text-emerald-800 sm:w-fit">
+                      {coverToast}
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
               <div className="md:col-span-2">
                 <Field label="Musica opcional" hint="MP3/WAV/OGG maximo 10MB. Si pesa mas, usa un enlace o comprime el audio.">
                   <Input name="music_url" defaultValue={event?.music_url ?? ""} placeholder="https://..." />
                   <Input name="music_file" type="file" accept=".mp3,.wav,.ogg,audio/mpeg,audio/wav,audio/ogg" />
                 </Field>
               </div>
-              <div className="flex flex-col gap-3 md:col-span-2 md:items-end">
-                <Button type="button" variant="outline" className="w-full border-accent/40 sm:w-fit" disabled={!event?.id || isSavingMusic} onClick={handleSaveMusicOnly}>
-                  {!event?.id ? "Guarda el evento primero" : isSavingMusic ? "Guardando..." : "Guardar musica"}
-                </Button>
-                {musicToast ? (
-                  <div className="rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-center text-xs font-semibold text-emerald-800 sm:w-fit">
-                    {musicToast}
-                  </div>
-                ) : null}
-              </div>
+              {event?.id ? (
+                <div className="flex flex-col gap-3 md:col-span-2 md:items-end">
+                  <Button type="button" variant="outline" className="w-full border-accent/40 sm:w-fit" disabled={isSavingMusic} onClick={handleSaveMusicOnly}>
+                    {isSavingMusic ? "Guardando..." : "Guardar música"}
+                  </Button>
+                  {musicToast ? (
+                    <div className="rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-center text-xs font-semibold text-emerald-800 sm:w-fit">
+                      {musicToast}
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
           </FormSection>
           </div>
@@ -694,22 +694,24 @@ export function EventForm({
               ) : (
                 <p className="text-sm text-muted-foreground">No hay temas disponibles para esta categoria.</p>
               )}
-              <div className="mt-5 flex flex-col items-stretch gap-3 sm:items-end">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full border-accent/40 sm:w-fit"
-                  disabled={!event?.id || isSavingTheme}
-                  onClick={handleApplyThemeOnly}
-                >
-                  {!event?.id ? "Guarda el evento primero" : isSavingTheme ? "Guardando..." : "Aplicar tema"}
-                </Button>
-                {themeToast ? (
-                  <div className="rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-center text-xs font-semibold text-emerald-800 sm:w-fit">
-                    {themeToast}
-                  </div>
-                ) : null}
-              </div>
+              {event?.id ? (
+                <div className="mt-5 flex flex-col items-stretch gap-3 sm:items-end">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full border-accent/40 sm:w-fit"
+                    disabled={isSavingTheme}
+                    onClick={handleApplyThemeOnly}
+                  >
+                    {isSavingTheme ? "Guardando..." : "Aplicar tema"}
+                  </Button>
+                  {themeToast ? (
+                    <div className="rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-center text-xs font-semibold text-emerald-800 sm:w-fit">
+                      {themeToast}
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
             </FormSection>
           ) : null}
           </div>
@@ -764,22 +766,30 @@ export function EventForm({
               </div>
             )}
 
-            <div className="mt-5 flex justify-end">
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full border-accent/40 sm:w-fit"
-                disabled={isSavingVisualDecorations}
-                onClick={handleSaveVisualDecorationsOnly}
-              >
-                {isSavingVisualDecorations ? "Guardando..." : "Guardar decoracion libre"}
-              </Button>
-            </div>
-            {visualDecorationToast ? (
-              <div className="mt-4 rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-center text-xs font-semibold text-emerald-800 sm:ml-auto sm:w-fit">
-                {visualDecorationToast}
+            {event?.id ? (
+              <>
+                <div className="mt-5 flex justify-end">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full border-accent/40 sm:w-fit"
+                    disabled={isSavingVisualDecorations}
+                    onClick={handleSaveVisualDecorationsOnly}
+                  >
+                    {isSavingVisualDecorations ? "Guardando..." : "Guardar decoración libre"}
+                  </Button>
+                </div>
+                {visualDecorationToast ? (
+                  <div className="mt-4 rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-center text-xs font-semibold text-emerald-800 sm:ml-auto sm:w-fit">
+                    {visualDecorationToast}
+                  </div>
+                ) : null}
+              </>
+            ) : (
+              <div className="mt-5 rounded-xl border border-[#eadfd2] bg-white/70 px-4 py-3 text-xs leading-5 text-muted-foreground">
+                La decoración se guardará junto con la invitación.
               </div>
-            ) : null}
+            )}
           </FormSection>
 
           <details className="group rounded-2xl border border-[#eadfd2] bg-white p-5 shadow-[0_18px_45px_rgba(74,23,36,0.06)]">
@@ -990,7 +1000,7 @@ function WizardActions({
         </Button>
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <Button type="button" variant="outline" className="border-[#d8c7b5]" onClick={onSaveDraft}>
+          <Button type="button" variant="ghost" className="text-[#6d1f32] hover:bg-[#f7efe7]" onClick={onSaveDraft}>
             Guardar borrador
           </Button>
           {isLastStep ? (
@@ -1000,7 +1010,7 @@ function WizardActions({
               onClick={onFinalSubmit}
             >
               <Save className="h-4 w-4" />
-              {isUploading ? "Subiendo archivos..." : "Crear invitación / Guardar evento"}
+              {isUploading ? "Subiendo..." : "Crear invitación"}
             </Button>
           ) : (
             <Button type="button" className="rounded-xl bg-[#5b1728] px-6 text-white hover:bg-[#48111f]" onClick={onNext}>
@@ -1055,7 +1065,7 @@ function FreeDecorationEditor({
                   {decoration.device}
                 </span>
               </div>
-              <p className="mt-1 text-xs text-muted-foreground">PNG/WebP transparente, maximo 5MB.</p>
+              <p className="mt-1 text-xs text-muted-foreground">PNG/WebP transparente, máximo 5MB.</p>
             </div>
             <button
               type="button"

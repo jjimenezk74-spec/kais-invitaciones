@@ -10,8 +10,13 @@ import {
   GlobeLock,
   ImageIcon,
   MonitorPlay,
+  PartyPopper,
+  Send,
+  Sparkles,
+  UsersRound,
 } from "lucide-react";
 import { CopyLinkButton } from "@/components/copy-link-button";
+import { DashboardEventToast } from "@/components/dashboard-event-toast";
 import { LiveScreenActions } from "@/components/live-screen-actions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -100,6 +105,25 @@ function StatusBadge({ status }: { status: Event["status"] }) {
   );
 }
 
+function getStatusLabel(status: Event["status"]) {
+  const labels = {
+    borrador: "Borrador",
+    publicado: "Publicado",
+    inactivo: "Inactivo",
+  } as const;
+  return labels[status] ?? "Borrador";
+}
+
+function formatCompactDate(date?: string | null) {
+  if (!date) return "Sin fecha";
+  return new Intl.DateTimeFormat("es-PY", {
+    day: "2-digit",
+    month: "short",
+  })
+    .format(new Date(`${date}T00:00:00`))
+    .replace(".", "");
+}
+
 async function MetricsSection({ event }: { event: Event }) {
   const admin = createAdminClient();
   const label = perfStart(`metrics-${event.id}`);
@@ -119,47 +143,55 @@ async function MetricsSection({ event }: { event: Event }) {
   perfEnd(label);
 
   const metrics = [
-    { label: "RSVP",      value: rsvpsTotal     ?? 0 },
-    { label: "Asisten",   value: rsvpsAttending ?? 0 },
-    { label: "Invitados", value: guestsCount    ?? 0 },
-    { label: "Fotos",     value: photosCount    ?? 0 },
+    { label: "RSVP",      value: rsvpsTotal     ?? 0, helper: "Aun no hay confirmaciones" },
+    { label: "Asisten",   value: rsvpsAttending ?? 0, helper: "Nadie confirmo asistencia" },
+    { label: "Invitados", value: guestsCount    ?? 0, helper: "Aun no hay invitados" },
+    { label: "Fotos",     value: photosCount    ?? 0, helper: "Aun no hay fotos" },
   ];
 
   return (
     <div className="grid gap-6">
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {metrics.map((m) => (
-          <Card key={m.label}>
+          <Card key={m.label} className="border-[#eadfd2] bg-white shadow-[0_14px_45px_rgba(74,23,36,0.05)]">
             <CardContent className="p-5">
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{m.label}</p>
               <p className="mt-2 text-4xl font-bold text-foreground">{m.value}</p>
+              <p className="mt-1 text-xs font-medium text-muted-foreground">
+                {m.value === 0 ? m.helper : "Actividad registrada"}
+              </p>
             </CardContent>
           </Card>
         ))}
       </div>
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between gap-4 border-b border-border pb-4">
-          <CardTitle className="flex items-center gap-2">
-            <MonitorPlay className="h-5 w-5 text-accent" />
-            KAIS Live Album
-          </CardTitle>
+      <Card className="overflow-hidden border-[#d9b66a]/40 bg-[radial-gradient(circle_at_top_left,rgba(217,182,106,0.18),transparent_32%),linear-gradient(135deg,#3b1721,#15080c)] text-white shadow-[0_24px_70px_rgba(74,23,36,0.22)]">
+        <CardHeader className="flex flex-row items-center justify-between gap-4 border-b border-white/10 pb-4">
+          <div>
+            <CardTitle className="flex items-center gap-2 text-white">
+              <MonitorPlay className="h-5 w-5 text-[#f1cf79]" />
+              KAIS Live Album
+            </CardTitle>
+            <p className="mt-1 text-sm text-white/70">
+              Comparte fotos en tiempo real durante el evento.
+            </p>
+          </div>
           <Button asChild size="sm">
             <Link href={`/dashboard/eventos/${event.id}/fotos`}>Gestionar</Link>
           </Button>
         </CardHeader>
         <CardContent className="pt-5">
-          <div className="mb-4 grid grid-cols-3 divide-x divide-border rounded-xl border border-border bg-muted/40">
+          <div className="mb-4 grid grid-cols-3 divide-x divide-white/10 rounded-xl border border-white/10 bg-white/[0.08] backdrop-blur">
             <div className="flex flex-col items-center gap-0.5 py-4">
-              <span className="text-2xl font-bold text-foreground">{liveTotal ?? 0}</span>
-              <span className="text-[0.7rem] font-semibold uppercase tracking-wider text-muted-foreground">Total</span>
+              <span className="text-2xl font-bold text-white">{liveTotal ?? 0}</span>
+              <span className="text-[0.7rem] font-semibold uppercase tracking-wider text-white/60">Total</span>
             </div>
             <div className="flex flex-col items-center gap-0.5 py-4">
-              <span className="text-2xl font-bold text-amber-500">-</span>
-              <span className="text-[0.7rem] font-semibold uppercase tracking-wider text-muted-foreground">Pendientes</span>
+              <span className="text-2xl font-bold text-[#f1cf79]">-</span>
+              <span className="text-[0.7rem] font-semibold uppercase tracking-wider text-white/60">Pendientes</span>
             </div>
             <div className="flex flex-col items-center gap-0.5 py-4">
-              <span className="text-2xl font-bold text-emerald-600">-</span>
-              <span className="text-[0.7rem] font-semibold uppercase tracking-wider text-muted-foreground">Aprobadas</span>
+              <span className="text-2xl font-bold text-emerald-300">-</span>
+              <span className="text-[0.7rem] font-semibold uppercase tracking-wider text-white/60">Aprobadas</span>
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -168,12 +200,12 @@ async function MetricsSection({ event }: { event: Event }) {
               liveUrl={shortLiveScreenUrl(event.slug)}
             />
             <Link href={shortPhotoUploadUrl(event.slug)} target="_blank" rel="noreferrer"
-              className="flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-2 text-xs font-semibold transition hover:bg-muted">
+              className="flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/10 px-3 py-2 text-xs font-semibold text-white transition hover:bg-white/15">
               <ImageIcon className="h-3.5 w-3.5" />
               Enlace de subida
             </Link>
             <Link href={shortAlbumUrl(event.slug)} target="_blank" rel="noreferrer"
-              className="flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-2 text-xs font-semibold transition hover:bg-muted">
+              className="flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/10 px-3 py-2 text-xs font-semibold text-white transition hover:bg-white/15">
               Album publico
             </Link>
           </div>
@@ -236,7 +268,7 @@ export default async function EventDetailPage({
   const needsFullEvent = activeTab === "ajustes";
   const eventSelect = needsFullEvent
     ? "*"
-    : "id,client_id,title,status,slug,event_date,event_time,guest_mode";
+    : "id,client_id,title,status,slug,event_date,event_time,guest_mode,theme_id";
 
   const admin = createAdminClient();
   const { data: eventData } = await timed("event-page-event", admin.from("events").select(eventSelect).eq("id", id).single());
@@ -244,16 +276,28 @@ export default async function EventDetailPage({
   const event = eventData as Event | null;
   if (!event) return <p>Evento no encontrado.</p>;
 
-  const eventClient: Client | null = event.client_id
-    ? await timed(
-        "event-page-client",
-        admin
-          .from("clients")
-          .select("id,name,contact_name,plan_id,phone,whatsapp,email,notes,status,created_at,created_by")
-          .eq("id", event.client_id)
-          .maybeSingle()
-      ).then(({ data }) => (data as Client | null) ?? null)
-    : null;
+  const [eventClient, eventTheme] = await Promise.all([
+    event.client_id
+      ? timed(
+          "event-page-client",
+          admin
+            .from("clients")
+            .select("id,name,contact_name,plan_id,phone,whatsapp,email,notes,status,created_at,created_by")
+            .eq("id", event.client_id)
+            .maybeSingle()
+        ).then(({ data }) => (data as Client | null) ?? null)
+      : Promise.resolve(null),
+    event.theme_id
+      ? timed(
+          "event-page-theme",
+          admin
+            .from("invitation_themes")
+            .select("name")
+            .eq("id", event.theme_id)
+            .maybeSingle()
+        ).then(({ data }) => (data as { name: string } | null)?.name ?? null)
+      : Promise.resolve(null),
+  ]);
 
   perfEnd(perfLabel);
 
@@ -262,9 +306,20 @@ export default async function EventDetailPage({
   const isDraft        = event.status !== "publicado";
   const previewUrl     = `/evento/${event.slug}?preview=admin`;
   const publishAction  = setEventStatus.bind(null, event.id, isDraft ? "publicado" : "borrador");
+  const savedToast     = query.saved
+    ? query.saved === "status"
+      ? "Estado actualizado correctamente."
+      : "Evento guardado correctamente."
+    : undefined;
+  const compactMeta    = [
+    getStatusLabel(event.status),
+    formatCompactDate(event.event_date),
+    eventTheme ?? "Tema sin asignar",
+  ].join(" · ");
 
   return (
     <div className="grid gap-6">
+      <DashboardEventToast message={savedToast} />
 
       {/* Header premium */}
       <div className="rounded-2xl border border-[#eadfd2] bg-[#fffaf3] p-6 shadow-[0_24px_70px_rgba(74,23,36,0.07)]">
@@ -285,7 +340,8 @@ export default async function EventDetailPage({
             <h1 className="mt-1 break-words font-display text-3xl font-bold text-[#3b1721] md:text-4xl">
               {event.title}
             </h1>
-            <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
+            <p className="mt-1 text-sm font-semibold text-[#6f2339]">{compactMeta}</p>
+            <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
               <StatusBadge status={event.status} />
               {eventClient && (
                 <>
@@ -302,34 +358,9 @@ export default async function EventDetailPage({
                 {query.error}
               </p>
             )}
-            {query.saved && (
-              <p className="mt-3 rounded-md bg-secondary px-3 py-2 text-sm font-medium text-foreground">
-                {query.saved === "status"
-                  ? "Estado actualizado correctamente."
-                  : "Evento guardado correctamente."}
-              </p>
-            )}
           </div>
 
           <div className="flex flex-shrink-0 flex-wrap items-center gap-2">
-            {isDraft ? (
-              <Button variant="outline" size="sm" asChild>
-                <Link href={previewUrl} target="_blank" rel="noreferrer">
-                  <Eye className="h-4 w-4" />
-                  Ver borrador
-                </Link>
-              </Button>
-            ) : (
-              <Button variant="outline" size="sm" asChild>
-                <Link href={`/evento/${event.slug}`} target="_blank" rel="noreferrer">
-                  <ExternalLink className="h-4 w-4" />
-                  Ver invitacion
-                </Link>
-              </Button>
-            )}
-
-            <CopyLinkButton value={url} />
-
             {permissions.publishEvents && (
               <form action={publishAction}>
                 <Button size="sm" variant={isDraft ? "default" : "outline"}>
@@ -348,8 +379,26 @@ export default async function EventDetailPage({
               </form>
             )}
 
-            {permissions.viewRsvps && (
+            {isDraft ? (
               <Button variant="outline" size="sm" asChild>
+                <Link href={previewUrl} target="_blank" rel="noreferrer">
+                  <Eye className="h-4 w-4" />
+                  Ver borrador
+                </Link>
+              </Button>
+            ) : (
+              <Button variant="outline" size="sm" asChild>
+                <Link href={`/evento/${event.slug}`} target="_blank" rel="noreferrer">
+                  <ExternalLink className="h-4 w-4" />
+                  Ver invitacion
+                </Link>
+              </Button>
+            )}
+
+            <CopyLinkButton value={url} />
+
+            {permissions.viewRsvps && (
+              <Button variant="ghost" size="sm" asChild>
                 <a href={`/api/events/${event.id}/rsvps.csv`}>
                   <Download className="h-4 w-4" />
                   CSV
@@ -359,6 +408,45 @@ export default async function EventDetailPage({
           </div>
         </div>
       </div>
+
+      {activeTab === "resumen" && (
+        <Card className="border-[#eadfd2] bg-white shadow-[0_18px_55px_rgba(74,23,36,0.06)]">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-[#3b1721]">
+              <Sparkles className="h-5 w-5 text-[#b8862b]" />
+              Siguientes pasos
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-3 md:grid-cols-3">
+            {permissions.manageGuests && (
+              <Link
+                href={`/dashboard/eventos/${event.id}?tab=invitados`}
+                className="rounded-2xl border border-[#eadfd2] bg-[#fffaf3] p-4 transition hover:-translate-y-0.5 hover:shadow-md"
+              >
+                <UsersRound className="mb-3 h-5 w-5 text-[#6f2339]" />
+                <p className="font-semibold text-[#3b1721]">Agregar invitados</p>
+                <p className="mt-1 text-sm text-muted-foreground">Carga la lista y prepara enlaces personales.</p>
+              </Link>
+            )}
+            <div className="rounded-2xl border border-[#eadfd2] bg-[#fffaf3] p-4">
+              <Send className="mb-3 h-5 w-5 text-[#6f2339]" />
+              <p className="font-semibold text-[#3b1721]">Compartir enlace</p>
+              <p className="mt-1 text-sm text-muted-foreground">Copia la URL corta para WhatsApp o pruebas.</p>
+              <div className="mt-3">
+                <CopyLinkButton value={url} label="Copiar enlace" />
+              </div>
+            </div>
+            <Link
+              href={`/dashboard/eventos/${event.id}/fotos`}
+              className="rounded-2xl border border-[#eadfd2] bg-[#fffaf3] p-4 transition hover:-translate-y-0.5 hover:shadow-md"
+            >
+              <PartyPopper className="mb-3 h-5 w-5 text-[#6f2339]" />
+              <p className="font-semibold text-[#3b1721]">Activar album</p>
+              <p className="mt-1 text-sm text-muted-foreground">Prepara QR, pantalla en vivo y moderacion.</p>
+            </Link>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Tab nav */}
       <EventTabNav eventId={event.id} activeTab={activeTab} tabs={availableTabs} />

@@ -73,7 +73,7 @@ export function EventHero({
                 fill
                 priority
                 unoptimized={shouldUnoptimizeMobile}
-                sizes="(max-width: 1024px) 100vw, 0px"
+                sizes="(max-width: 1024px) 100dvw, 0px"
                 className="object-cover object-top lg:hidden"
               />
             ) : null}
@@ -84,7 +84,7 @@ export function EventHero({
                 fill
                 priority
                 unoptimized={shouldUnoptimizeDesktop}
-                sizes="(min-width: 1024px) 100vw, 0px"
+                sizes="(min-width: 1024px) 100dvw, 0px"
                 className="hidden object-cover object-[68%_center] lg:block"
               />
             ) : null}

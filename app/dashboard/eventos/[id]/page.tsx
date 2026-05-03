@@ -200,12 +200,12 @@ async function MetricsSection({ event }: { event: Event }) {
               liveUrl={shortLiveScreenUrl(event.slug)}
             />
             <Link href={shortPhotoUploadUrl(event.slug)} target="_blank" rel="noreferrer"
-              className="flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/10 px-3 py-2 text-xs font-semibold text-white transition hover:bg-white/15">
+              className="flex items-center gap-1.5 rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-xs font-semibold text-white/85 backdrop-blur-md transition-all duration-200 hover:bg-white/20 hover:text-white">
               <ImageIcon className="h-3.5 w-3.5" />
               Enlace de subida
             </Link>
             <Link href={shortAlbumUrl(event.slug)} target="_blank" rel="noreferrer"
-              className="flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/10 px-3 py-2 text-xs font-semibold text-white transition hover:bg-white/15">
+              className="flex items-center gap-1.5 rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-xs font-semibold text-white/85 backdrop-blur-md transition-all duration-200 hover:bg-white/20 hover:text-white">
               Album publico
             </Link>
           </div>

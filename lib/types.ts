@@ -127,7 +127,15 @@ export type Event = {
   whatsapp_phone: string | null;
   external_photo_album_url: string | null;
   main_message: string | null;
+  quinceanera_name?: string | null;
+  parents_names?: string | null;
+  church_name?: string | null;
+  church_time?: string | null;
   dress_code: string | null;
+  color_palette?: string | null;
+  theme?: string | null;
+  quince_message?: string | null;
+  parents_message?: string | null;
   cover_image_url: string | null;
   mobile_cover_image_url: string | null;
   music_url: string | null;

@@ -526,9 +526,42 @@ export function EventForm({
               <Field label="Mensaje principal">
                 <Textarea name="main_message" defaultValue={event?.main_message ?? ""} placeholder="Una frase especial para tus invitados" />
               </Field>
-              <Field label="Codigo de vestimenta">
-                <Input name="dress_code" defaultValue={event?.dress_code ?? ""} placeholder="Elegante sport" />
+            </div>
+          </FormSection>
+
+          <FormSection title="Datos de quinceanios" description="Informacion opcional para invitaciones de 15 anos.">
+            <div className="grid gap-5 md:grid-cols-2">
+              <Field label="Nombre de la quinceanera">
+                <Input name="quinceanera_name" defaultValue={event?.quinceanera_name ?? ""} placeholder="Paloma" />
               </Field>
+              <Field label="Nombre de los padres">
+                <Input name="parents_names" defaultValue={event?.parents_names ?? ""} placeholder="Junto a sus padres..." />
+              </Field>
+              <Field label="Lugar de la misa">
+                <Input name="church_name" defaultValue={event?.church_name ?? ""} placeholder="Parroquia / iglesia" />
+              </Field>
+              <Field label="Hora de la misa">
+                <Input name="church_time" type="time" defaultValue={event?.church_time ?? ""} />
+              </Field>
+              <Field label="Tenida">
+                <Input name="dress_code" defaultValue={event?.dress_code ?? ""} placeholder="Elegante" />
+              </Field>
+              <Field label="Gama de colores">
+                <Input name="color_palette" defaultValue={event?.color_palette ?? ""} placeholder="Rojo, dorado y crema" />
+              </Field>
+              <Field label="Tematica">
+                <Input name="theme" defaultValue={event?.theme ?? ""} placeholder="Rosas rojas / romantico" />
+              </Field>
+              <div className="md:col-span-2">
+                <Field label="Mensaje de la quinceanera">
+                  <Textarea name="quince_message" defaultValue={event?.quince_message ?? ""} placeholder="Un mensaje especial para tus invitados" />
+                </Field>
+              </div>
+              <div className="md:col-span-2">
+                <Field label="Mensaje de los padres">
+                  <Textarea name="parents_message" defaultValue={event?.parents_message ?? ""} placeholder="Un mensaje de la familia" />
+                </Field>
+              </div>
             </div>
           </FormSection>
           </div>

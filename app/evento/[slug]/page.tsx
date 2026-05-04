@@ -41,7 +41,6 @@ type PageProps = {
 
 type PublicEventRow = Event & {
   theme_slug?: string | null;
-  theme?: { slug?: string | null; name?: string | null } | null;
   invitation_theme?: { slug?: string | null; name?: string | null } | null;
   invitation_themes?: { slug?: string | null; name?: string | null } | null;
   selected_theme?: { slug?: string | null; name?: string | null } | null;
@@ -67,7 +66,15 @@ const PUBLIC_EVENT_SELECT = [
   "whatsapp_phone",
   "external_photo_album_url",
   "main_message",
+  "quinceanera_name",
+  "parents_names",
+  "church_name",
+  "church_time",
   "dress_code",
+  "color_palette",
+  "theme",
+  "quince_message",
+  "parents_message",
   "cover_image_url",
   "mobile_cover_image_url",
   "music_url",
@@ -210,11 +217,9 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
     eventRow?.invitation_themes?.slug ??
     eventRow?.invitation_theme?.slug ??
     eventRow?.selected_theme?.slug ??
-    eventRow?.theme?.slug ??
     eventRow?.invitation_themes?.name ??
     eventRow?.invitation_theme?.name ??
     eventRow?.selected_theme?.name ??
-    eventRow?.theme?.name ??
     null;
   const slotDecorations: EventDecorations = {
     top_left: event.decoration_top_left,
@@ -381,6 +386,39 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
             <p className="mx-auto mt-8 max-w-2xl text-[0.95rem] leading-[2] text-[#f5ecd9]/72">{event.main_message}</p>
           ) : null}
 
+          {event.quinceanera_name ? (
+            <div className="mx-auto mt-12 max-w-2xl">
+              <p className="kais-eyebrow">Quinceanera</p>
+              <h3 className="mt-3 font-display text-4xl font-light italic text-[#f5ecd9] md:text-5xl">
+                {event.quinceanera_name}
+              </h3>
+            </div>
+          ) : null}
+
+          {event.parents_names ? (
+            <div className="mx-auto mt-10 max-w-2xl">
+              <p className="kais-eyebrow">Junto a mis padres</p>
+              <p className="mt-3 font-display text-2xl italic text-[#f5ecd9]/88 md:text-3xl">{event.parents_names}</p>
+            </div>
+          ) : null}
+
+          {(event.quince_message || event.parents_message) ? (
+            <div className="mx-auto mt-12 grid max-w-3xl gap-5 md:grid-cols-2">
+              {event.quince_message ? (
+                <div className="kais-glass rounded-3xl p-6 text-left">
+                  <p className="kais-eyebrow">Mensaje</p>
+                  <p className="mt-4 text-sm leading-7 text-[#f5ecd9]/75">{event.quince_message}</p>
+                </div>
+              ) : null}
+              {event.parents_message ? (
+                <div className="kais-glass rounded-3xl p-6 text-left">
+                  <p className="kais-eyebrow">Familia</p>
+                  <p className="mt-4 text-sm leading-7 text-[#f5ecd9]/75">{event.parents_message}</p>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+
           <div className="mt-16 grid grid-cols-1 gap-12 md:grid-cols-3 md:gap-0">
             {[
               ["Fecha", formatDate(event.event_date)],
@@ -401,10 +439,36 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
             ))}
           </div>
 
-          {event.dress_code ? (
-            <div className="mt-16">
-              <p className="kais-eyebrow">Codigo de vestimenta</p>
-              <p className="mt-3 font-display text-xl italic text-[#f5ecd9]/85 md:text-2xl">{event.dress_code}</p>
+          {event.church_name ? (
+            <div className="mx-auto mt-16 max-w-2xl">
+              <p className="kais-eyebrow">Ceremonia religiosa</p>
+              <p className="mt-3 font-display text-2xl italic text-[#f5ecd9] md:text-3xl">{event.church_name}</p>
+              {event.church_time ? (
+                <p className="mt-2 text-sm font-semibold uppercase tracking-[0.24em] text-[#d4af37]/85">{event.church_time}</p>
+              ) : null}
+            </div>
+          ) : null}
+
+          {(event.dress_code || event.color_palette || event.theme) ? (
+            <div className="mx-auto mt-16 grid max-w-3xl gap-5 md:grid-cols-3">
+              {event.dress_code ? (
+                <div>
+                  <p className="kais-eyebrow">Tenida</p>
+                  <p className="mt-3 font-display text-xl italic text-[#f5ecd9]/85 md:text-2xl">{event.dress_code}</p>
+                </div>
+              ) : null}
+              {event.color_palette ? (
+                <div>
+                  <p className="kais-eyebrow">Gama de colores</p>
+                  <p className="mt-3 font-display text-xl italic text-[#f5ecd9]/85 md:text-2xl">{event.color_palette}</p>
+                </div>
+              ) : null}
+              {event.theme ? (
+                <div>
+                  <p className="kais-eyebrow">Tematica</p>
+                  <p className="mt-3 font-display text-xl italic text-[#f5ecd9]/85 md:text-2xl">{event.theme}</p>
+                </div>
+              ) : null}
             </div>
           ) : null}
         </div>

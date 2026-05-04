@@ -149,6 +149,7 @@ export function EventForm({
 
   function requestFinalSubmit() {
     finalSubmitIntentRef.current = true;
+    formRef.current?.requestSubmit();
   }
 
   function handleThemeSelect(theme: InvitationTheme) {
@@ -1062,7 +1063,7 @@ function WizardActions({
           </Button>
           {isEditing || isLastStep ? (
             <Button
-              type="submit"
+              type="button"
               className="rounded-xl bg-[#5b1728] px-6 py-6 text-base text-white shadow-[0_16px_32px_rgba(74,23,36,0.18)] hover:bg-[#48111f]"
               disabled={isFinalSubmitting}
               onClick={onFinalSubmit}

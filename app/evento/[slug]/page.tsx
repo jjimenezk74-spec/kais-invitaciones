@@ -14,7 +14,7 @@ import { eventHasFeature } from "@/lib/event-features";
 import { createClient } from "@/lib/supabase/server";
 import { isKaisAdmin } from "@/lib/profiles";
 import { formatDate } from "@/lib/utils";
-import type { Event, EventDecorations, EventGuest, InvitationTemplate, InvitationTheme, Rsvp, VisualDecoration } from "@/lib/types";
+import type { CanvasDesign, Event, EventDecorations, EventGuest, InvitationTemplate, InvitationTheme, Rsvp, VisualDecoration } from "@/lib/types";
 import {
   NotPublishedScreen,
   PersonalLinkRequired,
@@ -22,6 +22,7 @@ import {
   InactivePersonalLink
 } from "./_screens";
 import { RoyalWeddingPack, RoyalWeddingDivider } from "@/components/decorations/royal-wedding-pack";
+import { CanvasRenderer } from "@/components/canvas-renderer";
 
 type PageProps = {
   params: Promise<{ slug: string }>;
@@ -86,6 +87,7 @@ const PUBLIC_EVENT_SELECT = [
   "decoration_side_right",
   "visual_decorations",
   "design_config",
+  "canvas_design",
   "theme_color",
   "status",
   "guest_mode",
@@ -687,6 +689,11 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
           <Link href="/" className="kais-brand-footer__name">KAIS Invitaciones</Link>
         </div>
       </footer>
+
+      {/* Canvas Design overlay — renderiza SOLO si existe canvas_design */}
+      {(event.canvas_design as CanvasDesign | null) && (
+        <CanvasRenderer design={event.canvas_design as CanvasDesign} />
+      )}
     </main>
   );
 }

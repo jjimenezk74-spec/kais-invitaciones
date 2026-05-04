@@ -14,7 +14,7 @@ import { applyThemeToDesignConfig } from "@/lib/invitation-themes";
 import { eventHasFeature } from "@/lib/event-features";
 import { getThemePreview } from "@/lib/theme-preview";
 import { createClientSupabaseBrowser } from "@/lib/supabase/browser";
-import type { Client, Event, EventCategory, InvitationDesignConfig, InvitationTheme, Profile, VisualDecoration, VisualDecorationDevice, VisualDecorationSection } from "@/lib/types";
+import type { Client, Event, EventCategory, InvitationDesignConfig, InvitationTheme, Profile, VisualDecoration, VisualDecorationDevice, VisualDecorationFitMode, VisualDecorationSection } from "@/lib/types";
 
 type EventFormProps = {
   action: (formData: FormData) => Promise<void> | void;
@@ -179,7 +179,8 @@ export function EventForm({
         rotate: 0,
         effect: "none",
         glowColor: "#f4d27a",
-        glowStrength: "medium"
+        glowStrength: "medium",
+        fitMode: "manual" as const
       }
     ]);
     setActiveDecorationDevice(device);
@@ -1131,9 +1132,23 @@ function FreeDecorationEditor({
               </Select>
             </Field>
 
-            <RangeField label="Posicion X %" value={decoration.x} min={0} max={100} step={1} onChange={(x) => onChange({ x })} />
-            <RangeField label="Posicion Y %" value={decoration.y} min={0} max={100} step={1} onChange={(y) => onChange({ y })} />
-            <RangeField label="Tamano px" value={decoration.width} min={40} max={900} step={10} onChange={(width) => onChange({ width })} />
+            <Field label="Ajuste de tamano">
+              <Select
+                value={decoration.fitMode ?? "manual"}
+                onChange={(event) => onChange({ fitMode: event.currentTarget.value as VisualDecorationFitMode })}
+              >
+                <option value="manual">Tamano manual</option>
+                <option value="section">Ajustar a seccion</option>
+              </Select>
+            </Field>
+
+            {(decoration.fitMode ?? "manual") === "manual" && (
+              <>
+                <RangeField label="Posicion X %" value={decoration.x} min={0} max={100} step={1} onChange={(x) => onChange({ x })} />
+                <RangeField label="Posicion Y %" value={decoration.y} min={0} max={100} step={1} onChange={(y) => onChange({ y })} />
+                <RangeField label="Tamano px" value={decoration.width} min={40} max={2000} step={10} onChange={(width) => onChange({ width })} />
+              </>
+            )}
             <RangeField label="Opacidad" value={decoration.opacity} min={0} max={1} step={0.05} onChange={(opacity) => onChange({ opacity })} />
             <RangeField label="Rotacion" value={decoration.rotate} min={-180} max={180} step={1} onChange={(rotate) => onChange({ rotate })} />
             <Field label="Efecto">
@@ -1629,15 +1644,18 @@ function normalizeVisualDecorationState(value: unknown): VisualDecoration[] {
     const glowColor = normalizeGlowColor(record.glowColor);
     const glowStrength = normalizeGlowStrength(record.glowStrength);
 
+    const fitMode: VisualDecorationFitMode = record.fitMode === "section" ? "section" : "manual";
+
     if (record.device === "desktop" || record.device === "mobile") {
       const device = record.device;
       return [{
         ...base,
         device,
-        width: clampNumber(record.width, 40, 900, device === "mobile" ? 110 : 220),
+        width: clampNumber(record.width, 40, 2000, device === "mobile" ? 110 : 220),
         effect,
         glowColor,
-        glowStrength
+        glowStrength,
+        fitMode
       }];
     }
 
@@ -1653,10 +1671,11 @@ function normalizeVisualDecorationState(value: unknown): VisualDecoration[] {
       ...base,
       id: devices.length > 1 ? `${base.id}-${device}` : base.id,
       device,
-      width: clampNumber(record.width, 40, 900, device === "mobile" ? 110 : 220),
+      width: clampNumber(record.width, 40, 2000, device === "mobile" ? 110 : 220),
       effect,
       glowColor,
-      glowStrength
+      glowStrength,
+      fitMode
     }));
   });
 }
@@ -1748,5 +1767,7 @@ function getAudioContentType(extension: string) {
 }
 
 function formatBytes(bytes: number) {
-  return `${Math.round(bytes / 1024 / 1024)}MB`;
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }

@@ -77,23 +77,41 @@ export function ThemeDecorations({ themeSlug, decorations, freeDecorations, sect
           />
         </div>
       ))}
-      {activeFreeDecorations.map((decoration) => (
-        <div
-          key={decoration.id}
-          className={`theme-decoration-free ${getEffectClassName(decoration)} ${getVisibilityClass(decoration)}`}
-          style={{
-            left: `${decoration.x}%`,
-            top: `${decoration.y}%`,
-            width: `${decoration.width}px`,
-            opacity: decoration.opacity,
-            transform: `translate(-50%, -50%) rotate(${decoration.rotate}deg)`,
-            filter: getEffectFilter(decoration)
-          }}
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={decoration.url} alt="" loading="lazy" className="h-auto w-full object-contain" />
-        </div>
-      ))}
+      {activeFreeDecorations.map((decoration) => {
+        const isSectionFit = decoration.fitMode === "section";
+        return (
+          <div
+            key={decoration.id}
+            data-fit={isSectionFit ? "section" : "manual"}
+            className={`theme-decoration-free ${getEffectClassName(decoration)} ${getVisibilityClass(decoration)}`}
+            style={isSectionFit ? {
+              left: 0,
+              top: 0,
+              width: "100%",
+              height: "100%",
+              opacity: decoration.opacity,
+              transform: `rotate(${decoration.rotate}deg)`,
+              transformOrigin: "center center",
+              filter: getEffectFilter(decoration)
+            } : {
+              left: `${decoration.x}%`,
+              top: `${decoration.y}%`,
+              width: `${decoration.width}px`,
+              opacity: decoration.opacity,
+              transform: `translate(-50%, -50%) rotate(${decoration.rotate}deg)`,
+              filter: getEffectFilter(decoration)
+            }}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={decoration.url}
+              alt=""
+              loading="lazy"
+              className={isSectionFit ? "h-full w-full object-cover" : "h-auto w-full object-contain"}
+            />
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -114,13 +132,14 @@ function normalizeFreeDecorations(
       ...decoration,
       x: clamp(decoration.x, 0, 100),
       y: clamp(decoration.y, 0, 100),
-      width: clamp(decoration.width, 40, 900),
+      width: clamp(decoration.width, 40, 2000),
       opacity: clamp(decoration.opacity, 0, 1),
       rotate: clamp(decoration.rotate, -180, 180),
       effect: normalizeEffect(decoration.effect),
       glowColor: normalizeGlowColor(decoration.glowColor),
-      glowStrength: normalizeGlowStrength(decoration.glowStrength)
-    }));
+      glowStrength: normalizeGlowStrength(decoration.glowStrength),
+      fitMode: decoration.fitMode === "section" ? "section" : "manual"
+    } as VisualDecoration));
 }
 
 function getVisibilityClass(decoration: VisualDecoration) {
@@ -172,4 +191,24 @@ function normalizeGlowColor(value: unknown) {
 function clamp(value: number, min: number, max: number) {
   if (!Number.isFinite(value)) return min;
   return Math.min(max, Math.max(min, value));
+}
+
+function normalizeEffect(value: unknown): VisualDecoration["effect"] {
+  if (value === "golden_glow") return "glow";
+  return value === "glow" || value === "soft_shadow" || value === "float" || value === "pulse" ? value : "none";
+}
+
+function normalizeGlowStrength(value: unknown): VisualDecoration["glowStrength"] {
+  return value === "low" || value === "medium" || value === "high" ? value : "medium";
+}
+
+function normalizeGlowColor(value: unknown) {
+  const text = typeof value === "string" ? value.trim() : "";
+  return /^#[0-9a-f]{6}$/i.test(text) ? text : "#f4d27a";
+}
+
+function clamp(value: number, min: number, max: number) {
+  if (!Number.isFinite(value)) return min;
+  return Math.min(max, Math.max(min, value));
+}
 }

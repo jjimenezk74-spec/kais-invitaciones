@@ -14,6 +14,7 @@ export type VisualDecorationSection = "hero" | "info" | "rsvp" | "gallery" | "fo
 export type VisualDecorationDevice = "desktop" | "mobile";
 export type VisualDecorationEffect = "none" | "glow" | "soft_shadow" | "float" | "pulse";
 export type VisualDecorationGlowStrength = "low" | "medium" | "high";
+export type VisualDecorationFitMode = "manual" | "section";
 export type VisualDecoration = {
   id: string;
   url: string;
@@ -27,6 +28,7 @@ export type VisualDecoration = {
   effect: VisualDecorationEffect;
   glowColor: string;
   glowStrength: VisualDecorationGlowStrength;
+  fitMode?: VisualDecorationFitMode;
   desktop?: boolean;
   mobile?: boolean;
 };

@@ -224,6 +224,10 @@ html {
   will-change: transform, opacity;
 }
 
+.theme-decoration-free[data-fit="section"] {
+  max-width: none !important;
+}
+
 .theme-decoration-float {
   animation: kais-decoration-float 6s ease-in-out infinite;
 }

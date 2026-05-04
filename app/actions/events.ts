@@ -938,14 +938,15 @@ function sanitizeVisualDecorations(value: unknown): VisualDecoration[] {
         section,
         x: clampNumber(record.x, 0, 100, 6),
         y: clampNumber(record.y, 0, 100, 12),
-        width: clampNumber(record.width, 40, 900, 220),
+        width: clampNumber(record.width, 40, 2000, 220),
         opacity: clampNumber(record.opacity, 0, 1, 0.85),
         rotate: clampNumber(record.rotate, -180, 180, 0),
         device: normalizeVisualDecorationDevice(record.device, record.desktop, record.mobile),
         effect: normalizeVisualDecorationEffect(record.effect),
         glowColor: normalizeHexColor(record.glowColor, "#f4d27a"),
-        glowStrength: normalizeVisualDecorationGlowStrength(record.glowStrength)
-      };
+        glowStrength: normalizeVisualDecorationGlowStrength(record.glowStrength),
+        fitMode: record.fitMode === "section" ? "section" : "manual"
+      } as VisualDecoration;
     })
     .filter((item) => item.url);
 }
@@ -1155,6 +1156,12 @@ function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : "Ocurrió un error inesperado.";
 }
 
-function csvCell(value: unknown) {
-  return `"${String(value ?? "").replace(/"/g, '""')}"`;
+
+function csvCell(value: unknown): string {
+  if (value === null || value === undefined) return "";
+  const str = String(value);
+  if (str.includes(",") || str.includes('"') || str.includes("\n")) {
+    return `"${str.replace(/"/g, '""')}"`;
+  }
+  return str;
 }

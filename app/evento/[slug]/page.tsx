@@ -11,6 +11,7 @@ import { resolvePremiumThemeDesign, resolveLegacyDesign } from "@/lib/invitation
 import { createAdminClient } from "@/lib/supabase/admin";
 import { fetchThemeById } from "@/lib/invitation-themes.server";
 import { eventHasFeature } from "@/lib/event-features";
+import { canUploadEventPhotos } from "@/lib/event-time";
 import { createClient } from "@/lib/supabase/server";
 import { isKaisAdmin } from "@/lib/profiles";
 import { formatDate } from "@/lib/utils";
@@ -619,14 +620,20 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
             <p className="mx-auto mt-5 max-w-xl text-sm leading-7 text-[#f5ecd9]/70">
               Compartí tus mejores momentos en el álbum preparado para esta celebración.
             </p>
-            <a
-              href={event.external_photo_album_url}
-              target="_blank"
-              rel="noreferrer"
-              className="kais-cta mt-8 inline-flex"
-            >
-              Subir fotos al álbum
-            </a>
+            {canUploadEventPhotos(event) ? (
+              <a
+                href={event.external_photo_album_url}
+                target="_blank"
+                rel="noreferrer"
+                className="kais-cta mt-8 inline-flex"
+              >
+                Subir fotos al álbum
+              </a>
+            ) : (
+              <p className="mx-auto mt-8 max-w-xl rounded-2xl border border-[#d4af37]/25 bg-[#d4af37]/10 px-5 py-4 text-sm font-semibold text-[#f5ecd9]/80">
+                La subida de fotos estará disponible el día del evento.
+              </p>
+            )}
           </div>
         </section>
       ) : null}

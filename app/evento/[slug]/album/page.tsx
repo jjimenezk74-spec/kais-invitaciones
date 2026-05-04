@@ -6,6 +6,7 @@ import { getApprovedLivePhotos } from "@/app/actions/live-photos";
 import { PublicLiveAlbum } from "@/components/live-album/public-live-album";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { formatDate } from "@/lib/utils";
+import { canUploadEventPhotos } from "@/lib/event-time";
 import type { Event } from "@/lib/types";
 
 type Props = { params: Promise<{ slug: string }> };
@@ -29,7 +30,7 @@ export default async function AlbumPage({ params }: Props) {
 
   const { data } = await admin
     .from("events")
-    .select("id, slug, hosts_names, event_type, event_date, theme_color, status")
+    .select("id, slug, hosts_names, event_type, event_date, event_time, theme_color, status")
     .eq("slug", slug)
     .maybeSingle();
 
@@ -57,6 +58,7 @@ export default async function AlbumPage({ params }: Props) {
       photos={photos}
       commentsByPhotoId={interactions.commentsByPhotoId}
       reactionsByPhotoId={interactions.reactionsByPhotoId}
+      canUploadPhotos={canUploadEventPhotos(event)}
     />
   );
 }

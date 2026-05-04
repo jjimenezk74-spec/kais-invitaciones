@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@supabase/supabase-js";
+import { canUploadEventPhotos } from "@/lib/event-time";
 
 const ALLOWED_IMAGE_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp"];
 
@@ -50,7 +51,7 @@ export async function insertLivePhoto(payload: {
   // ── Verificar evento ────────────────────────────────────────────────────
   const { data: event, error: eventError } = await supabase
     .from("events")
-    .select("id, status")
+    .select("id, status, event_date, event_time")
     .eq("id", payload.event_id)
     .single();
 
@@ -60,6 +61,7 @@ export async function insertLivePhoto(payload: {
   }
   if (!event)                       return { error: "Evento no encontrado." };
   if (event.status !== "publicado") return { error: "El evento no está activo." };
+  if (!canUploadEventPhotos(event)) return { error: "La subida de fotos estará disponible el día del evento." };
 
   // ── Insert ──────────────────────────────────────────────────────────────
   const { error: insertError } = await supabase.from("live_photos").insert({

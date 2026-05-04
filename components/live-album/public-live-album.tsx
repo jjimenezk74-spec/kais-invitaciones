@@ -26,6 +26,7 @@ type PublicLiveAlbumProps = {
   photos: LivePhoto[];
   commentsByPhotoId: Record<string, LivePhotoComment[]>;
   reactionsByPhotoId: Record<string, LivePhotoReactionCount>;
+  canUploadPhotos?: boolean;
 };
 
 const AUTHOR_STORAGE_KEY = "kais_live_album_author";
@@ -41,6 +42,7 @@ export function PublicLiveAlbum({
   photos,
   commentsByPhotoId: initialComments,
   reactionsByPhotoId: initialReactions,
+  canUploadPhotos = true,
 }: PublicLiveAlbumProps) {
   const [selectedPhoto, setSelectedPhoto] = useState<LivePhoto | null>(null);
   const [showUploader, setShowUploader] = useState(false);
@@ -77,8 +79,9 @@ export function PublicLiveAlbum({
           </Link>
           <button
             type="button"
-            onClick={() => setShowUploader((value) => !value)}
-            className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full border border-amber-100 bg-amber-300 px-5 py-2.5 text-xs font-black uppercase tracking-[0.16em] text-black shadow-lg shadow-black/30 transition hover:-translate-y-0.5 hover:bg-amber-200 active:translate-y-0"
+            onClick={() => canUploadPhotos && setShowUploader((value) => !value)}
+            disabled={!canUploadPhotos}
+            className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full border border-amber-100 bg-amber-300 px-5 py-2.5 text-xs font-black uppercase tracking-[0.16em] text-black shadow-lg shadow-black/30 transition hover:-translate-y-0.5 hover:bg-amber-200 active:translate-y-0 disabled:cursor-not-allowed disabled:border-white/15 disabled:bg-white/10 disabled:text-white/55 disabled:shadow-none disabled:hover:translate-y-0"
           >
             <Camera className="h-4 w-4" />
             Subir foto
@@ -108,6 +111,12 @@ export function PublicLiveAlbum({
             </div>
           </div>
         </section>
+
+        {!canUploadPhotos ? (
+          <section className="mb-8 rounded-[1.75rem] border border-amber-300/25 bg-amber-300/10 px-5 py-4 text-center text-sm font-semibold text-amber-50 shadow-lg shadow-black/20">
+            La subida de fotos estará disponible el día del evento.
+          </section>
+        ) : null}
 
         {showUploader ? (
           <section className="mb-10 rounded-[1.75rem] border border-white/10 bg-stone-50 p-4 text-stone-950 shadow-2xl shadow-black/30 sm:p-6">
@@ -145,8 +154,9 @@ export function PublicLiveAlbum({
             </p>
             <button
               type="button"
-              onClick={() => setShowUploader(true)}
-              className="mt-7 min-h-11 rounded-full border border-amber-100 bg-amber-300 px-7 py-3 text-sm font-black uppercase tracking-[0.16em] text-black shadow-lg shadow-black/30 transition hover:-translate-y-0.5 hover:bg-amber-200 active:translate-y-0"
+              onClick={() => canUploadPhotos && setShowUploader(true)}
+              disabled={!canUploadPhotos}
+              className="mt-7 min-h-11 rounded-full border border-amber-100 bg-amber-300 px-7 py-3 text-sm font-black uppercase tracking-[0.16em] text-black shadow-lg shadow-black/30 transition hover:-translate-y-0.5 hover:bg-amber-200 active:translate-y-0 disabled:cursor-not-allowed disabled:border-white/15 disabled:bg-white/10 disabled:text-white/55 disabled:shadow-none disabled:hover:translate-y-0"
             >
               Subir foto
             </button>
@@ -174,8 +184,9 @@ export function PublicLiveAlbum({
 
       <button
         type="button"
-        onClick={() => setShowUploader(true)}
-        className="fixed bottom-5 right-5 z-40 inline-flex h-14 w-14 items-center justify-center rounded-full border border-amber-100 bg-amber-300 text-black shadow-2xl shadow-black/40 transition hover:-translate-y-0.5 hover:bg-amber-200 active:translate-y-0 md:hidden"
+        onClick={() => canUploadPhotos && setShowUploader(true)}
+        disabled={!canUploadPhotos}
+        className="fixed bottom-5 right-5 z-40 inline-flex h-14 w-14 items-center justify-center rounded-full border border-amber-100 bg-amber-300 text-black shadow-2xl shadow-black/40 transition hover:-translate-y-0.5 hover:bg-amber-200 active:translate-y-0 disabled:hidden md:hidden"
         aria-label="Subir foto"
       >
         <Camera className="h-6 w-6" />

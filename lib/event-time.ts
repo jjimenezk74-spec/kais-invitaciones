@@ -11,6 +11,10 @@ export function hasEventStarted(date: string, time?: string | null, now = new Da
   return now.getTime() >= getEventStartDate(date, time).getTime();
 }
 
+export function canUploadEventPhotos(event: { event_date: string; event_time?: string | null }, now = new Date()) {
+  return hasEventStarted(event.event_date, event.event_time, now);
+}
+
 export function getRemainingToEvent(date: string, time?: string | null, now = Date.now()) {
   const diff = Math.max(0, getEventStartDate(date, time).getTime() - now);
   return {

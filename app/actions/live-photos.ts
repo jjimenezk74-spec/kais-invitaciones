@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { canManagePhotos } from "@/lib/permissions";
 import { getCurrentUserProfile } from "@/lib/profiles";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { canUploadEventPhotos } from "@/lib/event-time";
 import type { LivePhoto } from "@/lib/types";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -254,7 +255,7 @@ export async function insertLivePhotoRecord(payload: {
   // Verify the event exists and is published.
   const { data: event, error: eventError } = await serviceClient
     .from("events")
-    .select("id, status")
+    .select("id, status, event_date, event_time")
     .eq("id", payload.event_id)
     .single();
 
@@ -264,6 +265,7 @@ export async function insertLivePhotoRecord(payload: {
   }
   if (!event)                        return { error: "Evento no encontrado." };
   if (event.status !== "publicado")  return { error: "El evento no está activo." };
+  if (!canUploadEventPhotos(event))  return { error: "La subida de fotos estará disponible el día del evento." };
 
   const { error: insertError } = await serviceClient.from("live_photos").insert({
     event_id:      payload.event_id,

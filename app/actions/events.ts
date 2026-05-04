@@ -485,7 +485,16 @@ export async function submitRsvp(eventId: string, formData: FormData) {
       })));
     }
   } else {
-    const { data: eventData } = await supabase.from("events").select("guest_mode").eq("id", eventId).maybeSingle();
+    const { data: eventData } = await createAdminClient()
+      .from("events")
+      .select("status,guest_mode")
+      .eq("id", eventId)
+      .maybeSingle();
+
+    if (eventData?.status !== "publicado") {
+      redirect(errorUrl("Esta invitacion aun no esta publicada."));
+    }
+
     if (eventData?.guest_mode === "lista_invitados") {
       redirect(errorUrl("Esta invitacion requiere enlace personal."));
     }
@@ -510,7 +519,7 @@ export async function submitRsvp(eventId: string, formData: FormData) {
     dietary_restrictions: nullable(formData.get("dietary_restrictions"))
   };
 
-  const client = eventGuest ? createAdminClient() : supabase;
+  const client = createAdminClient();
   const { data: insertedRsvp, error } = await client.from("rsvps").insert(payload).select("id").single();
   if (error) {
     console.error("[KAIS RSVP] No se pudo guardar RSVP", {

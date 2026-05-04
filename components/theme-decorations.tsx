@@ -97,6 +97,7 @@ export function ThemeDecorations({ themeSlug, decorations, freeDecorations, sect
               left: `${decoration.x}%`,
               top: `${decoration.y}%`,
               width: `${decoration.width}px`,
+              height: decoration.height ? `${decoration.height}px` : "auto",
               opacity: decoration.opacity,
               transform: `translate(-50%, -50%) rotate(${decoration.rotate}deg)`,
               filter: getEffectFilter(decoration)
@@ -133,6 +134,7 @@ function normalizeFreeDecorations(
       x: clamp(decoration.x, 0, 100),
       y: clamp(decoration.y, 0, 100),
       width: clamp(decoration.width, 40, 2000),
+      height: decoration.height != null ? clamp(decoration.height, 40, 2000) : null,
       opacity: clamp(decoration.opacity, 0, 1),
       rotate: clamp(decoration.rotate, -180, 180),
       effect: normalizeEffect(decoration.effect),

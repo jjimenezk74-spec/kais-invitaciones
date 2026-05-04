@@ -939,6 +939,7 @@ function sanitizeVisualDecorations(value: unknown): VisualDecoration[] {
         x: clampNumber(record.x, 0, 100, 6),
         y: clampNumber(record.y, 0, 100, 12),
         width: clampNumber(record.width, 40, 2000, 220),
+        height: record.height != null ? clampNumber(record.height, 40, 2000, 220) : null,
         opacity: clampNumber(record.opacity, 0, 1, 0.85),
         rotate: clampNumber(record.rotate, -180, 180, 0),
         device: normalizeVisualDecorationDevice(record.device, record.desktop, record.mobile),

@@ -23,6 +23,7 @@ export type VisualDecoration = {
   x: number;
   y: number;
   width: number;
+  height?: number | null;
   opacity: number;
   rotate: number;
   effect: VisualDecorationEffect;

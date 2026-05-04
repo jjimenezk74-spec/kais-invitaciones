@@ -175,6 +175,7 @@ export function EventForm({
         x: 6,
         y: 12,
         width: device === "mobile" ? 110 : 220,
+        height: null,
         opacity: 0.85,
         rotate: 0,
         effect: "none",
@@ -1146,7 +1147,24 @@ function FreeDecorationEditor({
               <>
                 <RangeField label="Posicion X %" value={decoration.x} min={0} max={100} step={1} onChange={(x) => onChange({ x })} />
                 <RangeField label="Posicion Y %" value={decoration.y} min={0} max={100} step={1} onChange={(y) => onChange({ y })} />
-                <RangeField label="Tamano px" value={decoration.width} min={40} max={2000} step={10} onChange={(width) => onChange({ width })} />
+                <RangeField label="Ancho px" value={decoration.width} min={40} max={2000} step={10} onChange={(width) => onChange({ width })} />
+                <RangeField
+                  label={`Alto px${!decoration.height ? " (auto)" : ""}`}
+                  value={decoration.height ?? decoration.width}
+                  min={40}
+                  max={2000}
+                  step={10}
+                  onChange={(height) => onChange({ height })}
+                />
+                {decoration.height != null && (
+                  <button
+                    type="button"
+                    className="text-xs text-muted-foreground underline underline-offset-2"
+                    onClick={() => onChange({ height: null })}
+                  >
+                    Restablecer alto automatico
+                  </button>
+                )}
               </>
             )}
             <RangeField label="Opacidad" value={decoration.opacity} min={0} max={1} step={0.05} onChange={(opacity) => onChange({ opacity })} />
@@ -1646,12 +1664,15 @@ function normalizeVisualDecorationState(value: unknown): VisualDecoration[] {
 
     const fitMode: VisualDecorationFitMode = record.fitMode === "section" ? "section" : "manual";
 
+    const height = record.height != null ? clampNumber(record.height, 40, 2000, 220) : null;
+
     if (record.device === "desktop" || record.device === "mobile") {
       const device = record.device;
       return [{
         ...base,
         device,
         width: clampNumber(record.width, 40, 2000, device === "mobile" ? 110 : 220),
+        height,
         effect,
         glowColor,
         glowStrength,
@@ -1672,6 +1693,7 @@ function normalizeVisualDecorationState(value: unknown): VisualDecoration[] {
       id: devices.length > 1 ? `${base.id}-${device}` : base.id,
       device,
       width: clampNumber(record.width, 40, 2000, device === "mobile" ? 110 : 220),
+      height,
       effect,
       glowColor,
       glowStrength,

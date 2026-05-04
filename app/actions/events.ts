@@ -89,7 +89,7 @@ export async function createEvent(formData: FormData) {
     event_time: String(formData.get("event_time") ?? ""),
     address: String(formData.get("address") ?? ""),
     google_maps_link: nullable(formData.get("google_maps_link")),
-    whatsapp_phone: nullable(formData.get("whatsapp_phone")),
+    whatsapp_phone: normalizeParaguayWhatsapp(formData.get("whatsapp_phone")),
     main_message: nullable(formData.get("main_message")),
     dress_code: nullable(formData.get("dress_code")),
     cover_image_url: manualCoverUrl,
@@ -175,7 +175,7 @@ export async function updateEvent(eventId: string, formData: FormData) {
     event_time: String(formData.get("event_time") ?? ""),
     address: String(formData.get("address") ?? ""),
     google_maps_link: nullable(formData.get("google_maps_link")),
-    whatsapp_phone: nullable(formData.get("whatsapp_phone")),
+    whatsapp_phone: normalizeParaguayWhatsapp(formData.get("whatsapp_phone")),
     main_message: nullable(formData.get("main_message")),
     dress_code: nullable(formData.get("dress_code")),
     cover_image_url: coverImageUrl,
@@ -782,6 +782,16 @@ function buildRsvpSuccessParams({
   }
 
   return params;
+}
+
+function normalizeParaguayWhatsapp(value: FormDataEntryValue | null) {
+  let digits = String(value ?? "").replace(/[\s-]/g, "").replace(/\D/g, "");
+
+  if (!digits) return null;
+  if (digits.startsWith("595")) digits = digits.slice(3);
+  if (digits.startsWith("0")) digits = digits.slice(1);
+
+  return `595${digits}`;
 }
 
 function nullable(value: FormDataEntryValue | null) {

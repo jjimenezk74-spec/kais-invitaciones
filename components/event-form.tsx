@@ -496,8 +496,20 @@ export function EventForm({
               <Field label="Google Maps">
                 <Input name="google_maps_link" defaultValue={event?.google_maps_link ?? ""} placeholder="https://maps.google.com/..." />
               </Field>
-              <Field label="WhatsApp para RSVP" hint="Usar con la feature RSVP por WhatsApp. Incluye codigo de pais. Ejemplo: 595981123456">
-                <Input name="whatsapp_phone" defaultValue={event?.whatsapp_phone ?? ""} placeholder="595981123456" />
+              <Field label="WhatsApp para RSVP" hint="Solo el numero local de Paraguay. Se guardara automaticamente con prefijo 595.">
+                <div className="flex overflow-hidden rounded-xl border border-[#e8d8c3] bg-white shadow-sm focus-within:border-[#7f1d35] focus-within:ring-2 focus-within:ring-[#7f1d35]/15">
+                  <span className="inline-flex items-center border-r border-[#eadbcc] bg-[#f8f1e8] px-4 text-sm font-bold text-[#7f1d35]">
+                    +595
+                  </span>
+                  <Input
+                    name="whatsapp_phone"
+                    defaultValue={formatParaguayWhatsappLocal(event?.whatsapp_phone)}
+                    placeholder="981123456"
+                    inputMode="numeric"
+                    pattern="[0-9 ]*"
+                    className="border-0 shadow-none focus-visible:ring-0"
+                  />
+                </div>
               </Field>
             </div>
           </FormSection>
@@ -1206,6 +1218,16 @@ function SelectedBadge() {
       </svg>
     </div>
   );
+}
+
+function formatParaguayWhatsappLocal(value?: string | null) {
+  const digits = String(value ?? "").replace(/\D/g, "");
+  if (!digits) return "";
+
+  if (digits.startsWith("595")) return digits.slice(3);
+  if (digits.startsWith("0")) return digits.slice(1);
+
+  return digits;
 }
 
 function validateUploads(form: HTMLFormElement) {

@@ -108,7 +108,13 @@ export function ThemeDecorations({ themeSlug, decorations, freeDecorations, sect
               src={decoration.url}
               alt=""
               loading="lazy"
-              className={isSectionFit ? "h-full w-full object-cover" : "h-auto w-full object-contain"}
+              className={
+              isSectionFit
+                ? "h-full w-full object-cover"
+                : decoration.height
+                ? "h-full w-full object-contain"
+                : "h-auto w-full object-contain"
+            }
             />
           </div>
         );

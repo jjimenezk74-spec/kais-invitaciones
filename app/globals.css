@@ -264,6 +264,10 @@ html {
   .theme-decoration-free {
     max-width: 44vw;
   }
+
+  .theme-decoration-free[data-fit="manual"] {
+    max-width: none;
+  }
 }
 
 /* --- Hairlines de oro --- */
@@ -3411,78 +3415,5 @@ main.kais-stage.kais-theme-executive-black.kais-decor-premium .kais-section h2::
   .kais-rwp-crown-wrap { width: min(270px, 28vw); opacity: 0.65; }
 
   /* Wider divider */
-  .kais-rwp-divider-wrap { max-width: 720px; padding: 2.5rem 2rem; }
-}
-
-/* ── prefers-reduced-motion ───────────────────────────────────────────────── */
-@media (prefers-reduced-motion: reduce) {
-  .kais-rwp-overlay *,
-  .kais-rwp-crown-wrap {
-    animation: none !important;
-    transition: none !important;
-  }
-}
-
-/* ── Hero photo overlay: always champagne + gold regardless of theme ────────
-   Specificity (0,4,0) beats the (0,3,0) text-override rules above.
-   The h1/eyebrow sits on top of the cover photo — it needs high contrast
-   independently of the theme's page text colour (--kt-text).           */
-main.kais-stage.kais-theme-active .kais-grain .text-\[\#f5ecd9\] {
-  color: #f5ecd9;
-}
-main.kais-stage.kais-theme-active .kais-grain .text-\[\#d4af37\] {
-  color: #d4af37;
-}
-main.kais-stage.kais-theme-active .kais-grain .text-\[\#d4af37\]\/60 {
-  color: rgba(212,175,55,0.60);
-}
-
-/* ── KAIS Live Album: upload button ─────────────────────────────────────────
-   Uses !important to guarantee visibility regardless of Tailwind preflight
-   or any other base-layer reset that sets button backgrounds to transparent.
-   ─────────────────────────────────────────────────────────────────────────── */
-.kais-upload-btn {
-  display:         flex !important;
-  align-items:     center !important;
-  justify-content: center !important;
-  gap:             0.625rem !important;
-  width:           100% !important;
-  min-height:      56px !important;
-  border-radius:   1rem !important;
-  font-size:       1rem !important;
-  font-weight:     700 !important;
-  color:           #ffffff !important;
-  border:          none !important;
-  cursor:          pointer !important;
-  transition:      background 0.2s, box-shadow 0.2s, transform 0.15s !important;
-}
-.kais-upload-btn:disabled {
-  cursor:  not-allowed !important;
-  opacity: 0.72 !important;
-}
-.kais-upload-btn:not(:disabled):hover {
-  transform: translateY(-2px) !important;
-}
-/* Default (no photo selected): solid near-black */
-.kais-upload-btn {
-  background:  #111827 !important;
-  box-shadow:  0 2px 8px rgba(0,0,0,0.18) !important;
-}
-/* Has photo: golden accent gradient via data attribute */
-.kais-upload-btn[data-has-file="true"] {
-  background:  linear-gradient(135deg, var(--kais-upload-accent, #d4af37) 0%, color-mix(in srgb, var(--kais-upload-accent, #d4af37) 75%, #000) 100%) !important;
-  box-shadow:  0 8px 28px -8px color-mix(in srgb, var(--kais-upload-accent, #d4af37) 55%, transparent), 0 2px 8px rgba(0,0,0,0.20) !important;
-}
-
-/* Hide native spinner arrows on numeric fields while keeping type="number"
-   for mobile numeric keyboards and browser validation. */
-input[type="number"]::-webkit-outer-spin-button,
-input[type="number"]::-webkit-inner-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
-}
-
-input[type="number"] {
-  appearance: textfield;
-  -moz-appearance: textfield;
+  .kais-rwp-divider-wrap { max-width: 720px; padding: 0 16px; }
 }

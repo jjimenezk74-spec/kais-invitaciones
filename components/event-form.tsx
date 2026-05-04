@@ -117,6 +117,7 @@ export function EventForm({
   const activeDeviceDecorations = visualDecorations.filter((decoration) => decoration.device === activeDecorationDevice);
   const activeStepIndex = wizardSteps.findIndex((step) => step.id === activeStep);
   const isLastStep = activeStepIndex === wizardSteps.length - 1;
+  const isEditing = Boolean(event?.id);
   const currentTheme = activeThemes.find((theme) => theme.id === selectedThemeId);
 
   function goToStep(step: WizardStepId) {
@@ -873,6 +874,7 @@ export function EventForm({
       <WizardActions
         activeStepIndex={activeStepIndex}
         isLastStep={isLastStep}
+        isEditing={isEditing}
         isFinalSubmitting={isFinalSubmitting}
         draftToast={draftToast}
         onBack={goBack}
@@ -974,6 +976,7 @@ function SummaryRow({ label, value }: { label: string; value: string }) {
 function WizardActions({
   activeStepIndex,
   isLastStep,
+  isEditing,
   isFinalSubmitting,
   draftToast,
   onBack,
@@ -983,6 +986,7 @@ function WizardActions({
 }: {
   activeStepIndex: number;
   isLastStep: boolean;
+  isEditing: boolean;
   isFinalSubmitting: boolean;
   draftToast: string;
   onBack: () => void;
@@ -1007,7 +1011,7 @@ function WizardActions({
           <Button type="button" variant="ghost" className="text-[#6d1f32] hover:bg-[#f7efe7]" onClick={onSaveDraft}>
             Guardar borrador
           </Button>
-          {isLastStep ? (
+          {isEditing || isLastStep ? (
             <Button
               type="submit"
               className="rounded-xl bg-[#5b1728] px-6 py-6 text-base text-white shadow-[0_16px_32px_rgba(74,23,36,0.18)] hover:bg-[#48111f]"
@@ -1015,7 +1019,13 @@ function WizardActions({
               onClick={onFinalSubmit}
             >
               <Save className="h-4 w-4" />
-              {isFinalSubmitting ? "Creando invitación..." : "Crear invitación"}
+              {isFinalSubmitting
+                ? isEditing
+                  ? "Guardando cambios..."
+                  : "Creando invitación..."
+                : isEditing
+                  ? "Guardar cambios"
+                  : "Crear invitación"}
             </Button>
           ) : (
             <Button type="button" className="rounded-xl bg-[#5b1728] px-6 text-white hover:bg-[#48111f]" onClick={onNext}>

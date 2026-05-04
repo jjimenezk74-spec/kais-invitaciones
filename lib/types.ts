@@ -66,6 +66,89 @@ export type EventType =
   | "graduación"
   | "otro";
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Canvas Design — editor visual libre
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type CanvasElementType = "text" | "image";
+
+type CanvasBaseElement = {
+  id: string;
+  type: CanvasElementType;
+  /** Posicion horizontal: % del ancho del canvas (0-100). Anclado al centro. */
+  x: number;
+  /** Posicion vertical: % del alto del canvas (0-100). Anclado al centro. */
+  y: number;
+  /** Ancho en px sobre el canvas de referencia (refWidth). */
+  width: number;
+  /** Alto en px, o null = automatico segun contenido. */
+  height: number | null;
+  /** Rotacion en grados (-180 a 180). */
+  rotation: number;
+  /** Opacidad (0-1). */
+  opacity: number;
+  /** Orden de capa (1 = fondo). */
+  zIndex: number;
+  /** Si true, el editor no permite mover ni redimensionar. */
+  locked: boolean;
+  /** Visibilidad sin eliminar el elemento. */
+  visible: boolean;
+  /** Dispositivos en los que se muestra. */
+  device: "all" | "mobile" | "desktop";
+};
+
+export type CanvasTextElement = CanvasBaseElement & {
+  type: "text";
+  content: string;
+  fontFamily: string;
+  fontSize: number;
+  fontWeight: "300" | "400" | "500" | "600" | "700";
+  fontStyle: "normal" | "italic";
+  textAlign: "left" | "center" | "right";
+  color: string;
+  lineHeight: number;
+  letterSpacing: number;
+  textShadow: string | null;
+  textDecoration: "none" | "underline";
+};
+
+export type CanvasImageElement = CanvasBaseElement & {
+  type: "image";
+  url: string;
+  /** Path en Supabase Storage para poder eliminar el archivo. */
+  storagePath: string | null;
+  objectFit: "contain" | "fill";
+  effect: VisualDecorationEffect;
+  glowColor: string;
+  glowStrength: VisualDecorationGlowStrength;
+  flipX: boolean;
+  flipY: boolean;
+};
+
+export type CanvasElement = CanvasTextElement | CanvasImageElement;
+
+export type CanvasBackground = {
+  type: "none" | "color" | "gradient" | "image";
+  color?: string;
+  gradient?: string;
+  imageUrl?: string;
+  imageObjectFit?: "cover" | "contain";
+  imageOpacity?: number;
+};
+
+export type CanvasDesign = {
+  /** Version del schema. Incrementar si hay cambios incompatibles. */
+  version: 1;
+  /** Ancho del canvas de referencia en px (390 = iPhone estandar). */
+  refWidth: number;
+  /** Alto del canvas de referencia en px (844 = iPhone estandar). */
+  refHeight: number;
+  background: CanvasBackground;
+  elements: CanvasElement[];
+  /** ISO timestamp del ultimo guardado. */
+  updatedAt: string;
+};
+
 export type Profile = {
   id: string;
   full_name: string | null;
@@ -147,6 +230,7 @@ export type Event = {
   decoration_side_right: string | null;
   visual_decorations: VisualDecoration[] | null;
   design_config: Partial<InvitationDesignConfig> | null;
+  canvas_design?: CanvasDesign | null;
   theme_color: string;
   status: EventStatus;
   guest_mode: GuestMode;

@@ -192,23 +192,3 @@ function clamp(value: number, min: number, max: number) {
   if (!Number.isFinite(value)) return min;
   return Math.min(max, Math.max(min, value));
 }
-
-function normalizeEffect(value: unknown): VisualDecoration["effect"] {
-  if (value === "golden_glow") return "glow";
-  return value === "glow" || value === "soft_shadow" || value === "float" || value === "pulse" ? value : "none";
-}
-
-function normalizeGlowStrength(value: unknown): VisualDecoration["glowStrength"] {
-  return value === "low" || value === "medium" || value === "high" ? value : "medium";
-}
-
-function normalizeGlowColor(value: unknown) {
-  const text = typeof value === "string" ? value.trim() : "";
-  return /^#[0-9a-f]{6}$/i.test(text) ? text : "#f4d27a";
-}
-
-function clamp(value: number, min: number, max: number) {
-  if (!Number.isFinite(value)) return min;
-  return Math.min(max, Math.max(min, value));
-}
-}

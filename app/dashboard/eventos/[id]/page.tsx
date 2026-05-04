@@ -14,6 +14,7 @@ import {
   Send,
   Sparkles,
   UsersRound,
+  Wand2,
 } from "lucide-react";
 import { CopyLinkButton } from "@/components/copy-link-button";
 import { DashboardEventToast } from "@/components/dashboard-event-toast";
@@ -463,6 +464,16 @@ export default async function EventDetailPage({
               <p className="font-semibold text-[#3b1721]">Activar album</p>
               <p className="mt-1 text-sm text-muted-foreground">Prepara QR, pantalla en vivo y moderacion.</p>
             </Link>
+            {permissions.editEventDesign && (
+              <Link
+                href={`/dashboard/eventos/${event.id}/canvas`}
+                className="rounded-2xl border border-indigo-200 bg-indigo-50 p-4 transition hover:-translate-y-0.5 hover:shadow-md"
+              >
+                <Wand2 className="mb-3 h-5 w-5 text-indigo-600" />
+                <p className="font-semibold text-indigo-900">Editor visual</p>
+                <p className="mt-1 text-sm text-muted-foreground">Diseña la invitacion con texto libre y stickers.</p>
+              </Link>
+            )}
           </CardContent>
         </Card>
       )}

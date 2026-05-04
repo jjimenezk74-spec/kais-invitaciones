@@ -1143,6 +1143,12 @@ function FreeDecorationEditor({
               </Select>
             </Field>
 
+            {(decoration.fitMode ?? "manual") === "section" && (
+              <p className="rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">
+                La decoración cubrirá toda la sección automáticamente.
+              </p>
+            )}
+
             {(decoration.fitMode ?? "manual") === "manual" && (
               <>
                 <RangeField label="Posicion X %" value={decoration.x} min={0} max={100} step={1} onChange={(x) => onChange({ x })} />

@@ -112,8 +112,8 @@ export function ThemeDecorations({ themeSlug, decorations, freeDecorations, sect
               isSectionFit
                 ? "h-full w-full object-cover"
                 : decoration.height
-                ? "h-full w-full object-contain"
-                : "h-auto w-full object-contain"
+                ? "h-full w-full object-fill"
+                : "h-auto w-full"
             }
             />
           </div>

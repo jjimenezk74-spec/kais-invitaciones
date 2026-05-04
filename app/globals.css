@@ -1450,6 +1450,60 @@ main.kais-stage.kais-theme-legacy-night {
   background: var(--kt-stage-bg);
 }
 
+/* ── rose  (cream paper / rosas rojas acuarela) ─────────────────────────── */
+main.kais-stage.kais-theme-rose {
+  /* Palette */
+  --kt-accent:         #8B1E2D;
+  --kt-accent-2:       #B23A48;
+  --kt-accent-3:       #6B1020;
+
+  /* Fondos — cream base + manchas acuarela en esquinas */
+  --kt-stage-bg:
+    radial-gradient(ellipse 55% 38% at  -6%  8%, rgba(139, 30, 45, 0.12) 0%, transparent 70%),
+    radial-gradient(ellipse 38% 30% at   7% 30%, rgba(178, 58, 72, 0.07) 0%, transparent 65%),
+    radial-gradient(ellipse 44% 34% at 106% 68%, rgba(110,127, 95, 0.10) 0%, transparent 65%),
+    radial-gradient(ellipse 28% 22% at  96% 88%, rgba(139, 30, 45, 0.08) 0%, transparent 58%),
+    radial-gradient(ellipse 30% 20% at  52%  0%, rgba(200,169,106, 0.11) 0%, transparent 58%),
+    linear-gradient(165deg, #F6F1E9 0%, #EEE5D3 55%, #E5D8C0 100%);
+
+  --kt-hero-bg:        linear-gradient(160deg, #FAF8F3 0%, #F6F1E9 50%, #EEE5D3 100%);
+  --kt-section-alt-bg: #EDE5D5;
+
+  /* Glass */
+  --kt-glass-bg:       rgba(246,241,233,0.88);
+  --kt-glass-bg2:      rgba(246,241,233,0.70);
+  --kt-glass-border:   rgba(139, 30, 45,0.18);
+  --kt-glass-shine:    rgba(200,169,106,0.20);
+  --kt-card-bg:        rgba(246,241,233,0.92);
+
+  /* CTA */
+  --kt-cta-text:       #fff;
+  --kt-cta-glow:       rgba(139, 30, 45,0.42);
+  --kt-cta-glow-h:     rgba(178, 58, 72,0.62);
+
+  /* Hairlines */
+  --kt-hairline-mid:   rgba(139, 30, 45,0.35);
+  --kt-hairline-peak:  rgba(200,169,106,0.70);
+
+  /* Ghost links */
+  --kt-ghost-color:    rgba( 43, 20, 25,0.72);
+  --kt-ghost-border:   rgba(139, 30, 45,0.30);
+
+  /* Texto */
+  --kt-text:           #2B2B2B;
+  --kt-muted:          rgba( 43, 43, 43,0.60);
+
+  /* Inputs */
+  --kt-input-border:   rgba(139, 30, 45,0.22);
+  --kt-input-focus:    #8B1E2D;
+
+  /* Blobs (overrides Tailwind arbitrary classes en JSX) */
+  --kt-blob-dark:      rgba(139, 30, 45,0.10);
+  --kt-blob-glow:      rgba(200,169,106,0.20);
+
+  background: var(--kt-stage-bg);
+}
+
 /* ── RSVP section bg override (JSX has bg-[#0a0405] Tailwind class)         */
 /* Specificity (1,2,1) beats Tailwind's (0,1,0) without !important           */
 main.kais-stage.kais-theme-garden-romance   section#rsvp { background: var(--kt-section-alt-bg); }
@@ -1464,6 +1518,7 @@ main.kais-stage.kais-theme-kpop-warriors    section#rsvp { background: var(--kt-
 main.kais-stage.kais-theme-candy-land       section#rsvp { background: var(--kt-section-alt-bg); }
 main.kais-stage.kais-theme-executive-black  section#rsvp { background: var(--kt-section-alt-bg); }
 main.kais-stage.kais-theme-legacy-night     section#rsvp { background: var(--kt-section-alt-bg); }
+main.kais-stage.kais-theme-rose             section#rsvp { background: var(--kt-section-alt-bg); }
 
 /* ===========================================================
    KAIS · THEME-ACTIVE ISOLATION
@@ -1792,6 +1847,34 @@ main.kais-stage.kais-theme-legacy-night .kais-veil-desktop {
     linear-gradient(180deg, rgba(5,17,31,0.10) 0%, transparent 30%, rgba(5,17,31,0.55) 100%);
 }
 
+/* rose — LIGHT, fades to warm cream-blush */
+main.kais-stage.kais-theme-rose .kais-veil-mobile {
+  background:
+    linear-gradient(180deg,
+      rgba(246,241,233,0.18)  0%,
+      rgba(246,241,233,0.02) 18%,
+      rgba(246,241,233,0.06) 40%,
+      rgba(237,229,211,0.65) 64%,
+      rgba(246,241,233,0.94) 88%,
+      #F6F1E9               100%),
+    radial-gradient(120% 70% at 50% 106%,
+      rgba(139,30,45,0.18)   0%,
+      rgba(246,241,233,0.28) 46%,
+      transparent            72%);
+}
+main.kais-stage.kais-theme-rose .kais-veil-desktop {
+  background:
+    linear-gradient(90deg,
+      rgba(0,0,0,0.88)  0%,
+      rgba(0,0,0,0.62) 28%,
+      rgba(0,0,0,0.10) 55%,
+      rgba(0,0,0,0)    75%),
+    linear-gradient(180deg,
+      rgba(0,0,0,0.08)  0%,
+      transparent      30%,
+      rgba(0,0,0,0.45) 100%);
+}
+
 /* ===========================================================
    KAIS · PER-THEME SECTION / GLASS / CTA OVERRIDES
    Light themes need explicit section bg, glass card, and
@@ -1804,7 +1887,8 @@ main.kais-stage.kais-theme-active.kais-theme-princess-pink   .kais-section,
 main.kais-stage.kais-theme-active.kais-theme-royal-wedding   .kais-section,
 main.kais-stage.kais-theme-active.kais-theme-ivory-minimal   .kais-section,
 main.kais-stage.kais-theme-active.kais-theme-safari-kids     .kais-section,
-main.kais-stage.kais-theme-active.kais-theme-candy-land      .kais-section {
+main.kais-stage.kais-theme-active.kais-theme-candy-land      .kais-section,
+main.kais-stage.kais-theme-active.kais-theme-rose            .kais-section {
   background: var(--kt-stage-bg);
 }
 
@@ -1820,7 +1904,8 @@ main.kais-stage.kais-theme-active.kais-theme-princess-pink   .kais-glass,
 main.kais-stage.kais-theme-active.kais-theme-royal-wedding   .kais-glass,
 main.kais-stage.kais-theme-active.kais-theme-ivory-minimal   .kais-glass,
 main.kais-stage.kais-theme-active.kais-theme-safari-kids     .kais-glass,
-main.kais-stage.kais-theme-active.kais-theme-candy-land      .kais-glass {
+main.kais-stage.kais-theme-active.kais-theme-candy-land      .kais-glass,
+main.kais-stage.kais-theme-active.kais-theme-rose            .kais-glass {
   box-shadow:
     0 4px 32px -8px rgba(0,0,0,0.12),
     inset 0 1px 0 rgba(255,255,255,0.90),

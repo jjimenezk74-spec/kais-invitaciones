@@ -88,6 +88,18 @@ const PREVIEWS: Record<string, ThemePreview> = {
     textLight: false,
   },
 
+  "rose": {
+    gradient:
+      "radial-gradient(ellipse at -5% 10%,  rgba(139,30,45,0.35)  0%, transparent 55%)," +
+      "radial-gradient(ellipse at 106% 76%, rgba(110,127,95,0.22) 0%, transparent 50%)," +
+      "linear-gradient(160deg, #F6F1E9 0%, #EDE5D5 55%, #E4D4B8 100%)",
+    shimmer:
+      "radial-gradient(circle at 78% 18%, rgba(200,169,106,0.30), transparent 45%)",
+    icon: "🌹",
+    accentColor: "#8B1E2D",
+    textLight: false,
+  },
+
   "kpop-warriors": {
     gradient:
       "radial-gradient(ellipse at 50% -10%, #4a005e 0%, #1e0030 40%, #050008 100%)",
@@ -192,7 +204,7 @@ const FALLBACKS: ThemePreview[] = [
   },
 ];
 
-// ─── Public API ───────────────────────────────────────────────────────────────
+// --- Public API ---
 
 export function getThemePreview(slug: string): ThemePreview {
   if (slug in PREVIEWS) return PREVIEWS[slug];

@@ -1976,6 +1976,15 @@ main.kais-stage.kais-theme-rose section.kais-grain .kais-hairline {
   background-color: rgba(242,168,181,0.50);
 }
 
+/* Hero gold date — restore warm gold (kais-theme-active maps #d4af37 → dark wine accent) */
+main.kais-stage.kais-theme-rose section.kais-grain .text-\[\#d4af37\] {
+  color: #E8C97A;
+  opacity: 1;
+}
+main.kais-stage.kais-theme-rose section.kais-grain .text-\[\#d4af37\]\/80 { color: #E8C97A; opacity: 0.85; }
+main.kais-stage.kais-theme-rose section.kais-grain .text-\[\#d4af37\]\/60 { color: #E8C97A; opacity: 0.65; }
+main.kais-stage.kais-theme-rose section.kais-grain .text-\[\#d4af37\]\/80 { color: #E8C97A; opacity: 0.85; }
+
 /* ===========================================================
    KAIS · PER-THEME SECTION / GLASS / CTA OVERRIDES
    Light themes need explicit section bg, glass card, and

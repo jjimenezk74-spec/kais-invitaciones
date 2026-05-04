@@ -90,6 +90,7 @@ export async function createEvent(formData: FormData) {
     address: String(formData.get("address") ?? ""),
     google_maps_link: nullable(formData.get("google_maps_link")),
     whatsapp_phone: normalizeParaguayWhatsapp(formData.get("whatsapp_phone")),
+    external_photo_album_url: getOptionalUrl(formData.get("external_photo_album_url"), "/dashboard/eventos/nuevo"),
     main_message: nullable(formData.get("main_message")),
     dress_code: nullable(formData.get("dress_code")),
     cover_image_url: manualCoverUrl,
@@ -176,6 +177,7 @@ export async function updateEvent(eventId: string, formData: FormData) {
     address: String(formData.get("address") ?? ""),
     google_maps_link: nullable(formData.get("google_maps_link")),
     whatsapp_phone: normalizeParaguayWhatsapp(formData.get("whatsapp_phone")),
+    external_photo_album_url: getOptionalUrl(formData.get("external_photo_album_url"), `/dashboard/eventos/${eventId}`),
     main_message: nullable(formData.get("main_message")),
     dress_code: nullable(formData.get("dress_code")),
     cover_image_url: coverImageUrl,
@@ -792,6 +794,22 @@ function normalizeParaguayWhatsapp(value: FormDataEntryValue | null) {
   if (digits.startsWith("0")) digits = digits.slice(1);
 
   return `595${digits}`;
+}
+
+function getOptionalUrl(value: FormDataEntryValue | null, errorPath: string) {
+  const text = nullable(value);
+  if (!text) return null;
+
+  try {
+    const url = new URL(text);
+    if (url.protocol === "http:" || url.protocol === "https:") {
+      return url.toString();
+    }
+  } catch {
+    // Fall through to the shared redirect below.
+  }
+
+  redirect(`${errorPath}?error=${encodeURIComponent("El enlace del album externo debe ser una URL valida.")}`);
 }
 
 function nullable(value: FormDataEntryValue | null) {

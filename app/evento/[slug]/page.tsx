@@ -65,6 +65,7 @@ const PUBLIC_EVENT_SELECT = [
   "address",
   "google_maps_link",
   "whatsapp_phone",
+  "external_photo_album_url",
   "main_message",
   "dress_code",
   "cover_image_url",
@@ -606,6 +607,29 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
           </div>
         </div>
       </section>
+
+      {eventHasFeature(event, "external_photo_album") && event.external_photo_album_url ? (
+        <section className="kais-section relative overflow-hidden">
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-px kais-hairline" />
+          <div className="relative z-10 mx-auto max-w-3xl text-center">
+            <p className="kais-eyebrow">Fotos del evento</p>
+            <h2 className="mt-6 font-display text-4xl font-light italic text-[#f5ecd9] md:text-5xl">
+              Sumá tus fotos al álbum
+            </h2>
+            <p className="mx-auto mt-5 max-w-xl text-sm leading-7 text-[#f5ecd9]/70">
+              Compartí tus mejores momentos en el álbum preparado para esta celebración.
+            </p>
+            <a
+              href={event.external_photo_album_url}
+              target="_blank"
+              rel="noreferrer"
+              className="kais-cta mt-8 inline-flex"
+            >
+              Subir fotos al álbum
+            </a>
+          </div>
+        </section>
+      ) : null}
 
       {showRoyalPack && <RoyalWeddingDivider />}
 

@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { saveVisualDecorationsOnly, updateEventCoverOnly, updateEventMusicOnly, updateEventThemeOnly } from "@/app/actions/events";
 import { DEFAULT_INVITATION_DESIGN_CONFIG, normalizeInvitationDesignConfig } from "@/lib/invitation-design";
 import { applyThemeToDesignConfig } from "@/lib/invitation-themes";
+import { eventHasFeature } from "@/lib/event-features";
 import { getThemePreview } from "@/lib/theme-preview";
 import { createClientSupabaseBrowser } from "@/lib/supabase/browser";
 import type { Client, Event, EventCategory, InvitationDesignConfig, InvitationTheme, Profile, VisualDecoration, VisualDecorationDevice, VisualDecorationSection } from "@/lib/types";
@@ -118,6 +119,7 @@ export function EventForm({
   const activeStepIndex = wizardSteps.findIndex((step) => step.id === activeStep);
   const isLastStep = activeStepIndex === wizardSteps.length - 1;
   const isEditing = Boolean(event?.id);
+  const shouldShowExternalPhotoAlbum = eventHasFeature(event, "external_photo_album");
   const currentTheme = activeThemes.find((theme) => theme.id === selectedThemeId);
 
   function goToStep(step: WizardStepId) {
@@ -560,6 +562,18 @@ export function EventForm({
                   <Input name="music_file" type="file" accept=".mp3,.wav,.ogg,audio/mpeg,audio/wav,audio/ogg" />
                 </Field>
               </div>
+              {shouldShowExternalPhotoAlbum ? (
+                <div className="md:col-span-2">
+                  <Field label="Album externo de fotos" hint="Para paquete Essential. Pega el enlace compartido de Google Fotos.">
+                    <Input
+                      name="external_photo_album_url"
+                      type="url"
+                      defaultValue={event?.external_photo_album_url ?? ""}
+                      placeholder="https://photos.app.goo.gl/..."
+                    />
+                  </Field>
+                </div>
+              ) : null}
               {event?.id ? (
                 <div className="flex flex-col gap-3 md:col-span-2 md:items-end">
                   <Button type="button" variant="outline" className="w-full border-accent/40 sm:w-fit" disabled={isSavingMusic} onClick={handleSaveMusicOnly}>

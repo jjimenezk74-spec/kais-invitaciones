@@ -12,6 +12,7 @@ import type { CanvasDesign, CanvasElement, CanvasTextElement } from "@/lib/types
 
 const REF_W = 390;
 const REF_H = 844;
+const HANDLE_PX = 9; // resize handle size in canvas px
 
 const FONT_OPTIONS = [
   { label: "Serif (defecto)", value: "Georgia, serif" },
@@ -24,6 +25,31 @@ const FONT_OPTIONS = [
 
 const GOOGLE_FONTS_URL =
   "https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Great+Vibes&family=Dancing+Script:wght@400;700&family=Montserrat:wght@300;400;600&display=swap";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Drag state — union of move / resize modes
+// ─────────────────────────────────────────────────────────────────────────────
+
+type ResizeHandle = "tl" | "tr" | "bl" | "br";
+
+type DragMove = {
+  kind: "move";
+  elementId: string;
+  startMouseX: number;
+  startMouseY: number;
+  startElX: number;
+  startElY: number;
+};
+
+type DragResize = {
+  kind: "resize";
+  elementId: string;
+  handle: ResizeHandle;
+  startMouseX: number;
+  startWidth: number;
+};
+
+type DragState = DragMove | DragResize;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // State & Reducer
@@ -43,6 +69,7 @@ type EditorAction =
   | { type: "SELECT"; id: string | null }
   | { type: "UPDATE_TEXT"; id: string; patch: Partial<CanvasTextElement> }
   | { type: "MOVE"; id: string; x: number; y: number }
+  | { type: "RESIZE"; id: string; width: number }
   | { type: "DELETE"; id: string }
   | { type: "MARK_SAVING" }
   | { type: "MARK_SAVED" }
@@ -88,40 +115,37 @@ function createTextElement(): CanvasTextElement {
   };
 }
 
+function clamp(v: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, v));
+}
+
 function reducer(state: EditorState, action: EditorAction): EditorState {
   switch (action.type) {
     case "ADD_TEXT": {
       const el = createTextElement();
-      // Stack new element above existing ones
       const maxZ = state.design.elements.reduce((m, e) => Math.max(m, e.zIndex), 0);
       el.zIndex = maxZ + 1;
       return {
         ...state,
-        design: {
-          ...state.design,
-          elements: [...state.design.elements, el],
-        },
+        design: { ...state.design, elements: [...state.design.elements, el] },
         selectedId: el.id,
         isDirty: true,
       };
     }
     case "SELECT":
       return { ...state, selectedId: action.id };
-    case "UPDATE_TEXT": {
+    case "UPDATE_TEXT":
       return {
         ...state,
         design: {
           ...state.design,
           elements: state.design.elements.map((el) =>
-            el.id === action.id && el.type === "text"
-              ? { ...el, ...action.patch }
-              : el
+            el.id === action.id && el.type === "text" ? { ...el, ...action.patch } : el
           ),
         },
         isDirty: true,
       };
-    }
-    case "MOVE": {
+    case "MOVE":
       return {
         ...state,
         design: {
@@ -134,7 +158,19 @@ function reducer(state: EditorState, action: EditorAction): EditorState {
         },
         isDirty: true,
       };
-    }
+    case "RESIZE":
+      return {
+        ...state,
+        design: {
+          ...state.design,
+          elements: state.design.elements.map((el) =>
+            el.id === action.id
+              ? { ...el, width: clamp(action.width, 60, REF_W) }
+              : el
+          ),
+        },
+        isDirty: true,
+      };
     case "DELETE": {
       const remaining = state.design.elements.filter((el) => el.id !== action.id);
       return {
@@ -161,10 +197,6 @@ function reducer(state: EditorState, action: EditorAction): EditorState {
     default:
       return state;
   }
-}
-
-function clamp(v: number, min: number, max: number) {
-  return Math.min(max, Math.max(min, v));
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -197,12 +229,11 @@ export function CanvasEditorClient({
     saveStatus: "saved",
   });
 
-  // Scale: computed from the wrapper div width
+  // Scale: wrapper width / REF_W
   const wrapperRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(0.55);
 
   useEffect(() => {
-    // Load Google Fonts
     if (!document.getElementById("kais-canvas-fonts")) {
       const link = document.createElement("link");
       link.id = "kais-canvas-fonts";
@@ -210,10 +241,9 @@ export function CanvasEditorClient({
       link.href = GOOGLE_FONTS_URL;
       document.head.appendChild(link);
     }
-    // Compute initial scale
     const update = () => {
       if (!wrapperRef.current) return;
-      const w = wrapperRef.current.getBoundingClientRect().width - 32; // 16px padding each side
+      const w = wrapperRef.current.getBoundingClientRect().width - 32;
       setScale(Math.max(0.3, Math.min(1, w / REF_W)));
     };
     update();
@@ -221,16 +251,11 @@ export function CanvasEditorClient({
     return () => window.removeEventListener("resize", update);
   }, []);
 
-  // ── Drag ────────────────────────────────────────────────────────────────
+  // ── Drag ref (move OR resize) ─────────────────────────────────────────────
 
-  const dragRef = useRef<{
-    elementId: string;
-    startMouseX: number;
-    startMouseY: number;
-    startElX: number;
-    startElY: number;
-  } | null>(null);
+  const dragRef = useRef<DragState | null>(null);
 
+  // Start MOVE drag (called from element wrapper)
   const handleElementMouseDown = useCallback(
     (e: React.MouseEvent, elementId: string) => {
       e.stopPropagation();
@@ -238,6 +263,7 @@ export function CanvasEditorClient({
       if (!el || el.locked) return;
       dispatch({ type: "SELECT", id: elementId });
       dragRef.current = {
+        kind: "move",
         elementId,
         startMouseX: e.clientX,
         startMouseY: e.clientY,
@@ -248,21 +274,48 @@ export function CanvasEditorClient({
     [state.design.elements]
   );
 
+  // Start RESIZE drag (called from a corner handle)
+  const handleResizeMouseDown = useCallback(
+    (e: React.MouseEvent, elementId: string, handle: ResizeHandle) => {
+      e.stopPropagation();
+      e.preventDefault();
+      const el = state.design.elements.find((el) => el.id === elementId);
+      if (!el) return;
+      dragRef.current = {
+        kind: "resize",
+        elementId,
+        handle,
+        startMouseX: e.clientX,
+        startWidth: el.width,
+      };
+    },
+    [state.design.elements]
+  );
+
+  // Mouse move — handles both move and resize
   const handleMouseMove = useCallback(
     (e: React.MouseEvent) => {
-      if (!dragRef.current) return;
-      const { elementId, startMouseX, startMouseY, startElX, startElY } = dragRef.current;
-      // Convert screen delta → canvas % delta
-      const dxScreen = e.clientX - startMouseX;
-      const dyScreen = e.clientY - startMouseY;
-      const dxPct = (dxScreen / scale / REF_W) * 100;
-      const dyPct = (dyScreen / scale / REF_H) * 100;
-      dispatch({
-        type: "MOVE",
-        id: elementId,
-        x: startElX + dxPct,
-        y: startElY + dyPct,
-      });
+      const drag = dragRef.current;
+      if (!drag) return;
+
+      if (drag.kind === "move") {
+        const dxPct = ((e.clientX - drag.startMouseX) / scale / REF_W) * 100;
+        const dyPct = ((e.clientY - drag.startMouseY) / scale / REF_H) * 100;
+        dispatch({
+          type: "MOVE",
+          id: drag.elementId,
+          x: drag.startElX + dxPct,
+          y: drag.startElY + dyPct,
+        });
+      } else if (drag.kind === "resize") {
+        // dx in canvas pixels (unscaled)
+        const dxCanvas = (e.clientX - drag.startMouseX) / scale;
+        // Right handles → drag right = wider
+        // Left handles → drag left = wider (negate dx)
+        const isLeft = drag.handle === "tl" || drag.handle === "bl";
+        const newWidth = drag.startWidth + (isLeft ? -dxCanvas : dxCanvas);
+        dispatch({ type: "RESIZE", id: drag.elementId, width: newWidth });
+      }
     },
     [scale]
   );
@@ -271,7 +324,7 @@ export function CanvasEditorClient({
     dragRef.current = null;
   }, []);
 
-  // ── Save ────────────────────────────────────────────────────────────────
+  // ── Save / Clear ──────────────────────────────────────────────────────────
 
   const handleSave = async () => {
     dispatch({ type: "MARK_SAVING" });
@@ -288,7 +341,7 @@ export function CanvasEditorClient({
   };
 
   const handleClear = async () => {
-    if (!confirm("¿Eliminar todo el diseño canvas? El evento volverá a usar la plantilla.")) return;
+    if (!confirm("Eliminar todo el diseno canvas? El evento volvera a usar la plantilla.")) return;
     const { error } = await clearCanvasDesign(eventId);
     if (error) {
       alert(`Error: ${error}`);
@@ -297,19 +350,21 @@ export function CanvasEditorClient({
     }
   };
 
-  // ── Derived ─────────────────────────────────────────────────────────────
+  // ── Derived ──────────────────────────────────────────────────────────────
 
   const selected = state.design.elements.find((el) => el.id === state.selectedId) ?? null;
   const sortedElements = [...state.design.elements].sort((a, b) => a.zIndex - b.zIndex);
 
   const saveLabel =
     state.saveStatus === "saving"
-      ? "Guardando…"
+      ? "Guardando..."
       : state.saveStatus === "error"
-      ? "Error al guardar"
+      ? "Error"
       : state.isDirty
       ? "Guardar *"
       : "Guardado";
+
+  const isDragging = dragRef.current !== null;
 
   // ─────────────────────────────────────────────────────────────────────────
   return (
@@ -377,7 +432,7 @@ export function CanvasEditorClient({
           className="flex flex-1 items-start justify-center overflow-auto bg-neutral-950 p-4 pt-6"
           onClick={() => dispatch({ type: "SELECT", id: null })}
         >
-          {/* Outer shell scaled to match refWidth × refHeight */}
+          {/* Outer shell — real screen dimensions */}
           <div
             style={{
               width: REF_W * scale,
@@ -386,7 +441,7 @@ export function CanvasEditorClient({
               position: "relative",
             }}
           >
-            {/* Inner stage at reference dimensions, scaled with transform */}
+            {/* Inner stage at reference 390×844, scaled with CSS transform */}
             <div
               style={{
                 width: REF_W,
@@ -398,13 +453,14 @@ export function CanvasEditorClient({
                 transformOrigin: "top left",
                 borderRadius: 12,
                 overflow: "hidden",
-                boxShadow: "0 0 0 1px rgba(255,255,255,0.08), 0 8px 48px rgba(0,0,0,0.7)",
-                cursor: dragRef.current ? "grabbing" : "default",
+                boxShadow:
+                  "0 0 0 1px rgba(255,255,255,0.08), 0 8px 48px rgba(0,0,0,0.7)",
+                cursor: isDragging ? "grabbing" : "default",
               }}
             >
-              {/* Background */}
+              {/* Background image / gradient */}
               {coverImageUrl ? (
-                /* eslint-disable-next-line @next/next/no-img-element */
+                // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={coverImageUrl}
                   alt=""
@@ -423,12 +479,13 @@ export function CanvasEditorClient({
                   style={{
                     position: "absolute",
                     inset: 0,
-                    background: "linear-gradient(160deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)",
+                    background:
+                      "linear-gradient(160deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)",
                   }}
                 />
               )}
 
-              {/* Checkerboard hint (empty canvas) */}
+              {/* Empty-canvas hint */}
               {state.design.elements.length === 0 && (
                 <div
                   style={{
@@ -443,7 +500,7 @@ export function CanvasEditorClient({
                   }}
                 >
                   <p style={{ color: "rgba(255,255,255,0.3)", fontSize: 13, letterSpacing: "0.12em" }}>
-                    CANVAS VACÍO
+                    CANVAS VACIO
                   </p>
                   <p style={{ color: "rgba(255,255,255,0.18)", fontSize: 11 }}>
                     Pulsa "+ Texto" para comenzar
@@ -457,7 +514,8 @@ export function CanvasEditorClient({
                   key={el.id}
                   element={el}
                   selected={el.id === state.selectedId}
-                  onMouseDown={(e) => handleElementMouseDown(e, el.id)}
+                  onMoveStart={(e) => handleElementMouseDown(e, el.id)}
+                  onResizeStart={(e, handle) => handleResizeMouseDown(e, el.id, handle)}
                   onClick={(e) => {
                     e.stopPropagation();
                     dispatch({ type: "SELECT", id: el.id });
@@ -482,7 +540,7 @@ export function CanvasEditorClient({
             <div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
               <p className="text-xs text-neutral-500">
                 {state.design.elements.length === 0
-                  ? 'Pulsa "+ Texto" para añadir un elemento al canvas.'
+                  ? 'Pulsa "+ Texto" para anadir un elemento al canvas.'
                   : "Selecciona un elemento para editar sus propiedades."}
               </p>
             </div>
@@ -494,59 +552,122 @@ export function CanvasEditorClient({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// StageElement — renders a single element inside the canvas
+// StageElement — wrapper div with content + resize handles when selected
 // ─────────────────────────────────────────────────────────────────────────────
 
 type StageElementProps = {
   element: CanvasElement;
   selected: boolean;
-  onMouseDown: (e: React.MouseEvent) => void;
+  onMoveStart: (e: React.MouseEvent) => void;
+  onResizeStart: (e: React.MouseEvent, handle: ResizeHandle) => void;
   onClick: (e: React.MouseEvent) => void;
 };
 
-function StageElement({ element, selected, onMouseDown, onClick }: StageElementProps) {
-  const style: React.CSSProperties = {
+function StageElement({
+  element,
+  selected,
+  onMoveStart,
+  onResizeStart,
+  onClick,
+}: StageElementProps) {
+  // Wrapper: positions the element on the canvas
+  const wrapperStyle: React.CSSProperties = {
     position: "absolute",
     left: `${element.x}%`,
     top: `${element.y}%`,
     width: element.width,
     height: element.height ?? undefined,
-    opacity: element.opacity,
     transform: `translate(-50%, -50%) rotate(${element.rotation}deg)`,
     zIndex: element.zIndex,
-    cursor: element.locked ? "default" : "grab",
+    cursor: element.locked ? "default" : selected ? "grab" : "pointer",
     userSelect: "none",
-    outline: selected ? "2px solid #6366f1" : "2px solid transparent",
-    outlineOffset: 2,
+    // Selection ring via box-shadow so it doesn't affect layout
+    boxShadow: selected
+      ? "0 0 0 2px #6366f1, 0 0 0 4px rgba(99,102,241,0.20)"
+      : "none",
     borderRadius: 2,
   };
 
-  if (element.type === "text") {
-    return (
-      <p
-        style={{
-          ...style,
-          fontFamily: element.fontFamily,
-          fontSize: element.fontSize,
-          fontWeight: element.fontWeight,
-          fontStyle: element.fontStyle,
-          textAlign: element.textAlign,
-          color: element.color,
-          lineHeight: element.lineHeight,
-          letterSpacing: `${element.letterSpacing}em`,
-          textShadow: element.textShadow ?? undefined,
-          whiteSpace: "pre-wrap",
-          wordBreak: "break-word",
-        }}
-        onMouseDown={onMouseDown}
-        onClick={onClick}
-      >
-        {element.content}
-      </p>
-    );
-  }
+  return (
+    <div
+      style={wrapperStyle}
+      onMouseDown={onMoveStart}
+      onClick={onClick}
+    >
+      {/* ── Content ─────────────────────────────────────────────────── */}
+      {element.type === "text" && (
+        <p
+          style={{
+            margin: 0,
+            fontFamily: element.fontFamily,
+            fontSize: element.fontSize,
+            fontWeight: element.fontWeight,
+            fontStyle: element.fontStyle,
+            textAlign: element.textAlign,
+            color: element.color,
+            lineHeight: element.lineHeight,
+            letterSpacing: `${element.letterSpacing}em`,
+            textShadow: element.textShadow ?? undefined,
+            textDecoration: element.textDecoration,
+            opacity: element.opacity,
+            whiteSpace: "pre-wrap",
+            wordBreak: "break-word",
+            width: "100%",
+          }}
+        >
+          {element.content}
+        </p>
+      )}
 
-  return null;
+      {/* ── Resize handles (only when selected) ─────────────────────── */}
+      {selected && (
+        <>
+          {(["tl", "tr", "bl", "br"] as ResizeHandle[]).map((handle) => (
+            <ResizeHandleNode
+              key={handle}
+              handle={handle}
+              onMouseDown={(e) => onResizeStart(e, handle)}
+            />
+          ))}
+        </>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ResizeHandleNode — single corner handle
+// ─────────────────────────────────────────────────────────────────────────────
+
+const HANDLE_STYLE: Record<ResizeHandle, React.CSSProperties> = {
+  tl: { top: -HANDLE_PX / 2, left: -HANDLE_PX / 2, cursor: "nwse-resize" },
+  tr: { top: -HANDLE_PX / 2, right: -HANDLE_PX / 2, cursor: "nesw-resize" },
+  bl: { bottom: -HANDLE_PX / 2, left: -HANDLE_PX / 2, cursor: "nesw-resize" },
+  br: { bottom: -HANDLE_PX / 2, right: -HANDLE_PX / 2, cursor: "nwse-resize" },
+};
+
+function ResizeHandleNode({
+  handle,
+  onMouseDown,
+}: {
+  handle: ResizeHandle;
+  onMouseDown: (e: React.MouseEvent) => void;
+}) {
+  return (
+    <div
+      onMouseDown={onMouseDown}
+      style={{
+        position: "absolute",
+        width: HANDLE_PX,
+        height: HANDLE_PX,
+        background: "#6366f1",
+        border: "1.5px solid #fff",
+        borderRadius: 2,
+        zIndex: 9999,
+        ...HANDLE_STYLE[handle],
+      }}
+    />
+  );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -567,7 +688,6 @@ function TextPropertiesPanel({ element, onChange, onDelete }: TextPanelProps) {
 
   return (
     <div className="flex flex-col">
-      {/* Section header */}
       <div className="flex items-center justify-between border-b border-neutral-800 px-4 py-3">
         <p className="text-xs font-semibold text-neutral-300">Propiedades · Texto</p>
         <button
@@ -580,7 +700,6 @@ function TextPropertiesPanel({ element, onChange, onDelete }: TextPanelProps) {
         </button>
       </div>
 
-      {/* Content */}
       <div className={field}>
         <label className={label}>Texto</label>
         <textarea
@@ -591,7 +710,6 @@ function TextPropertiesPanel({ element, onChange, onDelete }: TextPanelProps) {
         />
       </div>
 
-      {/* Color */}
       <div className={field}>
         <label className={label}>Color</label>
         <div className="flex items-center gap-2">
@@ -614,9 +732,8 @@ function TextPropertiesPanel({ element, onChange, onDelete }: TextPanelProps) {
         </div>
       </div>
 
-      {/* Font size */}
       <div className={field}>
-        <label className={label}>Tamaño ({element.fontSize}px)</label>
+        <label className={label}>Tamano ({element.fontSize}px)</label>
         <input
           type="range"
           min={10}
@@ -628,7 +745,19 @@ function TextPropertiesPanel({ element, onChange, onDelete }: TextPanelProps) {
         />
       </div>
 
-      {/* Font family */}
+      <div className={field}>
+        <label className={label}>Ancho ({element.width}px ref.)</label>
+        <input
+          type="range"
+          min={60}
+          max={390}
+          step={5}
+          value={element.width}
+          onChange={(e) => onChange({ width: Number(e.target.value) })}
+          className="w-full accent-indigo-500"
+        />
+      </div>
+
       <div className={field}>
         <label className={label}>Fuente</label>
         <select
@@ -644,7 +773,6 @@ function TextPropertiesPanel({ element, onChange, onDelete }: TextPanelProps) {
         </select>
       </div>
 
-      {/* Font weight + style */}
       <div className={field}>
         <label className={label}>Peso</label>
         <select
@@ -662,7 +790,6 @@ function TextPropertiesPanel({ element, onChange, onDelete }: TextPanelProps) {
         </select>
       </div>
 
-      {/* Italic */}
       <div className={field}>
         <label className={label}>Estilo</label>
         <div className="flex gap-2">
@@ -677,15 +804,14 @@ function TextPropertiesPanel({ element, onChange, onDelete }: TextPanelProps) {
                   : "border-neutral-700 bg-neutral-800 text-neutral-300 hover:bg-neutral-700"
               }`}
             >
-              {s === "normal" ? "Normal" : "Itálica"}
+              {s === "normal" ? "Normal" : "Italica"}
             </button>
           ))}
         </div>
       </div>
 
-      {/* Text align */}
       <div className={field}>
-        <label className={label}>Alineación</label>
+        <label className={label}>Alineacion</label>
         <div className="flex gap-2">
           {(["left", "center", "right"] as const).map((a) => (
             <button
@@ -704,9 +830,8 @@ function TextPropertiesPanel({ element, onChange, onDelete }: TextPanelProps) {
         </div>
       </div>
 
-      {/* Rotation */}
       <div className={field}>
-        <label className={label}>Rotación ({element.rotation}°)</label>
+        <label className={label}>Rotacion ({element.rotation}deg)</label>
         <input
           type="range"
           min={-180}
@@ -718,7 +843,6 @@ function TextPropertiesPanel({ element, onChange, onDelete }: TextPanelProps) {
         />
       </div>
 
-      {/* Opacity */}
       <div className={field}>
         <label className={label}>Opacidad ({Math.round(element.opacity * 100)}%)</label>
         <input
@@ -732,7 +856,6 @@ function TextPropertiesPanel({ element, onChange, onDelete }: TextPanelProps) {
         />
       </div>
 
-      {/* Z-index */}
       <div className={field}>
         <label className={label}>Capa (z-index)</label>
         <input
@@ -742,20 +865,6 @@ function TextPropertiesPanel({ element, onChange, onDelete }: TextPanelProps) {
           value={element.zIndex}
           onChange={(e) => onChange({ zIndex: Number(e.target.value) })}
           className={input}
-        />
-      </div>
-
-      {/* Width */}
-      <div className={field}>
-        <label className={label}>Ancho ({element.width}px ref.)</label>
-        <input
-          type="range"
-          min={60}
-          max={390}
-          step={5}
-          value={element.width}
-          onChange={(e) => onChange({ width: Number(e.target.value) })}
-          className="w-full accent-indigo-500"
         />
       </div>
     </div>

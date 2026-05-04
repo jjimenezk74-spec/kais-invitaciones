@@ -1949,6 +1949,33 @@ main.kais-stage.kais-theme-rose #rsvp .border-\[\#d4af37\]\/25 {
   border-color: rgba(122,31,43,0.20);
 }
 
+/* ── rose: hero — restore cream text over dark photo ──────────────────────
+   The global kais-theme-active system remaps text-[#f5ecd9] → --kt-text
+   (#2C2C2C) for the Rose light theme. The hero section (section.kais-grain)
+   always has a dark photo behind it; text MUST be light here.
+   Specificity (0,4,2) beats kais-theme-active (0,3,1) — no !important needed.
+   ─────────────────────────────────────────────────────────────────────────── */
+main.kais-stage.kais-theme-rose section.kais-grain .text-\[\#f5ecd9\] {
+  color: #FFF8F4;
+  opacity: 1;
+}
+main.kais-stage.kais-theme-rose section.kais-grain .text-\[\#f5ecd9\]\/88 { color: #FFF8F4; opacity: 0.88; }
+main.kais-stage.kais-theme-rose section.kais-grain .text-\[\#f5ecd9\]\/85 { color: #FFF8F4; opacity: 0.85; }
+main.kais-stage.kais-theme-rose section.kais-grain .text-\[\#f5ecd9\]\/75 { color: #FFF8F4; opacity: 0.75; }
+main.kais-stage.kais-theme-rose section.kais-grain .text-\[\#f5ecd9\]\/72 { color: #FFF8F4; opacity: 0.72; }
+main.kais-stage.kais-theme-rose section.kais-grain .text-\[\#f5ecd9\]\/70 { color: #FFF8F4; opacity: 0.70; }
+main.kais-stage.kais-theme-rose section.kais-grain .text-\[\#f5ecd9\]\/65 { color: #FFF8F4; opacity: 0.65; }
+main.kais-stage.kais-theme-rose section.kais-grain .text-\[\#f5ecd9\]\/55 { color: #FFF8F4; opacity: 0.55; }
+
+/* Hero eyebrow + hairline: use bright rose-wine on dark photo */
+main.kais-stage.kais-theme-rose section.kais-grain .kais-eyebrow {
+  color: #F2A8B5;
+  letter-spacing: 0.32em;
+}
+main.kais-stage.kais-theme-rose section.kais-grain .kais-hairline {
+  background-color: rgba(242,168,181,0.50);
+}
+
 /* ===========================================================
    KAIS · PER-THEME SECTION / GLASS / CTA OVERRIDES
    Light themes need explicit section bg, glass card, and

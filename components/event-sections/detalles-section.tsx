@@ -20,6 +20,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { fetchActiveCategories, fetchActiveThemes } from "@/lib/invitation-themes.server";
 import { perfEnd, perfStart, timed } from "@/lib/perf";
+import { eventHasFeature } from "@/lib/event-features";
 import type { Client, Event, EventCategory, InvitationTheme } from "@/lib/types";
 import {
   getAlbumShareMessage,
@@ -75,6 +76,7 @@ function PublicacionCard({
   const photoMessage = getPhotoUploadShareMessage(event, photoUploadUrl);
   const albumMessage = getAlbumShareMessage(event, albumUrl);
   const publishAction = setEventStatus.bind(null, event.id, isDraft ? "publicado" : "borrador");
+  const hasExternalPhotoAlbum = eventHasFeature(event, "external_photo_album") && Boolean(event.external_photo_album_url);
 
   return (
     <Card>
@@ -164,6 +166,22 @@ function PublicacionCard({
           <QrDownload value={url} filename={`kais-${event.slug}`} />
         </div>
 
+        {hasExternalPhotoAlbum ? (
+          <div className="rounded-xl border bg-background p-4">
+            <div className="mb-4 flex items-center gap-2">
+              <QrCode className="h-4 w-4 text-accent" />
+              <div>
+                <p className="text-sm font-semibold">QR album externo</p>
+                <p className="text-xs text-muted-foreground">Apunta al enlace externo configurado para Essential.</p>
+              </div>
+            </div>
+            <PhotoUploadQrCard
+              url={event.external_photo_album_url!}
+              filename={`kais-album-externo-${event.slug}`}
+              shareMessage={`Subi tus fotos al album de ${event.title}:\n${event.external_photo_album_url}`}
+            />
+          </div>
+        ) : (
         <div className="rounded-xl border bg-background p-4">
           <div className="mb-4 flex items-center gap-2">
             <QrCode className="h-4 w-4 text-accent" />
@@ -191,6 +209,7 @@ function PublicacionCard({
             </div>
           </div>
         </div>
+        )}
       </CardContent>
     </Card>
   );

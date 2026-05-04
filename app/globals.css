@@ -1598,8 +1598,17 @@ main.kais-stage.kais-theme-active .text-\[\#d4af37\]\/60 {
 main.kais-stage.kais-theme-active .text-\[\#f5ecd9\] {
   color: var(--kt-text, #f5ecd9);
 }
+main.kais-stage.kais-theme-active .text-\[\#f5ecd9\]\/88 {
+  color: var(--kt-text, #f5ecd9); opacity: 0.88;
+}
 main.kais-stage.kais-theme-active .text-\[\#f5ecd9\]\/85 {
   color: var(--kt-text, #f5ecd9); opacity: 0.85;
+}
+main.kais-stage.kais-theme-active .text-\[\#f5ecd9\]\/75 {
+  color: var(--kt-text, #f5ecd9); opacity: 0.75;
+}
+main.kais-stage.kais-theme-active .text-\[\#f5ecd9\]\/70 {
+  color: var(--kt-text, #f5ecd9); opacity: 0.70;
 }
 main.kais-stage.kais-theme-active .text-\[\#f5ecd9\]\/72 {
   color: var(--kt-text, #f5ecd9); opacity: 0.72;
@@ -1859,13 +1868,13 @@ main.kais-stage.kais-theme-legacy-night .kais-veil-desktop {
 main.kais-stage.kais-theme-rose .kais-veil-mobile {
   background:
     linear-gradient(180deg,
-      rgba(45, 8,15,0.55)  0%,
-      rgba(45, 8,15,0.18) 28%,
-      rgba(45, 8,15,0.38) 55%,
-      rgba(45, 8,15,0.72) 78%,
-      rgba(45, 8,15,0.82) 100%),
+      rgba(45, 8,15,0.48)  0%,
+      rgba(45, 8,15,0.14) 28%,
+      rgba(45, 8,15,0.32) 55%,
+      rgba(45, 8,15,0.62) 78%,
+      rgba(45, 8,15,0.68) 100%),
     radial-gradient(100% 55% at 50% 95%,
-      rgba(122,31,43,0.28)  0%,
+      rgba(122,31,43,0.22)  0%,
       transparent           62%);
 }
 main.kais-stage.kais-theme-rose .kais-veil-desktop {
@@ -1901,6 +1910,43 @@ main.kais-stage.kais-theme-rose .kais-input-luxe:focus {
 main.kais-stage.kais-theme-rose select.kais-input-luxe option {
   background: #FFF8F2;
   color: #2C2C2C;
+}
+
+/* ── rose: fix dark-theme hardcoded Tailwind colors in light sections ───── */
+
+/* Dark wine blobs look like stains on cream — make them subtle warm tints */
+main.kais-stage.kais-theme-rose .bg-\[\#3a0a12\]\/35 {
+  background-color: rgba(122,31,43,0.04) !important;
+}
+main.kais-stage.kais-theme-rose .bg-\[\#3a0a12\]\/40 {
+  background-color: rgba(122,31,43,0.05) !important;
+}
+
+/* Cream text (#f5ecd9 variants) → dark in #detalles light section */
+main.kais-stage.kais-theme-rose #detalles .text-\[\#f5ecd9\],
+main.kais-stage.kais-theme-rose #detalles .text-\[\#f5ecd9\]\/88,
+main.kais-stage.kais-theme-rose #detalles .text-\[\#f5ecd9\]\/85,
+main.kais-stage.kais-theme-rose #detalles .text-\[\#f5ecd9\]\/75,
+main.kais-stage.kais-theme-rose #detalles .text-\[\#f5ecd9\]\/72,
+main.kais-stage.kais-theme-rose #detalles .text-\[\#f5ecd9\]\/65 {
+  color: #2C2C2C;
+}
+
+/* Cream text → dark in #rsvp light section */
+main.kais-stage.kais-theme-rose #rsvp .text-\[\#f5ecd9\],
+main.kais-stage.kais-theme-rose #rsvp .text-\[\#f5ecd9\]\/72,
+main.kais-stage.kais-theme-rose #rsvp .text-\[\#f5ecd9\]\/70,
+main.kais-stage.kais-theme-rose #rsvp .text-\[\#f5ecd9\]\/65 {
+  color: #4A3030;
+}
+
+/* Gold info cards in rsvp (bg-[#d4af37]/10) → cream card style */
+main.kais-stage.kais-theme-rose #rsvp .bg-\[\#d4af37\]\/10 {
+  background-color: rgba(255,250,245,0.95);
+}
+main.kais-stage.kais-theme-rose #rsvp .border-\[\#d4af37\]\/35,
+main.kais-stage.kais-theme-rose #rsvp .border-\[\#d4af37\]\/25 {
+  border-color: rgba(122,31,43,0.20);
 }
 
 /* ===========================================================

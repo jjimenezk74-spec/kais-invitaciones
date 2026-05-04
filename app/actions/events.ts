@@ -433,7 +433,12 @@ export async function submitRsvp(eventId: string, formData: FormData) {
   let guestName = String(formData.get("guest_name") ?? "").trim();
   const companions = Number(formData.get("companions") || 0);
   const attending = String(formData.get("attending")) === "si";
-  const successUrl = rsvpUrl({ rsvp: "ok", rsvp_attending: attending ? "si" : "no" });
+  const phone = String(formData.get("phone") ?? "").trim();
+  const email = String(formData.get("email") ?? "").trim();
+  const message = String(formData.get("message") ?? "").trim();
+  const dietaryRestrictions = String(formData.get("dietary_restrictions") ?? "").trim();
+  const shouldOpenWhatsApp = String(formData.get("external_rsvp_whatsapp") ?? "") === "1";
+  const eventTitle = String(formData.get("event_title") ?? "").trim();
   let eventGuest: EventGuest | null = null;
 
   if (!slug) {
@@ -459,16 +464,26 @@ export async function submitRsvp(eventId: string, formData: FormData) {
       redirect(errorUrl("Este enlace ya no esta activo."));
     }
 
-    if (eventGuest.rsvp_id) {
-      revalidatePath(`/evento/${slug}`);
-      redirect(successUrl);
-    }
-
     if (companions > eventGuest.max_companions) {
       redirect(errorUrl(`Este enlace permite un cupo total de ${eventGuest.max_companions + 1} persona${eventGuest.max_companions + 1 === 1 ? "" : "s"}.`));
     }
 
     guestName = eventGuest.guest_name;
+
+    if (eventGuest.rsvp_id) {
+      revalidatePath(`/evento/${slug}`);
+      redirect(rsvpUrl(buildRsvpSuccessParams({
+        guestName,
+        attending,
+        companions,
+        phone,
+        email,
+        message,
+        dietaryRestrictions,
+        eventTitle,
+        shouldOpenWhatsApp
+      })));
+    }
   } else {
     const { data: eventData } = await supabase.from("events").select("guest_mode").eq("id", eventId).maybeSingle();
     if (eventData?.guest_mode === "lista_invitados") {
@@ -519,7 +534,17 @@ export async function submitRsvp(eventId: string, formData: FormData) {
   }
 
   revalidatePath(`/evento/${slug}`);
-  redirect(successUrl);
+  redirect(rsvpUrl(buildRsvpSuccessParams({
+    guestName,
+    attending,
+    companions,
+    phone,
+    email,
+    message,
+    dietaryRestrictions,
+    eventTitle,
+    shouldOpenWhatsApp
+  })));
 }
 
 export async function createEventGuest(eventId: string, formData: FormData) {
@@ -704,6 +729,50 @@ export async function trackVisit(eventId: string, userAgent?: string | null) {
 export async function getCurrentProfile() {
   const { profile } = await getCurrentUserProfile();
   return profile;
+}
+
+function buildRsvpSuccessParams({
+  guestName,
+  attending,
+  companions,
+  phone,
+  email,
+  message,
+  dietaryRestrictions,
+  eventTitle,
+  shouldOpenWhatsApp
+}: {
+  guestName: string;
+  attending: boolean;
+  companions: number;
+  phone: string;
+  email: string;
+  message: string;
+  dietaryRestrictions: string;
+  eventTitle: string;
+  shouldOpenWhatsApp: boolean;
+}) {
+  const params: Record<string, string> = {
+    rsvp: "ok",
+    rsvp_attending: attending ? "si" : "no"
+  };
+
+  if (shouldOpenWhatsApp) {
+    params.wa = "1";
+    params.wa_message = [
+      `Confirmacion RSVP - ${eventTitle || "Evento"}`,
+      "",
+      `Nombre: ${guestName}`,
+      `Asistira: ${attending ? "Si" : "No"}`,
+      `Acompanantes: ${companions}`,
+      phone ? `Telefono: ${phone}` : "",
+      email ? `Email: ${email}` : "",
+      dietaryRestrictions ? `Restriccion alimentaria: ${dietaryRestrictions}` : "",
+      message ? `Mensaje: ${message}` : ""
+    ].filter(Boolean).join("\n");
+  }
+
+  return params;
 }
 
 function nullable(value: FormDataEntryValue | null) {

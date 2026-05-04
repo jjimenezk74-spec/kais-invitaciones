@@ -5,6 +5,7 @@ import { submitRsvp, trackVisit } from "@/app/actions/events";
 import { Countdown } from "@/components/countdown";
 import { BackButton } from "@/components/back-button";
 import { EventHero } from "@/components/public-invitation/event-hero";
+import { RsvpWhatsAppRedirect } from "@/components/rsvp-whatsapp-redirect";
 import { ThemeDecorations } from "@/components/theme-decorations";
 import { resolvePremiumThemeDesign, resolveLegacyDesign } from "@/lib/invitation-design";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -31,6 +32,8 @@ type PageProps = {
     foto_error?: string | string[];
     guest?: string | string[];
     rsvp_attending?: string | string[];
+    wa?: string | string[];
+    wa_message?: string | string[];
     from?: string | string[];
     preview?: string | string[];
   }>;
@@ -181,6 +184,8 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
   const rsvpStatus = normalizeSearchParam(query.rsvp);
   const rsvpError = normalizeSearchParam(query.rsvp_error);
   const rsvpAttending = normalizeSearchParam(query.rsvp_attending);
+  const shouldRedirectWhatsApp = normalizeSearchParam(query.wa) === "1";
+  const whatsappMessage = normalizeSearchParam(query.wa_message);
   const isConfirmed = Boolean(invitedGuestRsvp) || rsvpStatus === "ok";
   const confirmedAttending = invitedGuestRsvp
     ? invitedGuestRsvp.attending
@@ -466,26 +471,16 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
                 Vista previa administrador - el envio de RSVP esta deshabilitado.
               </div>
             )}
-            {shouldUseWhatsAppRsvp ? (
-              <div className="mx-auto max-w-xl rounded-[2rem] border border-white/10 bg-white/[0.06] p-6 text-center shadow-2xl shadow-black/20 backdrop-blur">
-                <p className="kais-eyebrow">Confirmación</p>
-                <h3 className="mt-3 font-display text-3xl text-white">Confirmá por WhatsApp</h3>
-                <p className="mt-3 text-sm leading-6 text-[#f5ecd9]/75">
-                  Tocá el botón para escribirnos directamente y confirmar tu asistencia.
-                </p>
-                <a
-                  href={buildRsvpWhatsAppUrl(event.whatsapp_phone!, event.title)}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="mt-6 inline-flex rounded-full bg-[#25D366] px-6 py-3 text-sm font-black uppercase tracking-[0.16em] text-black shadow-lg transition hover:-translate-y-0.5"
-                >
-                  Confirmar por WhatsApp
-                </a>
+            {eventHasFeature(event, "external_rsvp_whatsapp") && !event.whatsapp_phone ? (
+              <div className="mb-5 rounded-xl border border-amber-400/30 bg-amber-900/20 px-4 py-3 text-xs font-semibold text-amber-300">
+                Este evento usa RSVP por WhatsApp, pero todavia no tiene un numero configurado. La confirmacion se guardara en el sistema.
               </div>
-            ) : (
+            ) : null}
             <form action={rsvpAction} className="grid gap-5 md:gap-7">
               <input type="hidden" name="slug" value={event.slug} />
               <input type="hidden" name="guest_token" value={guestToken} />
+              <input type="hidden" name="external_rsvp_whatsapp" value={shouldUseWhatsAppRsvp ? "1" : ""} />
+              <input type="hidden" name="event_title" value={event.title} />
 
               {isConfirmed && !isAdminPreview ? (
                 <div className="rounded-2xl border border-[#d4af37]/35 bg-[#d4af37]/10 p-4 text-[#f5ecd9]">
@@ -495,6 +490,9 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
                       ? "Gracias por tu respuesta."
                       : "Gracias por confirmar tu presencia. Te esperamos con mucha alegría."}
                   </p>
+                  {shouldRedirectWhatsApp && event.whatsapp_phone && whatsappMessage ? (
+                    <RsvpWhatsAppRedirect phone={event.whatsapp_phone} message={whatsappMessage} />
+                  ) : null}
                 </div>
               ) : null}
 
@@ -605,7 +603,6 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
                 </div>
               ) : null}
             </form>
-            )}
           </div>
         </div>
       </section>
@@ -648,12 +645,6 @@ function normalizeVisualDecorations(value: unknown): VisualDecoration[] {
   } catch {
     return [];
   }
-}
-
-function buildRsvpWhatsAppUrl(phone: string, eventTitle: string) {
-  const normalizedPhone = phone.replace(/[^\d]/g, "");
-  const message = `Hola, quiero confirmar mi asistencia a ${eventTitle}.`;
-  return `https://wa.me/${normalizedPhone}?text=${encodeURIComponent(message)}`;
 }
 
 function buildCalendarUrl(event: Event) {

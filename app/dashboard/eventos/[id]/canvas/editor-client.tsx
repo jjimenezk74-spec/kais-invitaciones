@@ -6,46 +6,48 @@ import { ArrowLeft, Trash2, Plus, Save, X, Eye } from "lucide-react";
 import { saveCanvasDesign, clearCanvasDesign } from "@/app/actions/canvas";
 import { DECORATIONS } from "@/lib/decorations";
 import type { Decoration } from "@/lib/decorations";
-import type { CanvasDesign, CanvasElement, CanvasTextElement, CanvasImageElement, CanvasSectionId } from "@/lib/types";
+import type {
+  CanvasDesign,
+  CanvasElement,
+  CanvasTextElement,
+  CanvasImageElement,
+  CanvasSectionId,
+} from "@/lib/types";
+import { CanvasEditorContext, type ResizeHandle } from "./canvas-context";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants
 // ─────────────────────────────────────────────────────────────────────────────
 
-const REF_W = 390;
-const REF_H = 844;
-const HANDLE_PX = 9; // resize handle size in canvas px
+const REF_W = 390; // reference canvas width in px
 
 const FONT_OPTIONS = [
   { label: "Serif (defecto)", value: "Georgia, serif" },
-  { label: "Playfair Display", value: "'Playfair Display', Georgia, serif" },
-  { label: "Great Vibes", value: "'Great Vibes', cursive" },
-  { label: "Dancing Script", value: "'Dancing Script', cursive" },
-  { label: "Montserrat", value: "'Montserrat', sans-serif" },
+  { label: "Playfair Display", value: "\'Playfair Display\', Georgia, serif" },
+  { label: "Great Vibes", value: "\'Great Vibes\', cursive" },
+  { label: "Dancing Script", value: "\'Dancing Script\', cursive" },
+  { label: "Montserrat", value: "\'Montserrat\', sans-serif" },
   { label: "Sans-serif", value: "system-ui, sans-serif" },
 ];
 
 const GOOGLE_FONTS_URL =
   "https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Great+Vibes&family=Dancing+Script:wght@400;700&family=Montserrat:wght@300;400;600&display=swap";
 
-
-const CANVAS_SECTIONS: { id: CanvasSectionId; label: string }[] = [
-  { id: "hero",          label: "Hero" },
-  { id: "countdown",    label: "Cuenta regresiva" },
-  { id: "presentation", label: "Presentación" },
-  { id: "messages",     label: "Mensajes" },
-  { id: "details",      label: "Detalles" },
-  { id: "church",       label: "Iglesia" },
-  { id: "dresscode",    label: "Vestimenta" },
-  { id: "rsvp",         label: "RSVP" },
-  { id: "footer",       label: "Footer" },
+const CANVAS_SECTIONS: { id: CanvasSectionId; label: string; scrollTo: string }[] = [
+  { id: "hero",          label: "Hero",             scrollTo: "hero" },
+  { id: "countdown",    label: "Cuenta regresiva",  scrollTo: "countdown" },
+  { id: "presentation", label: "Presentación",      scrollTo: "details" },
+  { id: "messages",     label: "Mensajes",           scrollTo: "details" },
+  { id: "details",      label: "Detalles",           scrollTo: "details" },
+  { id: "church",       label: "Iglesia",            scrollTo: "details" },
+  { id: "dresscode",    label: "Vestimenta",         scrollTo: "details" },
+  { id: "rsvp",         label: "RSVP",              scrollTo: "rsvp" },
+  { id: "footer",       label: "Footer",            scrollTo: "footer" },
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Drag state — union of move / resize modes
+// Drag state — section-aware coordinates
 // ─────────────────────────────────────────────────────────────────────────────
-
-type ResizeHandle = "tl" | "tr" | "bl" | "br";
 
 type DragMove = {
   kind: "move";
@@ -54,6 +56,9 @@ type DragMove = {
   startMouseY: number;
   startElX: number;
   startElY: number;
+  /** Scaled section dimensions captured at drag start, for coordinate conversion */
+  sectionW: number;
+  sectionH: number;
 };
 
 type DragResize = {
@@ -66,6 +71,8 @@ type DragResize = {
   startHeight: number;
   startFontSize: number;
   elementType: "text" | "image";
+  /** Section screen width at drag start, used to convert px → canvas px */
+  sectionW: number;
 };
 
 type DragState = DragMove | DragResize;
@@ -87,22 +94,22 @@ type EditorAction =
   | { type: "ADD_TEXT"; sectionId: CanvasSectionId }
   | { type: "SELECT"; id: string | null }
   | { type: "UPDATE_TEXT"; id: string; patch: Partial<CanvasTextElement> }
+  | { type: "UPDATE_IMAGE"; id: string; patch: Partial<CanvasImageElement> }
   | { type: "MOVE"; id: string; x: number; y: number }
   | { type: "RESIZE"; id: string; width: number; fontSize?: number; height?: number }
+  | { type: "SET_SECTION_ID"; id: string; sectionId: CanvasSectionId }
   | { type: "DELETE"; id: string }
   | { type: "MARK_SAVING" }
   | { type: "MARK_SAVED" }
   | { type: "MARK_ERROR" }
   | { type: "ADD_IMAGE"; url: string; sectionId: CanvasSectionId }
-  | { type: "SET_SECTION_ID"; id: string; sectionId: CanvasSectionId }
-  | { type: "UPDATE_IMAGE"; id: string; patch: Partial<CanvasImageElement> }
   | { type: "CLEAR" };
 
 function createEmptyDesign(): CanvasDesign {
   return {
     version: 1,
     refWidth: REF_W,
-    refHeight: REF_H,
+    refHeight: 844,
     background: { type: "none" },
     elements: [],
     updatedAt: new Date().toISOString(),
@@ -142,7 +149,7 @@ function clamp(v: number, min: number, max: number) {
   return Math.min(max, Math.max(min, v));
 }
 
-function createImageElement(url: string, sectionId: CanvasSectionId): import("@/lib/types").CanvasImageElement {
+function createImageElement(url: string, sectionId: CanvasSectionId): CanvasImageElement {
   return {
     id: crypto.randomUUID().slice(0, 8),
     type: "image",
@@ -205,6 +212,17 @@ function reducer(state: EditorState, action: EditorAction): EditorState {
         },
         isDirty: true,
       };
+    case "UPDATE_IMAGE":
+      return {
+        ...state,
+        design: {
+          ...state.design,
+          elements: state.design.elements.map((el) =>
+            el.id === action.id && el.type === "image" ? { ...el, ...action.patch } : el
+          ),
+        },
+        isDirty: true,
+      };
     case "MOVE":
       return {
         ...state,
@@ -240,15 +258,6 @@ function reducer(state: EditorState, action: EditorAction): EditorState {
         },
         isDirty: true,
       };
-    case "DELETE": {
-      const remaining = state.design.elements.filter((el) => el.id !== action.id);
-      return {
-        ...state,
-        design: { ...state.design, elements: remaining },
-        selectedId: state.selectedId === action.id ? null : state.selectedId,
-        isDirty: true,
-      };
-    }
     case "SET_SECTION_ID":
       return {
         ...state,
@@ -260,17 +269,15 @@ function reducer(state: EditorState, action: EditorAction): EditorState {
         },
         isDirty: true,
       };
-    case "UPDATE_IMAGE":
+    case "DELETE": {
+      const remaining = state.design.elements.filter((el) => el.id !== action.id);
       return {
         ...state,
-        design: {
-          ...state.design,
-          elements: state.design.elements.map((el) =>
-            el.id === action.id && el.type === "image" ? { ...el, ...action.patch } : el
-          ),
-        },
+        design: { ...state.design, elements: remaining },
+        selectedId: state.selectedId === action.id ? null : state.selectedId,
         isDirty: true,
       };
+    }
     case "MARK_SAVING":
       return { ...state, saveStatus: "saving" };
     case "MARK_SAVED":
@@ -298,8 +305,9 @@ type Props = {
   eventId: string;
   eventSlug: string;
   eventTitle: string;
-  coverImageUrl: string | null;
   initialDesign: CanvasDesign | null;
+  themeClassName: string;
+  children: React.ReactNode; // real invitation rendered by server component
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -310,8 +318,9 @@ export function CanvasEditorClient({
   eventId,
   eventSlug,
   eventTitle,
-  coverImageUrl,
   initialDesign,
+  themeClassName,
+  children,
 }: Props) {
   const [state, dispatch] = useReducer(reducer, {
     design: initialDesign ?? createEmptyDesign(),
@@ -319,11 +328,12 @@ export function CanvasEditorClient({
     isDirty: false,
     saveStatus: "saved",
   });
+
   const [activeSectionId, setActiveSectionId] = useState<CanvasSectionId>("hero");
 
-  // Scale: wrapper width / REF_W
+  // Preview scale: invitation renders at REF_W (390px); scale to fit editor pane
   const wrapperRef = useRef<HTMLDivElement>(null);
-  const [scale, setScale] = useState(0.55);
+  const [scale, setScale] = useState(0.6);
 
   useEffect(() => {
     if (!document.getElementById("kais-canvas-fonts")) {
@@ -335,25 +345,45 @@ export function CanvasEditorClient({
     }
     const update = () => {
       if (!wrapperRef.current) return;
-      const w = wrapperRef.current.getBoundingClientRect().width - 32;
-      setScale(Math.max(0.3, Math.min(1, w / REF_W)));
+      const available = wrapperRef.current.getBoundingClientRect().width - 32;
+      setScale(Math.max(0.3, Math.min(1, available / REF_W)));
     };
     update();
     window.addEventListener("resize", update);
     return () => window.removeEventListener("resize", update);
   }, []);
 
-  // ── Drag ref (move OR resize) ─────────────────────────────────────────────
+  // ── Drag ref ──────────────────────────────────────────────────────────────
 
   const dragRef = useRef<DragState | null>(null);
+  const previewRef = useRef<HTMLDivElement>(null);
 
-  // Start MOVE drag (called from element wrapper)
-  const handleElementMouseDown = useCallback(
+  /** Get the scaled bounding rect of the section container in the editor preview */
+  const getSectionRect = useCallback(
+    (sectionId: CanvasSectionId): { width: number; height: number } => {
+      // physical container matches the scrollTo target
+      const scrollTarget = CANVAS_SECTIONS.find((s) => s.id === sectionId)?.scrollTo ?? sectionId;
+      const el = previewRef.current?.querySelector(
+        `[data-canvas-section="${scrollTarget}"]`
+      );
+      const rect = el?.getBoundingClientRect();
+      // Fall back to full-width + estimated height scaled by current scale
+      return {
+        width: rect?.width ?? REF_W * scale,
+        height: rect?.height ?? 500 * scale,
+      };
+    },
+    [scale]
+  );
+
+  // Start MOVE drag
+  const onMoveStart = useCallback(
     (e: React.MouseEvent, elementId: string) => {
       e.stopPropagation();
-      const el = state.design.elements.find((el) => el.id === elementId);
+      const el = state.design.elements.find((x) => x.id === elementId);
       if (!el || el.locked) return;
       dispatch({ type: "SELECT", id: elementId });
+      const { width: sW, height: sH } = getSectionRect(activeSectionId);
       dragRef.current = {
         kind: "move",
         elementId,
@@ -361,90 +391,95 @@ export function CanvasEditorClient({
         startMouseY: e.clientY,
         startElX: el.x,
         startElY: el.y,
+        sectionW: sW,
+        sectionH: sH,
       };
     },
-    [state.design.elements]
+    [state.design.elements, activeSectionId, getSectionRect]
   );
 
-  // Start RESIZE drag (called from a corner handle)
-  const handleResizeMouseDown = useCallback(
+  // Start RESIZE drag
+  const onResizeStart = useCallback(
     (e: React.MouseEvent, elementId: string, handle: ResizeHandle) => {
       e.stopPropagation();
       e.preventDefault();
-      const el = state.design.elements.find((el) => el.id === elementId);
+      const el = state.design.elements.find((x) => x.id === elementId);
       if (!el) return;
-      const safeStartWidth = el.width > 0 ? el.width : 240;
-      // For images: use height if set, else assume square (= width)
-      const startHeight = el.height != null && el.height > 0 ? el.height : safeStartWidth;
-      const startFontSize = el.type === "text" ? (el.fontSize > 0 ? el.fontSize : 28) : 28;
+      const safeW = el.width > 0 ? el.width : 240;
+      const startH = el.height != null && el.height > 0 ? el.height : safeW;
+      const startFontSize = el.type === "text" && el.fontSize > 0 ? el.fontSize : 28;
+      const { width: sW } = getSectionRect(activeSectionId);
       dragRef.current = {
         kind: "resize",
         elementId,
         handle,
         startMouseX: e.clientX,
         startMouseY: e.clientY,
-        startWidth: safeStartWidth,
-        startHeight,
+        startWidth: safeW,
+        startHeight: startH,
         startFontSize,
         elementType: el.type,
+        sectionW: sW,
       };
     },
-    [state.design.elements]
+    [state.design.elements, activeSectionId, getSectionRect]
   );
 
-  // Mouse move — handles both move and resize
-  const handleMouseMove = useCallback(
-    (e: React.MouseEvent) => {
-      const drag = dragRef.current;
-      if (!drag) return;
-
-      if (drag.kind === "move") {
-        const dxPct = ((e.clientX - drag.startMouseX) / scale / REF_W) * 100;
-        const dyPct = ((e.clientY - drag.startMouseY) / scale / REF_H) * 100;
-        dispatch({
-          type: "MOVE",
-          id: drag.elementId,
-          x: drag.startElX + dxPct,
-          y: drag.startElY + dyPct,
-        });
-      } else if (drag.kind === "resize") {
-        const dxCanvas = (e.clientX - drag.startMouseX) / scale;
-        const dyCanvas = (e.clientY - drag.startMouseY) / scale;
-
-        if (drag.elementType === "image") {
-          // Proportional resize: pick largest delta per handle direction
-          let delta: number;
-          if (drag.handle === "br")      delta = Math.max(dxCanvas, dyCanvas);
-          else if (drag.handle === "bl") delta = Math.max(-dxCanvas, dyCanvas);
-          else if (drag.handle === "tr") delta = Math.max(dxCanvas, -dyCanvas);
-          else                           delta = Math.max(-dxCanvas, -dyCanvas); // tl
-          const scaleFactor = drag.startWidth > 0 ? (drag.startWidth + delta) / drag.startWidth : 1;
-          dispatch({
-            type: "RESIZE",
-            id: drag.elementId,
-            width:  clamp(drag.startWidth  * scaleFactor, 24, 600),
-            height: clamp(drag.startHeight * scaleFactor, 24, 600),
-          });
-        } else {
-          // Text: width + fontSize proportional (horizontal axis only)
-          const isLeft = drag.handle === "tl" || drag.handle === "bl";
-          const newWidth = drag.startWidth + (isLeft ? -dxCanvas : dxCanvas);
-          const scaleFactor = drag.startWidth > 0 ? newWidth / drag.startWidth : 1;
-          dispatch({
-            type: "RESIZE",
-            id: drag.elementId,
-            width: newWidth,
-            fontSize: drag.startFontSize * scaleFactor,
-          });
-        }
-      }
-    },
-    [scale]
-  );
-
-  const handleMouseUp = useCallback(() => {
-    dragRef.current = null;
+  const onSelect = useCallback((id: string | null) => {
+    dispatch({ type: "SELECT", id });
   }, []);
+
+  // Mouse move — handles move and resize
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    const drag = dragRef.current;
+    if (!drag) return;
+
+    if (drag.kind === "move") {
+      // Convert screen delta → % of section dimensions
+      const dxPct = ((e.clientX - drag.startMouseX) / drag.sectionW) * 100;
+      const dyPct = ((e.clientY - drag.startMouseY) / drag.sectionH) * 100;
+      dispatch({
+        type: "MOVE",
+        id: drag.elementId,
+        x: drag.startElX + dxPct,
+        y: drag.startElY + dyPct,
+      });
+    } else {
+      // Convert screen delta → natural canvas px (before scale/zoom)
+      const canvasScale = drag.sectionW / REF_W; // = zoom factor
+      const dxCanvas = (e.clientX - drag.startMouseX) / canvasScale;
+      const dyCanvas = (e.clientY - drag.startMouseY) / canvasScale;
+
+      if (drag.elementType === "image") {
+        // Proportional resize: pick the dominant drag axis per handle
+        let delta: number;
+        if (drag.handle === "br")      delta = Math.max(dxCanvas, dyCanvas);
+        else if (drag.handle === "bl") delta = Math.max(-dxCanvas, dyCanvas);
+        else if (drag.handle === "tr") delta = Math.max(dxCanvas, -dyCanvas);
+        else                           delta = Math.max(-dxCanvas, -dyCanvas);
+        const sf = drag.startWidth > 0 ? (drag.startWidth + delta) / drag.startWidth : 1;
+        dispatch({
+          type: "RESIZE",
+          id: drag.elementId,
+          width:  clamp(drag.startWidth  * sf, 24, 600),
+          height: clamp(drag.startHeight * sf, 24, 600),
+        });
+      } else {
+        // Text: horizontal width + proportional fontSize
+        const isLeft = drag.handle === "tl" || drag.handle === "bl";
+        const newWidth = drag.startWidth + (isLeft ? -dxCanvas : dxCanvas);
+        const sf = drag.startWidth > 0 ? newWidth / drag.startWidth : 1;
+        dispatch({
+          type: "RESIZE",
+          id: drag.elementId,
+          width: newWidth,
+          fontSize: drag.startFontSize * sf,
+        });
+      }
+    }
+  }, []);
+
+  const handleMouseUp = useCallback(() => { dragRef.current = null; }, []);
 
   // ── Save / Clear ──────────────────────────────────────────────────────────
 
@@ -463,7 +498,7 @@ export function CanvasEditorClient({
   };
 
   const handleClear = async () => {
-    if (!confirm("Eliminar todo el diseno canvas? El evento volvera a usar la plantilla.")) return;
+    if (!confirm("Eliminar todo el diseño canvas? El evento volverá a usar la plantilla.")) return;
     const { error } = await clearCanvasDesign(eventId);
     if (error) {
       alert(`Error: ${error}`);
@@ -475,9 +510,6 @@ export function CanvasEditorClient({
   // ── Derived ──────────────────────────────────────────────────────────────
 
   const selected = state.design.elements.find((el) => el.id === state.selectedId) ?? null;
-  const sortedElements = [...state.design.elements]
-    .filter((el) => (el.sectionId ?? "hero") === activeSectionId)
-    .sort((a, b) => a.zIndex - b.zIndex);
 
   const saveLabel =
     state.saveStatus === "saving"
@@ -488,398 +520,230 @@ export function CanvasEditorClient({
       ? "Guardar *"
       : "Guardado";
 
-  const isDragging = dragRef.current !== null;
   const [showDecorPicker, setShowDecorPicker] = useState(false);
 
   // ─────────────────────────────────────────────────────────────────────────
   return (
-    <div
-      className="flex h-screen flex-col overflow-hidden bg-neutral-950 text-neutral-100"
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseUp}
+    <CanvasEditorContext.Provider
+      value={{
+        elements: state.design.elements,
+        selectedId: state.selectedId,
+        activeSectionId,
+        onSelect,
+        onMoveStart,
+        onResizeStart,
+      }}
     >
-      {/* ── Header ─────────────────────────────────────────────────────── */}
-      <header className="flex shrink-0 items-center gap-3 border-b border-neutral-800 bg-neutral-900 px-4 py-2.5">
-        <Link
-          href={`/dashboard/eventos/${eventId}`}
-          className="flex items-center gap-1.5 rounded-md px-2 py-1 text-sm text-neutral-400 transition hover:bg-neutral-800 hover:text-neutral-100"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Volver
-        </Link>
-        <span className="text-neutral-600">|</span>
-        <p className="truncate text-sm font-medium text-neutral-300">{eventTitle}</p>
-        <div className="ml-auto flex items-center gap-2">
+      <div
+        className="flex h-screen flex-col overflow-hidden bg-neutral-950 text-neutral-100"
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+      >
+        {/* ── Header ───────────────────────────────────────────────────── */}
+        <header className="flex shrink-0 items-center gap-3 border-b border-neutral-800 bg-neutral-900 px-4 py-2.5">
           <Link
-            href={`/evento/${eventSlug}?preview=1`}
-            target="_blank"
-            rel="noreferrer"
-            className="flex items-center gap-1.5 rounded-md border border-neutral-700 px-3 py-1.5 text-xs text-neutral-300 transition hover:bg-neutral-800"
+            href={`/dashboard/eventos/${eventId}`}
+            className="flex items-center gap-1.5 rounded-md px-2 py-1 text-sm text-neutral-400 transition hover:bg-neutral-800 hover:text-neutral-100"
           >
-            <Eye className="h-3.5 w-3.5" />
-            Preview
+            <ArrowLeft className="h-4 w-4" />
+            Volver
           </Link>
-          {/* Decoration picker */}
-          <div className="relative">
+          <span className="text-neutral-600">|</span>
+          <p className="truncate text-sm font-medium text-neutral-300">{eventTitle}</p>
+          <div className="ml-auto flex items-center gap-2">
+            <Link
+              href={`/evento/${eventSlug}?preview=admin`}
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center gap-1.5 rounded-md border border-neutral-700 px-3 py-1.5 text-xs text-neutral-300 transition hover:bg-neutral-800"
+            >
+              <Eye className="h-3.5 w-3.5" />
+              Preview
+            </Link>
+
+            {/* Decoration picker */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setShowDecorPicker((v) => !v)}
+                className="flex items-center gap-1.5 rounded-md bg-neutral-800 px-3 py-1.5 text-xs text-neutral-200 transition hover:bg-neutral-700"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Decoracion
+              </button>
+              {showDecorPicker && (
+                <div
+                  className="absolute right-0 top-full z-50 mt-1 w-64 rounded-xl border border-neutral-700 bg-neutral-900 p-3 shadow-2xl"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-neutral-500">
+                    Elegir decoracion
+                  </p>
+                  <div className="grid grid-cols-5 gap-1.5">
+                    {DECORATIONS.map((d: Decoration) => (
+                      <button
+                        key={d.id}
+                        type="button"
+                        title={d.name}
+                        onClick={() => {
+                          dispatch({ type: "ADD_IMAGE", url: d.url, sectionId: activeSectionId });
+                          setShowDecorPicker(false);
+                        }}
+                        className="flex flex-col items-center gap-0.5 rounded-lg p-1.5 transition hover:bg-neutral-800"
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={d.url} alt={d.name} className="h-8 w-8 object-contain" />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
             <button
               type="button"
-              onClick={() => setShowDecorPicker((v) => !v)}
+              onClick={() => dispatch({ type: "ADD_TEXT", sectionId: activeSectionId })}
               className="flex items-center gap-1.5 rounded-md bg-neutral-800 px-3 py-1.5 text-xs text-neutral-200 transition hover:bg-neutral-700"
             >
               <Plus className="h-3.5 w-3.5" />
-              Decoracion
+              Texto
             </button>
-            {showDecorPicker && (
-              <div
-                className="absolute right-0 top-full z-50 mt-1 w-64 rounded-xl border border-neutral-700 bg-neutral-900 p-3 shadow-2xl"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-neutral-500">
-                  Elegir decoracion
-                </p>
-                <div className="grid grid-cols-5 gap-1.5">
-                  {DECORATIONS.map((d: Decoration) => (
-                    <button
-                      key={d.id}
-                      type="button"
-                      title={d.name}
-                      onClick={() => {
-                        dispatch({ type: "ADD_IMAGE", url: d.url, sectionId: activeSectionId });
-                        setShowDecorPicker(false);
-                      }}
-                      className="flex flex-col items-center gap-0.5 rounded-lg p-1.5 transition hover:bg-neutral-800"
-                    >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={d.url} alt={d.name} className="h-8 w-8 object-contain" />
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={state.saveStatus === "saving"}
+              className="flex items-center gap-1.5 rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-indigo-500 disabled:opacity-60"
+            >
+              <Save className="h-3.5 w-3.5" />
+              {saveLabel}
+            </button>
+            <button
+              type="button"
+              onClick={handleClear}
+              className="flex items-center gap-1.5 rounded-md border border-red-900 px-3 py-1.5 text-xs text-red-400 transition hover:bg-red-950"
+            >
+              <X className="h-3.5 w-3.5" />
+              Limpiar
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={() => dispatch({ type: "ADD_TEXT", sectionId: activeSectionId })}
-            className="flex items-center gap-1.5 rounded-md bg-neutral-800 px-3 py-1.5 text-xs text-neutral-200 transition hover:bg-neutral-700"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            Texto
-          </button>
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={state.saveStatus === "saving"}
-            className="flex items-center gap-1.5 rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-indigo-500 disabled:opacity-60"
-          >
-            <Save className="h-3.5 w-3.5" />
-            {saveLabel}
-          </button>
-          <button
-            type="button"
-            onClick={handleClear}
-            className="flex items-center gap-1.5 rounded-md border border-red-900 px-3 py-1.5 text-xs text-red-400 transition hover:bg-red-950"
-          >
-            <X className="h-3.5 w-3.5" />
-            Limpiar
-          </button>
+        </header>
+
+        {/* ── Section tabs ─────────────────────────────────────────────── */}
+        <div className="flex shrink-0 items-center gap-1 overflow-x-auto border-b border-neutral-800 bg-neutral-900 px-3 py-1.5">
+          {CANVAS_SECTIONS.map((s) => (
+            <button
+              key={s.id}
+              type="button"
+              onClick={() => {
+                setActiveSectionId(s.id);
+                dispatch({ type: "SELECT", id: null });
+                // Scroll preview to the correct section
+                const target = previewRef.current?.querySelector(
+                  `[data-canvas-section="${s.scrollTo}"]`
+                );
+                target?.scrollIntoView({ behavior: "smooth", block: "start" });
+              }}
+              className={`shrink-0 rounded-md px-2.5 py-1 text-xs transition ${
+                activeSectionId === s.id
+                  ? "bg-indigo-600 font-semibold text-white"
+                  : "text-neutral-400 hover:bg-neutral-800 hover:text-neutral-200"
+              }`}
+            >
+              {s.label}
+            </button>
+          ))}
         </div>
-      </header>
 
+        {/* ── Body ─────────────────────────────────────────────────────── */}
+        <div className="flex flex-1 overflow-hidden">
 
-      {/* ── Section tabs ─────────────────────────────────────────────── */}
-      <div className="flex shrink-0 items-center gap-1 overflow-x-auto border-b border-neutral-800 bg-neutral-900 px-3 py-1.5">
-        {CANVAS_SECTIONS.map((s) => (
-          <button
-            key={s.id}
-            type="button"
-            onClick={() => {
-              setActiveSectionId(s.id);
-              dispatch({ type: "SELECT", id: null });
-            }}
-            className={`shrink-0 rounded-md px-2.5 py-1 text-xs transition ${
-              activeSectionId === s.id
-                ? "bg-indigo-600 font-semibold text-white"
-                : "text-neutral-400 hover:bg-neutral-800 hover:text-neutral-200"
-            }`}
-          >
-            {s.label}
-          </button>
-        ))}
-      </div>
-
-      {/* ── Body ───────────────────────────────────────────────────────── */}
-      <div className="flex flex-1 overflow-hidden">
-
-        {/* ── Canvas area ────────────────────────────────────────────── */}
-        <div
-          ref={wrapperRef}
-          className="flex flex-1 items-start justify-center overflow-auto bg-neutral-950 p-4 pt-6"
-          onClick={() => dispatch({ type: "SELECT", id: null })}
-        >
-          {/* Outer shell — real screen dimensions */}
+          {/* ── Invitation preview ───────────────────────────────────── */}
           <div
-            style={{
-              width: REF_W * scale,
-              height: REF_H * scale,
-              flexShrink: 0,
-              position: "relative",
-            }}
+            ref={wrapperRef}
+            className="flex flex-1 items-start justify-center overflow-auto bg-neutral-800 p-4"
           >
-            {/* Inner stage at reference 390×844, scaled with CSS transform */}
+            {/*
+              The invitation renders at REF_W (390px) natural width.
+              CSS zoom scales it down to fit the editor pane.
+              zoom affects layout (unlike transform:scale), so no height tricks needed.
+            */}
             <div
+              ref={previewRef}
               style={{
                 width: REF_W,
-                height: REF_H,
-                position: "absolute",
-                top: 0,
-                left: 0,
-                transform: `scale(${scale})`,
-                transformOrigin: "top left",
+                zoom: scale,
+                flexShrink: 0,
+                boxShadow: "0 0 0 1px rgba(255,255,255,0.08), 0 8px 48px rgba(0,0,0,0.7)",
                 borderRadius: 12,
                 overflow: "hidden",
-                boxShadow:
-                  "0 0 0 1px rgba(255,255,255,0.08), 0 8px 48px rgba(0,0,0,0.7)",
-                cursor: isDragging ? "grabbing" : "default",
               }}
+              className={themeClassName}
             >
-              {/* Section-specific preview base */}
-              <SectionPreview
-                sectionId={activeSectionId}
-                coverImageUrl={coverImageUrl}
-                eventTitle={eventTitle}
-              />
-
-              {/* Empty-canvas hint */}
-              {sortedElements.length === 0 && (
-                <div
-                  style={{
-                    position: "absolute",
-                    inset: 0,
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: 8,
-                    pointerEvents: "none",
-                  }}
-                >
-                  <p style={{ color: "rgba(255,255,255,0.3)", fontSize: 13, letterSpacing: "0.12em" }}>
-                    CANVAS VACIO
-                  </p>
-                  <p style={{ color: "rgba(255,255,255,0.18)", fontSize: 11 }}>
-                    {CANVAS_SECTIONS.find((s) => s.id === activeSectionId)?.label ?? activeSectionId}
-                  </p>
-                </div>
-              )}
-
-              {/* Elements */}
-              {sortedElements.map((el) => (
-                <StageElement
-                  key={el.id}
-                  element={el}
-                  selected={el.id === state.selectedId}
-                  onMoveStart={(e) => handleElementMouseDown(e, el.id)}
-                  onResizeStart={(e, handle) => handleResizeMouseDown(e, el.id, handle)}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    dispatch({ type: "SELECT", id: el.id });
-                  }}
-                />
-              ))}
+              {children}
             </div>
           </div>
-        </div>
 
-        {/* ── Properties panel ───────────────────────────────────────── */}
-        <aside className="flex w-72 shrink-0 flex-col gap-0 overflow-y-auto border-l border-neutral-800 bg-neutral-900">
-          {selected ? (
-            <>
-              {/* Section assignment — common to all element types */}
-              <div className="flex shrink-0 flex-col gap-1.5 border-b border-neutral-800 px-4 py-3">
-                <p className="text-[10px] font-semibold uppercase tracking-widest text-neutral-500">Sección</p>
-                <select
-                  value={selected.sectionId ?? "hero"}
-                  onChange={(e) =>
-                    dispatch({
-                      type: "SET_SECTION_ID",
-                      id: selected.id,
-                      sectionId: e.target.value as CanvasSectionId,
-                    })
-                  }
-                  className="w-full rounded-md border border-neutral-700 bg-neutral-800 px-2 py-1.5 text-sm text-neutral-100 outline-none focus:border-indigo-500"
-                >
-                  {CANVAS_SECTIONS.map((s) => (
-                    <option key={s.id} value={s.id}>{s.label}</option>
-                  ))}
-                </select>
+          {/* ── Properties panel ────────────────────────────────────── */}
+          <aside className="flex w-72 shrink-0 flex-col gap-0 overflow-y-auto border-l border-neutral-800 bg-neutral-900">
+            {selected ? (
+              <>
+                {/* Section assignment — common to all element types */}
+                <div className="flex shrink-0 flex-col gap-1.5 border-b border-neutral-800 px-4 py-3">
+                  <p className="text-[10px] font-semibold uppercase tracking-widest text-neutral-500">Sección</p>
+                  <select
+                    value={selected.sectionId ?? "hero"}
+                    onChange={(e) =>
+                      dispatch({
+                        type: "SET_SECTION_ID",
+                        id: selected.id,
+                        sectionId: e.target.value as CanvasSectionId,
+                      })
+                    }
+                    className="w-full rounded-md border border-neutral-700 bg-neutral-800 px-2 py-1.5 text-sm text-neutral-100 outline-none focus:border-indigo-500"
+                  >
+                    {CANVAS_SECTIONS.map((s) => (
+                      <option key={s.id} value={s.id}>{s.label}</option>
+                    ))}
+                  </select>
+                </div>
+                {selected.type === "text" ? (
+                  <TextPropertiesPanel
+                    element={selected}
+                    onChange={(patch) =>
+                      dispatch({ type: "UPDATE_TEXT", id: selected.id, patch })
+                    }
+                    onDelete={() => dispatch({ type: "DELETE", id: selected.id })}
+                  />
+                ) : (
+                  <ImagePropertiesPanel
+                    element={selected as CanvasImageElement}
+                    onChange={(patch) =>
+                      dispatch({ type: "UPDATE_IMAGE", id: selected.id, patch })
+                    }
+                    onDelete={() => dispatch({ type: "DELETE", id: selected.id })}
+                  />
+                )}
+              </>
+            ) : (
+              <div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
+                <p className="text-xs text-neutral-500">
+                  {state.design.elements.length === 0
+                    ? 'Pulsa "+ Texto" o "+ Decoracion" para anadir elementos.'
+                    : "Selecciona un elemento en la preview para editar."}
+                </p>
+                <p className="text-[10px] text-neutral-600">
+                  Sección activa:{" "}
+                  <span className="text-indigo-400">
+                    {CANVAS_SECTIONS.find((s) => s.id === activeSectionId)?.label}
+                  </span>
+                </p>
               </div>
-              {selected.type === "text" ? (
-                <TextPropertiesPanel
-                  element={selected}
-                  onChange={(patch) =>
-                    dispatch({ type: "UPDATE_TEXT", id: selected.id, patch })
-                  }
-                  onDelete={() => dispatch({ type: "DELETE", id: selected.id })}
-                />
-              ) : (
-                <ImagePropertiesPanel
-                  element={selected as CanvasImageElement}
-                  onChange={(patch) =>
-                    dispatch({ type: "UPDATE_IMAGE", id: selected.id, patch })
-                  }
-                  onDelete={() => dispatch({ type: "DELETE", id: selected.id })}
-                />
-              )}
-            </>
-          ) : (
-            <div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
-              <p className="text-xs text-neutral-500">
-                {state.design.elements.length === 0
-                  ? 'Pulsa "+ Texto" para anadir un elemento al canvas.'
-                  : "Selecciona un elemento para editar sus propiedades."}
-              </p>
-            </div>
-          )}
-        </aside>
+            )}
+          </aside>
+        </div>
       </div>
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// StageElement — wrapper div with content + resize handles when selected
-// ─────────────────────────────────────────────────────────────────────────────
-
-type StageElementProps = {
-  element: CanvasElement;
-  selected: boolean;
-  onMoveStart: (e: React.MouseEvent) => void;
-  onResizeStart: (e: React.MouseEvent, handle: ResizeHandle) => void;
-  onClick: (e: React.MouseEvent) => void;
-};
-
-function StageElement({
-  element,
-  selected,
-  onMoveStart,
-  onResizeStart,
-  onClick,
-}: StageElementProps) {
-  // Wrapper: positions the element on the canvas
-  const wrapperStyle: React.CSSProperties = {
-    position: "absolute",
-    left: `${element.x}%`,
-    top: `${element.y}%`,
-    width: element.width,
-    height: element.height ?? undefined,
-    transform: `translate(-50%, -50%) rotate(${element.rotation}deg)`,
-    zIndex: element.zIndex,
-    cursor: element.locked ? "default" : selected ? "grab" : "pointer",
-    userSelect: "none",
-    // Selection ring via box-shadow so it doesn't affect layout
-    boxShadow: selected
-      ? "0 0 0 2px #6366f1, 0 0 0 4px rgba(99,102,241,0.20)"
-      : "none",
-    borderRadius: 2,
-  };
-
-  return (
-    <div
-      style={wrapperStyle}
-      onMouseDown={onMoveStart}
-      onClick={onClick}
-    >
-      {/* ── Content ─────────────────────────────────────────────────── */}
-      {element.type === "text" && (
-        <p
-          style={{
-            margin: 0,
-            fontFamily: element.fontFamily,
-            fontSize: element.fontSize,
-            fontWeight: element.fontWeight,
-            fontStyle: element.fontStyle,
-            textAlign: element.textAlign,
-            color: element.color,
-            lineHeight: element.lineHeight,
-            letterSpacing: `${element.letterSpacing}em`,
-            textShadow: element.textShadow ?? undefined,
-            textDecoration: element.textDecoration,
-            opacity: element.opacity,
-            whiteSpace: "pre-wrap",
-            wordBreak: "break-word",
-            width: "100%",
-          }}
-        >
-          {element.content}
-        </p>
-      )}
-
-      {element.type === "image" && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={element.url}
-          alt=""
-          draggable={false}
-          style={{
-            display: "block",
-            width: "100%",
-            height: element.height ? "100%" : "auto",
-            objectFit: "contain",
-            opacity: element.opacity,
-            pointerEvents: "none",
-          }}
-        />
-      )}
-
-      {/* ── Resize handles (only when selected) ─────────────────────── */}
-      {selected && (
-        <>
-          {(["tl", "tr", "bl", "br"] as ResizeHandle[]).map((handle) => (
-            <ResizeHandleNode
-              key={handle}
-              handle={handle}
-              onMouseDown={(e) => onResizeStart(e, handle)}
-            />
-          ))}
-        </>
-      )}
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// ResizeHandleNode — single corner handle
-// ─────────────────────────────────────────────────────────────────────────────
-
-const HANDLE_STYLE: Record<ResizeHandle, React.CSSProperties> = {
-  tl: { top: -HANDLE_PX / 2, left: -HANDLE_PX / 2, cursor: "nwse-resize" },
-  tr: { top: -HANDLE_PX / 2, right: -HANDLE_PX / 2, cursor: "nesw-resize" },
-  bl: { bottom: -HANDLE_PX / 2, left: -HANDLE_PX / 2, cursor: "nesw-resize" },
-  br: { bottom: -HANDLE_PX / 2, right: -HANDLE_PX / 2, cursor: "nwse-resize" },
-};
-
-function ResizeHandleNode({
-  handle,
-  onMouseDown,
-}: {
-  handle: ResizeHandle;
-  onMouseDown: (e: React.MouseEvent) => void;
-}) {
-  return (
-    <div
-      onMouseDown={onMouseDown}
-      style={{
-        position: "absolute",
-        width: HANDLE_PX,
-        height: HANDLE_PX,
-        background: "#6366f1",
-        border: "1.5px solid #fff",
-        borderRadius: 2,
-        zIndex: 9999,
-        ...HANDLE_STYLE[handle],
-      }}
-    />
+    </CanvasEditorContext.Provider>
   );
 }
 
@@ -902,7 +766,7 @@ function TextPropertiesPanel({ element, onChange, onDelete }: TextPanelProps) {
   return (
     <div className="flex flex-col">
       <div className="flex items-center justify-between border-b border-neutral-800 px-4 py-3">
-        <p className="text-xs font-semibold text-neutral-300">Propiedades · Texto</p>
+        <p className="text-xs font-semibold text-neutral-300">Texto</p>
         <button
           type="button"
           onClick={onDelete}
@@ -1083,255 +947,6 @@ function TextPropertiesPanel({ element, onChange, onDelete }: TextPanelProps) {
     </div>
   );
 }
-// ─────────────────────────────────────────────────────────────────────────────
-// SectionPreview — base layer representativa de cada sección en el editor
-// Todos los divs tienen pointerEvents:"none" para no interferir con el drag.
-// ─────────────────────────────────────────────────────────────────────────────
-
-const _darkBg: React.CSSProperties = {
-  position: "absolute",
-  inset: 0,
-  background: "linear-gradient(160deg, #140a10 0%, #1a0d16 60%, #0f0a14 100%)",
-  pointerEvents: "none",
-};
-
-const _overlay: React.CSSProperties = {
-  position: "absolute",
-  inset: 0,
-  display: "flex",
-  flexDirection: "column",
-  alignItems: "center",
-  justifyContent: "center",
-  padding: "28px 24px",
-  pointerEvents: "none",
-};
-
-function _Eyebrow({ text }: { text: string }) {
-  return (
-    <p style={{ fontSize: 8, letterSpacing: "0.28em", textTransform: "uppercase", color: "#E8A4B5", fontFamily: "system-ui, sans-serif", marginBottom: 10, textAlign: "center" }}>
-      {text}
-    </p>
-  );
-}
-
-function _Hairline() {
-  return <div style={{ width: 44, height: 1, background: "rgba(232,169,181,0.35)", margin: "0 auto 20px" }} />;
-}
-
-function _Display({ text, size = 32 }: { text: string; size?: number }) {
-  return (
-    <p style={{ fontFamily: "Georgia, serif", fontSize: size, fontStyle: "italic", fontWeight: 300, color: "#f5ecd9", lineHeight: 1.1, textAlign: "center", margin: "0 0 14px" }}>
-      {text}
-    </p>
-  );
-}
-
-function _Gold({ text, size = 9 }: { text: string; size?: number }) {
-  return (
-    <p style={{ fontSize: size, letterSpacing: "0.22em", textTransform: "uppercase", color: "#d4af37", fontFamily: "system-ui, sans-serif", margin: "0 0 8px", textAlign: "center" }}>
-      {text}
-    </p>
-  );
-}
-
-function _Glass({ label, body }: { label: string; body: string }) {
-  return (
-    <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(212,175,55,0.18)", borderRadius: 18, padding: "14px 18px", flex: 1 }}>
-      <p style={{ fontSize: 7, letterSpacing: "0.28em", textTransform: "uppercase", color: "#E8A4B5", marginBottom: 8 }}>{label}</p>
-      <p style={{ fontSize: 11, color: "rgba(245,236,217,0.65)", lineHeight: 1.7 }}>{body}</p>
-    </div>
-  );
-}
-
-function _HairRow() {
-  return (
-    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18 }}>
-      <div style={{ width: 28, height: 1, background: "rgba(232,169,181,0.35)" }} />
-      <div style={{ width: 28, height: 1, background: "rgba(232,169,181,0.35)" }} />
-    </div>
-  );
-}
-
-type SectionPreviewProps = {
-  sectionId: CanvasSectionId;
-  coverImageUrl: string | null;
-  eventTitle: string;
-};
-
-function SectionPreview({ sectionId, coverImageUrl, eventTitle }: SectionPreviewProps) {
-  switch (sectionId) {
-    /* ── HERO ────────────────────────────────────────────────────────────── */
-    case "hero":
-      return coverImageUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={coverImageUrl} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: 0.55, pointerEvents: "none" }} />
-      ) : (
-        <div style={{ position: "absolute", inset: 0, background: "linear-gradient(160deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)", pointerEvents: "none" }} />
-      );
-
-    /* ── CUENTA REGRESIVA ────────────────────────────────────────────────── */
-    case "countdown":
-      return (
-        <>
-          <div style={_darkBg} />
-          <div style={_overlay}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 22 }}>
-              <div style={{ width: 28, height: 1, background: "rgba(232,169,181,0.35)" }} />
-              <_Eyebrow text="Faltan" />
-              <div style={{ width: 28, height: 1, background: "rgba(232,169,181,0.35)" }} />
-            </div>
-            <div style={{ display: "flex", gap: 18, marginBottom: 30 }}>
-              {[["00", "Días"], ["00", "Hrs"], ["00", "Min"], ["00", "Seg"]].map(([n, l]) => (
-                <div key={l} style={{ textAlign: "center" }}>
-                  <p style={{ fontFamily: "Georgia, serif", fontSize: 36, fontStyle: "italic", fontWeight: 300, color: "#f5ecd9", lineHeight: 1 }}>{n}</p>
-                  <p style={{ fontSize: 7, letterSpacing: "0.2em", color: "#d4af37", textTransform: "uppercase", marginTop: 6 }}>{l}</p>
-                </div>
-              ))}
-            </div>
-            <div style={{ display: "flex", gap: 22 }}>
-              {["Como llegar", "Calendario"].map((t) => (
-                <span key={t} style={{ fontSize: 10, color: "rgba(245,236,217,0.45)", letterSpacing: "0.1em" }}>{t}</span>
-              ))}
-            </div>
-          </div>
-        </>
-      );
-
-    /* ── PRESENTACIÓN ────────────────────────────────────────────────────── */
-    case "presentation":
-      return (
-        <>
-          <div style={_darkBg} />
-          <div style={_overlay}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18 }}>
-              <div style={{ width: 28, height: 1, background: "rgba(232,169,181,0.35)" }} />
-              <_Eyebrow text="Una noche · Inolvidable" />
-              <div style={{ width: 28, height: 1, background: "rgba(232,169,181,0.35)" }} />
-            </div>
-            <_Display text={eventTitle} size={30} />
-            <div style={{ marginTop: 20 }}>
-              <_Gold text="Quinceañera" />
-              <_Display text="Nombre de la quinceañera" size={22} />
-            </div>
-            <div style={{ marginTop: 14 }}>
-              <_Gold text="Junto a mis padres" />
-              <p style={{ fontFamily: "Georgia, serif", fontSize: 16, fontStyle: "italic", color: "rgba(245,236,217,0.75)", textAlign: "center" }}>Papá · Mamá</p>
-            </div>
-          </div>
-        </>
-      );
-
-    /* ── MENSAJES ────────────────────────────────────────────────────────── */
-    case "messages":
-      return (
-        <>
-          <div style={_darkBg} />
-          <div style={{ ..._overlay, justifyContent: "center" }}>
-            <div style={{ display: "flex", gap: 12, width: "100%" }}>
-              <_Glass label="Mensaje" body="Hoy quiero compartir con ustedes uno de los momentos más especiales de mi vida..." />
-              <_Glass label="Familia" body="Con el corazón lleno de alegría les invitamos a celebrar juntos esta ocasión..." />
-            </div>
-          </div>
-        </>
-      );
-
-    /* ── DETALLES ────────────────────────────────────────────────────────── */
-    case "details":
-      return (
-        <>
-          <div style={_darkBg} />
-          <div style={_overlay}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18 }}>
-              <div style={{ width: 28, height: 1, background: "rgba(232,169,181,0.35)" }} />
-              <_Eyebrow text="Una noche · Inolvidable" />
-              <div style={{ width: 28, height: 1, background: "rgba(232,169,181,0.35)" }} />
-            </div>
-            <_Display text={eventTitle} size={26} />
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", width: "100%", marginTop: 24 }}>
-              {[["Fecha", "Sáb 14 Jun"], ["Hora", "20:00 hrs"], ["Lugar", "Salón de Eventos"]].map(([l, v], i) => (
-                <div key={l} style={{ textAlign: "center", padding: "8px 4px", borderLeft: i > 0 ? "1px solid rgba(212,175,55,0.18)" : undefined }}>
-                  <p style={{ fontSize: 7, letterSpacing: "0.28em", color: "#E8A4B5", textTransform: "uppercase", marginBottom: 10 }}>{l}</p>
-                  <p style={{ fontFamily: "Georgia, serif", fontSize: 15, fontStyle: "italic", color: "#f5ecd9" }}>{v}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </>
-      );
-
-    /* ── IGLESIA ─────────────────────────────────────────────────────────── */
-    case "church":
-      return (
-        <>
-          <div style={_darkBg} />
-          <div style={_overlay}>
-            <_Eyebrow text="Ceremonia religiosa" />
-            <_Hairline />
-            <_Display text="Nombre de la Iglesia" size={26} />
-            <_Gold text="10:00 AM" />
-          </div>
-        </>
-      );
-
-    /* ── VESTIMENTA ──────────────────────────────────────────────────────── */
-    case "dresscode":
-      return (
-        <>
-          <div style={_darkBg} />
-          <div style={_overlay}>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14, width: "100%" }}>
-              {[["Tenida", "Formal"], ["Gama de colores", "Blanco y Dorado"], ["Temática", "Romántica"]].map(([l, v]) => (
-                <div key={l} style={{ textAlign: "center" }}>
-                  <p style={{ fontSize: 7, letterSpacing: "0.28em", color: "#E8A4B5", textTransform: "uppercase", marginBottom: 12 }}>{l}</p>
-                  <p style={{ fontFamily: "Georgia, serif", fontSize: 16, fontStyle: "italic", color: "rgba(245,236,217,0.85)" }}>{v}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </>
-      );
-
-    /* ── RSVP ────────────────────────────────────────────────────────────── */
-    case "rsvp":
-      return (
-        <>
-          <div style={{ ..._darkBg, background: "linear-gradient(160deg, #0a0405 0%, #140a10 100%)" }} />
-          <div style={{ ..._overlay, flexDirection: "row", alignItems: "flex-start", gap: 16 }}>
-            <div style={{ flex: "0 0 38%", paddingTop: 4 }}>
-              <_Eyebrow text="RSVP · Asistencia" />
-              <p style={{ fontFamily: "Georgia, serif", fontSize: 20, fontStyle: "italic", fontWeight: 300, color: "#f5ecd9", lineHeight: 1.3 }}>
-                Tu presencia<br />es el regalo<br /><span style={{ color: "#d4af37" }}>más bonito.</span>
-              </p>
-            </div>
-            <div style={{ flex: 1, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(212,175,55,0.15)", borderRadius: 22, padding: 14, display: "flex", flexDirection: "column", gap: 9 }}>
-              {["Nombre", "Teléfono", "¿Asistirás?"].map((f) => (
-                <div key={f}>
-                  <p style={{ fontSize: 6, letterSpacing: "0.3em", color: "#d4af37", textTransform: "uppercase", marginBottom: 5 }}>{f}</p>
-                  <div style={{ height: 24, background: "rgba(255,255,255,0.06)", borderRadius: 7, border: "1px solid rgba(212,175,55,0.12)" }} />
-                </div>
-              ))}
-              <div style={{ height: 28, background: "rgba(212,175,55,0.12)", borderRadius: 9, border: "1px solid rgba(212,175,55,0.28)", marginTop: 2 }} />
-            </div>
-          </div>
-        </>
-      );
-
-    /* ── FOOTER ──────────────────────────────────────────────────────────── */
-    case "footer":
-      return (
-        <>
-          <div style={_darkBg} />
-          <div style={_overlay}>
-            <p style={{ fontSize: 8, letterSpacing: "0.22em", color: "rgba(245,236,217,0.35)", textTransform: "uppercase", marginBottom: 10 }}>Una experiencia de</p>
-            <p style={{ fontFamily: "Georgia, serif", fontSize: 22, fontStyle: "italic", color: "rgba(245,236,217,0.55)" }}>KAIS Invitaciones</p>
-          </div>
-        </>
-      );
-
-    default:
-      return <div style={_darkBg} />;
-  }
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ImagePropertiesPanel
@@ -1352,7 +967,7 @@ function ImagePropertiesPanel({ element, onChange, onDelete }: ImagePanelProps) 
   return (
     <div className="flex flex-col">
       <div className="flex items-center justify-between border-b border-neutral-800 px-4 py-3">
-        <p className="text-xs font-semibold text-neutral-300">Propiedades · Imagen</p>
+        <p className="text-xs font-semibold text-neutral-300">Imagen / Decoracion</p>
         <button
           type="button"
           onClick={onDelete}

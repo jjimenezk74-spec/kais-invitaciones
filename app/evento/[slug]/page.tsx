@@ -321,15 +321,21 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
         <BackButton from={normalizeSearchParam(query.from)} />
       </div>
 
-      <EventHero
-        event={event}
-        calendarUrl={calendarUrl}
-        invitedGuestName={invitedGuest?.guest_name}
-        themeSlug={decorationThemeSlug}
-        decorations={slotDecorations}
-        freeDecorations={freeDecorations}
-        showMusic={eventHasFeature(event, "music")}
-      />
+      {/* Canvas wrapper: position relative so absolute CanvasRenderer anchors here */}
+      <div style={{ position: "relative" }}>
+        <EventHero
+          event={event}
+          calendarUrl={calendarUrl}
+          invitedGuestName={invitedGuest?.guest_name}
+          themeSlug={decorationThemeSlug}
+          decorations={slotDecorations}
+          freeDecorations={freeDecorations}
+          showMusic={eventHasFeature(event, "music")}
+        />
+        {(event.canvas_design as CanvasDesign | null) && (
+          <CanvasRenderer design={event.canvas_design as CanvasDesign} />
+        )}
+      </div>
 
       <section className="relative px-5 py-20 sm:py-24 lg:hidden" aria-label="Cuenta regresiva y mensaje">
         <div className="pointer-events-none absolute inset-x-0 top-0 h-px kais-hairline" />
@@ -690,10 +696,6 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
         </div>
       </footer>
 
-      {/* Canvas Design overlay — renderiza SOLO si existe canvas_design */}
-      {(event.canvas_design as CanvasDesign | null) && (
-        <CanvasRenderer design={event.canvas_design as CanvasDesign} />
-      )}
     </main>
   );
 }

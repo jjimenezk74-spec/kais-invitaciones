@@ -32,7 +32,7 @@ export function CanvasRenderer({ design }: Props) {
     <div
       aria-hidden
       style={{
-        position: "fixed",
+        position: "absolute",
         inset: 0,
         pointerEvents: "none",
         zIndex: 40,

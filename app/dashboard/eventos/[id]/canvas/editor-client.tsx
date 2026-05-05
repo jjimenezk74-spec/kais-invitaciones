@@ -4,6 +4,8 @@ import { useReducer, useRef, useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { ArrowLeft, Trash2, Plus, Save, X, Eye } from "lucide-react";
 import { saveCanvasDesign, clearCanvasDesign } from "@/app/actions/canvas";
+import { DECORATIONS } from "@/lib/decorations";
+import type { Decoration } from "@/lib/decorations";
 import type { CanvasDesign, CanvasElement, CanvasTextElement } from "@/lib/types";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -47,6 +49,7 @@ type DragResize = {
   handle: ResizeHandle;
   startMouseX: number;
   startWidth: number;
+  startFontSize: number;
 };
 
 type DragState = DragMove | DragResize;
@@ -69,11 +72,12 @@ type EditorAction =
   | { type: "SELECT"; id: string | null }
   | { type: "UPDATE_TEXT"; id: string; patch: Partial<CanvasTextElement> }
   | { type: "MOVE"; id: string; x: number; y: number }
-  | { type: "RESIZE"; id: string; width: number }
+  | { type: "RESIZE"; id: string; width: number; fontSize?: number }
   | { type: "DELETE"; id: string }
   | { type: "MARK_SAVING" }
   | { type: "MARK_SAVED" }
   | { type: "MARK_ERROR" }
+  | { type: "ADD_IMAGE"; url: string }
   | { type: "CLEAR" };
 
 function createEmptyDesign(): CanvasDesign {
@@ -119,8 +123,44 @@ function clamp(v: number, min: number, max: number) {
   return Math.min(max, Math.max(min, v));
 }
 
+function createImageElement(url: string): import("@/lib/types").CanvasImageElement {
+  return {
+    id: crypto.randomUUID().slice(0, 8),
+    type: "image",
+    x: 50,
+    y: 30,
+    width: 120,
+    height: 120,
+    rotation: 0,
+    opacity: 1,
+    zIndex: 1,
+    locked: false,
+    visible: true,
+    device: "all",
+    url,
+    storagePath: null,
+    objectFit: "contain",
+    effect: "none",
+    glowColor: "#f4d27a",
+    glowStrength: "medium",
+    flipX: false,
+    flipY: false,
+  };
+}
+
 function reducer(state: EditorState, action: EditorAction): EditorState {
   switch (action.type) {
+    case "ADD_IMAGE": {
+      const el = createImageElement(action.url);
+      const maxZ = state.design.elements.reduce((m, e) => Math.max(m, e.zIndex), 0);
+      el.zIndex = maxZ + 1;
+      return {
+        ...state,
+        design: { ...state.design, elements: [...state.design.elements, el] },
+        selectedId: el.id,
+        isDirty: true,
+      };
+    }
     case "ADD_TEXT": {
       const el = createTextElement();
       const maxZ = state.design.elements.reduce((m, e) => Math.max(m, e.zIndex), 0);
@@ -165,7 +205,13 @@ function reducer(state: EditorState, action: EditorAction): EditorState {
           ...state.design,
           elements: state.design.elements.map((el) =>
             el.id === action.id
-              ? { ...el, width: clamp(action.width, 60, REF_W) }
+              ? {
+                  ...el,
+                  width: clamp(action.width, 60, REF_W),
+                  ...(action.fontSize !== undefined && el.type === "text"
+                    ? { fontSize: clamp(action.fontSize, 10, 120) }
+                    : {}),
+                }
               : el
           ),
         },
@@ -281,12 +327,16 @@ export function CanvasEditorClient({
       e.preventDefault();
       const el = state.design.elements.find((el) => el.id === elementId);
       if (!el) return;
+      const startFontSize =
+        el.type === "text" ? (el.fontSize > 0 ? el.fontSize : 28) : 28;
+      const safeStartWidth = el.width > 0 ? el.width : 240;
       dragRef.current = {
         kind: "resize",
         elementId,
         handle,
         startMouseX: e.clientX,
-        startWidth: el.width,
+        startWidth: safeStartWidth,
+        startFontSize,
       };
     },
     [state.design.elements]
@@ -314,7 +364,9 @@ export function CanvasEditorClient({
         // Left handles → drag left = wider (negate dx)
         const isLeft = drag.handle === "tl" || drag.handle === "bl";
         const newWidth = drag.startWidth + (isLeft ? -dxCanvas : dxCanvas);
-        dispatch({ type: "RESIZE", id: drag.elementId, width: newWidth });
+        const scaleFactor = (drag.startWidth > 0 ? newWidth / drag.startWidth : 1);
+        const newFontSize = drag.startFontSize * scaleFactor;
+        dispatch({ type: "RESIZE", id: drag.elementId, width: newWidth, fontSize: newFontSize });
       }
     },
     [scale]
@@ -365,6 +417,7 @@ export function CanvasEditorClient({
       : "Guardado";
 
   const isDragging = dragRef.current !== null;
+  const [showDecorPicker, setShowDecorPicker] = useState(false);
 
   // ─────────────────────────────────────────────────────────────────────────
   return (
@@ -395,6 +448,44 @@ export function CanvasEditorClient({
             <Eye className="h-3.5 w-3.5" />
             Preview
           </Link>
+          {/* Decoration picker */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setShowDecorPicker((v) => !v)}
+              className="flex items-center gap-1.5 rounded-md bg-neutral-800 px-3 py-1.5 text-xs text-neutral-200 transition hover:bg-neutral-700"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Decoracion
+            </button>
+            {showDecorPicker && (
+              <div
+                className="absolute right-0 top-full z-50 mt-1 w-64 rounded-xl border border-neutral-700 bg-neutral-900 p-3 shadow-2xl"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-neutral-500">
+                  Elegir decoracion
+                </p>
+                <div className="grid grid-cols-5 gap-1.5">
+                  {DECORATIONS.map((d: Decoration) => (
+                    <button
+                      key={d.id}
+                      type="button"
+                      title={d.name}
+                      onClick={() => {
+                        dispatch({ type: "ADD_IMAGE", url: d.url });
+                        setShowDecorPicker(false);
+                      }}
+                      className="flex flex-col items-center gap-0.5 rounded-lg p-1.5 transition hover:bg-neutral-800"
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={d.url} alt={d.name} className="h-8 w-8 object-contain" />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
           <button
             type="button"
             onClick={() => dispatch({ type: "ADD_TEXT" })}
@@ -617,6 +708,23 @@ function StageElement({
         >
           {element.content}
         </p>
+      )}
+
+      {element.type === "image" && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={element.url}
+          alt=""
+          draggable={false}
+          style={{
+            display: "block",
+            width: "100%",
+            height: element.height ? "100%" : "auto",
+            objectFit: "contain",
+            opacity: element.opacity,
+            pointerEvents: "none",
+          }}
+        />
       )}
 
       {/* ── Resize handles (only when selected) ─────────────────────── */}

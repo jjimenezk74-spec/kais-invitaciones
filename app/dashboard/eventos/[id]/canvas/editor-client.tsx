@@ -334,14 +334,18 @@ export function CanvasEditorClient({
 
   const [activeSectionId, setActiveSectionId] = useState<CanvasSectionId>("hero");
 
-  // Preview scale: iframe renders at REF_W (390px); scale to fit editor pane
+  // ── Scale / zoom ──────────────────────────────────────────────────────────
   const wrapperRef = useRef<HTMLDivElement>(null);
-  const [scale, setScale] = useState(0.6);
+  // User-chosen zoom level (0.5 | 0.75 | 1.0).  Default: 75 %.
+  const [activeZoom, setActiveZoom] = useState(0.75);
+  // Actual render scale = min(activeZoom, pane-fit).  Prevents horizontal overflow
+  // when the pane is narrower than REF_W * activeZoom.
+  const [scale, setScale] = useState(0.75);
 
   // ── Iframe-based WYSIWYG ──────────────────────────────────────────────────
   const iframeRef = useRef<HTMLIFrameElement>(null);
   // Natural (unscaled) height of the full invitation page
-  const [iframeHeight, setIframeHeight] = useState(5000);
+  const [iframeHeight, setIframeHeight] = useState(3200);
   // Top/height of each data-canvas-section in natural page coordinates
   const [sectionInfos, setSectionInfos] = useState<Record<string, SectionInfo>>({});
   const sectionsLoaded = Object.keys(sectionInfos).length > 0;
@@ -357,12 +361,14 @@ export function CanvasEditorClient({
     const update = () => {
       if (!wrapperRef.current) return;
       const available = wrapperRef.current.getBoundingClientRect().width - 32;
-      setScale(Math.max(0.3, Math.min(1, available / REF_W)));
+      // Never scale UP beyond the user's chosen zoom; clamp down if pane is narrow
+      const fit = Math.max(0.25, available / REF_W);
+      setScale(Math.min(activeZoom, fit));
     };
     update();
     window.addEventListener("resize", update);
     return () => window.removeEventListener("resize", update);
-  }, []);
+  }, [activeZoom]); // re-run whenever user changes zoom
 
   // Listen for section positions from iframe
   useEffect(() => {
@@ -671,7 +677,7 @@ export function CanvasEditorClient({
           </div>
         </header>
 
-        {/* ── Section tabs ─────────────────────────────────────────────── */}
+        {/* ── Section tabs + zoom controls ──────────────────────────────── */}
         <div className="flex shrink-0 items-center gap-1 overflow-x-auto border-b border-neutral-800 bg-neutral-900 px-3 py-1.5">
           {CANVAS_SECTIONS.map((s) => (
             <button
@@ -695,6 +701,24 @@ export function CanvasEditorClient({
               {s.label}
             </button>
           ))}
+
+          {/* Zoom presets — pinned to the right */}
+          <div className="ml-auto flex shrink-0 items-center gap-0.5 border-l border-neutral-700 pl-2">
+            {([0.5, 0.75, 1] as const).map((z) => (
+              <button
+                key={z}
+                type="button"
+                onClick={() => setActiveZoom(z)}
+                className={`rounded px-2 py-1 text-[11px] tabular-nums transition ${
+                  activeZoom === z
+                    ? "bg-neutral-700 text-neutral-100"
+                    : "text-neutral-500 hover:bg-neutral-800 hover:text-neutral-300"
+                }`}
+              >
+                {z === 1 ? "100%" : z === 0.75 ? "75%" : "50%"}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* ── Body ─────────────────────────────────────────────────────── */}
@@ -1130,6 +1154,7 @@ function ImagePropertiesPanel({ element, onChange, onDelete }: ImagePanelProps) 
           type="range"
           min={-180}
           max={180}
+
           step={1}
           value={element.rotation}
           onChange={(e) => onChange({ rotation: Number(e.target.value) })}

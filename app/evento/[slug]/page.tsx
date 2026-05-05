@@ -37,6 +37,7 @@ type PageProps = {
     wa_message?: string | string[];
     from?: string | string[];
     preview?: string | string[];
+    editor?: string | string[];
   }>;
 };
 
@@ -109,6 +110,7 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
   // --- Admin preview: verify BEFORE any access restrictions ---
   // Must run first so isAdminPreview can suppress all blocks below.
   const isPreviewMode = normalizeSearchParam(query.preview) === "admin";
+  const isEditorMode  = normalizeSearchParam(query.editor)  === "1";
   let isAdminPreview = false;
 
   if (isPreviewMode) {
@@ -290,8 +292,8 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
         ? undefined
         : { ["--template-primary" as string]: design.primary, ["--template-secondary" as string]: design.secondary }}
     >
-      {/* Admin preview banner - fixed top, only visible to admin */}
-      {isAdminPreview && (
+      {/* Admin preview banner - fixed top, hidden inside canvas editor iframe */}
+      {isAdminPreview && !isEditorMode && (
         <div className="fixed inset-x-0 top-0 z-[100] flex max-w-full items-center justify-between gap-2 overflow-hidden border-b border-amber-300 bg-amber-50 px-3 py-2.5 text-amber-900 shadow-sm sm:gap-4 sm:px-4">
           <div className="flex min-w-0 items-center gap-2 text-sm font-semibold">
             <Eye className="h-4 w-4 flex-shrink-0 text-amber-600" />
@@ -312,19 +314,21 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
       {/* Royal Wedding Pack SVG overlay */}
       {showRoyalPack && <RoyalWeddingPack />}
 
-      <div
-        className={[
-          "fixed left-3 z-50 sm:left-5",
-          isAdminPreview
-            ? "top-[calc(max(0.75rem,env(safe-area-inset-top))+2.75rem)]"
-            : "top-[max(0.75rem,env(safe-area-inset-top))]"
-        ].join(" ")}
-      >
-        <BackButton from={normalizeSearchParam(query.from)} />
-      </div>
+      {!isEditorMode && (
+        <div
+          className={[
+            "fixed left-3 z-50 sm:left-5",
+            isAdminPreview
+              ? "top-[calc(max(0.75rem,env(safe-area-inset-top))+2.75rem)]"
+              : "top-[max(0.75rem,env(safe-area-inset-top))]"
+          ].join(" ")}
+        >
+          <BackButton from={normalizeSearchParam(query.from)} />
+        </div>
+      )}
 
       {/* Canvas wrapper: position relative so absolute CanvasRenderer anchors here */}
-      <div style={{ position: "relative" }}>
+      <div data-canvas-section="hero" style={{ position: "relative" }}>
         <EventHero
           event={event}
           calendarUrl={calendarUrl}
@@ -337,7 +341,7 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
         {canvasDesign && <CanvasRenderer design={canvasDesign} sectionId="hero" />}
       </div>
 
-      <section className="relative px-5 py-20 sm:py-24 lg:hidden" aria-label="Cuenta regresiva y mensaje">
+      <section data-canvas-section="countdown" className="relative px-5 py-20 sm:py-24 lg:hidden" aria-label="Cuenta regresiva y mensaje">
         <div className="pointer-events-none absolute inset-x-0 top-0 h-px kais-hairline" />
         <div className="pointer-events-none absolute -left-20 top-10 h-56 w-56 rounded-full bg-[#3a0a12]/35 blur-3xl" />
         <div className="pointer-events-none absolute -right-16 bottom-12 h-48 w-48 rounded-full bg-[#d4af37]/[0.07] blur-3xl" />
@@ -367,7 +371,7 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
         {canvasDesign && <CanvasRenderer design={canvasDesign} sectionId="countdown" />}
       </section>
 
-      <section id="detalles" className="kais-section relative overflow-hidden">
+      <section data-canvas-section="details" id="detalles" className="kais-section relative overflow-hidden">
         <ThemeDecorations
           themeSlug={decorationThemeSlug}
           section="info"
@@ -494,7 +498,7 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
 
       {showRoyalPack && <RoyalWeddingDivider />}
 
-      <section id="rsvp" className="kais-section relative overflow-hidden bg-[#0a0405]">
+      <section data-canvas-section="rsvp" id="rsvp" className="kais-section relative overflow-hidden bg-[#0a0405]">
         <ThemeDecorations
           themeSlug={decorationThemeSlug}
           section="rsvp"
@@ -693,7 +697,7 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
 
       {showRoyalPack && <RoyalWeddingDivider />}
 
-      <footer className="relative overflow-hidden px-5 py-14 text-center">
+      <footer data-canvas-section="footer" className="relative overflow-hidden px-5 py-14 text-center">
         <ThemeDecorations
           themeSlug={decorationThemeSlug}
           section="footer"
@@ -708,6 +712,33 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
         {canvasDesign && <CanvasRenderer design={canvasDesign} sectionId="footer" />}
       </footer>
 
+      {/* Canvas editor postMessage bridge — only injected when editor=1 */}
+      {isEditorMode && (
+        // eslint-disable-next-line @next/next/no-before-interactive-script-outside-document
+        <script dangerouslySetInnerHTML={{ __html: `(function(){
+          function report(){
+            var nodes=document.querySelectorAll('[data-canvas-section]');
+            var list=[];
+            nodes.forEach(function(el){
+              list.push({
+                id:el.getAttribute('data-canvas-section'),
+                top:Math.round(el.getBoundingClientRect().top+window.scrollY),
+                height:Math.round(el.offsetHeight)
+              });
+            });
+            window.parent.postMessage({
+              type:'kais-editor-sections',
+              sections:list,
+              totalHeight:document.documentElement.scrollHeight
+            },'*');
+          }
+          if(document.readyState==='complete'){setTimeout(report,250);}
+          else{window.addEventListener('load',function(){setTimeout(report,250);});}
+          window.addEventListener('message',function(e){
+            if(e.data&&e.data.type==='kais-editor-request-sections'){report();}
+          });
+        })();` }} />
+      )}
     </main>
   );
 }

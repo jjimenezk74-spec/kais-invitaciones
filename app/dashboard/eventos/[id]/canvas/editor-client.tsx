@@ -14,6 +14,7 @@ import type {
   CanvasSectionId,
 } from "@/lib/types";
 import { CanvasEditorContext, type ResizeHandle } from "./canvas-context";
+import { SectionCanvasLayer } from "./section-canvas-layer";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants
@@ -306,9 +307,13 @@ type Props = {
   eventSlug: string;
   eventTitle: string;
   initialDesign: CanvasDesign | null;
-  themeClassName: string;
-  children: React.ReactNode; // real invitation rendered by server component
 };
+
+// Section info received via postMessage from the iframe
+type SectionInfo = { top: number; height: number };
+// The 5 top-level DOM sections in the public page
+const OVERLAY_SECTION_IDS = ["hero", "countdown", "details", "rsvp", "footer"] as const;
+type OverlaySectionId = (typeof OVERLAY_SECTION_IDS)[number];
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CanvasEditorClient
@@ -319,8 +324,6 @@ export function CanvasEditorClient({
   eventSlug,
   eventTitle,
   initialDesign,
-  themeClassName,
-  children,
 }: Props) {
   const [state, dispatch] = useReducer(reducer, {
     design: initialDesign ?? createEmptyDesign(),
@@ -331,9 +334,17 @@ export function CanvasEditorClient({
 
   const [activeSectionId, setActiveSectionId] = useState<CanvasSectionId>("hero");
 
-  // Preview scale: invitation renders at REF_W (390px); scale to fit editor pane
+  // Preview scale: iframe renders at REF_W (390px); scale to fit editor pane
   const wrapperRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(0.6);
+
+  // ── Iframe-based WYSIWYG ──────────────────────────────────────────────────
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+  // Natural (unscaled) height of the full invitation page
+  const [iframeHeight, setIframeHeight] = useState(5000);
+  // Top/height of each data-canvas-section in natural page coordinates
+  const [sectionInfos, setSectionInfos] = useState<Record<string, SectionInfo>>({});
+  const sectionsLoaded = Object.keys(sectionInfos).length > 0;
 
   useEffect(() => {
     if (!document.getElementById("kais-canvas-fonts")) {
@@ -353,23 +364,54 @@ export function CanvasEditorClient({
     return () => window.removeEventListener("resize", update);
   }, []);
 
+  // Listen for section positions from iframe
+  useEffect(() => {
+    const handler = (ev: MessageEvent) => {
+      if (!ev.data || ev.data.type !== "kais-editor-sections") return;
+      const raw: Array<{ id: string; top: number; height: number }> = ev.data.sections ?? [];
+      const map: Record<string, SectionInfo> = {};
+      raw.forEach((s) => { map[s.id] = { top: s.top, height: s.height }; });
+      setSectionInfos(map);
+      if (typeof ev.data.totalHeight === "number" && ev.data.totalHeight > 100) {
+        setIframeHeight(ev.data.totalHeight);
+      }
+    };
+    window.addEventListener("message", handler);
+    return () => window.removeEventListener("message", handler);
+  }, []);
+
+  // Ask the iframe to report section positions after it loads
+  const handleIframeLoad = useCallback(() => {
+    const send = () =>
+      iframeRef.current?.contentWindow?.postMessage(
+        { type: "kais-editor-request-sections" },
+        window.location.origin
+      );
+    send();
+    // Second pass after fonts/images settle
+    setTimeout(send, 700);
+  }, []);
+
   // ── Drag ref ──────────────────────────────────────────────────────────────
 
   const dragRef = useRef<DragState | null>(null);
   const previewRef = useRef<HTMLDivElement>(null);
 
-  /** Get the scaled bounding rect of the section container in the editor preview */
+  /**
+   * Get the scaled bounding rect of a section placeholder in the canvas overlay.
+   * The placeholder divs are absolutely positioned and transformed — getBoundingClientRect
+   * returns their visual (scaled) position in screen space, which is what we need for drag math.
+   */
   const getSectionRect = useCallback(
     (sectionId: CanvasSectionId): { width: number; height: number } => {
-      // physical container matches the scrollTo target
+      // Sub-sections (presentation, messages, church, dresscode) share the "details" container
       const scrollTarget = CANVAS_SECTIONS.find((s) => s.id === sectionId)?.scrollTo ?? sectionId;
-      const el = previewRef.current?.querySelector(
+      const el = previewRef.current?.querySelector<HTMLElement>(
         `[data-canvas-section="${scrollTarget}"]`
       );
       const rect = el?.getBoundingClientRect();
-      // Fall back to full-width + estimated height scaled by current scale
       return {
-        width: rect?.width ?? REF_W * scale,
+        width: rect?.width  ?? REF_W * scale,
         height: rect?.height ?? 500 * scale,
       };
     },
@@ -658,29 +700,120 @@ export function CanvasEditorClient({
         {/* ── Body ─────────────────────────────────────────────────────── */}
         <div className="flex flex-1 overflow-hidden">
 
-          {/* ── Invitation preview ───────────────────────────────────── */}
+          {/* ── Invitation preview — true 390px mobile viewport via iframe ── */}
           <div
             ref={wrapperRef}
             className="flex flex-1 items-start justify-center overflow-auto bg-neutral-800 p-4"
           >
             {/*
-              The invitation renders at REF_W (390px) natural width.
-              CSS zoom scales it down to fit the editor pane.
-              zoom affects layout (unlike transform:scale), so no height tricks needed.
+              Outer shell: takes up the SCALED dimensions in the layout.
+              Everything inside is transform:scale(scale) at natural 390px width.
+              This means all viewport-relative CSS (vw, svh, min-h-screen, lg:*)
+              inside the iframe evaluates against the real 390px viewport — not the
+              desktop window — giving a pixel-perfect mobile WYSIWYG preview.
             */}
             <div
-              ref={previewRef}
               style={{
-                width: REF_W,
-                zoom: scale,
+                position: "relative",
+                width: REF_W * scale,
+                height: iframeHeight * scale,
                 flexShrink: 0,
                 boxShadow: "0 0 0 1px rgba(255,255,255,0.08), 0 8px 48px rgba(0,0,0,0.7)",
                 borderRadius: 12,
                 overflow: "hidden",
               }}
-              className={themeClassName}
             >
-              {children}
+              {/* Real invitation at genuine 390px mobile viewport */}
+              <iframe
+                ref={iframeRef}
+                src={`/evento/${eventSlug}?preview=admin&editor=1`}
+                onLoad={handleIframeLoad}
+                title="Vista previa de invitación"
+                scrolling="no"
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  width: REF_W,
+                  height: iframeHeight,
+                  border: "none",
+                  transform: `scale(${scale})`,
+                  transformOrigin: "top left",
+                  pointerEvents: "none", // read-only — overlay handles events
+                  background: "#0a0405",
+                }}
+              />
+
+              {/*
+                Canvas editing overlay — same coordinate space as the iframe.
+                Section placeholder divs are absolutely positioned to match
+                the iframe's actual section tops/heights (reported via postMessage).
+                SectionCanvasLayer elements anchor correctly within each placeholder.
+              */}
+              <div
+                ref={previewRef}
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  width: REF_W,
+                  height: iframeHeight,
+                  transform: `scale(${scale})`,
+                  transformOrigin: "top left",
+                  pointerEvents: "none",
+                }}
+              >
+                {OVERLAY_SECTION_IDS.map((sid: OverlaySectionId) => {
+                  const info = sectionInfos[sid];
+                  return (
+                    <div
+                      key={sid}
+                      data-canvas-section={sid}
+                      style={{
+                        position: "absolute",
+                        top: info?.top ?? 0,
+                        left: 0,
+                        width: "100%",
+                        height: info?.height ?? 0,
+                      }}
+                    >
+                      {/* Sub-sections that share the details coordinate space */}
+                      {sid === "details" ? (
+                        <>
+                          <SectionCanvasLayer sectionId="presentation" />
+                          <SectionCanvasLayer sectionId="messages" />
+                          <SectionCanvasLayer sectionId="details" />
+                          <SectionCanvasLayer sectionId="church" />
+                          <SectionCanvasLayer sectionId="dresscode" />
+                        </>
+                      ) : (
+                        <SectionCanvasLayer sectionId={sid} />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Loading veil — shown until iframe reports section positions */}
+              {!sectionsLoaded && (
+                <div
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    background: "rgba(10,4,5,0.65)",
+                    color: "#d4af37",
+                    fontSize: 11,
+                    letterSpacing: "0.18em",
+                    textTransform: "uppercase",
+                    pointerEvents: "none",
+                  }}
+                >
+                  Cargando preview…
+                </div>
+              )}
             </div>
           </div>
 

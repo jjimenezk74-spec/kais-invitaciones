@@ -6,7 +6,7 @@ import { ArrowLeft, Trash2, Plus, Save, X, Eye } from "lucide-react";
 import { saveCanvasDesign, clearCanvasDesign } from "@/app/actions/canvas";
 import { DECORATIONS } from "@/lib/decorations";
 import type { Decoration } from "@/lib/decorations";
-import type { CanvasDesign, CanvasElement, CanvasTextElement } from "@/lib/types";
+import type { CanvasDesign, CanvasElement, CanvasTextElement, CanvasImageElement, CanvasSectionId } from "@/lib/types";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants
@@ -27,6 +27,19 @@ const FONT_OPTIONS = [
 
 const GOOGLE_FONTS_URL =
   "https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Great+Vibes&family=Dancing+Script:wght@400;700&family=Montserrat:wght@300;400;600&display=swap";
+
+
+const CANVAS_SECTIONS: { id: CanvasSectionId; label: string }[] = [
+  { id: "hero",          label: "Hero" },
+  { id: "countdown",    label: "Cuenta regresiva" },
+  { id: "presentation", label: "Presentación" },
+  { id: "messages",     label: "Mensajes" },
+  { id: "details",      label: "Detalles" },
+  { id: "church",       label: "Iglesia" },
+  { id: "dresscode",    label: "Vestimenta" },
+  { id: "rsvp",         label: "RSVP" },
+  { id: "footer",       label: "Footer" },
+];
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Drag state — union of move / resize modes
@@ -71,7 +84,7 @@ type EditorState = {
 };
 
 type EditorAction =
-  | { type: "ADD_TEXT" }
+  | { type: "ADD_TEXT"; sectionId: CanvasSectionId }
   | { type: "SELECT"; id: string | null }
   | { type: "UPDATE_TEXT"; id: string; patch: Partial<CanvasTextElement> }
   | { type: "MOVE"; id: string; x: number; y: number }
@@ -80,7 +93,9 @@ type EditorAction =
   | { type: "MARK_SAVING" }
   | { type: "MARK_SAVED" }
   | { type: "MARK_ERROR" }
-  | { type: "ADD_IMAGE"; url: string }
+  | { type: "ADD_IMAGE"; url: string; sectionId: CanvasSectionId }
+  | { type: "SET_SECTION_ID"; id: string; sectionId: CanvasSectionId }
+  | { type: "UPDATE_IMAGE"; id: string; patch: Partial<CanvasImageElement> }
   | { type: "CLEAR" };
 
 function createEmptyDesign(): CanvasDesign {
@@ -94,10 +109,11 @@ function createEmptyDesign(): CanvasDesign {
   };
 }
 
-function createTextElement(): CanvasTextElement {
+function createTextElement(sectionId: CanvasSectionId): CanvasTextElement {
   return {
     id: crypto.randomUUID().slice(0, 8),
     type: "text",
+    sectionId,
     x: 50,
     y: 50,
     width: 280,
@@ -126,10 +142,11 @@ function clamp(v: number, min: number, max: number) {
   return Math.min(max, Math.max(min, v));
 }
 
-function createImageElement(url: string): import("@/lib/types").CanvasImageElement {
+function createImageElement(url: string, sectionId: CanvasSectionId): import("@/lib/types").CanvasImageElement {
   return {
     id: crypto.randomUUID().slice(0, 8),
     type: "image",
+    sectionId,
     x: 50,
     y: 30,
     width: 120,
@@ -154,7 +171,7 @@ function createImageElement(url: string): import("@/lib/types").CanvasImageEleme
 function reducer(state: EditorState, action: EditorAction): EditorState {
   switch (action.type) {
     case "ADD_IMAGE": {
-      const el = createImageElement(action.url);
+      const el = createImageElement(action.url, action.sectionId);
       const maxZ = state.design.elements.reduce((m, e) => Math.max(m, e.zIndex), 0);
       el.zIndex = maxZ + 1;
       return {
@@ -165,7 +182,7 @@ function reducer(state: EditorState, action: EditorAction): EditorState {
       };
     }
     case "ADD_TEXT": {
-      const el = createTextElement();
+      const el = createTextElement(action.sectionId);
       const maxZ = state.design.elements.reduce((m, e) => Math.max(m, e.zIndex), 0);
       el.zIndex = maxZ + 1;
       return {
@@ -232,6 +249,28 @@ function reducer(state: EditorState, action: EditorAction): EditorState {
         isDirty: true,
       };
     }
+    case "SET_SECTION_ID":
+      return {
+        ...state,
+        design: {
+          ...state.design,
+          elements: state.design.elements.map((el) =>
+            el.id === action.id ? { ...el, sectionId: action.sectionId } : el
+          ),
+        },
+        isDirty: true,
+      };
+    case "UPDATE_IMAGE":
+      return {
+        ...state,
+        design: {
+          ...state.design,
+          elements: state.design.elements.map((el) =>
+            el.id === action.id && el.type === "image" ? { ...el, ...action.patch } : el
+          ),
+        },
+        isDirty: true,
+      };
     case "MARK_SAVING":
       return { ...state, saveStatus: "saving" };
     case "MARK_SAVED":
@@ -280,6 +319,7 @@ export function CanvasEditorClient({
     isDirty: false,
     saveStatus: "saved",
   });
+  const [activeSectionId, setActiveSectionId] = useState<CanvasSectionId>("hero");
 
   // Scale: wrapper width / REF_W
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -435,7 +475,9 @@ export function CanvasEditorClient({
   // ── Derived ──────────────────────────────────────────────────────────────
 
   const selected = state.design.elements.find((el) => el.id === state.selectedId) ?? null;
-  const sortedElements = [...state.design.elements].sort((a, b) => a.zIndex - b.zIndex);
+  const sortedElements = [...state.design.elements]
+    .filter((el) => (el.sectionId ?? "hero") === activeSectionId)
+    .sort((a, b) => a.zIndex - b.zIndex);
 
   const saveLabel =
     state.saveStatus === "saving"
@@ -503,7 +545,7 @@ export function CanvasEditorClient({
                       type="button"
                       title={d.name}
                       onClick={() => {
-                        dispatch({ type: "ADD_IMAGE", url: d.url });
+                        dispatch({ type: "ADD_IMAGE", url: d.url, sectionId: activeSectionId });
                         setShowDecorPicker(false);
                       }}
                       className="flex flex-col items-center gap-0.5 rounded-lg p-1.5 transition hover:bg-neutral-800"
@@ -518,7 +560,7 @@ export function CanvasEditorClient({
           </div>
           <button
             type="button"
-            onClick={() => dispatch({ type: "ADD_TEXT" })}
+            onClick={() => dispatch({ type: "ADD_TEXT", sectionId: activeSectionId })}
             className="flex items-center gap-1.5 rounded-md bg-neutral-800 px-3 py-1.5 text-xs text-neutral-200 transition hover:bg-neutral-700"
           >
             <Plus className="h-3.5 w-3.5" />
@@ -543,6 +585,28 @@ export function CanvasEditorClient({
           </button>
         </div>
       </header>
+
+
+      {/* ── Section tabs ─────────────────────────────────────────────── */}
+      <div className="flex shrink-0 items-center gap-1 overflow-x-auto border-b border-neutral-800 bg-neutral-900 px-3 py-1.5">
+        {CANVAS_SECTIONS.map((s) => (
+          <button
+            key={s.id}
+            type="button"
+            onClick={() => {
+              setActiveSectionId(s.id);
+              dispatch({ type: "SELECT", id: null });
+            }}
+            className={`shrink-0 rounded-md px-2.5 py-1 text-xs transition ${
+              activeSectionId === s.id
+                ? "bg-indigo-600 font-semibold text-white"
+                : "text-neutral-400 hover:bg-neutral-800 hover:text-neutral-200"
+            }`}
+          >
+            {s.label}
+          </button>
+        ))}
+      </div>
 
       {/* ── Body ───────────────────────────────────────────────────────── */}
       <div className="flex flex-1 overflow-hidden">
@@ -624,7 +688,7 @@ export function CanvasEditorClient({
                     CANVAS VACIO
                   </p>
                   <p style={{ color: "rgba(255,255,255,0.18)", fontSize: 11 }}>
-                    Pulsa "+ Texto" para comenzar
+                    {CANVAS_SECTIONS.find((s) => s.id === activeSectionId)?.label ?? activeSectionId}
                   </p>
                 </div>
               )}
@@ -649,14 +713,45 @@ export function CanvasEditorClient({
 
         {/* ── Properties panel ───────────────────────────────────────── */}
         <aside className="flex w-72 shrink-0 flex-col gap-0 overflow-y-auto border-l border-neutral-800 bg-neutral-900">
-          {selected && selected.type === "text" ? (
-            <TextPropertiesPanel
-              element={selected}
-              onChange={(patch) =>
-                dispatch({ type: "UPDATE_TEXT", id: selected.id, patch })
-              }
-              onDelete={() => dispatch({ type: "DELETE", id: selected.id })}
-            />
+          {selected ? (
+            <>
+              {/* Section assignment — common to all element types */}
+              <div className="flex shrink-0 flex-col gap-1.5 border-b border-neutral-800 px-4 py-3">
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-neutral-500">Sección</p>
+                <select
+                  value={selected.sectionId ?? "hero"}
+                  onChange={(e) =>
+                    dispatch({
+                      type: "SET_SECTION_ID",
+                      id: selected.id,
+                      sectionId: e.target.value as CanvasSectionId,
+                    })
+                  }
+                  className="w-full rounded-md border border-neutral-700 bg-neutral-800 px-2 py-1.5 text-sm text-neutral-100 outline-none focus:border-indigo-500"
+                >
+                  {CANVAS_SECTIONS.map((s) => (
+                    <option key={s.id} value={s.id}>{s.label}</option>
+                  ))}
+                </select>
+              </div>
+              {selected.type === "text" ? (
+                <TextPropertiesPanel
+                  element={selected}
+                  onChange={(patch) =>
+                    dispatch({ type: "UPDATE_TEXT", id: selected.id, patch })
+                  }
+                  onDelete={() => dispatch({ type: "DELETE", id: selected.id })}
+                />
+              ) : (
+                <ImagePropertiesPanel
+                  element={selected as CanvasImageElement}
+                  onChange={(patch) =>
+                    dispatch({ type: "UPDATE_IMAGE", id: selected.id, patch })
+                  }
+                  onDelete={() => dispatch({ type: "DELETE", id: selected.id })}
+                />
+              )}
+            </>
           ) : (
             <div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
               <p className="text-xs text-neutral-500">
@@ -1004,6 +1099,96 @@ function TextPropertiesPanel({ element, onChange, onDelete }: TextPanelProps) {
           onChange={(e) => onChange({ zIndex: Number(e.target.value) })}
           className={input}
         />
+      </div>
+    </div>
+  );
+}
+// ─────────────────────────────────────────────────────────────────────────────
+// ImagePropertiesPanel
+// ─────────────────────────────────────────────────────────────────────────────
+
+type ImagePanelProps = {
+  element: CanvasImageElement;
+  onChange: (patch: Partial<CanvasImageElement>) => void;
+  onDelete: () => void;
+};
+
+function ImagePropertiesPanel({ element, onChange, onDelete }: ImagePanelProps) {
+  const field = "flex flex-col gap-1 px-4 py-2.5 border-b border-neutral-800";
+  const label = "text-[10px] font-semibold uppercase tracking-widest text-neutral-500";
+  const input =
+    "w-full rounded-md border border-neutral-700 bg-neutral-800 px-2.5 py-1.5 text-sm text-neutral-100 outline-none focus:border-indigo-500";
+
+  return (
+    <div className="flex flex-col">
+      <div className="flex items-center justify-between border-b border-neutral-800 px-4 py-3">
+        <p className="text-xs font-semibold text-neutral-300">Propiedades · Imagen</p>
+        <button
+          type="button"
+          onClick={onDelete}
+          className="flex items-center gap-1 rounded px-2 py-1 text-xs text-red-400 transition hover:bg-red-950"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+          Eliminar
+        </button>
+      </div>
+
+      <div className={field}>
+        <label className={label}>Opacidad ({Math.round(element.opacity * 100)}%)</label>
+        <input
+          type="range"
+          min={0}
+          max={1}
+          step={0.01}
+          value={element.opacity}
+          onChange={(e) => onChange({ opacity: Number(e.target.value) })}
+          className="w-full accent-indigo-500"
+        />
+      </div>
+
+      <div className={field}>
+        <label className={label}>Rotacion ({element.rotation}deg)</label>
+        <input
+          type="range"
+          min={-180}
+          max={180}
+          step={1}
+          value={element.rotation}
+          onChange={(e) => onChange({ rotation: Number(e.target.value) })}
+          className="w-full accent-indigo-500"
+        />
+      </div>
+
+      <div className={field}>
+        <label className={label}>Capa (z-index)</label>
+        <input
+          type="number"
+          min={1}
+          max={99}
+          value={element.zIndex}
+          onChange={(e) => onChange({ zIndex: Number(e.target.value) })}
+          className={input}
+        />
+      </div>
+
+      <div className={field}>
+        <label className={label}>Voltear</label>
+        <div className="flex gap-2">
+          {([["Horizontal", "flipX"], ["Vertical", "flipY"]] as const).map(([lbl, key]) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => onChange({ [key]: !element[key] })}
+              className={`flex-1 rounded-md border px-2 py-1.5 text-xs transition ${
+                element[key]
+                  ? "border-indigo-500 bg-indigo-600 text-white"
+                  : "border-neutral-700 bg-neutral-800 text-neutral-300 hover:bg-neutral-700"
+              }`}
+            >
+              {lbl}
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );

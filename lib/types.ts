@@ -66,6 +66,17 @@ export type EventType =
   | "graduación"
   | "otro";
 
+export type CanvasSectionId =
+  | "hero"
+  | "countdown"
+  | "presentation"
+  | "messages"
+  | "details"
+  | "church"
+  | "dresscode"
+  | "rsvp"
+  | "footer";
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Canvas Design — editor visual libre
 // ─────────────────────────────────────────────────────────────────────────────
@@ -95,6 +106,8 @@ type CanvasBaseElement = {
   visible: boolean;
   /** Dispositivos en los que se muestra. */
   device: "all" | "mobile" | "desktop";
+  /** Sección de la invitación donde se renderiza. undefined = "hero" (compatibilidad). */
+  sectionId?: CanvasSectionId;
 };
 
 export type CanvasTextElement = CanvasBaseElement & {

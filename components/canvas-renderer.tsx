@@ -4,6 +4,7 @@ import type {
   CanvasElement,
   CanvasTextElement,
   CanvasImageElement,
+  CanvasSectionId,
 } from "@/lib/types";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -19,11 +20,13 @@ import type {
 
 type Props = {
   design: CanvasDesign;
+  /** Filtro de sección. Default "hero" para compatibilidad con diseños anteriores. */
+  sectionId?: CanvasSectionId;
 };
 
-export function CanvasRenderer({ design }: Props) {
+export function CanvasRenderer({ design, sectionId = "hero" }: Props) {
   const visible = design.elements
-    .filter((el) => el.visible)
+    .filter((el) => el.visible && (el.sectionId ?? "hero") === sectionId)
     .sort((a, b) => a.zIndex - b.zIndex);
 
   if (visible.length === 0) return null;

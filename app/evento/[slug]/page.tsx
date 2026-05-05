@@ -271,6 +271,8 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
     });
   }
 
+  const canvasDesign = event.canvas_design as CanvasDesign | null;
+
   return (
     <main
       className={[
@@ -332,9 +334,7 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
           freeDecorations={freeDecorations}
           showMusic={eventHasFeature(event, "music")}
         />
-        {(event.canvas_design as CanvasDesign | null) && (
-          <CanvasRenderer design={event.canvas_design as CanvasDesign} />
-        )}
+        {canvasDesign && <CanvasRenderer design={canvasDesign} sectionId="hero" />}
       </div>
 
       <section className="relative px-5 py-20 sm:py-24 lg:hidden" aria-label="Cuenta regresiva y mensaje">
@@ -364,6 +364,7 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
             </a>
           </div>
         </div>
+        {canvasDesign && <CanvasRenderer design={canvasDesign} sectionId="countdown" />}
       </section>
 
       <section id="detalles" className="kais-section relative overflow-hidden">
@@ -480,6 +481,15 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
             </div>
           ) : null}
         </div>
+        {canvasDesign && (
+          <>
+            <CanvasRenderer design={canvasDesign} sectionId="presentation" />
+            <CanvasRenderer design={canvasDesign} sectionId="messages" />
+            <CanvasRenderer design={canvasDesign} sectionId="details" />
+            <CanvasRenderer design={canvasDesign} sectionId="church" />
+            <CanvasRenderer design={canvasDesign} sectionId="dresscode" />
+          </>
+        )}
       </section>
 
       {showRoyalPack && <RoyalWeddingDivider />}
@@ -678,6 +688,7 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
             </form>
           </div>
         </div>
+        {canvasDesign && <CanvasRenderer design={canvasDesign} sectionId="rsvp" />}
       </section>
 
       {showRoyalPack && <RoyalWeddingDivider />}
@@ -694,6 +705,7 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
           <p className="kais-brand-footer__eyebrow">Una experiencia de</p>
           <Link href="/" className="kais-brand-footer__name">KAIS Invitaciones</Link>
         </div>
+        {canvasDesign && <CanvasRenderer design={canvasDesign} sectionId="footer" />}
       </footer>
 
     </main>

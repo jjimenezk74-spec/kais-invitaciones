@@ -48,8 +48,11 @@ type DragResize = {
   elementId: string;
   handle: ResizeHandle;
   startMouseX: number;
+  startMouseY: number;
   startWidth: number;
+  startHeight: number;
   startFontSize: number;
+  elementType: "text" | "image";
 };
 
 type DragState = DragMove | DragResize;
@@ -72,7 +75,7 @@ type EditorAction =
   | { type: "SELECT"; id: string | null }
   | { type: "UPDATE_TEXT"; id: string; patch: Partial<CanvasTextElement> }
   | { type: "MOVE"; id: string; x: number; y: number }
-  | { type: "RESIZE"; id: string; width: number; fontSize?: number }
+  | { type: "RESIZE"; id: string; width: number; fontSize?: number; height?: number }
   | { type: "DELETE"; id: string }
   | { type: "MARK_SAVING" }
   | { type: "MARK_SAVED" }
@@ -207,9 +210,12 @@ function reducer(state: EditorState, action: EditorAction): EditorState {
             el.id === action.id
               ? {
                   ...el,
-                  width: clamp(action.width, 60, REF_W),
+                  width: clamp(action.width, 24, 600),
                   ...(action.fontSize !== undefined && el.type === "text"
                     ? { fontSize: clamp(action.fontSize, 10, 120) }
+                    : {}),
+                  ...(action.height !== undefined
+                    ? { height: clamp(action.height, 24, 600) }
                     : {}),
                 }
               : el
@@ -327,16 +333,20 @@ export function CanvasEditorClient({
       e.preventDefault();
       const el = state.design.elements.find((el) => el.id === elementId);
       if (!el) return;
-      const startFontSize =
-        el.type === "text" ? (el.fontSize > 0 ? el.fontSize : 28) : 28;
       const safeStartWidth = el.width > 0 ? el.width : 240;
+      // For images: use height if set, else assume square (= width)
+      const startHeight = el.height != null && el.height > 0 ? el.height : safeStartWidth;
+      const startFontSize = el.type === "text" ? (el.fontSize > 0 ? el.fontSize : 28) : 28;
       dragRef.current = {
         kind: "resize",
         elementId,
         handle,
         startMouseX: e.clientX,
+        startMouseY: e.clientY,
         startWidth: safeStartWidth,
+        startHeight,
         startFontSize,
+        elementType: el.type,
       };
     },
     [state.design.elements]
@@ -358,15 +368,35 @@ export function CanvasEditorClient({
           y: drag.startElY + dyPct,
         });
       } else if (drag.kind === "resize") {
-        // dx in canvas pixels (unscaled)
         const dxCanvas = (e.clientX - drag.startMouseX) / scale;
-        // Right handles → drag right = wider
-        // Left handles → drag left = wider (negate dx)
-        const isLeft = drag.handle === "tl" || drag.handle === "bl";
-        const newWidth = drag.startWidth + (isLeft ? -dxCanvas : dxCanvas);
-        const scaleFactor = (drag.startWidth > 0 ? newWidth / drag.startWidth : 1);
-        const newFontSize = drag.startFontSize * scaleFactor;
-        dispatch({ type: "RESIZE", id: drag.elementId, width: newWidth, fontSize: newFontSize });
+        const dyCanvas = (e.clientY - drag.startMouseY) / scale;
+
+        if (drag.elementType === "image") {
+          // Proportional resize: pick largest delta per handle direction
+          let delta: number;
+          if (drag.handle === "br")      delta = Math.max(dxCanvas, dyCanvas);
+          else if (drag.handle === "bl") delta = Math.max(-dxCanvas, dyCanvas);
+          else if (drag.handle === "tr") delta = Math.max(dxCanvas, -dyCanvas);
+          else                           delta = Math.max(-dxCanvas, -dyCanvas); // tl
+          const scaleFactor = drag.startWidth > 0 ? (drag.startWidth + delta) / drag.startWidth : 1;
+          dispatch({
+            type: "RESIZE",
+            id: drag.elementId,
+            width:  clamp(drag.startWidth  * scaleFactor, 24, 600),
+            height: clamp(drag.startHeight * scaleFactor, 24, 600),
+          });
+        } else {
+          // Text: width + fontSize proportional (horizontal axis only)
+          const isLeft = drag.handle === "tl" || drag.handle === "bl";
+          const newWidth = drag.startWidth + (isLeft ? -dxCanvas : dxCanvas);
+          const scaleFactor = drag.startWidth > 0 ? newWidth / drag.startWidth : 1;
+          dispatch({
+            type: "RESIZE",
+            id: drag.elementId,
+            width: newWidth,
+            fontSize: drag.startFontSize * scaleFactor,
+          });
+        }
       }
     },
     [scale]

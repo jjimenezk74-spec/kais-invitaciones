@@ -7,6 +7,8 @@ import { saveCanvasDesign, clearCanvasDesign } from "@/app/actions/canvas";
 import { DECORATIONS } from "@/lib/decorations";
 import type { Decoration } from "@/lib/decorations";
 import type { CanvasDesign, CanvasElement, CanvasTextElement, CanvasImageElement, CanvasSectionId } from "@/lib/types";
+import { EventHero } from "@/components/public-invitation/event-hero";
+import type { EventHeroData } from "@/components/public-invitation/event-hero";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants
@@ -299,6 +301,7 @@ type Props = {
   eventSlug: string;
   eventTitle: string;
   coverImageUrl: string | null;
+  heroEvent: EventHeroData;
   initialDesign: CanvasDesign | null;
 };
 
@@ -311,6 +314,7 @@ export function CanvasEditorClient({
   eventSlug,
   eventTitle,
   coverImageUrl,
+  heroEvent,
   initialDesign,
 }: Props) {
   const [state, dispatch] = useReducer(reducer, {
@@ -644,11 +648,24 @@ export function CanvasEditorClient({
               }}
             >
               {/* Section-specific preview base */}
-              <SectionPreview
-                sectionId={activeSectionId}
-                coverImageUrl={coverImageUrl}
-                eventTitle={eventTitle}
-              />
+              {activeSectionId === "hero" ? (
+                /* Real hero — mismo JSX que /evento/[slug], layout mobile forzado */
+                <div style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
+                  <EventHero
+                    event={heroEvent}
+                    calendarUrl=""
+                    showMusic={false}
+                    showScrollCue={false}
+                    forceMobile
+                  />
+                </div>
+              ) : (
+                <SectionPreview
+                  sectionId={activeSectionId}
+                  coverImageUrl={coverImageUrl}
+                  eventTitle={eventTitle}
+                />
+              )}
 
               {/* Empty-canvas hint */}
               {sortedElements.length === 0 && (
@@ -1402,6 +1419,7 @@ function ImagePropertiesPanel({ element, onChange, onDelete }: ImagePanelProps) 
       </div>
 
       <div className={field}>
+
         <label className={label}>Voltear</label>
         <div className="flex gap-2">
           {([["Horizontal", "flipX"], ["Vertical", "flipY"]] as const).map(([lbl, key]) => (

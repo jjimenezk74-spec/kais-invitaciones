@@ -8,7 +8,7 @@ import { ThemeDecorations } from "@/components/theme-decorations";
 import { formatDate } from "@/lib/utils";
 import type { Event, EventDecorations, VisualDecoration } from "@/lib/types";
 
-type EventHeroData = Pick<
+export type EventHeroData = Pick<
   Event,
   | "cover_image_url"
   | "mobile_cover_image_url"
@@ -30,6 +30,11 @@ type EventHeroProps = {
   freeDecorations?: VisualDecoration[] | null;
   showMusic?: boolean;
   showScrollCue?: boolean;
+  /**
+   * Fuerza layout móvil sin depender de breakpoints lg:.
+   * Úsalo en el editor canvas para que el hero coincida con /evento/[slug] mobile.
+   */
+  forceMobile?: boolean;
 };
 
 export function EventHero({
@@ -40,7 +45,8 @@ export function EventHero({
   decorations,
   freeDecorations,
   showMusic = true,
-  showScrollCue = true
+  showScrollCue = true,
+  forceMobile = false,
 }: EventHeroProps) {
   const heroImage = event.cover_image_url ?? event.mobile_cover_image_url ?? null;
   const heroImageMobile = event.mobile_cover_image_url ?? event.cover_image_url ?? null;
@@ -48,8 +54,11 @@ export function EventHero({
   const shouldUnoptimizeMobile = Boolean(heroImageMobile?.startsWith("blob:") || heroImageMobile?.startsWith("data:"));
   const shouldUnoptimizeDesktop = Boolean(heroImage?.startsWith("blob:") || heroImage?.startsWith("data:"));
 
+  // 844 = REF_H del editor canvas (390×844 mobile reference frame)
+  const minH = forceMobile ? "844px" : "100svh";
+
   return (
-    <section className="kais-grain relative isolate overflow-hidden" style={{ minHeight: "100svh" }}>
+    <section className="kais-grain relative isolate overflow-hidden" style={{ minHeight: minH }}>
       <ThemeDecorations
         themeSlug={themeSlug}
         section="hero"
@@ -73,11 +82,12 @@ export function EventHero({
                 fill
                 priority
                 unoptimized={shouldUnoptimizeMobile}
-                sizes="(max-width: 1024px) 100dvw, 0px"
-                className="object-cover object-top lg:hidden"
+                sizes={forceMobile ? "390px" : "(max-width: 1024px) 100dvw, 0px"}
+                className={forceMobile ? "object-cover object-top" : "object-cover object-top lg:hidden"}
               />
             ) : null}
-            {heroImage ? (
+            {/* desktop image is intentionally hidden in forceMobile mode */}
+            {heroImage && !forceMobile ? (
               <Image
                 src={heroImage}
                 alt={`Portada de ${event.hosts_names}`}
@@ -99,8 +109,15 @@ export function EventHero({
       <div className="pointer-events-none absolute -left-32 top-1/3 h-80 w-80 rounded-full bg-[#d4af37]/[0.08] blur-3xl lg:left-[-10%] lg:h-[28rem] lg:w-[28rem]" />
       <div className="pointer-events-none absolute -bottom-20 right-[-10%] h-72 w-72 rounded-full bg-[#3a0a12]/40 blur-3xl" />
 
-      <div className="relative z-10 mx-auto flex min-h-[100svh] w-full max-w-[1500px] flex-col justify-end px-5 pb-14 pt-32 sm:px-7 lg:grid lg:grid-cols-12 lg:items-center lg:gap-10 lg:px-12 lg:pb-0 lg:pt-0">
-        <div className="kais-mobile-hero-copy text-center lg:col-span-6 lg:py-24 lg:text-left xl:col-span-5">
+      <div
+        className={forceMobile
+          ? "relative z-10 mx-auto flex w-full max-w-[1500px] flex-col justify-end px-5 pb-14 pt-32"
+          : "relative z-10 mx-auto flex min-h-[100svh] w-full max-w-[1500px] flex-col justify-end px-5 pb-14 pt-32 sm:px-7 lg:grid lg:grid-cols-12 lg:items-center lg:gap-10 lg:px-12 lg:pb-0 lg:pt-0"}
+        style={forceMobile ? { minHeight: minH } : undefined}
+      >
+        <div className={forceMobile
+          ? "kais-mobile-hero-copy text-center"
+          : "kais-mobile-hero-copy text-center lg:col-span-6 lg:py-24 lg:text-left xl:col-span-5"}>
           <div className="kais-rise kais-mobile-text-shadow flex items-center justify-center gap-3 lg:justify-start">
             <span className="block h-px w-10 kais-hairline" />
             <p className="kais-eyebrow">{event.event_type}</p>
@@ -115,7 +132,7 @@ export function EventHero({
 
           <h1
             className="kais-rise-d1 kais-mobile-title-shadow mt-8 font-display font-light italic leading-[0.92] text-[#f5ecd9] drop-shadow-[0_8px_28px_rgba(0,0,0,0.6)] lg:mt-5"
-            style={{ fontSize: "clamp(3.4rem, 12vw, 8.5rem)" }}
+            style={{ fontSize: forceMobile ? "3.4rem" : "clamp(3.4rem, 12vw, 8.5rem)" }}
           >
             {event.hosts_names}
           </h1>
@@ -132,10 +149,13 @@ export function EventHero({
             <Countdown date={event.event_date} time={event.event_time} variant="luxe" />
           </div>
 
-          <div className="kais-rise-d4 mt-8 flex flex-col items-center gap-6 lg:mt-12 lg:flex-row lg:items-center">
-            <a href="#rsvp" className="kais-cta kais-mobile-cta lg:w-auto">Confirmar asistencia</a>
+          <div className={forceMobile
+            ? "kais-rise-d4 mt-8 flex flex-col items-center gap-6"
+            : "kais-rise-d4 mt-8 flex flex-col items-center gap-6 lg:mt-12 lg:flex-row lg:items-center"}>
+            <a href="#rsvp" className={forceMobile ? "kais-cta kais-mobile-cta" : "kais-cta kais-mobile-cta lg:w-auto"}>Confirmar asistencia</a>
             <div className="hidden flex-wrap items-center gap-x-7 gap-y-4 lg:flex">
               <a href={event.google_maps_link ?? "#detalles"} target="_blank" rel="noreferrer" className="kais-ghost-link">
+
                 <MapPin className="h-3.5 w-3.5" />
                 Cómo llegar
               </a>

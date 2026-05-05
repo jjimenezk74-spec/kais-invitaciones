@@ -27,20 +27,19 @@ export default async function CanvasEditorPage({ params }: Props) {
   const admin = createAdminClient();
   const { data } = await admin
     .from("events")
-    .select("id, slug, hosts_names, canvas_design")
+    .select("id, slug, title, hosts_names, cover_image_url, canvas_design")
     .eq("id", id)
     .single();
 
   if (!data) notFound();
 
-  const row = data as Record<string, unknown>;
-
   return (
     <CanvasEditorClient
-      eventId={row.id as string}
-      eventSlug={row.slug as string}
-      eventTitle={row.hosts_names as string}
-      initialDesign={(row.canvas_design as CanvasDesign | null) ?? null}
+      eventId={data.id}
+      eventSlug={data.slug}
+      eventTitle={data.hosts_names}
+      coverImageUrl={data.cover_image_url ?? null}
+      initialDesign={(data.canvas_design as CanvasDesign | null) ?? null}
     />
   );
 }

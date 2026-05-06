@@ -7,8 +7,8 @@ import { saveCanvasDesign, clearCanvasDesign } from "@/app/actions/canvas";
 import { DECORATIONS } from "@/lib/decorations";
 import type { Decoration } from "@/lib/decorations";
 import type { CanvasDesign, CanvasElement, CanvasTextElement, CanvasImageElement, CanvasSectionId } from "@/lib/types";
-import { EventHero } from "@/components/public-invitation/event-hero";
-import type { EventHeroData } from "@/components/public-invitation/event-hero";
+import { InvitationPreviewSection } from "./invitation-preview-section";
+import type { Event, EventDecorations, VisualDecoration } from "@/lib/types";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants
@@ -300,8 +300,11 @@ type Props = {
   eventId: string;
   eventSlug: string;
   eventTitle: string;
-  coverImageUrl: string | null;
-  heroEvent: EventHeroData;
+  event: Event;
+  slotDecorations: EventDecorations;
+  freeDecorations: VisualDecoration[];
+  decorationThemeSlug: string | null;
+  calendarUrl: string;
   initialDesign: CanvasDesign | null;
 };
 
@@ -313,8 +316,11 @@ export function CanvasEditorClient({
   eventId,
   eventSlug,
   eventTitle,
-  coverImageUrl,
-  heroEvent,
+  event,
+  slotDecorations,
+  freeDecorations,
+  decorationThemeSlug,
+  calendarUrl,
   initialDesign,
 }: Props) {
   const [state, dispatch] = useReducer(reducer, {
@@ -648,24 +654,14 @@ export function CanvasEditorClient({
               }}
             >
               {/* Section-specific preview base */}
-              {activeSectionId === "hero" ? (
-                /* Real hero — mismo JSX que /evento/[slug], layout mobile forzado */
-                <div style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
-                  <EventHero
-                    event={heroEvent}
-                    calendarUrl=""
-                    showMusic={false}
-                    showScrollCue={false}
-                    forceMobile
-                  />
-                </div>
-              ) : (
-                <SectionPreview
-                  sectionId={activeSectionId}
-                  coverImageUrl={coverImageUrl}
-                  eventTitle={eventTitle}
-                />
-              )}
+              <InvitationPreviewSection
+                sectionId={activeSectionId}
+                event={event}
+                decorationThemeSlug={decorationThemeSlug}
+                slotDecorations={slotDecorations}
+                freeDecorations={freeDecorations}
+                calendarUrl={calendarUrl}
+              />
 
               {/* Empty-canvas hint */}
               {sortedElements.length === 0 && (
@@ -1101,256 +1097,6 @@ function TextPropertiesPanel({ element, onChange, onDelete }: TextPanelProps) {
   );
 }
 // ─────────────────────────────────────────────────────────────────────────────
-// SectionPreview — base layer representativa de cada sección en el editor
-// Todos los divs tienen pointerEvents:"none" para no interferir con el drag.
-// ─────────────────────────────────────────────────────────────────────────────
-
-const _darkBg: React.CSSProperties = {
-  position: "absolute",
-  inset: 0,
-  background: "linear-gradient(160deg, #140a10 0%, #1a0d16 60%, #0f0a14 100%)",
-  pointerEvents: "none",
-};
-
-const _overlay: React.CSSProperties = {
-  position: "absolute",
-  inset: 0,
-  display: "flex",
-  flexDirection: "column",
-  alignItems: "center",
-  justifyContent: "center",
-  padding: "28px 24px",
-  pointerEvents: "none",
-};
-
-function _Eyebrow({ text }: { text: string }) {
-  return (
-    <p style={{ fontSize: 8, letterSpacing: "0.28em", textTransform: "uppercase", color: "#E8A4B5", fontFamily: "system-ui, sans-serif", marginBottom: 10, textAlign: "center" }}>
-      {text}
-    </p>
-  );
-}
-
-function _Hairline() {
-  return <div style={{ width: 44, height: 1, background: "rgba(232,169,181,0.35)", margin: "0 auto 20px" }} />;
-}
-
-function _Display({ text, size = 32 }: { text: string; size?: number }) {
-  return (
-    <p style={{ fontFamily: "Georgia, serif", fontSize: size, fontStyle: "italic", fontWeight: 300, color: "#f5ecd9", lineHeight: 1.1, textAlign: "center", margin: "0 0 14px" }}>
-      {text}
-    </p>
-  );
-}
-
-function _Gold({ text, size = 9 }: { text: string; size?: number }) {
-  return (
-    <p style={{ fontSize: size, letterSpacing: "0.22em", textTransform: "uppercase", color: "#d4af37", fontFamily: "system-ui, sans-serif", margin: "0 0 8px", textAlign: "center" }}>
-      {text}
-    </p>
-  );
-}
-
-function _Glass({ label, body }: { label: string; body: string }) {
-  return (
-    <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(212,175,55,0.18)", borderRadius: 18, padding: "14px 18px", flex: 1 }}>
-      <p style={{ fontSize: 7, letterSpacing: "0.28em", textTransform: "uppercase", color: "#E8A4B5", marginBottom: 8 }}>{label}</p>
-      <p style={{ fontSize: 11, color: "rgba(245,236,217,0.65)", lineHeight: 1.7 }}>{body}</p>
-    </div>
-  );
-}
-
-function _HairRow() {
-  return (
-    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18 }}>
-      <div style={{ width: 28, height: 1, background: "rgba(232,169,181,0.35)" }} />
-      <div style={{ width: 28, height: 1, background: "rgba(232,169,181,0.35)" }} />
-    </div>
-  );
-}
-
-type SectionPreviewProps = {
-  sectionId: CanvasSectionId;
-  coverImageUrl: string | null;
-  eventTitle: string;
-};
-
-function SectionPreview({ sectionId, coverImageUrl, eventTitle }: SectionPreviewProps) {
-  switch (sectionId) {
-    /* ── HERO ────────────────────────────────────────────────────────────── */
-    case "hero":
-      return coverImageUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={coverImageUrl} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: 0.55, pointerEvents: "none" }} />
-      ) : (
-        <div style={{ position: "absolute", inset: 0, background: "linear-gradient(160deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)", pointerEvents: "none" }} />
-      );
-
-    /* ── CUENTA REGRESIVA ────────────────────────────────────────────────── */
-    case "countdown":
-      return (
-        <>
-          <div style={_darkBg} />
-          <div style={_overlay}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 22 }}>
-              <div style={{ width: 28, height: 1, background: "rgba(232,169,181,0.35)" }} />
-              <_Eyebrow text="Faltan" />
-              <div style={{ width: 28, height: 1, background: "rgba(232,169,181,0.35)" }} />
-            </div>
-            <div style={{ display: "flex", gap: 18, marginBottom: 30 }}>
-              {[["00", "Días"], ["00", "Hrs"], ["00", "Min"], ["00", "Seg"]].map(([n, l]) => (
-                <div key={l} style={{ textAlign: "center" }}>
-                  <p style={{ fontFamily: "Georgia, serif", fontSize: 36, fontStyle: "italic", fontWeight: 300, color: "#f5ecd9", lineHeight: 1 }}>{n}</p>
-                  <p style={{ fontSize: 7, letterSpacing: "0.2em", color: "#d4af37", textTransform: "uppercase", marginTop: 6 }}>{l}</p>
-                </div>
-              ))}
-            </div>
-            <div style={{ display: "flex", gap: 22 }}>
-              {["Como llegar", "Calendario"].map((t) => (
-                <span key={t} style={{ fontSize: 10, color: "rgba(245,236,217,0.45)", letterSpacing: "0.1em" }}>{t}</span>
-              ))}
-            </div>
-          </div>
-        </>
-      );
-
-    /* ── PRESENTACIÓN ────────────────────────────────────────────────────── */
-    case "presentation":
-      return (
-        <>
-          <div style={_darkBg} />
-          <div style={_overlay}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18 }}>
-              <div style={{ width: 28, height: 1, background: "rgba(232,169,181,0.35)" }} />
-              <_Eyebrow text="Una noche · Inolvidable" />
-              <div style={{ width: 28, height: 1, background: "rgba(232,169,181,0.35)" }} />
-            </div>
-            <_Display text={eventTitle} size={30} />
-            <div style={{ marginTop: 20 }}>
-              <_Gold text="Quinceañera" />
-              <_Display text="Nombre de la quinceañera" size={22} />
-            </div>
-            <div style={{ marginTop: 14 }}>
-              <_Gold text="Junto a mis padres" />
-              <p style={{ fontFamily: "Georgia, serif", fontSize: 16, fontStyle: "italic", color: "rgba(245,236,217,0.75)", textAlign: "center" }}>Papá · Mamá</p>
-            </div>
-          </div>
-        </>
-      );
-
-    /* ── MENSAJES ────────────────────────────────────────────────────────── */
-    case "messages":
-      return (
-        <>
-          <div style={_darkBg} />
-          <div style={{ ..._overlay, justifyContent: "center" }}>
-            <div style={{ display: "flex", gap: 12, width: "100%" }}>
-              <_Glass label="Mensaje" body="Hoy quiero compartir con ustedes uno de los momentos más especiales de mi vida..." />
-              <_Glass label="Familia" body="Con el corazón lleno de alegría les invitamos a celebrar juntos esta ocasión..." />
-            </div>
-          </div>
-        </>
-      );
-
-    /* ── DETALLES ────────────────────────────────────────────────────────── */
-    case "details":
-      return (
-        <>
-          <div style={_darkBg} />
-          <div style={_overlay}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18 }}>
-              <div style={{ width: 28, height: 1, background: "rgba(232,169,181,0.35)" }} />
-              <_Eyebrow text="Una noche · Inolvidable" />
-              <div style={{ width: 28, height: 1, background: "rgba(232,169,181,0.35)" }} />
-            </div>
-            <_Display text={eventTitle} size={26} />
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", width: "100%", marginTop: 24 }}>
-              {[["Fecha", "Sáb 14 Jun"], ["Hora", "20:00 hrs"], ["Lugar", "Salón de Eventos"]].map(([l, v], i) => (
-                <div key={l} style={{ textAlign: "center", padding: "8px 4px", borderLeft: i > 0 ? "1px solid rgba(212,175,55,0.18)" : undefined }}>
-                  <p style={{ fontSize: 7, letterSpacing: "0.28em", color: "#E8A4B5", textTransform: "uppercase", marginBottom: 10 }}>{l}</p>
-                  <p style={{ fontFamily: "Georgia, serif", fontSize: 15, fontStyle: "italic", color: "#f5ecd9" }}>{v}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </>
-      );
-
-    /* ── IGLESIA ─────────────────────────────────────────────────────────── */
-    case "church":
-      return (
-        <>
-          <div style={_darkBg} />
-          <div style={_overlay}>
-            <_Eyebrow text="Ceremonia religiosa" />
-            <_Hairline />
-            <_Display text="Nombre de la Iglesia" size={26} />
-            <_Gold text="10:00 AM" />
-          </div>
-        </>
-      );
-
-    /* ── VESTIMENTA ──────────────────────────────────────────────────────── */
-    case "dresscode":
-      return (
-        <>
-          <div style={_darkBg} />
-          <div style={_overlay}>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14, width: "100%" }}>
-              {[["Tenida", "Formal"], ["Gama de colores", "Blanco y Dorado"], ["Temática", "Romántica"]].map(([l, v]) => (
-                <div key={l} style={{ textAlign: "center" }}>
-                  <p style={{ fontSize: 7, letterSpacing: "0.28em", color: "#E8A4B5", textTransform: "uppercase", marginBottom: 12 }}>{l}</p>
-                  <p style={{ fontFamily: "Georgia, serif", fontSize: 16, fontStyle: "italic", color: "rgba(245,236,217,0.85)" }}>{v}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </>
-      );
-
-    /* ── RSVP ────────────────────────────────────────────────────────────── */
-    case "rsvp":
-      return (
-        <>
-          <div style={{ ..._darkBg, background: "linear-gradient(160deg, #0a0405 0%, #140a10 100%)" }} />
-          <div style={{ ..._overlay, flexDirection: "row", alignItems: "flex-start", gap: 16 }}>
-            <div style={{ flex: "0 0 38%", paddingTop: 4 }}>
-              <_Eyebrow text="RSVP · Asistencia" />
-              <p style={{ fontFamily: "Georgia, serif", fontSize: 20, fontStyle: "italic", fontWeight: 300, color: "#f5ecd9", lineHeight: 1.3 }}>
-                Tu presencia<br />es el regalo<br /><span style={{ color: "#d4af37" }}>más bonito.</span>
-              </p>
-            </div>
-            <div style={{ flex: 1, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(212,175,55,0.15)", borderRadius: 22, padding: 14, display: "flex", flexDirection: "column", gap: 9 }}>
-              {["Nombre", "Teléfono", "¿Asistirás?"].map((f) => (
-                <div key={f}>
-                  <p style={{ fontSize: 6, letterSpacing: "0.3em", color: "#d4af37", textTransform: "uppercase", marginBottom: 5 }}>{f}</p>
-                  <div style={{ height: 24, background: "rgba(255,255,255,0.06)", borderRadius: 7, border: "1px solid rgba(212,175,55,0.12)" }} />
-                </div>
-              ))}
-              <div style={{ height: 28, background: "rgba(212,175,55,0.12)", borderRadius: 9, border: "1px solid rgba(212,175,55,0.28)", marginTop: 2 }} />
-            </div>
-          </div>
-        </>
-      );
-
-    /* ── FOOTER ──────────────────────────────────────────────────────────── */
-    case "footer":
-      return (
-        <>
-          <div style={_darkBg} />
-          <div style={_overlay}>
-            <p style={{ fontSize: 8, letterSpacing: "0.22em", color: "rgba(245,236,217,0.35)", textTransform: "uppercase", marginBottom: 10 }}>Una experiencia de</p>
-            <p style={{ fontFamily: "Georgia, serif", fontSize: 22, fontStyle: "italic", color: "rgba(245,236,217,0.55)" }}>KAIS Invitaciones</p>
-          </div>
-        </>
-      );
-
-    default:
-      return <div style={_darkBg} />;
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
 // ImagePropertiesPanel
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -1419,7 +1165,6 @@ function ImagePropertiesPanel({ element, onChange, onDelete }: ImagePanelProps) 
       </div>
 
       <div className={field}>
-
         <label className={label}>Voltear</label>
         <div className="flex gap-2">
           {([["Horizontal", "flipX"], ["Vertical", "flipY"]] as const).map(([lbl, key]) => (

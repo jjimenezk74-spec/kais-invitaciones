@@ -1,35 +1,19 @@
 import { headers } from "next/headers";
-import Link from "next/link";
-import { CalendarPlus, MapPin, Send, Eye } from "lucide-react";
 import { submitRsvp, trackVisit } from "@/app/actions/events";
-import { BackButton } from "@/components/back-button";
-import { EventHero } from "@/components/public-invitation/event-hero";
-import { RsvpWhatsAppRedirect } from "@/components/rsvp-whatsapp-redirect";
-import { ThemeDecorations } from "@/components/theme-decorations";
 import { resolvePremiumThemeDesign, resolveLegacyDesign } from "@/lib/invitation-design";
+import { PublicInvitation } from "@/components/public-invitation/public-invitation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { fetchThemeById } from "@/lib/invitation-themes.server";
 import { eventHasFeature } from "@/lib/event-features";
 import { createClient } from "@/lib/supabase/server";
 import { isKaisAdmin } from "@/lib/profiles";
-import type { CanvasDesign, Event, EventDecorations, EventGuest, InvitationTemplate, InvitationTheme, Rsvp, VisualDecoration } from "@/lib/types";
+import type { CanvasDesign, Event, EventDecorations, EventGuest, InvitationTemplate, Rsvp, VisualDecoration } from "@/lib/types";
 import {
   NotPublishedScreen,
   PersonalLinkRequired,
   InvalidPersonalLink,
   InactivePersonalLink
 } from "./_screens";
-import { RoyalWeddingPack, RoyalWeddingDivider } from "@/components/decorations/royal-wedding-pack";
-import { CanvasRenderer } from "@/components/canvas-renderer";
-import {
-  CountdownSectionContent,
-  PresentationSectionContent,
-  MessagesSectionContent,
-  DetailsSectionContent,
-  ChurchSectionContent,
-  DresscodeSectionContent,
-  FooterBrandContent,
-} from "@/components/public-invitation/invitation-sections";
 
 type PageProps = {
   params: Promise<{ slug: string }>;
@@ -281,332 +265,32 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
   const canvasDesign = event.canvas_design as CanvasDesign | null;
 
   return (
-    <main
-      className={[
-        "w-full max-w-full overflow-x-hidden",
-        design.stageClassName,
-        design.designClassName,
-        invitationTheme?.slug ? `kais-theme-${invitationTheme.slug}` : "",
-        invitationTheme ? "kais-theme-active" : ""
-      ].filter(Boolean).join(" ")}
-      data-font-preset={design.designConfig.fontPreset}
-      data-background-variant={design.designConfig.backgroundVariant}
-      data-animation-preset={design.designConfig.animationPreset}
-      data-decoration-level={design.designConfig.decorationLevel}
-      style={invitationTheme
-        ? undefined
-        : { ["--template-primary" as string]: design.primary, ["--template-secondary" as string]: design.secondary }}
-    >
-      {/* Admin preview banner - fixed top, only visible to admin */}
-      {isAdminPreview && (
-        <div className="fixed inset-x-0 top-0 z-[100] flex max-w-full items-center justify-between gap-2 overflow-hidden border-b border-amber-300 bg-amber-50 px-3 py-2.5 text-amber-900 shadow-sm sm:gap-4 sm:px-4">
-          <div className="flex min-w-0 items-center gap-2 text-sm font-semibold">
-            <Eye className="h-4 w-4 flex-shrink-0 text-amber-600" />
-            <span className="truncate">Vista previa administrador</span>
-            <span className="hidden font-normal text-amber-700 sm:inline">
-              {event.status === "borrador" ? "- Evento en borrador, no visible al publico" : ""}
-            </span>
-          </div>
-          <Link
-            href={`/dashboard/eventos/${event.id}`}
-            className="max-w-[46vw] shrink-0 truncate rounded-md border border-amber-300 bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800 transition hover:bg-amber-200 sm:max-w-none"
-          >
-            Volver al dashboard
-          </Link>
-        </div>
-      )}
-
-      {/* Royal Wedding Pack SVG overlay */}
-      {showRoyalPack && <RoyalWeddingPack />}
-
-      <div
-        className={[
-          "fixed left-3 z-50 sm:left-5",
-          isAdminPreview
-            ? "top-[calc(max(0.75rem,env(safe-area-inset-top))+2.75rem)]"
-            : "top-[max(0.75rem,env(safe-area-inset-top))]"
-        ].join(" ")}
-      >
-        <BackButton from={normalizeSearchParam(query.from)} />
-      </div>
-
-      {/* Canvas wrapper: position relative so absolute CanvasRenderer anchors here */}
-      <div style={{ position: "relative" }}>
-        <EventHero
-          event={event}
-          calendarUrl={calendarUrl}
-          invitedGuestName={invitedGuest?.guest_name}
-          themeSlug={decorationThemeSlug}
-          decorations={slotDecorations}
-          freeDecorations={freeDecorations}
-          showMusic={eventHasFeature(event, "music")}
-        />
-        {canvasDesign && <CanvasRenderer design={canvasDesign} sectionId="hero" />}
-      </div>
-
-      <section className="relative px-5 py-20 sm:py-24 lg:hidden" aria-label="Cuenta regresiva y mensaje">
-        <CountdownSectionContent
-          event={event}
-          calendarUrl={calendarUrl}
-          invitedGuestName={invitedGuest?.guest_name ?? null}
-        />
-        {canvasDesign && <CanvasRenderer design={canvasDesign} sectionId="countdown" />}
-      </section>
-
-      <section id="detalles" className="kais-section relative overflow-hidden">
-        <ThemeDecorations
-          themeSlug={decorationThemeSlug}
-          section="info"
-          decorations={slotDecorations}
-          freeDecorations={freeDecorations}
-        />
-        <div className="pointer-events-none absolute -left-20 top-24 h-64 w-64 rounded-full bg-[#3a0a12]/35 blur-3xl" />
-        <div className="pointer-events-none absolute -right-32 bottom-16 h-72 w-72 rounded-full bg-[#d4af37]/[0.06] blur-3xl" />
-
-        <div className="relative z-10 mx-auto max-w-5xl text-center">
-          <PresentationSectionContent event={event} />
-          <MessagesSectionContent event={event} />
-          <DetailsSectionContent event={event} />
-          <ChurchSectionContent event={event} />
-          <DresscodeSectionContent event={event} />
-        </div>
-        {canvasDesign && (
-          <>
-            <CanvasRenderer design={canvasDesign} sectionId="presentation" />
-            <CanvasRenderer design={canvasDesign} sectionId="messages" />
-            <CanvasRenderer design={canvasDesign} sectionId="details" />
-            <CanvasRenderer design={canvasDesign} sectionId="church" />
-            <CanvasRenderer design={canvasDesign} sectionId="dresscode" />
-          </>
-        )}
-      </section>
-
-      {showRoyalPack && <RoyalWeddingDivider />}
-
-      <section id="rsvp" className="kais-section relative overflow-hidden bg-[#0a0405]">
-        <ThemeDecorations
-          themeSlug={decorationThemeSlug}
-          section="rsvp"
-          decorations={slotDecorations}
-          freeDecorations={freeDecorations}
-        />
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-px kais-hairline" />
-        <div className="pointer-events-none absolute -right-20 top-1/3 h-72 w-72 rounded-full bg-[#d4af37]/[0.07] blur-3xl" />
-
-        <div className="relative z-10 mx-auto grid max-w-5xl gap-14 lg:grid-cols-[0.9fr_1.1fr] lg:items-start lg:gap-20">
-          <div>
-            <div className="flex items-center gap-3">
-              <span className="block h-px w-10 kais-hairline" />
-              <p className="kais-eyebrow">RSVP . Asistencia</p>
-            </div>
-
-            <h2
-              className="mt-7 font-display font-light italic leading-[0.95]"
-              style={{ fontSize: "clamp(2.4rem, 4.8vw, 4.4rem)" }}
-            >
-              Tu presencia
-              <br />
-              es el regalo
-              <br />
-              <span className="kais-gold-text kais-shimmer">mas bonito.</span>
-            </h2>
-
-            <p className="mt-7 max-w-md text-[0.95rem] leading-[1.9] text-[#f5ecd9]/65">
-              {isAdminPreview
-                ? "Vista previa - el formulario RSVP es solo lectura en modo administrador."
-                : isConfirmed && confirmedAttending === false
-                  ? "Tu respuesta quedó registrada."
-                  : isConfirmed
-                    ? "Tu confirmación quedó registrada."
-                  : invitedGuest
-                    ? `Hola ${invitedGuest.guest_name}, podes confirmar tu asistencia.`
-                    : "Tu respuesta ayuda a los anfitriones a preparar cada detalle del evento."}
-            </p>
-
-            {isConfirmed && !isAdminPreview ? (
-              <p className="mt-7 inline-flex"><span className="kais-status-success">Confirmacion recibida</span></p>
-            ) : null}
-            {rsvpError && !isAdminPreview ? (
-              <p className="mt-7 inline-flex"><span className="kais-status-error">{rsvpError}</span></p>
-            ) : null}
-            {isAdminPreview && (
-              <p className="mt-6 inline-flex items-center gap-1.5 rounded-lg border border-amber-300/50 bg-amber-900/30 px-3 py-1.5 text-xs font-semibold text-amber-300">
-                <Eye className="h-3 w-3" />
-                Solo lectura en vista previa
-              </p>
-            )}
-          </div>
-
-          <div className="kais-glass relative rounded-[2rem] p-6 sm:p-9 md:p-11">
-            {isAdminPreview && (
-              <div className="mb-5 rounded-xl border border-amber-400/30 bg-amber-900/20 px-4 py-3 text-xs font-semibold text-amber-300">
-                Vista previa administrador - el envio de RSVP esta deshabilitado.
-              </div>
-            )}
-            {eventHasFeature(event, "external_rsvp_whatsapp") && !event.whatsapp_phone ? (
-              <div className="mb-5 rounded-xl border border-amber-400/30 bg-amber-900/20 px-4 py-3 text-xs font-semibold text-amber-300">
-                Este evento usa RSVP por WhatsApp, pero todavia no tiene un numero configurado. La confirmacion se guardara en el sistema.
-              </div>
-            ) : null}
-            <form action={rsvpAction} className="grid gap-5 md:gap-7">
-              <input type="hidden" name="slug" value={event.slug} />
-              <input type="hidden" name="guest_token" value={guestToken} />
-              <input type="hidden" name="external_rsvp_whatsapp" value={shouldUseWhatsAppRsvp ? "1" : ""} />
-              <input type="hidden" name="event_title" value={event.title} />
-
-              {isConfirmed && !isAdminPreview ? (
-                <div className="rounded-2xl border border-[#d4af37]/35 bg-[#d4af37]/10 p-4 text-[#f5ecd9]">
-                  <p className="text-[0.68rem] font-semibold uppercase tracking-[0.28em] text-[#d4af37]">Confirmacion recibida</p>
-                  <p className="mt-2 text-sm leading-6 text-[#f5ecd9]/72">
-                    {confirmedAttending === false
-                      ? "Gracias por tu respuesta."
-                      : "Gracias por confirmar tu presencia. Te esperamos con mucha alegría."}
-                  </p>
-                  {shouldRedirectWhatsApp && event.whatsapp_phone && whatsappMessage ? (
-                    <RsvpWhatsAppRedirect phone={event.whatsapp_phone} message={whatsappMessage} />
-                  ) : null}
-                </div>
-              ) : null}
-
-              <LuxeField label="Nombre">
-                <input
-                  name="guest_name"
-                  required
-                  defaultValue={invitedGuest?.guest_name ?? ""}
-                  readOnly={Boolean(invitedGuest) || isConfirmed || isAdminPreview}
-                  disabled={isConfirmed || isAdminPreview}
-                  className="kais-input-luxe"
-                />
-              </LuxeField>
-
-              <div className="grid gap-5 md:grid-cols-2 md:gap-7">
-                <LuxeField label="Telefono">
-                  <input
-                    name="phone"
-                    defaultValue={invitedGuest?.phone ?? invitedGuestRsvp?.phone ?? ""}
-                    disabled={isConfirmed || isAdminPreview}
-                    className="kais-input-luxe"
-                  />
-                </LuxeField>
-                <LuxeField label="Email">
-                  <input
-                    name="email"
-                    type="email"
-                    defaultValue={invitedGuest?.email ?? invitedGuestRsvp?.email ?? ""}
-                    disabled={isConfirmed || isAdminPreview}
-                    className="kais-input-luxe"
-                  />
-                </LuxeField>
-              </div>
-
-              <div className="grid gap-5 md:grid-cols-2 md:gap-7">
-                <LuxeField label="Asistira?">
-                  <select
-                    name="attending"
-                    defaultValue={invitedGuestRsvp?.attending === false ? "no" : "si"}
-                    disabled={isConfirmed || isAdminPreview}
-                    className="kais-input-luxe"
-                  >
-                    <option value="si">Si, con gusto</option>
-                    <option value="no">No podre asistir</option>
-                  </select>
-                </LuxeField>
-                {invitedGuest?.max_companions === 0 ? (
-                  <div className="rounded-2xl border border-[#d4af37]/25 bg-[#d4af37]/10 px-4 py-3">
-                    <p className="text-sm font-semibold text-[#f5ecd9]">Invitación individual.</p>
-                  </div>
-                ) : (
-                  <LuxeField label="¿Cuántos acompañantes traerás?">
-                    <input
-                      name="companions"
-                      type="number"
-                      min={0}
-                      max={invitedGuest?.max_companions}
-                      defaultValue={String(invitedGuestRsvp?.companions ?? 0)}
-                      disabled={isConfirmed || isAdminPreview}
-                      className="kais-input-luxe"
-                    />
-                    {invitedGuest ? (
-                      <p className="mt-2 text-xs leading-5 text-[#f5ecd9]/65">
-                        Tu cupo permite hasta {invitedGuest.max_companions} acompanante{invitedGuest.max_companions === 1 ? "" : "s"}.
-                      </p>
-                    ) : null}
-                  </LuxeField>
-                )}
-              </div>
-
-              {invitedGuest && invitedGuest.max_companions > 0 ? (
-                <div className="rounded-2xl border border-[#d4af37]/25 bg-[#d4af37]/10 px-4 py-3">
-                  <p className="text-sm font-semibold text-[#f5ecd9]">
-                    Podes venir con hasta {invitedGuest.max_companions} acompanante{invitedGuest.max_companions === 1 ? "" : "s"}.
-                  </p>
-                  <p className="mt-1 text-xs leading-5 text-[#f5ecd9]/70">
-                    Tu cupo total es de {invitedGuest.max_companions + 1} personas, incluyendo tu asistencia.
-                  </p>
-                </div>
-              ) : null}
-
-              <LuxeField label="Restriccion alimentaria">
-                <input
-                  name="dietary_restrictions"
-                  placeholder="Opcional"
-                  defaultValue={invitedGuestRsvp?.dietary_restrictions ?? ""}
-                  disabled={isConfirmed || isAdminPreview}
-                  className="kais-input-luxe"
-                />
-              </LuxeField>
-
-              <LuxeField label="Mensaje para los anfitriones">
-                <textarea
-                  name="message"
-                  rows={3}
-                  defaultValue={invitedGuestRsvp?.message ?? ""}
-                  disabled={isConfirmed || isAdminPreview}
-                  className="kais-input-luxe resize-none"
-                />
-              </LuxeField>
-
-              {!isConfirmed && !isAdminPreview ? (
-                <div className="mt-2">
-                  <button type="submit" className="kais-cta w-full sm:w-fit">
-                    <Send className="h-3.5 w-3.5" />
-                    Enviar confirmacion
-                  </button>
-                </div>
-              ) : null}
-            </form>
-          </div>
-        </div>
-        {canvasDesign && <CanvasRenderer design={canvasDesign} sectionId="rsvp" />}
-      </section>
-
-      {showRoyalPack && <RoyalWeddingDivider />}
-
-      <footer className="relative overflow-hidden px-5 py-14 text-center">
-        <ThemeDecorations
-          themeSlug={decorationThemeSlug}
-          section="footer"
-          decorations={slotDecorations}
-          freeDecorations={freeDecorations}
-        />
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-px kais-hairline" />
-        <FooterBrandContent />
-        {canvasDesign && <CanvasRenderer design={canvasDesign} sectionId="footer" />}
-      </footer>
-
-    </main>
+    <PublicInvitation
+      mode="public"
+      event={event}
+      design={design}
+      invitationThemeSlug={invitationTheme?.slug ?? null}
+      isAdminPreview={isAdminPreview}
+      from={normalizeSearchParam(query.from)}
+      invitedGuest={invitedGuest}
+      invitedGuestRsvp={invitedGuestRsvp}
+      guestToken={guestToken}
+      rsvpAction={rsvpAction}
+      rsvpError={rsvpError}
+      rsvpStatus={rsvpStatus}
+      rsvpAttending={rsvpAttending}
+      shouldRedirectWhatsApp={shouldRedirectWhatsApp}
+      whatsappMessage={whatsappMessage}
+      shouldUseWhatsAppRsvp={shouldUseWhatsAppRsvp}
+      calendarUrl={calendarUrl}
+      decorationThemeSlug={decorationThemeSlug}
+      slotDecorations={slotDecorations}
+      freeDecorations={freeDecorations}
+      showRoyalPack={showRoyalPack}
+      canvasDesign={canvasDesign}
+    />
   );
 }
-
-function LuxeField({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <label className="block">
-      <span className="kais-eyebrow text-[0.6rem] tracking-[0.36em] text-[#d4af37]/85">{label}</span>
-      <div className="mt-2.5">{children}</div>
-    </label>
-  );
-}
-
 function normalizeVisualDecorations(value: unknown): VisualDecoration[] {
   if (Array.isArray(value)) return value.filter((decoration) => Boolean(decoration?.url)) as VisualDecoration[];
   if (typeof value !== "string") return [];

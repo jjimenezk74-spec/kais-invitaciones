@@ -4,10 +4,11 @@ import { useReducer, useRef, useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { ArrowLeft, Trash2, Plus, Save, X, Eye } from "lucide-react";
 import { saveCanvasDesign, clearCanvasDesign } from "@/app/actions/canvas";
+import { PublicInvitation } from "@/components/public-invitation/public-invitation";
 import { DECORATIONS } from "@/lib/decorations";
 import type { Decoration } from "@/lib/decorations";
+import type { ResolvedDesign } from "@/lib/invitation-design";
 import type { CanvasDesign, CanvasElement, CanvasTextElement, CanvasImageElement, CanvasSectionId } from "@/lib/types";
-import { InvitationPreviewSection } from "./invitation-preview-section";
 import type { Event, EventDecorations, VisualDecoration } from "@/lib/types";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -304,6 +305,9 @@ type Props = {
   slotDecorations: EventDecorations;
   freeDecorations: VisualDecoration[];
   decorationThemeSlug: string | null;
+  invitationThemeSlug: string | null;
+  design: ResolvedDesign;
+  showRoyalPack: boolean;
   calendarUrl: string;
   initialDesign: CanvasDesign | null;
 };
@@ -320,6 +324,9 @@ export function CanvasEditorClient({
   slotDecorations,
   freeDecorations,
   decorationThemeSlug,
+  invitationThemeSlug,
+  design,
+  showRoyalPack,
   calendarUrl,
   initialDesign,
 }: Props) {
@@ -489,6 +496,54 @@ export function CanvasEditorClient({
     .filter((el) => (el.sectionId ?? "hero") === activeSectionId)
     .sort((a, b) => a.zIndex - b.zIndex);
 
+  function renderCanvasLayer(sectionId: CanvasSectionId) {
+    const visible = [...state.design.elements]
+      .filter((el) => el.visible && (el.sectionId ?? "hero") === sectionId)
+      .sort((a, b) => a.zIndex - b.zIndex);
+
+    if (visible.length === 0 && activeSectionId !== sectionId) return null;
+
+    return (
+      <div
+        aria-hidden
+        style={{
+          position: "absolute",
+          inset: 0,
+          zIndex: 60,
+          pointerEvents: "none",
+          overflow: "visible",
+          boxShadow: activeSectionId === sectionId ? "inset 0 0 0 1px rgba(99,102,241,0.55)" : undefined
+        }}
+      >
+        {activeSectionId === sectionId ? (
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              zIndex: 0,
+              pointerEvents: "auto",
+              cursor: "default"
+            }}
+            onClick={() => dispatch({ type: "SELECT", id: null })}
+          />
+        ) : null}
+        {visible.map((el) => (
+          <StageElement
+            key={el.id}
+            element={el}
+            selected={el.id === state.selectedId}
+            onMoveStart={(e) => handleElementMouseDown(e, el.id)}
+            onResizeStart={(e, handle) => handleResizeMouseDown(e, el.id, handle)}
+            onClick={(e) => {
+              e.stopPropagation();
+              dispatch({ type: "SELECT", id: el.id });
+            }}
+          />
+        ))}
+      </div>
+    );
+  }
+
   const saveLabel =
     state.saveStatus === "saving"
       ? "Guardando..."
@@ -647,20 +702,24 @@ export function CanvasEditorClient({
                 transform: `scale(${scale})`,
                 transformOrigin: "top left",
                 borderRadius: 12,
-                overflow: "hidden",
+                overflowX: "hidden",
+                overflowY: "auto",
                 boxShadow:
                   "0 0 0 1px rgba(255,255,255,0.08), 0 8px 48px rgba(0,0,0,0.7)",
                 cursor: isDragging ? "grabbing" : "default",
               }}
             >
-              {/* Section-specific preview base */}
-              <InvitationPreviewSection
-                sectionId={activeSectionId}
+              <PublicInvitation
+                mode="editor"
                 event={event}
-                decorationThemeSlug={decorationThemeSlug}
+                design={design}
+                invitationThemeSlug={invitationThemeSlug}
+                calendarUrl={calendarUrl}
                 slotDecorations={slotDecorations}
                 freeDecorations={freeDecorations}
-                calendarUrl={calendarUrl}
+                decorationThemeSlug={decorationThemeSlug}
+                showRoyalPack={showRoyalPack}
+                renderCanvasLayer={renderCanvasLayer}
               />
 
               {/* Empty-canvas hint */}
@@ -686,20 +745,6 @@ export function CanvasEditorClient({
                 </div>
               )}
 
-              {/* Elements */}
-              {sortedElements.map((el) => (
-                <StageElement
-                  key={el.id}
-                  element={el}
-                  selected={el.id === state.selectedId}
-                  onMoveStart={(e) => handleElementMouseDown(e, el.id)}
-                  onResizeStart={(e, handle) => handleResizeMouseDown(e, el.id, handle)}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    dispatch({ type: "SELECT", id: el.id });
-                  }}
-                />
-              ))}
             </div>
           </div>
         </div>

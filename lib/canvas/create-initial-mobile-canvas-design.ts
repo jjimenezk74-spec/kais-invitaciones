@@ -206,6 +206,7 @@ function textElement(
     letterSpacing: 0,
     textShadow: "0 2px 10px rgba(0,0,0,0.55)",
     textDecoration: "none",
+    autoHeight: true,
     ...overrides,
   };
 }

@@ -152,6 +152,7 @@ function createTextElement(sectionId: CanvasSectionId): CanvasTextElement {
     letterSpacing: 0,
     textShadow: "0 2px 8px rgba(0,0,0,0.6)",
     textDecoration: "none",
+    autoHeight: true,
   };
 }
 
@@ -678,7 +679,7 @@ export function CanvasEditorClient({
           x: affectsLeft ? canvasXToPercent(nextX, state.design) : undefined,
           y: affectsTop ? canvasYToPercent(nextY, state.design) : undefined,
           width,
-          height,
+          height: affectsTop || affectsBottom ? height : undefined,
         });
       }
     },

@@ -204,7 +204,7 @@ function CanvasMobileElement({
     ) : null;
 
   if (element.type === "text") {
-    return <CanvasMobileText element={element} style={baseStyle} editorProps={editorProps} controls={controls} />;
+    return <CanvasMobileText element={element} mode={mode} style={baseStyle} editorProps={editorProps} controls={controls} />;
   }
 
   if (element.type === "image") {
@@ -227,11 +227,13 @@ function getFallbackElementHeight(element: CanvasElement) {
 
 function CanvasMobileText({
   element,
+  mode,
   style,
   editorProps,
   controls,
 }: {
   element: CanvasTextElement;
+  mode: "public" | "editor";
   style: CSSProperties;
   editorProps: HTMLAttributes<HTMLDivElement>;
   controls: ReactNode;
@@ -246,15 +248,9 @@ function CanvasMobileText({
       <p
       style={{
         width: "100%",
-        height: "100%",
-        display: "flex",
-        alignItems: "center",
-        justifyContent:
-          element.textAlign === "center"
-            ? "center"
-            : element.textAlign === "right"
-              ? "flex-end"
-              : "flex-start",
+        minHeight: "100%",
+        height: "auto",
+        display: "block",
         margin: 0,
         padding: 0,
         boxSizing: "border-box",
@@ -271,7 +267,8 @@ function CanvasMobileText({
         whiteSpace: "pre-wrap",
         overflowWrap: "break-word",
         wordBreak: "normal",
-        overflow: "hidden",
+        lineBreak: "auto",
+        overflow: mode === "editor" ? "visible" : "hidden",
       }}
       >
         {element.content}

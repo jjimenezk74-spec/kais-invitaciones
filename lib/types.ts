@@ -132,6 +132,7 @@ export type CanvasTextElement = CanvasBaseElement & {
   letterSpacing: number;
   textShadow: string | null;
   textDecoration: "none" | "underline";
+  autoHeight?: boolean;
 };
 
 export type CanvasImageElement = CanvasBaseElement & {

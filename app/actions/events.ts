@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { createInitialMobileCanvasDesign } from "@/lib/canvas/create-initial-mobile-canvas-design";
 import { normalizeInvitationDesignConfig } from "@/lib/invitation-design";
 import { eventHasFeature } from "@/lib/event-features";
 import {
@@ -113,8 +114,14 @@ export async function createEvent(formData: FormData) {
     template_id: nullable(formData.get("template_id")),
     category_id: nullableUuid(formData.get("category_id")),
     theme_id: nullableUuid(formData.get("theme_id")),
-    slug: normalizeEventSlug(slug)
+    slug: normalizeEventSlug(slug),
+    canvas_design: null as ReturnType<typeof createInitialMobileCanvasDesign> | null
   };
+  payload.canvas_design = createInitialMobileCanvasDesign(payload, {
+    slug: String(formData.get("theme_slug") ?? formData.get("template_slug") ?? payload.theme ?? payload.event_type),
+    primary: payload.theme_color,
+    secondary: null
+  });
 
   const { data, error } = await supabase.from("events").insert(payload).select("id").single();
   if (error) redirect(`/dashboard/eventos/nuevo?error=${encodeURIComponent(error.message)}`);

@@ -114,27 +114,24 @@ export async function createEvent(formData: FormData) {
     template_id: nullable(formData.get("template_id")),
     category_id: nullableUuid(formData.get("category_id")),
     theme_id: nullableUuid(formData.get("theme_id")),
-    slug: normalizeEventSlug(slug),
-    canvas_design: null as ReturnType<typeof createInitialMobileCanvasDesign> | null
+    slug: normalizeEventSlug(slug)
   };
-  payload.canvas_design = createInitialMobileCanvasDesign(payload, {
-    slug: String(formData.get("theme_slug") ?? formData.get("template_slug") ?? payload.theme ?? payload.event_type),
-    primary: payload.theme_color,
-    secondary: null
-  });
 
   const { data, error } = await supabase.from("events").insert(payload).select("id").single();
   if (error) redirect(`/dashboard/eventos/nuevo?error=${encodeURIComponent(error.message)}`);
 
+  let uploadedCoverImageUrl: string | null = null;
+  let uploadedMobileCoverImageUrl: string | null = null;
+
   if (coverFile || mobileCoverFile) {
     try {
-      const coverImageUrl = coverFile ? await uploadCoverImage(coverFile, supabase, data.id, "desktop") : null;
-      const mobileCoverImageUrl = mobileCoverFile ? await uploadCoverImage(mobileCoverFile, supabase, data.id, "mobile") : null;
+      uploadedCoverImageUrl = coverFile ? await uploadCoverImage(coverFile, supabase, data.id, "desktop") : null;
+      uploadedMobileCoverImageUrl = mobileCoverFile ? await uploadCoverImage(mobileCoverFile, supabase, data.id, "mobile") : null;
       const { error: coverUpdateError } = await supabase
         .from("events")
         .update({
-          ...(coverImageUrl ? { cover_image_url: coverImageUrl } : {}),
-          ...(mobileCoverImageUrl ? { mobile_cover_image_url: mobileCoverImageUrl } : {})
+          ...(uploadedCoverImageUrl ? { cover_image_url: uploadedCoverImageUrl } : {}),
+          ...(uploadedMobileCoverImageUrl ? { mobile_cover_image_url: uploadedMobileCoverImageUrl } : {})
         })
         .eq("id", data.id);
 
@@ -146,8 +143,57 @@ export async function createEvent(formData: FormData) {
     }
   }
 
+  await initializeEventCanvasDesign({
+    supabase,
+    eventId: data.id,
+    formData,
+    themePrimary: payload.theme_color,
+    eventData: {
+      ...payload,
+      cover_image_url: uploadedCoverImageUrl ?? payload.cover_image_url,
+      mobile_cover_image_url: uploadedMobileCoverImageUrl ?? payload.mobile_cover_image_url
+    }
+  });
+
   revalidatePath("/dashboard");
   redirect(`/dashboard/eventos/${data.id}?saved=created`);
+}
+
+async function initializeEventCanvasDesign({
+  supabase,
+  eventId,
+  formData,
+  themePrimary,
+  eventData
+}: {
+  supabase: ServerSupabaseClient;
+  eventId: string;
+  formData: FormData;
+  themePrimary: string;
+  eventData: Parameters<typeof createInitialMobileCanvasDesign>[0];
+}) {
+  try {
+    const canvasDesign = createInitialMobileCanvasDesign(eventData, {
+      slug: String(formData.get("theme_slug") ?? formData.get("template_slug") ?? eventData.theme ?? eventData.event_type),
+      primary: themePrimary,
+      secondary: null
+    });
+
+    const { error } = await supabase.from("events").update({ canvas_design: canvasDesign }).eq("id", eventId);
+
+    if (error) {
+      console.error("[KAIS EVENT] No se pudo guardar canvas_design inicial", {
+        eventId,
+        message: error.message,
+        code: error.code
+      });
+    }
+  } catch (error) {
+    console.error("[KAIS EVENT] createInitialMobileCanvasDesign failed", {
+      eventId,
+      message: getErrorMessage(error)
+    });
+  }
 }
 
 export async function updateEvent(eventId: string, formData: FormData) {

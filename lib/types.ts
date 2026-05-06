@@ -152,6 +152,12 @@ export type CanvasBackground = {
 export type CanvasDesign = {
   /** Version del schema. Incrementar si hay cambios incompatibles. */
   version: 1;
+  /** Viewport objetivo del documento canvas. */
+  viewport?: "mobile" | "desktop";
+  /** Ancho absoluto del documento canvas. */
+  width?: number;
+  /** Alto absoluto del documento canvas. */
+  height?: number;
   /** Ancho del canvas de referencia en px (390 = iPhone estandar). */
   refWidth: number;
   /** Alto del canvas de referencia en px (844 = iPhone estandar). */

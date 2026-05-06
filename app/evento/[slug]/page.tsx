@@ -1,7 +1,9 @@
 import { headers } from "next/headers";
 import { submitRsvp, trackVisit } from "@/app/actions/events";
 import { resolvePremiumThemeDesign, resolveLegacyDesign } from "@/lib/invitation-design";
+import { CanvasMobileRenderer } from "@/components/public-invitation/canvas-mobile-renderer";
 import { PublicInvitation } from "@/components/public-invitation/public-invitation";
+import { hasRenderableMobileCanvasDesign, normalizeCanvasDesign } from "@/lib/canvas/normalize-canvas-design";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { fetchThemeById } from "@/lib/invitation-themes.server";
 import { eventHasFeature } from "@/lib/event-features";
@@ -263,8 +265,9 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
   }
 
   const canvasDesign = event.canvas_design as CanvasDesign | null;
+  const hasMobileCanvas = hasRenderableMobileCanvasDesign(canvasDesign);
 
-  return (
+  const publicInvitation = (
     <PublicInvitation
       mode="public"
       event={event}
@@ -290,6 +293,25 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
       canvasDesign={canvasDesign}
     />
   );
+
+  if (hasMobileCanvas && canvasDesign) {
+    return (
+      <>
+        <div className="md:hidden">
+          <CanvasMobileRenderer
+            event={event}
+            canvasDesign={normalizeCanvasDesign(canvasDesign)}
+            mode="public"
+          />
+        </div>
+        <div className="hidden md:block">
+          {publicInvitation}
+        </div>
+      </>
+    );
+  }
+
+  return publicInvitation;
 }
 function normalizeVisualDecorations(value: unknown): VisualDecoration[] {
   if (Array.isArray(value)) return value.filter((decoration) => Boolean(decoration?.url)) as VisualDecoration[];

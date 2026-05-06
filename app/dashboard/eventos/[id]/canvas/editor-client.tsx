@@ -4,12 +4,12 @@ import { useReducer, useRef, useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { ArrowLeft, Trash2, Plus, Save, X, Eye } from "lucide-react";
 import { saveCanvasDesign, clearCanvasDesign } from "@/app/actions/canvas";
-import { PublicInvitation } from "@/components/public-invitation/public-invitation";
+import { CanvasMobileRenderer } from "@/components/public-invitation/canvas-mobile-renderer";
+import { normalizeCanvasDesign } from "@/lib/canvas/normalize-canvas-design";
 import { DECORATIONS } from "@/lib/decorations";
 import type { Decoration } from "@/lib/decorations";
-import type { ResolvedDesign } from "@/lib/invitation-design";
 import type { CanvasDesign, CanvasElement, CanvasTextElement, CanvasImageElement, CanvasSectionId } from "@/lib/types";
-import type { Event, EventDecorations, VisualDecoration } from "@/lib/types";
+import type { Event } from "@/lib/types";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants
@@ -104,6 +104,9 @@ type EditorAction =
 function createEmptyDesign(): CanvasDesign {
   return {
     version: 1,
+    viewport: "mobile",
+    width: REF_W,
+    height: REF_H,
     refWidth: REF_W,
     refHeight: REF_H,
     background: { type: "none" },
@@ -302,13 +305,6 @@ type Props = {
   eventSlug: string;
   eventTitle: string;
   event: Event;
-  slotDecorations: EventDecorations;
-  freeDecorations: VisualDecoration[];
-  decorationThemeSlug: string | null;
-  invitationThemeSlug: string | null;
-  design: ResolvedDesign;
-  showRoyalPack: boolean;
-  calendarUrl: string;
   initialDesign: CanvasDesign | null;
 };
 
@@ -321,17 +317,10 @@ export function CanvasEditorClient({
   eventSlug,
   eventTitle,
   event,
-  slotDecorations,
-  freeDecorations,
-  decorationThemeSlug,
-  invitationThemeSlug,
-  design,
-  showRoyalPack,
-  calendarUrl,
   initialDesign,
 }: Props) {
   const [state, dispatch] = useReducer(reducer, {
-    design: initialDesign ?? createEmptyDesign(),
+    design: initialDesign ? normalizeCanvasDesign(initialDesign) : createEmptyDesign(),
     selectedId: null,
     isDirty: false,
     saveStatus: "saved",
@@ -471,7 +460,7 @@ export function CanvasEditorClient({
   const handleSave = async () => {
     dispatch({ type: "MARK_SAVING" });
     const { error } = await saveCanvasDesign(eventId, {
-      ...state.design,
+      ...normalizeCanvasDesign(state.design),
       updatedAt: new Date().toISOString(),
     });
     if (error) {
@@ -535,6 +524,7 @@ export function CanvasEditorClient({
             key={el.id}
             element={el}
             selected={el.id === state.selectedId}
+            ghost
             onMoveStart={(e) => handleElementMouseDown(e, el.id)}
             onResizeStart={(e, handle) => handleResizeMouseDown(e, el.id, handle)}
             onClick={(e) => {
@@ -713,18 +703,13 @@ export function CanvasEditorClient({
                 cursor: isDragging ? "grabbing" : "default",
               }}
             >
-              <PublicInvitation
+              <CanvasMobileRenderer
                 mode="editor"
                 event={event}
-                design={design}
-                invitationThemeSlug={invitationThemeSlug}
-                calendarUrl={calendarUrl}
-                slotDecorations={slotDecorations}
-                freeDecorations={freeDecorations}
-                decorationThemeSlug={decorationThemeSlug}
-                showRoyalPack={showRoyalPack}
-                renderCanvasLayer={renderCanvasLayer}
-              />
+                canvasDesign={state.design}
+              >
+                {renderCanvasLayer(activeSectionId)}
+              </CanvasMobileRenderer>
 
               {/* Empty-canvas hint */}
               {sortedElements.length === 0 && (
@@ -819,6 +804,7 @@ type StageElementProps = {
   onMoveStart: (e: React.MouseEvent) => void;
   onResizeStart: (e: React.MouseEvent, handle: ResizeHandle) => void;
   onClick: (e: React.MouseEvent) => void;
+  ghost?: boolean;
 };
 
 function StageElement({
@@ -827,6 +813,7 @@ function StageElement({
   onMoveStart,
   onResizeStart,
   onClick,
+  ghost = false,
 }: StageElementProps) {
   // Wrapper: positions the element on the canvas
   const wrapperStyle: React.CSSProperties = {
@@ -867,7 +854,7 @@ function StageElement({
             letterSpacing: `${element.letterSpacing}em`,
             textShadow: element.textShadow ?? undefined,
             textDecoration: element.textDecoration,
-            opacity: element.opacity,
+            opacity: ghost ? 0 : element.opacity,
             whiteSpace: "pre-wrap",
             wordBreak: "break-word",
             width: "100%",
@@ -888,7 +875,7 @@ function StageElement({
             width: "100%",
             height: element.height ? "100%" : "auto",
             objectFit: "contain",
-            opacity: element.opacity,
+            opacity: ghost ? 0 : element.opacity,
             pointerEvents: "none",
           }}
         />

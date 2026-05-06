@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { normalizeCanvasDesign } from "@/lib/canvas/normalize-canvas-design";
 import { isKaisAdmin } from "@/lib/profiles";
 import type { CanvasDesign } from "@/lib/types";
 
@@ -31,21 +32,23 @@ export async function saveCanvasDesign(
     return { error: "Sin permiso para editar el diseño" };
   }
 
+  const normalizedDesign = normalizeCanvasDesign(design);
+
   // Validar tamaño del JSON
-  const json = JSON.stringify(design);
+  const json = JSON.stringify(normalizedDesign);
   if (json.length > MAX_CANVAS_JSON_BYTES) {
     return { error: `El diseño excede el tamaño máximo permitido (${MAX_CANVAS_JSON_BYTES / 1000} KB)` };
   }
 
   // Validar versión mínima del schema
-  if (design.version !== 1) {
+  if (normalizedDesign.version !== 1) {
     return { error: "Versión de diseño no soportada" };
   }
 
   const { error } = await supabase
     .from("events")
     .update({
-      canvas_design: design,
+      canvas_design: normalizedDesign,
       updated_at: new Date().toISOString(),
     })
     .eq("id", eventId);

@@ -1,6 +1,8 @@
 import {
+  DEFAULT_MOBILE_CANVAS_SECTIONS,
   MOBILE_CANVAS_HEIGHT,
   MOBILE_CANVAS_WIDTH,
+  getGlobalYPercent,
   normalizeCanvasDesign,
 } from "@/lib/canvas/normalize-canvas-design";
 import type { CanvasDesign, CanvasElement, CanvasImageElement, CanvasSectionId, CanvasTextElement } from "@/lib/types";
@@ -51,9 +53,9 @@ export function createInitialMobileCanvasDesign(
     "Celebremos juntos un momento inolvidable.";
 
   const elements: CanvasElement[] = [
-    ...(heroImage ? [imageElement("hero-bg", heroImage, "hero", 50, 50, 390, 844, 1, true, "fill")] : []),
+    ...(heroImage ? [imageElement("hero-bg", heroImage, "hero", 50, yInSection("hero", 50), 390, 844, 1, true, "fill")] : []),
     imageOverlayElement(themeTokens.overlay),
-    textElement("event-type", eventType.toUpperCase(), "hero", 50, 16, 270, 16, 3, {
+    textElement("event-type", eventType.toUpperCase(), "hero", 50, yInSection("hero", 16), 270, 16, 3, {
       color: themeTokens.accent,
       fontFamily: DEFAULT_FONT,
       fontSize: 12,
@@ -61,7 +63,7 @@ export function createInitialMobileCanvasDesign(
       letterSpacing: 0.42,
       textShadow: "0 2px 10px rgba(0,0,0,0.45)",
     }),
-    textElement("main-title", title, "hero", 50, 39, 330, null, 4, {
+    textElement("main-title", title, "hero", 50, yInSection("hero", 39), 330, null, 4, {
       color: themeTokens.title,
       fontFamily: DISPLAY_FONT,
       fontSize: title.length > 18 ? 56 : 68,
@@ -70,33 +72,50 @@ export function createInitialMobileCanvasDesign(
       lineHeight: 0.95,
       textShadow: "0 4px 18px rgba(0,0,0,0.55)",
     }),
-    textElement("event-date", dateLabel, "hero", 50, 58, 300, 24, 5, {
+    textElement("event-date", dateLabel, "hero", 50, yInSection("hero", 58), 300, 24, 5, {
       color: themeTokens.body,
       fontFamily: DISPLAY_FONT,
       fontSize: 25,
       fontStyle: "italic",
       textShadow: "0 2px 12px rgba(0,0,0,0.55)",
     }),
-    textElement("countdown-marker", "CUENTA REGRESIVA", "countdown", 50, 70, 280, 18, 6, {
+    textElement("countdown-title", "Cuenta regresiva", "countdown", 50, yInSection("countdown", 22), 320, 32, 6, {
       color: themeTokens.accent,
-      fontSize: 12,
-      fontWeight: "600",
-      letterSpacing: 0.28,
+      fontFamily: DISPLAY_FONT,
+      fontSize: 31,
+      fontStyle: "italic",
+      letterSpacing: 0.02,
       textShadow: "0 2px 10px rgba(0,0,0,0.55)",
     }),
-    textElement("main-message", message, "messages", 50, 78, 320, null, 7, {
+    textElement("countdown-placeholder", "00 DIAS   00 HORAS   00 MIN   00 SEG", "countdown", 50, yInSection("countdown", 48), 330, 42, 7, {
+      color: themeTokens.body,
+      fontSize: 13,
+      fontWeight: "600",
+      letterSpacing: 0.16,
+      textShadow: "0 2px 10px rgba(0,0,0,0.55)",
+    }),
+    textElement("main-message", message, "presentation", 50, yInSection("presentation", 35), 320, null, 8, {
       color: themeTokens.body,
       fontSize: 17,
       lineHeight: 1.45,
       textShadow: "0 2px 10px rgba(0,0,0,0.65)",
+      style: { background: "rgba(255,255,255,0.08)", borderRadius: 28, backdropBlur: 14 },
     }),
     ...optionalTextElements(eventData, themeTokens),
-    textElement("rsvp-button", "CONFIRMAR ASISTENCIA", "rsvp", 50, 92, 290, 52, 20, {
+    textElement("rsvp-title", "Confirma tu asistencia", "rsvp", 50, yInSection("rsvp", 24), 320, 40, 19, {
+      color: themeTokens.accent,
+      fontFamily: DISPLAY_FONT,
+      fontSize: 32,
+      fontStyle: "italic",
+      textShadow: "0 2px 10px rgba(0,0,0,0.55)",
+    }),
+    textElement("rsvp-button", "CONFIRMAR ASISTENCIA", "rsvp", 50, yInSection("rsvp", 54), 290, 52, 20, {
       color: themeTokens.buttonText,
       fontSize: 15,
       fontWeight: "700",
       letterSpacing: 0.22,
       textShadow: null,
+      style: { background: `linear-gradient(135deg, ${themeTokens.accent}, ${themeTokens.button})`, borderRadius: 999 },
     }),
   ];
 
@@ -106,7 +125,8 @@ export function createInitialMobileCanvasDesign(
     width: MOBILE_CANVAS_WIDTH,
     height: MOBILE_CANVAS_HEIGHT,
     refWidth: MOBILE_CANVAS_WIDTH,
-    refHeight: MOBILE_CANVAS_HEIGHT,
+    refHeight: 844,
+    sections: DEFAULT_MOBILE_CANVAS_SECTIONS,
     background: heroImage ? { type: "color", color: themeTokens.background } : { type: "gradient", gradient: themeTokens.fallbackGradient },
     elements,
     updatedAt: new Date().toISOString(),
@@ -115,34 +135,31 @@ export function createInitialMobileCanvasDesign(
 
 function optionalTextElements(eventData: InitialCanvasEventData, themeTokens: ReturnType<typeof resolveThemeTokens>) {
   const elements: CanvasElement[] = [];
-  let y = 84;
 
   if (clean(eventData.parents_names)) {
-    elements.push(textElement("parents", `Junto a mis padres\n${clean(eventData.parents_names)}`, "presentation", 50, y, 300, null, 10, {
+    elements.push(textElement("parents", `Junto a mis padres\n${clean(eventData.parents_names)}`, "messages", 50, yInSection("messages", 26), 300, null, 10, {
       color: themeTokens.body,
       fontSize: 15,
       lineHeight: 1.35,
       textShadow: "0 2px 10px rgba(0,0,0,0.58)",
     }));
-    y += 5;
   }
 
   if (clean(eventData.church_name)) {
     const church = `Ceremonia religiosa\n${clean(eventData.church_name)}${clean(eventData.church_time) ? ` · ${clean(eventData.church_time)}` : ""}`;
-    elements.push(textElement("church", church, "church", 50, y, 320, null, 11, {
+    elements.push(textElement("church", church, "church", 50, yInSection("church", 35), 320, null, 11, {
       color: themeTokens.body,
       fontSize: 14,
       lineHeight: 1.35,
       textShadow: "0 2px 10px rgba(0,0,0,0.58)",
     }));
-    y += 5;
   }
 
   const details = [eventData.address, eventData.dress_code, eventData.color_palette, eventData.theme]
     .map(clean)
     .filter(Boolean);
   if (details.length > 0) {
-    elements.push(textElement("details", details.join("\n"), "details", 50, y, 320, null, 12, {
+    elements.push(textElement("details", details.join("\n"), "details", 50, yInSection("details", 35), 320, null, 12, {
       color: themeTokens.body,
       fontSize: 13,
       lineHeight: 1.38,
@@ -234,7 +251,11 @@ function imageOverlayElement(color: string): CanvasImageElement {
   const svg = encodeURIComponent(
     `<svg xmlns="http://www.w3.org/2000/svg" width="390" height="844" viewBox="0 0 390 844"><defs><linearGradient id="g" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="${color}" stop-opacity=".15"/><stop offset=".45" stop-color="${color}" stop-opacity=".18"/><stop offset="1" stop-color="${color}" stop-opacity=".82"/></linearGradient></defs><rect width="390" height="844" fill="url(#g)"/></svg>`
   );
-  return imageElement("hero-veil", `data:image/svg+xml,${svg}`, "hero", 50, 50, 390, 844, 2, true, "fill");
+  return imageElement("hero-veil", `data:image/svg+xml,${svg}`, "hero", 50, yInSection("hero", 50), 390, 844, 2, true, "fill");
+}
+
+function yInSection(sectionId: CanvasSectionId, relativeY: number) {
+  return getGlobalYPercent(sectionId, relativeY, DEFAULT_MOBILE_CANVAS_SECTIONS);
 }
 
 function resolveThemeTokens(eventData: InitialCanvasEventData, theme?: InitialCanvasTheme) {
@@ -248,6 +269,7 @@ function resolveThemeTokens(eventData: InitialCanvasEventData, theme?: InitialCa
       title: "#fff7ef",
       body: "#fff3e5",
       accent: "#C8A96A",
+      button: "#7A1F2B",
       buttonText: "#ffffff",
     };
   }
@@ -260,6 +282,7 @@ function resolveThemeTokens(eventData: InitialCanvasEventData, theme?: InitialCa
       title: "#f8fbff",
       body: "#e6f7ff",
       accent: "#67e8f9",
+      button: "#a855f7",
       buttonText: "#ffffff",
     };
   }
@@ -271,6 +294,7 @@ function resolveThemeTokens(eventData: InitialCanvasEventData, theme?: InitialCa
     title: "#fff8ed",
     body: "#f8ead4",
     accent: theme?.secondary ?? "#d4af37",
+    button: theme?.primary ?? "#7a1f2b",
     buttonText: "#ffffff",
   };
 }

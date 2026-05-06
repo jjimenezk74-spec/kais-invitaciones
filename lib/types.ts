@@ -108,6 +108,15 @@ type CanvasBaseElement = {
   device: "all" | "mobile" | "desktop";
   /** Sección de la invitación donde se renderiza. undefined = "hero" (compatibilidad). */
   sectionId?: CanvasSectionId;
+  /** Estilos visuales opcionales para el renderer absoluto. */
+  style?: {
+    animation?: string;
+    opacity?: number;
+    backdropBlur?: number;
+    textShadow?: string;
+    borderRadius?: number;
+    background?: string;
+  };
 };
 
 export type CanvasTextElement = CanvasBaseElement & {
@@ -149,6 +158,13 @@ export type CanvasBackground = {
   imageOpacity?: number;
 };
 
+export type CanvasSection = {
+  id: CanvasSectionId;
+  label: string;
+  y: number;
+  height: number;
+};
+
 export type CanvasDesign = {
   /** Version del schema. Incrementar si hay cambios incompatibles. */
   version: 1;
@@ -163,6 +179,7 @@ export type CanvasDesign = {
   /** Alto del canvas de referencia en px (844 = iPhone estandar). */
   refHeight: number;
   background: CanvasBackground;
+  sections?: CanvasSection[];
   elements: CanvasElement[];
   /** ISO timestamp del ultimo guardado. */
   updatedAt: string;

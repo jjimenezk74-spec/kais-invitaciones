@@ -5,7 +5,12 @@ import Link from "next/link";
 import { ArrowLeft, Trash2, Plus, Save, X, Eye } from "lucide-react";
 import { saveCanvasDesign, clearCanvasDesign } from "@/app/actions/canvas";
 import { CanvasMobileRenderer } from "@/components/public-invitation/canvas-mobile-renderer";
-import { normalizeCanvasDesign } from "@/lib/canvas/normalize-canvas-design";
+import {
+  DEFAULT_MOBILE_CANVAS_SECTIONS,
+  MOBILE_CANVAS_HEIGHT,
+  getGlobalYPercent,
+  normalizeCanvasDesign,
+} from "@/lib/canvas/normalize-canvas-design";
 import { DECORATIONS } from "@/lib/decorations";
 import type { Decoration } from "@/lib/decorations";
 import type { CanvasDesign, CanvasElement, CanvasTextElement, CanvasImageElement, CanvasSectionId } from "@/lib/types";
@@ -106,9 +111,10 @@ function createEmptyDesign(): CanvasDesign {
     version: 1,
     viewport: "mobile",
     width: REF_W,
-    height: REF_H,
+    height: MOBILE_CANVAS_HEIGHT,
     refWidth: REF_W,
     refHeight: REF_H,
+    sections: DEFAULT_MOBILE_CANVAS_SECTIONS,
     background: { type: "none" },
     elements: [],
     updatedAt: new Date().toISOString(),
@@ -121,7 +127,7 @@ function createTextElement(sectionId: CanvasSectionId): CanvasTextElement {
     type: "text",
     sectionId,
     x: 50,
-    y: 50,
+    y: getGlobalYPercent(sectionId, 50),
     width: 280,
     height: null,
     rotation: 0,
@@ -154,7 +160,7 @@ function createImageElement(url: string, sectionId: CanvasSectionId): import("@/
     type: "image",
     sectionId,
     x: 50,
-    y: 30,
+    y: getGlobalYPercent(sectionId, 30),
     width: 120,
     height: 120,
     rotation: 0,
@@ -261,7 +267,7 @@ function reducer(state: EditorState, action: EditorAction): EditorState {
         design: {
           ...state.design,
           elements: state.design.elements.map((el) =>
-            el.id === action.id ? { ...el, sectionId: action.sectionId } : el
+            el.id === action.id ? { ...el, sectionId: action.sectionId, y: getGlobalYPercent(action.sectionId, 50) } : el
           ),
         },
         isDirty: true,
@@ -329,7 +335,9 @@ export function CanvasEditorClient({
 
   // Scale: fit the simulated phone viewport inside the editor viewport.
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const stageScrollRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(0.55);
+  const documentHeight = state.design.height ?? REF_H;
 
   useEffect(() => {
     if (!document.getElementById("kais-canvas-fonts")) {
@@ -409,7 +417,7 @@ export function CanvasEditorClient({
 
       if (drag.kind === "move") {
         const dxPct = ((e.clientX - drag.startMouseX) / scale / REF_W) * 100;
-        const dyPct = ((e.clientY - drag.startMouseY) / scale / REF_H) * 100;
+        const dyPct = ((e.clientY - drag.startMouseY) / scale / documentHeight) * 100;
         dispatch({
           type: "MOVE",
           id: drag.elementId,
@@ -448,7 +456,7 @@ export function CanvasEditorClient({
         }
       }
     },
-    [scale]
+    [documentHeight, scale]
   );
 
   const handleMouseUp = useCallback(() => {
@@ -489,6 +497,7 @@ export function CanvasEditorClient({
     .sort((a, b) => a.zIndex - b.zIndex);
 
   function renderCanvasLayer(sectionId: CanvasSectionId) {
+    const section = state.design.sections?.find((item) => item.id === sectionId);
     const visible = [...state.design.elements]
       .filter((el) => el.visible && (el.sectionId ?? "hero") === sectionId)
       .sort((a, b) => a.zIndex - b.zIndex);
@@ -504,17 +513,20 @@ export function CanvasEditorClient({
           zIndex: 60,
           pointerEvents: "none",
           overflow: "visible",
-          boxShadow: activeSectionId === sectionId ? "inset 0 0 0 1px rgba(99,102,241,0.55)" : undefined
         }}
       >
         {activeSectionId === sectionId ? (
           <div
             style={{
               position: "absolute",
-              inset: 0,
+              left: 0,
+              right: 0,
+              top: section?.y ?? 0,
+              height: section?.height ?? REF_H,
               zIndex: 0,
               pointerEvents: "auto",
-              cursor: "default"
+              cursor: "default",
+              boxShadow: "inset 0 0 0 1px rgba(99,102,241,0.55)",
             }}
             onClick={() => dispatch({ type: "SELECT", id: null })}
           />
@@ -548,6 +560,12 @@ export function CanvasEditorClient({
 
   const isDragging = dragRef.current !== null;
   const [showDecorPicker, setShowDecorPicker] = useState(false);
+
+  function scrollToSection(sectionId: CanvasSectionId) {
+    const section = state.design.sections?.find((item) => item.id === sectionId);
+    if (!section || !stageScrollRef.current) return;
+    stageScrollRef.current.scrollTo({ top: section.y, behavior: "smooth" });
+  }
 
   // ─────────────────────────────────────────────────────────────────────────
   return (
@@ -654,6 +672,7 @@ export function CanvasEditorClient({
             onClick={() => {
               setActiveSectionId(s.id);
               dispatch({ type: "SELECT", id: null });
+              scrollToSection(s.id);
             }}
             className={`shrink-0 rounded-md px-2.5 py-1 text-xs transition ${
               activeSectionId === s.id
@@ -702,6 +721,7 @@ export function CanvasEditorClient({
                   "0 0 0 1px rgba(255,255,255,0.08), 0 8px 48px rgba(0,0,0,0.7)",
                 cursor: isDragging ? "grabbing" : "default",
               }}
+              ref={stageScrollRef}
             >
               <CanvasMobileRenderer
                 mode="editor"
@@ -716,7 +736,10 @@ export function CanvasEditorClient({
                 <div
                   style={{
                     position: "absolute",
-                    inset: 0,
+                    left: 0,
+                    right: 0,
+                    top: state.design.sections?.find((section) => section.id === activeSectionId)?.y ?? 0,
+                    height: state.design.sections?.find((section) => section.id === activeSectionId)?.height ?? REF_H,
                     display: "flex",
                     flexDirection: "column",
                     alignItems: "center",
@@ -835,6 +858,8 @@ function StageElement({
 
   return (
     <div
+      data-element-id={element.id}
+      data-section-id={element.sectionId ?? "hero"}
       style={wrapperStyle}
       onMouseDown={onMoveStart}
       onClick={onClick}

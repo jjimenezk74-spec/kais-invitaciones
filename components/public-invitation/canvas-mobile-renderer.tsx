@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import { normalizeCanvasDesign } from "@/lib/canvas/normalize-canvas-design";
-import type { CanvasDesign, CanvasElement, CanvasImageElement, CanvasTextElement, Event } from "@/lib/types";
+import type { CanvasDesign, CanvasElement, CanvasImageElement, CanvasSection, CanvasTextElement, Event } from "@/lib/types";
 
 type CanvasMobileRendererProps = {
   event: Event;
@@ -70,6 +70,9 @@ export function CanvasMobileRenderer({
             ...backgroundStyle,
           }}
         >
+          {design.sections.map((section) => (
+            <CanvasSectionBackground key={section.id} section={section} />
+          ))}
           {visible.map((element) => (
             <CanvasMobileElement key={element.id} element={element} />
           ))}
@@ -80,6 +83,25 @@ export function CanvasMobileRenderer({
   );
 }
 
+function CanvasSectionBackground({ section }: { section: CanvasSection }) {
+  return (
+    <section
+      data-section-id={section.id}
+      aria-label={section.label}
+      style={{
+        position: "absolute",
+        left: 0,
+        top: section.y,
+        width: "100%",
+        height: section.height,
+        zIndex: 0,
+        borderTop: section.id === "hero" ? undefined : "1px solid rgba(255,255,255,0.08)",
+        background: getSectionBackground(section.id),
+      }}
+    />
+  );
+}
+
 function CanvasMobileElement({ element }: { element: CanvasElement }) {
   const baseStyle: CSSProperties = {
     position: "absolute",
@@ -87,11 +109,15 @@ function CanvasMobileElement({ element }: { element: CanvasElement }) {
     top: `${element.y}%`,
     width: element.width,
     height: element.height ?? undefined,
-    opacity: element.opacity,
+    opacity: getElementStyleValue(element, "opacity") ?? element.opacity,
     transform: buildTransform(element.rotation),
     zIndex: element.zIndex,
     pointerEvents: "none",
     userSelect: "none",
+    borderRadius: getElementStyleValue(element, "borderRadius"),
+    background: getElementStyleValue(element, "background"),
+    backdropFilter: getBackdropFilter(element),
+    animation: getElementStyleValue(element, "animation"),
   };
 
   if (element.type === "text") {
@@ -114,6 +140,8 @@ function CanvasMobileText({
 }) {
   return (
     <p
+      data-element-id={element.id}
+      data-section-id={element.sectionId ?? "hero"}
       style={{
         ...style,
         fontFamily: element.fontFamily,
@@ -125,7 +153,7 @@ function CanvasMobileText({
         lineHeight: element.lineHeight,
         letterSpacing: `${element.letterSpacing}em`,
         textDecoration: element.textDecoration === "underline" ? "underline" : "none",
-        textShadow: element.textShadow ?? undefined,
+        textShadow: getStringElementStyleValue(element, "textShadow") ?? element.textShadow ?? undefined,
         whiteSpace: "pre-wrap",
         wordBreak: "break-word",
       }}
@@ -145,6 +173,8 @@ function CanvasMobileImage({
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
+      data-element-id={element.id}
+      data-section-id={element.sectionId ?? "hero"}
       src={element.url}
       alt=""
       draggable={false}
@@ -182,6 +212,32 @@ function buildBackgroundStyle(design: CanvasDesign): CSSProperties {
   }
 
   return { backgroundColor: "#0a0a0a" };
+}
+
+function getSectionBackground(sectionId: string) {
+  if (sectionId === "hero") return "transparent";
+  if (sectionId === "rsvp") return "linear-gradient(180deg, rgba(8,4,6,0.96), rgba(24,8,12,0.98))";
+  if (sectionId === "footer") return "linear-gradient(180deg, rgba(12,6,8,0.98), rgba(4,3,4,1))";
+  return "linear-gradient(180deg, rgba(14,8,10,0.96), rgba(22,10,14,0.96))";
+}
+
+function getElementStyleValue(element: CanvasElement, key: string) {
+  const style = (element as unknown as { style?: Record<string, unknown> }).style;
+  const value = style?.[key];
+  if (key === "borderRadius" && typeof value === "number") return value;
+  if (typeof value === "string") return value;
+  if (typeof value === "number" && key !== "borderRadius") return value;
+  return undefined;
+}
+
+function getStringElementStyleValue(element: CanvasElement, key: string) {
+  const value = getElementStyleValue(element, key);
+  return typeof value === "string" ? value : undefined;
+}
+
+function getBackdropFilter(element: CanvasElement) {
+  const style = (element as unknown as { style?: { backdropBlur?: unknown } }).style;
+  return typeof style?.backdropBlur === "number" ? `blur(${style.backdropBlur}px)` : undefined;
 }
 
 function buildTransform(rotation: number): string {

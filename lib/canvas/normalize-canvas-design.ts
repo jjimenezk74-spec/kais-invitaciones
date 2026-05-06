@@ -27,16 +27,39 @@ export type NormalizedMobileCanvasDesign = CanvasDesign & {
   refWidth: typeof MOBILE_CANVAS_WIDTH;
   refHeight: typeof MOBILE_CANVAS_VIEWPORT_HEIGHT;
   sections: CanvasSection[];
+  coordinatePx: true;
 };
+
+// ─────────────────────────────────────────────────────────────────────────────
+// normalizeCanvasDesign
+//
+// Normalises any stored CanvasDesign (including legacy %-based designs) to the
+// canonical form where element.x / element.y are ABSOLUTE PIXELS measured from
+// the top-left corner of the canvas document.
+//
+// Legacy detection: if `source.coordinatePx !== true` the stored x/y values
+// are treated as centre-anchored percentages (the old system) and migrated.
+// ─────────────────────────────────────────────────────────────────────────────
 
 export function normalizeCanvasDesign(value: unknown): NormalizedMobileCanvasDesign {
   const source = isRecord(value) ? value : {};
   const hasSections = Array.isArray(source.sections) && source.sections.length > 0;
   const sections = hasSections ? normalizeSections(source.sections as unknown[]) : DEFAULT_MOBILE_CANVAS_SECTIONS;
   const height = getDocumentHeight(sections);
+
+  // Detect legacy coordinate system: old designs don't have coordinatePx: true.
+  const isLegacyPercent = source.coordinatePx !== true;
+
   const elements = Array.isArray(source.elements)
-    ? normalizeElements(source.elements as CanvasElement[], sections, height, !hasSections)
+    ? normalizeElements(
+        source.elements as CanvasElement[],
+        sections,
+        height,
+        !hasSections,    // shouldConvertSectionRelativeY (very old designs)
+        isLegacyPercent,
+      )
     : [];
+
   const background = isRecord(source.background) ? source.background : { type: "none" };
   const updatedAt = typeof source.updatedAt === "string" ? source.updatedAt : new Date().toISOString();
 
@@ -52,6 +75,7 @@ export function normalizeCanvasDesign(value: unknown): NormalizedMobileCanvasDes
     sections,
     elements,
     updatedAt,
+    coordinatePx: true, // mark as migrated — safe to re-store
   };
 }
 
@@ -76,6 +100,10 @@ export function getCanvasSection(
   return design.sections.find((section) => section.id === sectionId) ?? design.sections[0];
 }
 
+/**
+ * @deprecated Use getSectionYPx() for new px-based designs.
+ * Kept for backward compatibility.
+ */
 export function getGlobalYPercent(
   sectionId: CanvasSectionId,
   sectionRelativeYPercent: number,
@@ -85,6 +113,23 @@ export function getGlobalYPercent(
   const documentHeight = getDocumentHeight(sections);
   return ((section.y + (sectionRelativeYPercent / 100) * section.height) / documentHeight) * 100;
 }
+
+/**
+ * Returns the absolute Y pixel position at `relativeYPercent` within a section.
+ * Use this instead of getGlobalYPercent for px-based designs.
+ */
+export function getSectionYPx(
+  sectionId: CanvasSectionId,
+  relativeYPercent: number,
+  sections = DEFAULT_MOBILE_CANVAS_SECTIONS
+): number {
+  const section = sections.find((item) => item.id === sectionId) ?? sections[0];
+  return section.y + (relativeYPercent / 100) * section.height;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Internal helpers
+// ─────────────────────────────────────────────────────────────────────────────
 
 function normalizeSections(value: unknown[]): CanvasSection[] {
   const fallbackById = new Map(DEFAULT_MOBILE_CANVAS_SECTIONS.map((section) => [section.id, section]));
@@ -108,20 +153,39 @@ function normalizeElements(
   elements: CanvasElement[],
   sections: CanvasSection[],
   documentHeight: number,
-  shouldConvertSectionRelativeY: boolean
+  shouldConvertSectionRelativeY: boolean,
+  isLegacyPercent: boolean,
 ) {
   return elements.map((element) => {
     const sectionId = element.sectionId ?? "hero";
     const section = sections.find((item) => item.id === sectionId) ?? sections[0];
-    const y = shouldConvertSectionRelativeY
-      ? ((section.y + (Number(element.y) / 100) * section.height) / documentHeight) * 100
-      : Number(element.y);
+
+    let rawX = Number.isFinite(Number(element.x)) ? Number(element.x) : 50;
+    let rawY = Number.isFinite(Number(element.y)) ? Number(element.y) : 0;
+
+    if (shouldConvertSectionRelativeY) {
+      rawY = ((section.y + (rawY / 100) * section.height) / documentHeight) * 100;
+    }
+
+    let finalX = rawX;
+    let finalY = rawY;
+
+    if (isLegacyPercent) {
+      const w = Number.isFinite(Number(element.width)) ? Number(element.width) : 120;
+      const h =
+        element.height !== null && element.height !== undefined
+          ? Number.isFinite(Number(element.height)) ? Number(element.height) : 0
+          : 0;
+
+      finalX = Math.max(0, (rawX / 100) * MOBILE_CANVAS_WIDTH - w / 2);
+      finalY = Math.max(0, (rawY / 100) * documentHeight - h / 2);
+    }
 
     return {
       ...element,
       sectionId,
-      x: Number.isFinite(Number(element.x)) ? Number(element.x) : 50,
-      y: Number.isFinite(y) ? y : 0,
+      x: finalX,
+      y: finalY,
       width: Number.isFinite(Number(element.width)) ? Number(element.width) : 120,
       height: element.height === null ? null : Number.isFinite(Number(element.height)) ? Number(element.height) : null,
       rotation: Number.isFinite(Number(element.rotation)) ? Number(element.rotation) : 0,

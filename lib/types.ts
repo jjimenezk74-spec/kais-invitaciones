@@ -200,6 +200,11 @@ export type CanvasDesign = {
   elements: CanvasElement[];
   /** ISO timestamp del ultimo guardado. */
   updatedAt: string;
+  /**
+   * Si true, element.x/y están en píxeles absolutos (esquina sup-izquierda).
+   * Si false/absent, son porcentajes centro-anclados (formato legacy).
+   */
+  coordinatePx?: boolean;
 };
 
 export type Profile = {

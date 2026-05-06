@@ -6,6 +6,7 @@ import type {
   CanvasImageElement,
   CanvasSectionId,
 } from "@/lib/types";
+import { normalizeCanvasDesign } from "@/lib/canvas/normalize-canvas-design";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CanvasRenderer
@@ -24,7 +25,9 @@ type Props = {
   sectionId?: CanvasSectionId;
 };
 
-export function CanvasRenderer({ design, sectionId = "hero" }: Props) {
+export function CanvasRenderer({ design: rawDesign, sectionId = "hero" }: Props) {
+  // Normalize migrates legacy %-based coords to absolute px — safe to call repeatedly.
+  const design = normalizeCanvasDesign(rawDesign);
   const visible = design.elements
     .filter((el) => el.visible && (el.sectionId ?? "hero") === sectionId)
     .sort((a, b) => a.zIndex - b.zIndex);
@@ -64,8 +67,8 @@ function CanvasElementNode({
 
   const baseStyle: CSSProperties = {
     position: "absolute",
-    left: `${element.x}%`,
-    top: `${element.y}%`,
+    left: element.x,
+    top: element.y,
     width: scaleWidth(element.width, design.refWidth),
     height: element.height ? scaleWidth(element.height, design.refWidth) : undefined,
     opacity: element.opacity,
@@ -149,10 +152,12 @@ function ImageNode({
   baseStyle: CSSProperties;
   deviceClass: string;
 }) {
+  const flipTransform = element.flipX || element.flipY ? `scale(${element.flipX ? -1 : 1}, ${element.flipY ? -1 : 1})` : "";
+  const rotateTransform = element.rotation !== 0 ? `rotate(${element.rotation}deg)` : "";
   const wrapStyle: CSSProperties = {
     ...baseStyle,
     filter: buildImageFilter(element),
-    transform: `${buildTransform(element.rotation)}${element.flipX || element.flipY ? ` scale(${element.flipX ? -1 : 1}, ${element.flipY ? -1 : 1})` : ""}`,
+    transform: [rotateTransform, flipTransform].filter(Boolean).join(" ") || undefined,
   };
 
   return (
@@ -198,10 +203,9 @@ function scaleFontSize(px: number, refWidth: number): string {
   return `clamp(${min}px, ${vw.toFixed(2)}vw, ${max}px)`;
 }
 
-/** transform CSS para centrar el elemento (anclado al centro) y rotar. */
-function buildTransform(rotation: number): string {
-  const rotate = rotation !== 0 ? ` rotate(${rotation}deg)` : "";
-  return `translate(-50%, -50%)${rotate}`;
+/** transform CSS para rotar el elemento (anclado a esquina sup-izquierda). */
+function buildTransform(rotation: number): string | undefined {
+  return rotation !== 0 ? `rotate(${rotation}deg)` : undefined;
 }
 
 /** Devuelve clases de visibilidad por dispositivo (Tailwind). */
@@ -211,6 +215,7 @@ function getDeviceClass(device: CanvasElement["device"]): string {
   return ""; // "all"
 }
 
+/** Construye el CSS filter para efectos de imagen. */
 /** Construye el CSS filter para efectos de imagen. */
 function buildImageFilter(el: CanvasImageElement): string {
   if (el.effect === "glow") {

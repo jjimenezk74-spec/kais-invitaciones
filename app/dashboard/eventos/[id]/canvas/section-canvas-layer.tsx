@@ -50,11 +50,12 @@ function StageEl({ element, selected }: { element: CanvasElement; selected: bool
 
   const wrapStyle: React.CSSProperties = {
     position: "absolute",
-    left: `${element.x}%`,
-    top: `${element.y}%`,
+    left: element.x,
+    top: element.y,
     width: element.width,
     height: element.height ?? undefined,
-    transform: `translate(-50%, -50%) rotate(${element.rotation}deg)`,
+    transform: element.rotation !== 0 ? `rotate(${element.rotation}deg)` : undefined,
+    transformOrigin: "center center",
     zIndex: element.zIndex,
     cursor: element.locked ? "default" : selected ? "grab" : "pointer",
     userSelect: "none",

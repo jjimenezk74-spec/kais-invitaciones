@@ -169,8 +169,8 @@ function CanvasMobileElement({
   // transparent effects (blur-circle opacity 0.35, etc.).
   const wrapperStyle: CSSProperties = {
     position: "absolute",
-    left: `${element.x}%`,
-    top: `${element.y}%`,
+    left: element.x,
+    top: element.y,
     width: element.width,
     height: element.height ?? getFallbackElementHeight(element),
     transform: buildTransform(element.rotation),
@@ -551,9 +551,8 @@ function getBackdropFilter(element: CanvasElement) {
   return filters.length > 0 ? filters.join(" ") : undefined;
 }
 
-function buildTransform(rotation: number): string {
-  const rotate = rotation !== 0 ? ` rotate(${rotation}deg)` : "";
-  return `translate(-50%, -50%)${rotate}`;
+function buildTransform(rotation: number): string | undefined {
+  return rotation !== 0 ? `rotate(${rotation}deg)` : undefined;
 }
 
 function buildElementBackground(element: CanvasElement) {

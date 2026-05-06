@@ -9,7 +9,6 @@ import type { CanvasResizeHandle } from "@/components/public-invitation/canvas-m
 import {
   DEFAULT_MOBILE_CANVAS_SECTIONS,
   MOBILE_CANVAS_HEIGHT,
-  getGlobalYPercent,
   normalizeCanvasDesign,
 } from "@/lib/canvas/normalize-canvas-design";
 import { DECORATIONS } from "@/lib/decorations";
@@ -149,13 +148,18 @@ function createEmptyDesign(): CanvasDesign {
   };
 }
 
+function getSectionCenterY(sectionId: CanvasSectionId): number {
+  const section = DEFAULT_MOBILE_CANVAS_SECTIONS.find((s) => s.id === sectionId) ?? DEFAULT_MOBILE_CANVAS_SECTIONS[0];
+  return section.y + section.height * 0.5;
+}
+
 function createTextElement(sectionId: CanvasSectionId): CanvasTextElement {
   return {
     id: crypto.randomUUID().slice(0, 8),
     type: "text",
     sectionId,
-    x: ((REF_W - 280) / 2 / REF_W) * 100,
-    y: getGlobalYPercent(sectionId, 50),
+    x: (REF_W - 280) / 2,        // left-edge px, centred on 390
+    y: getSectionCenterY(sectionId),
     width: 280,
     height: null,
     rotation: 0,
@@ -219,8 +223,8 @@ function createImageElement(url: string, sectionId: CanvasSectionId): import("@/
     id: crypto.randomUUID().slice(0, 8),
     type: "image",
     sectionId,
-    x: ((REF_W - 120) / 2 / REF_W) * 100,
-    y: getGlobalYPercent(sectionId, 30),
+    x: (REF_W - 120) / 2,        // left-edge px, centred on 390
+    y: getSectionCenterY(sectionId) - 60, // centred: top = centre - height/2
     width: 120,
     height: 120,
     rotation: 0,
@@ -241,13 +245,12 @@ function createImageElement(url: string, sectionId: CanvasSectionId): import("@/
 }
 
 function createEffectElement(preset: EffectPreset, sectionId: CanvasSectionId): CanvasTextElement {
-  // x=50 => CSS left:50% + translate(-50%) => element is centered
   const base: CanvasTextElement = {
     id: crypto.randomUUID().slice(0, 8),
     type: "text",
     sectionId,
-    x: 50,
-    y: getGlobalYPercent(sectionId, 50),
+    x: (REF_W - 180) / 2,        // left-edge px, centred on 390
+    y: getSectionCenterY(sectionId) - 90, // top: centre - height/2
     width: 180,
     height: 180,
     rotation: 0,
@@ -281,6 +284,8 @@ function createEffectElement(preset: EffectPreset, sectionId: CanvasSectionId): 
   if (preset === "blur-circle") {
     return {
       ...base,
+      x: (REF_W - 200) / 2,
+      y: getSectionCenterY(sectionId) - 100,
       width: 200,
       height: 200,
       style: {
@@ -299,6 +304,8 @@ function createEffectElement(preset: EffectPreset, sectionId: CanvasSectionId): 
   if (preset === "glow") {
     return {
       ...base,
+      x: (REF_W - 140) / 2,
+      y: getSectionCenterY(sectionId) - 70,
       width: 140,
       height: 140,
       style: {
@@ -320,6 +327,8 @@ function createEffectElement(preset: EffectPreset, sectionId: CanvasSectionId): 
   if (preset === "flower-shape") {
     return {
       ...base,
+      x: (REF_W - 150) / 2,
+      y: getSectionCenterY(sectionId) - 75,
       width: 150,
       height: 150,
       rotation: -12,
@@ -341,8 +350,8 @@ function createEffectElement(preset: EffectPreset, sectionId: CanvasSectionId): 
   if (preset === "gradient-overlay") {
     return {
       ...base,
-      x: 50,
-      y: getGlobalYPercent(sectionId, 50),
+      x: 0,
+      y: getSectionCenterY(sectionId) - REF_H / 2,
       width: REF_W,
       height: REF_H,
       zIndex: 2,
@@ -361,7 +370,8 @@ function createEffectElement(preset: EffectPreset, sectionId: CanvasSectionId): 
   // divider / separator
   return {
     ...base,
-    x: 50,
+    x: (REF_W - 240) / 2,
+    y: getSectionCenterY(sectionId) - 14,
     width: 240,
     height: 28,
     zIndex: 3,
@@ -386,24 +396,16 @@ function createDuplicatedElement(element: CanvasElement): CanvasElement {
   return {
     ...cloneDesign({ ...createEmptyDesign(), elements: [element] }).elements[0],
     id: crypto.randomUUID().slice(0, 8),
-    x: clamp(element.x + 4, 0, 100),
-    y: clamp(element.y + 1.5, 0, 100),
+    x: clamp(element.x + 16, 0, REF_W - element.width),
+    y: clamp(element.y + 16, 0, MOBILE_CANVAS_HEIGHT - (element.height ?? 100)),
     locked: false,
   } as CanvasElement;
 }
 
-function snapPercent(value: number, guides: number[]) {
-  const threshold = 1.2;
-  const guide = guides.find((item) => Math.abs(item - value) <= threshold);
-  return guide ?? value;
-}
-
-function getElementCanvasRect(element: CanvasElement, canvasDesign: CanvasDesign) {
-  const canvasWidth = canvasDesign.width ?? REF_W;
-  const canvasHeight = canvasDesign.height ?? MOBILE_CANVAS_HEIGHT;
+function getElementCanvasRect(element: CanvasElement) {
   return {
-    x: (element.x / 100) * canvasWidth,
-    y: (element.y / 100) * canvasHeight,
+    x: element.x,
+    y: element.y,
     width: element.width,
     height: element.height ?? estimateElementHeight(element),
   };
@@ -420,14 +422,6 @@ function estimateElementHeight(element: CanvasElement) {
   const lineCount = Math.max(explicitLines, wrappedLines);
 
   return Math.max(24, lineCount * element.fontSize * element.lineHeight);
-}
-
-function canvasXToPercent(x: number, canvasDesign: CanvasDesign) {
-  return (x / (canvasDesign.width ?? REF_W)) * 100;
-}
-
-function canvasYToPercent(y: number, canvasDesign: CanvasDesign) {
-  return (y / (canvasDesign.height ?? MOBILE_CANVAS_HEIGHT)) * 100;
 }
 
 function reducer(state: EditorState, action: EditorAction): EditorState {
@@ -508,19 +502,26 @@ function reducer(state: EditorState, action: EditorAction): EditorState {
         },
         isDirty: true,
       };
-    case "MOVE":
+    case "MOVE": {
+      const canvasW = state.design.width ?? REF_W;
+      const canvasH = state.design.height ?? MOBILE_CANVAS_HEIGHT;
       return {
         ...state,
         design: {
           ...state.design,
           elements: state.design.elements.map((el) =>
             el.id === action.id
-              ? { ...el, x: clamp(action.x, 0, 100), y: clamp(action.y, 0, 100) }
+              ? {
+                  ...el,
+                  x: clamp(action.x, 0, canvasW - el.width),
+                  y: clamp(action.y, 0, canvasH - (el.height ?? 60)),
+                }
               : el
           ),
         },
         isDirty: true,
       };
+    }
     case "RESIZE":
       return {
         ...state,
@@ -530,8 +531,8 @@ function reducer(state: EditorState, action: EditorAction): EditorState {
             el.id === action.id
               ? {
                   ...el,
-                  ...(action.x !== undefined ? { x: clamp(action.x, 0, 100) } : {}),
-                  ...(action.y !== undefined ? { y: clamp(action.y, 0, 100) } : {}),
+                  ...(action.x !== undefined ? { x: clamp(action.x, 0, state.design.width ?? REF_W) } : {}),
+                  ...(action.y !== undefined ? { y: clamp(action.y, 0, state.design.height ?? MOBILE_CANVAS_HEIGHT) } : {}),
                   width: clamp(action.width, 24, 600),
                   ...(action.height !== undefined
                     ? { height: clamp(action.height, 24, 600) }
@@ -612,17 +613,22 @@ function reducer(state: EditorState, action: EditorAction): EditorState {
         isDirty: true,
       };
     }
-    case "SET_SECTION_ID":
+    case "SET_SECTION_ID": {
+      const targetSection = DEFAULT_MOBILE_CANVAS_SECTIONS.find((s) => s.id === action.sectionId) ?? DEFAULT_MOBILE_CANVAS_SECTIONS[0];
+      const sectionCentreY = targetSection.y + targetSection.height * 0.5;
       return {
         ...state,
         design: {
           ...state.design,
           elements: state.design.elements.map((el) =>
-            el.id === action.id ? { ...el, sectionId: action.sectionId, y: getGlobalYPercent(action.sectionId, 50) } : el
+            el.id === action.id
+              ? { ...el, sectionId: action.sectionId, y: Math.max(0, sectionCentreY - (el.height ?? 60) / 2) }
+              : el
           ),
         },
         isDirty: true,
       };
+    }
     case "UPDATE_IMAGE":
       return {
         ...state,
@@ -839,7 +845,7 @@ export function CanvasEditorClient({
       e.preventDefault();
       const el = state.design.elements.find((el) => el.id === elementId);
       if (!el) return;
-      const rect = getElementCanvasRect(el, state.design);
+      const rect = getElementCanvasRect(el);
       dragRef.current = {
         kind: "resize",
         elementId,
@@ -863,15 +869,13 @@ export function CanvasEditorClient({
       if (!drag) return;
 
       if (drag.kind === "move") {
-        const dxPct = ((e.clientX - drag.startMouseX) / scale / REF_W) * 100;
-        const dyPct = ((e.clientY - drag.startMouseY) / scale / documentHeight) * 100;
-        const nextX = snapPercent(drag.startElX + dxPct, [0, 5, 50, 95, 100]);
-        const nextY = snapPercent(drag.startElY + dyPct, [0, 50, 100]);
+        const dxCanvas = (e.clientX - drag.startMouseX) / scale;
+        const dyCanvas = (e.clientY - drag.startMouseY) / scale;
         dispatch({
           type: "MOVE",
           id: drag.elementId,
-          x: nextX,
-          y: nextY,
+          x: drag.startElX + dxCanvas,
+          y: drag.startElY + dyCanvas,
         });
       } else if (drag.kind === "resize") {
         const dxCanvas = (e.clientX - drag.startMouseX) / scale;
@@ -913,8 +917,8 @@ export function CanvasEditorClient({
         dispatch({
           type: "RESIZE",
           id: drag.elementId,
-          x: affectsLeft ? canvasXToPercent(nextX, state.design) : undefined,
-          y: affectsTop ? canvasYToPercent(nextY, state.design) : undefined,
+          x: affectsLeft ? nextX : undefined,
+          y: affectsTop ? nextY : undefined,
           width,
           height: affectsTop || affectsBottom ? height : undefined,
         });
@@ -1518,8 +1522,8 @@ function CommonPropertiesPanel({
   return (
     <>
       <div className={field}>
-        <NumberField label="X %" value={element.x} onChange={(x) => onChange({ x })} inputClass={input} labelClass={label} />
-        <NumberField label="Y %" value={element.y} onChange={(y) => onChange({ y })} inputClass={input} labelClass={label} />
+        <NumberField label="X px" value={element.x} onChange={(x) => onChange({ x })} inputClass={input} labelClass={label} />
+        <NumberField label="Y px" value={element.y} onChange={(y) => onChange({ y })} inputClass={input} labelClass={label} />
         <NumberField label="Ancho" value={element.width} onChange={(width) => onChange({ width })} inputClass={input} labelClass={label} />
         <NumberField label="Alto" value={element.height ?? 0} onChange={(height) => onChange({ height: height > 0 ? height : null })} inputClass={input} labelClass={label} />
         <NumberField label="Rotacion" value={element.rotation} onChange={(rotation) => onChange({ rotation })} inputClass={input} labelClass={label} />

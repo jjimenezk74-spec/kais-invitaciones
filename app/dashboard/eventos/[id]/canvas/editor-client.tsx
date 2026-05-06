@@ -33,6 +33,25 @@ const FONT_OPTIONS = [
   { label: "Sans-serif", value: "system-ui, sans-serif" },
 ];
 
+const ANIMATION_OPTIONS = [
+  { label: "Sin animacion", value: "none" },
+  { label: "Fade up", value: "fade-up" },
+  { label: "Fade in", value: "fade-in" },
+  { label: "Zoom in", value: "zoom-in" },
+  { label: "Float soft", value: "float-soft" },
+  { label: "Pulse glow", value: "pulse-glow" },
+  { label: "Shimmer", value: "shimmer" },
+  { label: "Parallax soft", value: "parallax-soft" },
+];
+
+const EFFECT_PRESETS = [
+  { label: "Circulo blur", value: "blur-circle" },
+  { label: "Brillo", value: "glow" },
+  { label: "Flor/shape", value: "flower-shape" },
+  { label: "Overlay degradado", value: "gradient-overlay" },
+  { label: "Separador", value: "divider" },
+] as const;
+
 const GOOGLE_FONTS_URL =
   "https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Great+Vibes&family=Dancing+Script:wght@400;700&family=Montserrat:wght@300;400;600&display=swap";
 
@@ -82,6 +101,7 @@ type DragState = DragMove | DragResize;
 // ─────────────────────────────────────────────────────────────────────────────
 
 type SaveStatus = "saved" | "saving" | "error";
+type EffectPreset = (typeof EFFECT_PRESETS)[number]["value"];
 
 type EditorState = {
   design: CanvasDesign;
@@ -92,6 +112,7 @@ type EditorState = {
 
 type EditorAction =
   | { type: "ADD_TEXT"; sectionId: CanvasSectionId }
+  | { type: "ADD_EFFECT"; preset: EffectPreset; sectionId: CanvasSectionId }
   | { type: "ADD_IMAGE_URL"; url: string; sectionId: CanvasSectionId }
   | { type: "SELECT"; id: string | null }
   | { type: "UPDATE_TEXT"; id: string; patch: Partial<CanvasTextElement> }
@@ -186,6 +207,116 @@ function createImageElement(url: string, sectionId: CanvasSectionId): import("@/
   };
 }
 
+function createEffectElement(preset: EffectPreset, sectionId: CanvasSectionId): CanvasTextElement {
+  const base: CanvasTextElement = {
+    id: crypto.randomUUID().slice(0, 8),
+    type: "text",
+    sectionId,
+    x: ((REF_W - 180) / 2 / REF_W) * 100,
+    y: getGlobalYPercent(sectionId, 50),
+    width: 180,
+    height: 180,
+    rotation: 0,
+    opacity: 1,
+    zIndex: 1,
+    locked: false,
+    visible: true,
+    device: "all",
+    content: "",
+    fontFamily: "system-ui, sans-serif",
+    fontSize: 14,
+    fontWeight: "400",
+    fontStyle: "normal",
+    textAlign: "center",
+    color: "#ffffff",
+    lineHeight: 1.2,
+    letterSpacing: 0,
+    textShadow: null,
+    textDecoration: "none",
+    autoHeight: false,
+    style: {
+      borderRadius: 999,
+      opacity: 0.7,
+      mixBlendMode: "screen",
+    },
+  };
+
+  if (preset === "blur-circle") {
+    return {
+      ...base,
+      width: 190,
+      height: 190,
+      style: {
+        ...base.style,
+        background: "radial-gradient(circle, rgba(255,255,255,0.36) 0%, rgba(255,255,255,0.12) 44%, rgba(255,255,255,0) 72%)",
+        blur: 8,
+      },
+    };
+  }
+
+  if (preset === "glow") {
+    return {
+      ...base,
+      width: 220,
+      height: 220,
+      style: {
+        ...base.style,
+        background: "radial-gradient(circle, rgba(244,210,122,0.62) 0%, rgba(236,72,153,0.22) 38%, rgba(244,210,122,0) 72%)",
+        boxShadow: "0 0 46px rgba(244,210,122,0.28)",
+        animation: "pulse-glow",
+        animationDuration: "3s",
+      },
+    };
+  }
+
+  if (preset === "flower-shape") {
+    return {
+      ...base,
+      width: 150,
+      height: 150,
+      rotation: -14,
+      style: {
+        ...base.style,
+        background: "radial-gradient(circle at 35% 35%, rgba(255,250,245,0.7), rgba(182,74,90,0.42) 38%, rgba(122,31,43,0) 70%)",
+        border: "1px solid rgba(255,255,255,0.18)",
+        filter: "drop-shadow(0 20px 38px rgba(122,31,43,0.25))",
+      },
+    };
+  }
+
+  if (preset === "gradient-overlay") {
+    return {
+      ...base,
+      x: 0,
+      y: getGlobalYPercent(sectionId, 18),
+      width: REF_W,
+      height: 360,
+      zIndex: 1,
+      style: {
+        ...base.style,
+        borderRadius: 0,
+        opacity: 0.84,
+        mixBlendMode: "normal",
+        background: "linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(20,8,12,0.38) 52%, rgba(20,8,12,0.82) 100%)",
+      },
+    };
+  }
+
+  return {
+    ...base,
+    x: ((REF_W - 260) / 2 / REF_W) * 100,
+    width: 260,
+    height: 2,
+    style: {
+      ...base.style,
+      borderRadius: 999,
+      opacity: 0.9,
+      background: "linear-gradient(90deg, rgba(255,255,255,0), rgba(244,210,122,0.9), rgba(255,255,255,0))",
+      boxShadow: "0 0 18px rgba(244,210,122,0.24)",
+    },
+  };
+}
+
 function cloneDesign(design: CanvasDesign): CanvasDesign {
   return JSON.parse(JSON.stringify(design)) as CanvasDesign;
 }
@@ -264,6 +395,17 @@ function reducer(state: EditorState, action: EditorAction): EditorState {
     }
     case "ADD_TEXT": {
       const el = createTextElement(action.sectionId);
+      const maxZ = state.design.elements.reduce((m, e) => Math.max(m, e.zIndex), 0);
+      el.zIndex = maxZ + 1;
+      return {
+        ...state,
+        design: { ...state.design, elements: [...state.design.elements, el] },
+        selectedId: el.id,
+        isDirty: true,
+      };
+    }
+    case "ADD_EFFECT": {
+      const el = createEffectElement(action.preset, action.sectionId);
       const maxZ = state.design.elements.reduce((m, e) => Math.max(m, e.zIndex), 0);
       el.zIndex = maxZ + 1;
       return {
@@ -788,6 +930,21 @@ export function CanvasEditorClient({
                 <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-neutral-500">
                   Elegir decoracion
                 </p>
+                <div className="mb-3 grid grid-cols-2 gap-1.5">
+                  {EFFECT_PRESETS.map((preset) => (
+                    <button
+                      key={preset.value}
+                      type="button"
+                      onClick={() => {
+                        dispatch({ type: "ADD_EFFECT", preset: preset.value, sectionId: activeSectionId });
+                        setShowDecorPicker(false);
+                      }}
+                      className="rounded-lg border border-neutral-700 px-2 py-1.5 text-left text-[11px] text-neutral-200 transition hover:border-indigo-500 hover:bg-neutral-800"
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+                </div>
                 <div className="grid grid-cols-5 gap-1.5">
                   {DECORATIONS.map((d: Decoration) => (
                     <button
@@ -1296,15 +1453,57 @@ function BoxStylePanel({
 
   return (
     <div className={field}>
+      <NumberField label="Opacidad" value={style.opacity ?? element.opacity ?? 1} onChange={(opacity) => setStyle({ opacity: clamp(opacity, 0, 1) })} inputClass={input} labelClass={label} />
+      <NumberField label="Radio" value={style.borderRadius ?? 0} onChange={(borderRadius) => setStyle({ borderRadius })} inputClass={input} labelClass={label} />
       <div className="col-span-2">
-        <label className={label}>Fondo / gradient</label>
+        <label className={label}>Fondo</label>
         <input value={style.background ?? ""} onChange={(e) => setStyle({ background: e.target.value })} className={input} placeholder="rgba(...) o linear-gradient(...)" />
       </div>
-      <NumberField label="Radio" value={style.borderRadius ?? 0} onChange={(borderRadius) => setStyle({ borderRadius })} inputClass={input} labelClass={label} />
-      <NumberField label="Blur" value={style.backdropBlur ?? 0} onChange={(backdropBlur) => setStyle({ backdropBlur })} inputClass={input} labelClass={label} />
+      <div className="col-span-2">
+        <label className={label}>Imagen / gradient extra</label>
+        <input value={style.backgroundImage ?? style.gradient ?? ""} onChange={(e) => setStyle({ backgroundImage: e.target.value })} className={input} placeholder="url(...) o radial-gradient(...)" />
+      </div>
+      <NumberField label="Blur fondo" value={style.backdropBlur ?? 0} onChange={(backdropBlur) => setStyle({ backdropBlur })} inputClass={input} labelClass={label} />
+      <NumberField label="Blur elem." value={style.blur ?? 0} onChange={(blur) => setStyle({ blur })} inputClass={input} labelClass={label} />
       <div className="col-span-2">
         <label className={label}>Sombra texto/CSS</label>
         <input value={style.textShadow ?? ""} onChange={(e) => setStyle({ textShadow: e.target.value })} className={input} placeholder="0 4px 18px rgba(...)" />
+      </div>
+      <div className="col-span-2">
+        <label className={label}>Sombra caja</label>
+        <input value={style.boxShadow ?? ""} onChange={(e) => setStyle({ boxShadow: e.target.value })} className={input} placeholder="0 18px 50px rgba(...)" />
+      </div>
+      <div className="col-span-2">
+        <label className={label}>Borde</label>
+        <input value={style.border ?? ""} onChange={(e) => setStyle({ border: e.target.value })} className={input} placeholder="1px solid rgba(...)" />
+      </div>
+      <label className="flex flex-col gap-1">
+        <span className={label}>Animacion</span>
+        <select value={style.animation ?? "none"} onChange={(e) => setStyle({ animation: e.target.value })} className={input}>
+          {ANIMATION_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="flex flex-col gap-1">
+        <span className={label}>Blend</span>
+        <select value={style.mixBlendMode ?? "normal"} onChange={(e) => setStyle({ mixBlendMode: e.target.value })} className={input}>
+          {["normal", "screen", "multiply", "overlay", "soft-light", "lighten"].map((value) => (
+            <option key={value} value={value}>
+              {value}
+            </option>
+          ))}
+        </select>
+      </label>
+      <div>
+        <label className={label}>Duracion</label>
+        <input value={style.animationDuration ?? ""} onChange={(e) => setStyle({ animationDuration: e.target.value })} className={input} placeholder="900ms / 3s" />
+      </div>
+      <div>
+        <label className={label}>Delay</label>
+        <input value={style.animationDelay ?? ""} onChange={(e) => setStyle({ animationDelay: e.target.value })} className={input} placeholder="120ms" />
       </div>
     </div>
   );

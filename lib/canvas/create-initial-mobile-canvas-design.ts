@@ -55,6 +55,17 @@ export function createInitialMobileCanvasDesign(
   const elements: CanvasElement[] = [
     ...(heroImage ? [imageElement("hero-bg", heroImage, "hero", 50, yInSection("hero", 50), 390, 844, 1, true, "fill")] : []),
     imageOverlayElement(themeTokens.overlay),
+    textElement("hero-soft-glow", "", "hero", 50, yInSection("hero", 66), 330, 260, 2, {
+      style: {
+        background: `radial-gradient(circle, ${themeTokens.accent}55 0%, ${themeTokens.button}26 38%, rgba(0,0,0,0) 72%)`,
+        borderRadius: 999,
+        blur: 10,
+        opacity: 0.56,
+        mixBlendMode: "screen",
+        animation: "pulse-glow",
+        animationDuration: "4s",
+      },
+    }),
     textElement("event-type", eventType.toUpperCase(), "hero", 50, yInSection("hero", 16), 270, 16, 3, {
       color: themeTokens.accent,
       fontFamily: DEFAULT_FONT,
@@ -62,6 +73,7 @@ export function createInitialMobileCanvasDesign(
       fontWeight: "600",
       letterSpacing: 0.42,
       textShadow: "0 2px 10px rgba(0,0,0,0.45)",
+      style: { animation: "fade-in", animationDuration: "900ms" },
     }),
     textElement("main-title", title, "hero", 50, yInSection("hero", 39), 360, null, 4, {
       color: themeTokens.title,
@@ -71,6 +83,7 @@ export function createInitialMobileCanvasDesign(
       fontStyle: "italic",
       lineHeight: 0.95,
       textShadow: "0 4px 18px rgba(0,0,0,0.55)",
+      style: { animation: "fade-up", animationDuration: "1s", animationDelay: "80ms" },
     }),
     textElement("event-date", dateLabel, "hero", 50, yInSection("hero", 58), 300, 24, 5, {
       color: themeTokens.body,
@@ -78,6 +91,7 @@ export function createInitialMobileCanvasDesign(
       fontSize: 25,
       fontStyle: "italic",
       textShadow: "0 2px 12px rgba(0,0,0,0.55)",
+      style: { animation: "fade-up", animationDuration: "1s", animationDelay: "180ms" },
     }),
     textElement("countdown-title", "Cuenta regresiva", "countdown", 50, yInSection("countdown", 22), 320, 32, 6, {
       color: themeTokens.accent,
@@ -86,6 +100,7 @@ export function createInitialMobileCanvasDesign(
       fontStyle: "italic",
       letterSpacing: 0.02,
       textShadow: "0 2px 10px rgba(0,0,0,0.55)",
+      style: { animation: "fade-up", animationDuration: "900ms" },
     }),
     textElement("countdown-placeholder", "00 DIAS   00 HORAS   00 MIN   00 SEG", "countdown", 50, yInSection("countdown", 48), 330, 42, 7, {
       color: themeTokens.body,
@@ -93,13 +108,30 @@ export function createInitialMobileCanvasDesign(
       fontWeight: "600",
       letterSpacing: 0.16,
       textShadow: "0 2px 10px rgba(0,0,0,0.55)",
+      style: {
+        background: "rgba(255,255,255,0.08)",
+        border: `1px solid ${themeTokens.accent}33`,
+        borderRadius: 999,
+        backdropBlur: 12,
+        boxShadow: `0 18px 50px ${themeTokens.accent}16`,
+        animation: "fade-up",
+        animationDuration: "900ms",
+      },
     }),
     textElement("main-message", message, "presentation", 50, yInSection("presentation", 35), 320, null, 8, {
       color: themeTokens.body,
       fontSize: 17,
       lineHeight: 1.45,
       textShadow: "0 2px 10px rgba(0,0,0,0.65)",
-      style: { background: "rgba(255,255,255,0.08)", borderRadius: 28, backdropBlur: 14 },
+      style: {
+        background: "rgba(255,255,255,0.10)",
+        border: "1px solid rgba(255,255,255,0.14)",
+        borderRadius: 28,
+        backdropBlur: 14,
+        boxShadow: "0 22px 70px rgba(0,0,0,0.25)",
+        animation: "fade-up",
+        animationDuration: "900ms",
+      },
     }),
     ...optionalTextElements(eventData, themeTokens),
     textElement("rsvp-title", "Confirma tu asistencia", "rsvp", 50, yInSection("rsvp", 24), 320, 40, 19, {
@@ -115,7 +147,13 @@ export function createInitialMobileCanvasDesign(
       fontWeight: "700",
       letterSpacing: 0.22,
       textShadow: null,
-      style: { background: `linear-gradient(135deg, ${themeTokens.accent}, ${themeTokens.button})`, borderRadius: 999 },
+      style: {
+        background: `linear-gradient(135deg, ${themeTokens.accent}, ${themeTokens.button})`,
+        borderRadius: 999,
+        boxShadow: `0 18px 50px ${themeTokens.button}66`,
+        animation: "pulse-glow",
+        animationDuration: "3.4s",
+      },
     }),
   ];
 
@@ -142,6 +180,15 @@ function optionalTextElements(eventData: InitialCanvasEventData, themeTokens: Re
       fontSize: 15,
       lineHeight: 1.35,
       textShadow: "0 2px 10px rgba(0,0,0,0.58)",
+      style: {
+        background: "rgba(255,255,255,0.09)",
+        border: "1px solid rgba(255,255,255,0.13)",
+        borderRadius: 24,
+        backdropBlur: 12,
+        boxShadow: "0 18px 56px rgba(0,0,0,0.22)",
+        animation: "fade-up",
+        animationDuration: "900ms",
+      },
     }));
   }
 
@@ -152,6 +199,15 @@ function optionalTextElements(eventData: InitialCanvasEventData, themeTokens: Re
       fontSize: 14,
       lineHeight: 1.35,
       textShadow: "0 2px 10px rgba(0,0,0,0.58)",
+      style: {
+        background: "rgba(255,255,255,0.08)",
+        border: `1px solid ${themeTokens.accent}30`,
+        borderRadius: 24,
+        backdropBlur: 12,
+        boxShadow: `0 18px 48px ${themeTokens.accent}14`,
+        animation: "fade-up",
+        animationDuration: "900ms",
+      },
     }));
   }
 
@@ -164,6 +220,15 @@ function optionalTextElements(eventData: InitialCanvasEventData, themeTokens: Re
       fontSize: 13,
       lineHeight: 1.38,
       textShadow: "0 2px 10px rgba(0,0,0,0.58)",
+      style: {
+        background: "rgba(255,255,255,0.08)",
+        border: `1px solid ${themeTokens.accent}30`,
+        borderRadius: 24,
+        backdropBlur: 12,
+        boxShadow: `0 18px 48px ${themeTokens.accent}14`,
+        animation: "fade-up",
+        animationDuration: "900ms",
+      },
     }));
   }
 

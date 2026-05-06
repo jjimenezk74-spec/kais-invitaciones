@@ -110,12 +110,22 @@ type CanvasBaseElement = {
   sectionId?: CanvasSectionId;
   /** Estilos visuales opcionales para el renderer absoluto. */
   style?: {
-    animation?: string;
     opacity?: number;
-    backdropBlur?: number;
-    textShadow?: string;
-    borderRadius?: number;
     background?: string;
+    backgroundImage?: string;
+    gradient?: string;
+    boxShadow?: string;
+    textShadow?: string;
+    filter?: string;
+    backdropFilter?: string;
+    blur?: number;
+    backdropBlur?: number;
+    border?: string;
+    borderRadius?: number;
+    mixBlendMode?: string;
+    animation?: string;
+    animationDelay?: string;
+    animationDuration?: string;
   };
 };
 

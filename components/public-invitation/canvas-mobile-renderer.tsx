@@ -160,13 +160,16 @@ function CanvasMobileElement({
   onToggleLock?: (elementId: string) => void;
   onToggleVisible?: (elementId: string) => void;
 }) {
+  const visualStyle = element.style ?? {};
+  const selectedShadow = selected ? "0 0 0 4px rgba(124,108,255,0.20)" : "";
+  const elementShadow = visualStyle.boxShadow ?? "";
   const baseStyle: CSSProperties = {
     position: "absolute",
     left: `${element.x}%`,
     top: `${element.y}%`,
     width: element.width,
     height: element.height ?? getFallbackElementHeight(element),
-    opacity: getElementStyleValue(element, "opacity") ?? element.opacity,
+    opacity: typeof visualStyle.opacity === "number" ? visualStyle.opacity : element.opacity,
     transform: buildTransform(element.rotation),
     transformOrigin: "center center",
     zIndex: element.zIndex,
@@ -174,11 +177,18 @@ function CanvasMobileElement({
     cursor: mode === "editor" ? (element.locked ? "default" : "move") : "default",
     userSelect: "none",
     outline: selected ? "2px solid #7c6cff" : undefined,
-    boxShadow: selected ? "0 0 0 4px rgba(124,108,255,0.20)" : undefined,
-    borderRadius: getElementStyleValue(element, "borderRadius"),
-    background: getElementStyleValue(element, "background"),
+    boxShadow: [selectedShadow, elementShadow].filter(Boolean).join(", ") || undefined,
+    borderRadius: visualStyle.borderRadius,
+    border: visualStyle.border,
+    background: buildElementBackground(element),
+    backgroundImage: buildElementBackgroundImage(element),
+    filter: buildElementFilter(element),
     backdropFilter: getBackdropFilter(element),
-    animation: getElementStyleValue(element, "animation"),
+    WebkitBackdropFilter: getBackdropFilter(element),
+    mixBlendMode: visualStyle.mixBlendMode as CSSProperties["mixBlendMode"],
+    animation: buildAnimationValue(element),
+    animationDelay: visualStyle.animationDelay,
+    animationDuration: visualStyle.animationDuration,
     boxSizing: "border-box",
     overflow: "visible",
   };
@@ -308,6 +318,7 @@ function CanvasMobileImage({
         height: "100%",
         objectFit: element.objectFit === "fill" ? "fill" : "contain",
         filter: buildImageFilter(element),
+        borderRadius: element.style?.borderRadius,
         transform: element.flipX || element.flipY ? `scale(${element.flipX ? -1 : 1}, ${element.flipY ? -1 : 1})` : undefined,
         pointerEvents: "none",
       }}
@@ -495,14 +506,61 @@ function getStringElementStyleValue(element: CanvasElement, key: string) {
 }
 
 function getBackdropFilter(element: CanvasElement) {
-  const style = (element as unknown as { style?: { backdropBlur?: unknown } }).style;
-  return typeof style?.backdropBlur === "number" ? `blur(${style.backdropBlur}px)` : undefined;
+  const style = element.style;
+  const filters = [
+    style?.backdropFilter,
+    typeof style?.backdropBlur === "number" ? `blur(${style.backdropBlur}px)` : undefined,
+  ].filter(Boolean);
+
+  return filters.length > 0 ? filters.join(" ") : undefined;
 }
 
 function buildTransform(rotation: number): string {
   const rotate = rotation !== 0 ? ` rotate(${rotation}deg)` : "";
   return `translate(-50%, -50%)${rotate}`;
 }
+
+function buildElementBackground(element: CanvasElement) {
+  const style = element.style;
+  return style?.gradient ?? style?.background;
+}
+
+function buildElementBackgroundImage(element: CanvasElement) {
+  const style = element.style;
+  return style?.backgroundImage;
+}
+
+function buildElementFilter(element: CanvasElement) {
+  const style = element.style;
+  const filters = [
+    style?.filter,
+    typeof style?.blur === "number" ? `blur(${style.blur}px)` : undefined,
+  ].filter(Boolean);
+
+  return filters.length > 0 ? filters.join(" ") : undefined;
+}
+
+function buildAnimationValue(element: CanvasElement) {
+  const style = element.style;
+  if (!style?.animation || style.animation === "none") return undefined;
+
+  const duration = style.animationDuration ?? "900ms";
+  const preset = CANVAS_ANIMATION_PRESETS[style.animation];
+  if (!preset) return style.animation;
+
+  const loop = ["float-soft", "pulse-glow", "shimmer", "parallax-soft"].includes(style.animation) ? " infinite" : "";
+  return `${preset} ${duration} ease${loop} both`;
+}
+
+const CANVAS_ANIMATION_PRESETS: Record<string, string> = {
+  "fade-up": "kais-canvas-fade-up",
+  "fade-in": "kais-canvas-fade-in",
+  "zoom-in": "kais-canvas-zoom-in",
+  "float-soft": "kais-canvas-float-soft",
+  "pulse-glow": "kais-canvas-pulse-glow",
+  shimmer: "kais-canvas-shimmer",
+  "parallax-soft": "kais-canvas-parallax-soft",
+};
 
 function buildImageFilter(element: CanvasImageElement): string {
   if (element.effect === "glow") {

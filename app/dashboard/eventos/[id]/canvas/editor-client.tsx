@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowLeft, Trash2, Plus, Save, X, Eye, Copy, Lock, Unlock, EyeOff, BringToFront, SendToBack } from "lucide-react";
 import { saveCanvasDesign, clearCanvasDesign } from "@/app/actions/canvas";
 import { CanvasMobileRenderer } from "@/components/public-invitation/canvas-mobile-renderer";
+import type { CanvasResizeHandle } from "@/components/public-invitation/canvas-mobile-renderer";
 import {
   DEFAULT_MOBILE_CANVAS_SECTIONS,
   MOBILE_CANVAS_HEIGHT,
@@ -22,8 +23,7 @@ import type { Event } from "@/lib/types";
 
 const REF_W = 390;
 const REF_H = 844;
-const HANDLE_PX = 9; // resize handle size in canvas px
-
+const HANDLE_PX = 9;
 const FONT_OPTIONS = [
   { label: "Serif (defecto)", value: "Georgia, serif" },
   { label: "Playfair Display", value: "'Playfair Display', Georgia, serif" },
@@ -53,8 +53,6 @@ const CANVAS_SECTIONS: { id: CanvasSectionId; label: string }[] = [
 // Drag state — union of move / resize modes
 // ─────────────────────────────────────────────────────────────────────────────
 
-type ResizeHandle = "tl" | "t" | "tr" | "r" | "br" | "b" | "bl" | "l";
-
 type DragMove = {
   kind: "move";
   elementId: string;
@@ -67,7 +65,7 @@ type DragMove = {
 type DragResize = {
   kind: "resize";
   elementId: string;
-  handle: ResizeHandle;
+  handle: CanvasResizeHandle;
   startMouseX: number;
   startMouseY: number;
   startX: number;
@@ -598,7 +596,7 @@ export function CanvasEditorClient({
 
   // Start RESIZE drag (called from a corner handle)
   const handleResizeMouseDown = useCallback(
-    (e: React.MouseEvent, elementId: string, handle: ResizeHandle) => {
+    (e: React.MouseEvent, elementId: string, handle: CanvasResizeHandle) => {
       e.stopPropagation();
       e.preventDefault();
       const el = state.design.elements.find((el) => el.id === elementId);
@@ -723,65 +721,6 @@ export function CanvasEditorClient({
   const sortedElements = [...state.design.elements]
     .filter((el) => (el.sectionId ?? "hero") === activeSectionId)
     .sort((a, b) => a.zIndex - b.zIndex);
-
-  function renderCanvasLayer(sectionId: CanvasSectionId) {
-    const section = state.design.sections?.find((item) => item.id === sectionId);
-    const selectedElement = state.design.elements.find(
-      (el) => el.visible && el.id === state.selectedId && (el.sectionId ?? "hero") === sectionId
-    );
-
-    if (!selectedElement && activeSectionId !== sectionId) return null;
-
-    return (
-      <div
-        aria-hidden
-        style={{
-          position: "absolute",
-          inset: 0,
-          zIndex: 60,
-          pointerEvents: "none",
-          overflow: "visible",
-        }}
-      >
-        {activeSectionId === sectionId ? (
-          <div
-            style={{
-              position: "absolute",
-              left: 0,
-              right: 0,
-              top: section?.y ?? 0,
-              height: section?.height ?? REF_H,
-              zIndex: 0,
-              pointerEvents: "none",
-              cursor: "default",
-              boxShadow: "inset 0 0 0 1px rgba(99,102,241,0.55)",
-            }}
-          />
-        ) : null}
-        {selectedElement ? (
-          <StageElement
-            key={selectedElement.id}
-            element={selectedElement}
-            rect={getElementCanvasRect(selectedElement, state.design)}
-            selected
-            ghost
-            onMoveStart={(e) => handleElementMouseDown(e, selectedElement.id)}
-            onResizeStart={(e, handle) => handleResizeMouseDown(e, selectedElement.id, handle)}
-            onClick={(e) => {
-              e.stopPropagation();
-              dispatch({ type: "SELECT", id: selectedElement.id });
-            }}
-            onDuplicate={() => dispatch({ type: "DUPLICATE", id: selectedElement.id })}
-            onDelete={() => dispatch({ type: "DELETE", id: selectedElement.id })}
-            onForward={() => dispatch({ type: "BRING_FORWARD", id: selectedElement.id })}
-            onBackward={() => dispatch({ type: "SEND_BACKWARD", id: selectedElement.id })}
-            onToggleLock={() => dispatch({ type: "UPDATE_ELEMENT", id: selectedElement.id, patch: { locked: !selectedElement.locked } })}
-            onToggleVisible={() => dispatch({ type: "UPDATE_ELEMENT", id: selectedElement.id, patch: { visible: !selectedElement.visible } })}
-          />
-        ) : null}
-      </div>
-    );
-  }
 
   const saveLabel =
     state.saveStatus === "saving"
@@ -986,9 +925,22 @@ export function CanvasEditorClient({
                 mode="editor"
                 event={event}
                 canvasDesign={state.design}
-              >
-                {renderCanvasLayer(activeSectionId)}
-              </CanvasMobileRenderer>
+                selectedElementId={state.selectedId}
+                onElementMouseDown={handleElementMouseDown}
+                onResizeMouseDown={handleResizeMouseDown}
+                onDuplicateElement={(id) => dispatch({ type: "DUPLICATE", id })}
+                onDeleteElement={(id) => dispatch({ type: "DELETE", id })}
+                onBringForward={(id) => dispatch({ type: "BRING_FORWARD", id })}
+                onSendBackward={(id) => dispatch({ type: "SEND_BACKWARD", id })}
+                onToggleLock={(id) => {
+                  const element = state.design.elements.find((item) => item.id === id);
+                  if (element) dispatch({ type: "UPDATE_ELEMENT", id, patch: { locked: !element.locked } });
+                }}
+                onToggleVisible={(id) => {
+                  const element = state.design.elements.find((item) => item.id === id);
+                  if (element) dispatch({ type: "UPDATE_ELEMENT", id, patch: { visible: !element.visible } });
+                }}
+              />
 
               {/* Empty-canvas hint */}
               {sortedElements.length === 0 && (
@@ -1015,10 +967,6 @@ export function CanvasEditorClient({
                   </p>
                 </div>
               )}
-              <div className="pointer-events-none fixed bottom-3 left-3 z-[9999] rounded-full border border-indigo-400/30 bg-neutral-950/85 px-3 py-1 text-[11px] font-medium text-indigo-100 shadow-lg">
-                Selected: {state.selectedId ?? "none"}
-              </div>
-
             </div>
           </div>
         </div>
@@ -1088,7 +1036,7 @@ type StageElementProps = {
   rect: ReturnType<typeof getElementCanvasRect>;
   selected: boolean;
   onMoveStart: (e: React.MouseEvent) => void;
-  onResizeStart: (e: React.MouseEvent, handle: ResizeHandle) => void;
+  onResizeStart: (e: React.MouseEvent, handle: CanvasResizeHandle) => void;
   onClick: (e: React.MouseEvent) => void;
   ghost?: boolean;
   onDuplicate: () => void;
@@ -1216,7 +1164,7 @@ function StageElement({
             <ToolbarButton title="Ocultar" onClick={onToggleVisible}><EyeOff className="h-3.5 w-3.5" /></ToolbarButton>
             <ToolbarButton title="Eliminar" onClick={onDelete}><Trash2 className="h-3.5 w-3.5" /></ToolbarButton>
           </div>
-          {(["tl", "t", "tr", "r", "br", "b", "bl", "l"] as ResizeHandle[]).map((handle) => (
+          {(["tl", "t", "tr", "r", "br", "b", "bl", "l"] as CanvasResizeHandle[]).map((handle) => (
             <ResizeHandleNode
               key={handle}
               handle={handle}
@@ -1233,7 +1181,7 @@ function StageElement({
 // ResizeHandleNode — single corner handle
 // ─────────────────────────────────────────────────────────────────────────────
 
-const HANDLE_STYLE: Record<ResizeHandle, React.CSSProperties> = {
+const HANDLE_STYLE: Record<CanvasResizeHandle, React.CSSProperties> = {
   tl: { top: -HANDLE_PX / 2, left: -HANDLE_PX / 2, cursor: "nwse-resize" },
   t: { top: -HANDLE_PX / 2, left: "50%", transform: "translateX(-50%)", cursor: "ns-resize" },
   tr: { top: -HANDLE_PX / 2, right: -HANDLE_PX / 2, cursor: "nesw-resize" },
@@ -1248,7 +1196,7 @@ function ResizeHandleNode({
   handle,
   onMouseDown,
 }: {
-  handle: ResizeHandle;
+  handle: CanvasResizeHandle;
   onMouseDown: (e: React.MouseEvent) => void;
 }) {
   return (

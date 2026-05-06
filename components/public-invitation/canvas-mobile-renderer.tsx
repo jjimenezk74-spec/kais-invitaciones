@@ -1,15 +1,26 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { CSSProperties, ReactNode } from "react";
+import type { CSSProperties, HTMLAttributes, MouseEvent, ReactNode } from "react";
 import { normalizeCanvasDesign } from "@/lib/canvas/normalize-canvas-design";
 import type { CanvasDesign, CanvasElement, CanvasImageElement, CanvasSection, CanvasTextElement, Event } from "@/lib/types";
+
+export type CanvasResizeHandle = "tl" | "t" | "tr" | "r" | "br" | "b" | "bl" | "l";
 
 type CanvasMobileRendererProps = {
   event: Event;
   canvasDesign: CanvasDesign;
   mode: "public" | "editor";
   children?: ReactNode;
+  selectedElementId?: string | null;
+  onElementMouseDown?: (event: MouseEvent<HTMLElement>, elementId: string) => void;
+  onResizeMouseDown?: (event: MouseEvent<HTMLElement>, elementId: string, handle: CanvasResizeHandle) => void;
+  onDuplicateElement?: (elementId: string) => void;
+  onDeleteElement?: (elementId: string) => void;
+  onBringForward?: (elementId: string) => void;
+  onSendBackward?: (elementId: string) => void;
+  onToggleLock?: (elementId: string) => void;
+  onToggleVisible?: (elementId: string) => void;
 };
 
 export function CanvasMobileRenderer({
@@ -17,6 +28,15 @@ export function CanvasMobileRenderer({
   canvasDesign,
   mode,
   children,
+  selectedElementId,
+  onElementMouseDown,
+  onResizeMouseDown,
+  onDuplicateElement,
+  onDeleteElement,
+  onBringForward,
+  onSendBackward,
+  onToggleLock,
+  onToggleVisible,
 }: CanvasMobileRendererProps) {
   const design = normalizeCanvasDesign(canvasDesign);
   const shellRef = useRef<HTMLDivElement>(null);
@@ -74,7 +94,20 @@ export function CanvasMobileRenderer({
             <CanvasSectionBackground key={section.id} section={section} />
           ))}
           {visible.map((element) => (
-            <CanvasMobileElement key={element.id} element={element} mode={mode} />
+            <CanvasMobileElement
+              key={element.id}
+              element={element}
+              mode={mode}
+              selected={mode === "editor" && element.id === selectedElementId}
+              onElementMouseDown={onElementMouseDown}
+              onResizeMouseDown={onResizeMouseDown}
+              onDuplicateElement={onDuplicateElement}
+              onDeleteElement={onDeleteElement}
+              onBringForward={onBringForward}
+              onSendBackward={onSendBackward}
+              onToggleLock={onToggleLock}
+              onToggleVisible={onToggleVisible}
+            />
           ))}
           {children}
         </div>
@@ -105,9 +138,27 @@ function CanvasSectionBackground({ section }: { section: CanvasSection }) {
 function CanvasMobileElement({
   element,
   mode,
+  selected,
+  onElementMouseDown,
+  onResizeMouseDown,
+  onDuplicateElement,
+  onDeleteElement,
+  onBringForward,
+  onSendBackward,
+  onToggleLock,
+  onToggleVisible,
 }: {
   element: CanvasElement;
   mode: "public" | "editor";
+  selected: boolean;
+  onElementMouseDown?: (event: MouseEvent<HTMLElement>, elementId: string) => void;
+  onResizeMouseDown?: (event: MouseEvent<HTMLElement>, elementId: string, handle: CanvasResizeHandle) => void;
+  onDuplicateElement?: (elementId: string) => void;
+  onDeleteElement?: (elementId: string) => void;
+  onBringForward?: (elementId: string) => void;
+  onSendBackward?: (elementId: string) => void;
+  onToggleLock?: (elementId: string) => void;
+  onToggleVisible?: (elementId: string) => void;
 }) {
   const baseStyle: CSSProperties = {
     position: "absolute",
@@ -122,20 +173,42 @@ function CanvasMobileElement({
     pointerEvents: mode === "editor" ? "auto" : "none",
     cursor: mode === "editor" ? (element.locked ? "default" : "move") : "default",
     userSelect: "none",
+    outline: selected ? "2px solid #7c6cff" : undefined,
+    boxShadow: selected ? "0 0 0 4px rgba(124,108,255,0.20)" : undefined,
     borderRadius: getElementStyleValue(element, "borderRadius"),
     background: getElementStyleValue(element, "background"),
     backdropFilter: getBackdropFilter(element),
     animation: getElementStyleValue(element, "animation"),
     boxSizing: "border-box",
-    overflow: "hidden",
+    overflow: "visible",
   };
 
+  const editorProps =
+    mode === "editor"
+      ? {
+          onMouseDown: (event: MouseEvent<HTMLElement>) => onElementMouseDown?.(event, element.id),
+        }
+      : {};
+  const controls =
+    selected && mode === "editor" ? (
+      <CanvasElementControls
+        element={element}
+        onResizeMouseDown={onResizeMouseDown}
+        onDuplicateElement={onDuplicateElement}
+        onDeleteElement={onDeleteElement}
+        onBringForward={onBringForward}
+        onSendBackward={onSendBackward}
+        onToggleLock={onToggleLock}
+        onToggleVisible={onToggleVisible}
+      />
+    ) : null;
+
   if (element.type === "text") {
-    return <CanvasMobileText element={element} style={baseStyle} />;
+    return <CanvasMobileText element={element} style={baseStyle} editorProps={editorProps} controls={controls} />;
   }
 
   if (element.type === "image") {
-    return <CanvasMobileImage element={element} style={baseStyle} />;
+    return <CanvasMobileImage element={element} style={baseStyle} editorProps={editorProps} controls={controls} />;
   }
 
   return null;
@@ -155,15 +228,20 @@ function getFallbackElementHeight(element: CanvasElement) {
 function CanvasMobileText({
   element,
   style,
+  editorProps,
+  controls,
 }: {
   element: CanvasTextElement;
   style: CSSProperties;
+  editorProps: HTMLAttributes<HTMLDivElement>;
+  controls: ReactNode;
 }) {
   return (
     <div
       data-element-id={element.id}
       data-section-id={element.sectionId ?? "hero"}
       style={style}
+      {...editorProps}
     >
       <p
       style={{
@@ -198,6 +276,7 @@ function CanvasMobileText({
       >
         {element.content}
       </p>
+      {controls}
     </div>
   );
 }
@@ -205,16 +284,20 @@ function CanvasMobileText({
 function CanvasMobileImage({
   element,
   style,
+  editorProps,
+  controls,
 }: {
   element: CanvasImageElement;
   style: CSSProperties;
+  editorProps: HTMLAttributes<HTMLDivElement>;
+  controls: ReactNode;
 }) {
   return (
-    // eslint-disable-next-line @next/next/no-img-element
     <div
       data-element-id={element.id}
       data-section-id={element.sectionId ?? "hero"}
       style={style}
+      {...editorProps}
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
@@ -232,7 +315,140 @@ function CanvasMobileImage({
         pointerEvents: "none",
       }}
       />
+      {controls}
     </div>
+  );
+}
+
+function CanvasElementControls({
+  element,
+  onResizeMouseDown,
+  onDuplicateElement,
+  onDeleteElement,
+  onBringForward,
+  onSendBackward,
+  onToggleLock,
+  onToggleVisible,
+}: {
+  element: CanvasElement;
+  onResizeMouseDown?: (event: MouseEvent<HTMLElement>, elementId: string, handle: CanvasResizeHandle) => void;
+  onDuplicateElement?: (elementId: string) => void;
+  onDeleteElement?: (elementId: string) => void;
+  onBringForward?: (elementId: string) => void;
+  onSendBackward?: (elementId: string) => void;
+  onToggleLock?: (elementId: string) => void;
+  onToggleVisible?: (elementId: string) => void;
+}) {
+  return (
+    <>
+      <div
+        data-canvas-control="true"
+        style={{
+          position: "absolute",
+          left: "50%",
+          top: -48,
+          transform: "translateX(-50%)",
+          zIndex: 10000,
+          display: "flex",
+          gap: 4,
+          borderRadius: 999,
+          border: "1px solid rgba(255,255,255,0.14)",
+          background: "rgba(17,24,39,0.96)",
+          padding: 4,
+          boxShadow: "0 10px 30px rgba(0,0,0,0.35)",
+          pointerEvents: "auto",
+        }}
+        onMouseDown={(event) => event.stopPropagation()}
+        onClick={(event) => event.stopPropagation()}
+      >
+        <CanvasToolbarButton label="Duplicar" onClick={() => onDuplicateElement?.(element.id)}>D</CanvasToolbarButton>
+        <CanvasToolbarButton label="Traer adelante" onClick={() => onBringForward?.(element.id)}>+</CanvasToolbarButton>
+        <CanvasToolbarButton label="Enviar atras" onClick={() => onSendBackward?.(element.id)}>-</CanvasToolbarButton>
+        <CanvasToolbarButton label={element.locked ? "Desbloquear" : "Bloquear"} onClick={() => onToggleLock?.(element.id)}>
+          {element.locked ? "U" : "L"}
+        </CanvasToolbarButton>
+        <CanvasToolbarButton label="Ocultar" onClick={() => onToggleVisible?.(element.id)}>O</CanvasToolbarButton>
+        <CanvasToolbarButton label="Eliminar" onClick={() => onDeleteElement?.(element.id)}>X</CanvasToolbarButton>
+      </div>
+      {(["tl", "t", "tr", "r", "br", "b", "bl", "l"] as CanvasResizeHandle[]).map((handle) => (
+        <CanvasResizeHandleNode
+          key={handle}
+          handle={handle}
+          onMouseDown={(event) => onResizeMouseDown?.(event, element.id, handle)}
+        />
+      ))}
+    </>
+  );
+}
+
+function CanvasToolbarButton({
+  label,
+  onClick,
+  children,
+}: {
+  label: string;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      title={label}
+      onClick={onClick}
+      style={{
+        width: 26,
+        height: 26,
+        display: "grid",
+        placeItems: "center",
+        border: 0,
+        borderRadius: 999,
+        background: "rgba(255,255,255,0.08)",
+        color: "#f8fafc",
+        fontSize: 11,
+        fontWeight: 700,
+        cursor: "pointer",
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
+const HANDLE_PX = 9;
+const HANDLE_STYLE: Record<CanvasResizeHandle, CSSProperties> = {
+  tl: { top: -HANDLE_PX / 2, left: -HANDLE_PX / 2, cursor: "nwse-resize" },
+  t: { top: -HANDLE_PX / 2, left: "50%", transform: "translateX(-50%)", cursor: "ns-resize" },
+  tr: { top: -HANDLE_PX / 2, right: -HANDLE_PX / 2, cursor: "nesw-resize" },
+  r: { top: "50%", right: -HANDLE_PX / 2, transform: "translateY(-50%)", cursor: "ew-resize" },
+  br: { bottom: -HANDLE_PX / 2, right: -HANDLE_PX / 2, cursor: "nwse-resize" },
+  b: { bottom: -HANDLE_PX / 2, left: "50%", transform: "translateX(-50%)", cursor: "ns-resize" },
+  bl: { bottom: -HANDLE_PX / 2, left: -HANDLE_PX / 2, cursor: "nesw-resize" },
+  l: { top: "50%", left: -HANDLE_PX / 2, transform: "translateY(-50%)", cursor: "ew-resize" },
+};
+
+function CanvasResizeHandleNode({
+  handle,
+  onMouseDown,
+}: {
+  handle: CanvasResizeHandle;
+  onMouseDown: (event: MouseEvent<HTMLElement>) => void;
+}) {
+  return (
+    <div
+      data-canvas-control="true"
+      onMouseDown={onMouseDown}
+      style={{
+        position: "absolute",
+        width: HANDLE_PX,
+        height: HANDLE_PX,
+        zIndex: 9999,
+        border: "1.5px solid #fff",
+        borderRadius: 2,
+        background: "#7c6cff",
+        pointerEvents: "auto",
+        ...HANDLE_STYLE[handle],
+      }}
+    />
   );
 }
 

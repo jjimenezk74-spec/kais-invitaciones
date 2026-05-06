@@ -530,8 +530,9 @@ export function CanvasEditorClient({
     (e: React.MouseEvent, elementId: string) => {
       e.stopPropagation();
       const el = state.design.elements.find((el) => el.id === elementId);
-      if (!el || el.locked) return;
+      if (!el) return;
       dispatch({ type: "SELECT", id: elementId });
+      if (el.locked) return;
       dragRef.current = {
         kind: "move",
         elementId,
@@ -542,6 +543,25 @@ export function CanvasEditorClient({
       };
     },
     [state.design.elements]
+  );
+
+  const handleCanvasMouseDown = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      const target = e.target as HTMLElement;
+      if (target.closest("[data-canvas-control='true']")) return;
+
+      const elementNode = target.closest("[data-element-id]") as HTMLElement | null;
+      if (!elementNode) {
+        dispatch({ type: "SELECT", id: null });
+        return;
+      }
+
+      const elementId = elementNode.dataset.elementId;
+      if (!elementId) return;
+
+      handleElementMouseDown(e, elementId);
+    },
+    [handleElementMouseDown]
   );
 
   // Start RESIZE drag (called from a corner handle)
@@ -661,11 +681,11 @@ export function CanvasEditorClient({
 
   function renderCanvasLayer(sectionId: CanvasSectionId) {
     const section = state.design.sections?.find((item) => item.id === sectionId);
-    const visible = [...state.design.elements]
-      .filter((el) => el.visible && (el.sectionId ?? "hero") === sectionId)
-      .sort((a, b) => a.zIndex - b.zIndex);
+    const selectedElement = state.design.elements.find(
+      (el) => el.visible && el.id === state.selectedId && (el.sectionId ?? "hero") === sectionId
+    );
 
-    if (visible.length === 0 && activeSectionId !== sectionId) return null;
+    if (!selectedElement && activeSectionId !== sectionId) return null;
 
     return (
       <div
@@ -687,33 +707,32 @@ export function CanvasEditorClient({
               top: section?.y ?? 0,
               height: section?.height ?? REF_H,
               zIndex: 0,
-              pointerEvents: "auto",
+              pointerEvents: "none",
               cursor: "default",
               boxShadow: "inset 0 0 0 1px rgba(99,102,241,0.55)",
             }}
-            onClick={() => dispatch({ type: "SELECT", id: null })}
           />
         ) : null}
-        {visible.map((el) => (
+        {selectedElement ? (
           <StageElement
-            key={el.id}
-            element={el}
-            selected={el.id === state.selectedId}
+            key={selectedElement.id}
+            element={selectedElement}
+            selected
             ghost
-            onMoveStart={(e) => handleElementMouseDown(e, el.id)}
-            onResizeStart={(e, handle) => handleResizeMouseDown(e, el.id, handle)}
+            onMoveStart={(e) => handleElementMouseDown(e, selectedElement.id)}
+            onResizeStart={(e, handle) => handleResizeMouseDown(e, selectedElement.id, handle)}
             onClick={(e) => {
               e.stopPropagation();
-              dispatch({ type: "SELECT", id: el.id });
+              dispatch({ type: "SELECT", id: selectedElement.id });
             }}
-            onDuplicate={() => dispatch({ type: "DUPLICATE", id: el.id })}
-            onDelete={() => dispatch({ type: "DELETE", id: el.id })}
-            onForward={() => dispatch({ type: "BRING_FORWARD", id: el.id })}
-            onBackward={() => dispatch({ type: "SEND_BACKWARD", id: el.id })}
-            onToggleLock={() => dispatch({ type: "UPDATE_ELEMENT", id: el.id, patch: { locked: !el.locked } })}
-            onToggleVisible={() => dispatch({ type: "UPDATE_ELEMENT", id: el.id, patch: { visible: !el.visible } })}
+            onDuplicate={() => dispatch({ type: "DUPLICATE", id: selectedElement.id })}
+            onDelete={() => dispatch({ type: "DELETE", id: selectedElement.id })}
+            onForward={() => dispatch({ type: "BRING_FORWARD", id: selectedElement.id })}
+            onBackward={() => dispatch({ type: "SEND_BACKWARD", id: selectedElement.id })}
+            onToggleLock={() => dispatch({ type: "UPDATE_ELEMENT", id: selectedElement.id, patch: { locked: !selectedElement.locked } })}
+            onToggleVisible={() => dispatch({ type: "UPDATE_ELEMENT", id: selectedElement.id, patch: { visible: !selectedElement.visible } })}
           />
-        ))}
+        ) : null}
       </div>
     );
   }
@@ -886,7 +905,6 @@ export function CanvasEditorClient({
         <div
           ref={wrapperRef}
           className="flex flex-1 items-start justify-center overflow-hidden bg-neutral-950 p-4 pt-6"
-          onClick={() => dispatch({ type: "SELECT", id: null })}
         >
           {/* Outer shell — real screen dimensions */}
           <div
@@ -916,6 +934,7 @@ export function CanvasEditorClient({
                 cursor: isDragging ? "grabbing" : "default",
               }}
               ref={stageScrollRef}
+              onMouseDown={handleCanvasMouseDown}
             >
               <CanvasMobileRenderer
                 mode="editor"
@@ -950,6 +969,9 @@ export function CanvasEditorClient({
                   </p>
                 </div>
               )}
+              <div className="pointer-events-none fixed bottom-3 left-3 z-[9999] rounded-full border border-indigo-400/30 bg-neutral-950/85 px-3 py-1 text-[11px] font-medium text-indigo-100 shadow-lg">
+                Selected: {state.selectedId ?? "none"}
+              </div>
 
             </div>
           </div>
@@ -1051,9 +1073,10 @@ function StageElement({
     top: `${element.y}%`,
     width: element.width,
     height: element.height ?? undefined,
-    transform: `translate(-50%, -50%) rotate(${element.rotation}deg)`,
+    transform: `rotate(${element.rotation}deg)`,
     zIndex: element.zIndex,
     cursor: element.locked ? "default" : selected ? "grab" : "pointer",
+    pointerEvents: "auto",
     userSelect: "none",
     // Selection ring via box-shadow so it doesn't affect layout
     boxShadow: selected
@@ -1116,6 +1139,7 @@ function StageElement({
       {selected && (
         <>
           <div
+            data-canvas-control="true"
             style={{
               position: "absolute",
               left: "50%",
@@ -1175,6 +1199,7 @@ function ResizeHandleNode({
 }) {
   return (
     <div
+      data-canvas-control="true"
       onMouseDown={onMouseDown}
       style={{
         position: "absolute",

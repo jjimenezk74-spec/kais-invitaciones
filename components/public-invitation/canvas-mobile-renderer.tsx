@@ -74,7 +74,7 @@ export function CanvasMobileRenderer({
             <CanvasSectionBackground key={section.id} section={section} />
           ))}
           {visible.map((element) => (
-            <CanvasMobileElement key={element.id} element={element} />
+            <CanvasMobileElement key={element.id} element={element} mode={mode} />
           ))}
           {children}
         </div>
@@ -102,7 +102,13 @@ function CanvasSectionBackground({ section }: { section: CanvasSection }) {
   );
 }
 
-function CanvasMobileElement({ element }: { element: CanvasElement }) {
+function CanvasMobileElement({
+  element,
+  mode,
+}: {
+  element: CanvasElement;
+  mode: "public" | "editor";
+}) {
   const baseStyle: CSSProperties = {
     position: "absolute",
     left: `${element.x}%`,
@@ -112,7 +118,8 @@ function CanvasMobileElement({ element }: { element: CanvasElement }) {
     opacity: getElementStyleValue(element, "opacity") ?? element.opacity,
     transform: buildTransform(element.rotation),
     zIndex: element.zIndex,
-    pointerEvents: "none",
+    pointerEvents: mode === "editor" ? "auto" : "none",
+    cursor: mode === "editor" ? (element.locked ? "default" : "move") : "default",
     userSelect: "none",
     borderRadius: getElementStyleValue(element, "borderRadius"),
     background: getElementStyleValue(element, "background"),

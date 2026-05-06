@@ -2,7 +2,6 @@ import { headers } from "next/headers";
 import Link from "next/link";
 import { CalendarPlus, MapPin, Send, Eye } from "lucide-react";
 import { submitRsvp, trackVisit } from "@/app/actions/events";
-import { Countdown } from "@/components/countdown";
 import { BackButton } from "@/components/back-button";
 import { EventHero } from "@/components/public-invitation/event-hero";
 import { RsvpWhatsAppRedirect } from "@/components/rsvp-whatsapp-redirect";
@@ -13,7 +12,6 @@ import { fetchThemeById } from "@/lib/invitation-themes.server";
 import { eventHasFeature } from "@/lib/event-features";
 import { createClient } from "@/lib/supabase/server";
 import { isKaisAdmin } from "@/lib/profiles";
-import { formatDate } from "@/lib/utils";
 import type { CanvasDesign, Event, EventDecorations, EventGuest, InvitationTemplate, InvitationTheme, Rsvp, VisualDecoration } from "@/lib/types";
 import {
   NotPublishedScreen,
@@ -23,6 +21,15 @@ import {
 } from "./_screens";
 import { RoyalWeddingPack, RoyalWeddingDivider } from "@/components/decorations/royal-wedding-pack";
 import { CanvasRenderer } from "@/components/canvas-renderer";
+import {
+  CountdownSectionContent,
+  PresentationSectionContent,
+  MessagesSectionContent,
+  DetailsSectionContent,
+  ChurchSectionContent,
+  DresscodeSectionContent,
+  FooterBrandContent,
+} from "@/components/public-invitation/invitation-sections";
 
 type PageProps = {
   params: Promise<{ slug: string }>;
@@ -338,32 +345,11 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
       </div>
 
       <section className="relative px-5 py-20 sm:py-24 lg:hidden" aria-label="Cuenta regresiva y mensaje">
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-px kais-hairline" />
-        <div className="pointer-events-none absolute -left-20 top-10 h-56 w-56 rounded-full bg-[#3a0a12]/35 blur-3xl" />
-        <div className="pointer-events-none absolute -right-16 bottom-12 h-48 w-48 rounded-full bg-[#d4af37]/[0.07] blur-3xl" />
-
-        <div className="relative mx-auto max-w-md text-center">
-          <div className="flex items-center justify-center gap-3">
-            <span className="block h-px w-10 kais-hairline" />
-            <p className="kais-eyebrow">{invitedGuest ? `Para ${invitedGuest.guest_name}` : "Faltan"}</p>
-            <span className="block h-px w-10 kais-hairline" />
-          </div>
-
-          <div className="mt-10">
-            <Countdown date={event.event_date} time={event.event_time} variant="luxe" />
-          </div>
-
-          <div className="mt-12 flex flex-wrap items-center justify-center gap-x-6 gap-y-4">
-            <a href={event.google_maps_link ?? "#detalles"} target="_blank" rel="noreferrer" className="kais-ghost-link">
-              <MapPin className="h-3.5 w-3.5" />
-              Como llegar
-            </a>
-            <a href={calendarUrl} target="_blank" rel="noreferrer" className="kais-ghost-link">
-              <CalendarPlus className="h-3.5 w-3.5" />
-              Calendario
-            </a>
-          </div>
-        </div>
+        <CountdownSectionContent
+          event={event}
+          calendarUrl={calendarUrl}
+          invitedGuestName={invitedGuest?.guest_name ?? null}
+        />
         {canvasDesign && <CanvasRenderer design={canvasDesign} sectionId="countdown" />}
       </section>
 
@@ -378,108 +364,11 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
         <div className="pointer-events-none absolute -right-32 bottom-16 h-72 w-72 rounded-full bg-[#d4af37]/[0.06] blur-3xl" />
 
         <div className="relative z-10 mx-auto max-w-5xl text-center">
-          <div className="flex items-center justify-center gap-3">
-            <span className="block h-px w-10 kais-hairline" />
-            <p className="kais-eyebrow">Una noche . Inolvidable</p>
-            <span className="block h-px w-10 kais-hairline" />
-          </div>
-
-          <h2
-            className="mt-9 font-display font-light italic leading-[0.95]"
-            style={{ fontSize: "clamp(2.6rem, 6.5vw, 5.5rem)" }}
-          >
-            <span className="kais-gold-text kais-shimmer">{event.title}</span>
-          </h2>
-
-          {event.main_message ? (
-            <p className="mx-auto mt-8 max-w-2xl text-[0.95rem] leading-[2] text-[#f5ecd9]/72">{event.main_message}</p>
-          ) : null}
-
-          {event.quinceanera_name ? (
-            <div className="mx-auto mt-12 max-w-2xl">
-              <p className="kais-eyebrow">Quinceanera</p>
-              <h3 className="mt-3 font-display text-4xl font-light italic text-[#f5ecd9] md:text-5xl">
-                {event.quinceanera_name}
-              </h3>
-            </div>
-          ) : null}
-
-          {event.parents_names ? (
-            <div className="mx-auto mt-10 max-w-2xl">
-              <p className="kais-eyebrow">Junto a mis padres</p>
-              <p className="mt-3 font-display text-2xl italic text-[#f5ecd9]/88 md:text-3xl">{event.parents_names}</p>
-            </div>
-          ) : null}
-
-          {(event.quince_message || event.parents_message) ? (
-            <div className="mx-auto mt-12 grid max-w-3xl gap-5 md:grid-cols-2">
-              {event.quince_message ? (
-                <div className="kais-glass rounded-3xl p-6 text-left">
-                  <p className="kais-eyebrow">Mensaje</p>
-                  <p className="mt-4 text-sm leading-7 text-[#f5ecd9]/75">{event.quince_message}</p>
-                </div>
-              ) : null}
-              {event.parents_message ? (
-                <div className="kais-glass rounded-3xl p-6 text-left">
-                  <p className="kais-eyebrow">Familia</p>
-                  <p className="mt-4 text-sm leading-7 text-[#f5ecd9]/75">{event.parents_message}</p>
-                </div>
-              ) : null}
-            </div>
-          ) : null}
-
-          <div className="mt-16 grid grid-cols-1 gap-12 md:grid-cols-3 md:gap-0">
-            {[
-              ["Fecha", formatDate(event.event_date)],
-              ["Hora", event.event_time],
-              ["Lugar", event.address]
-            ].map(([label, value], i) => (
-              <div
-                key={label}
-                className={`relative px-2 py-2 ${
-                  i > 0
-                    ? "md:before:absolute md:before:inset-y-3 md:before:left-0 md:before:w-px md:before:bg-gradient-to-b md:before:from-transparent md:before:via-[#d4af37]/35 md:before:to-transparent"
-                    : ""
-                }`}
-              >
-                <p className="kais-eyebrow">{label}</p>
-                <p className="mt-4 font-display text-2xl italic text-[#f5ecd9] md:text-3xl">{value}</p>
-              </div>
-            ))}
-          </div>
-
-          {event.church_name ? (
-            <div className="mx-auto mt-16 max-w-2xl">
-              <p className="kais-eyebrow">Ceremonia religiosa</p>
-              <p className="mt-3 font-display text-2xl italic text-[#f5ecd9] md:text-3xl">{event.church_name}</p>
-              {event.church_time ? (
-                <p className="mt-2 text-sm font-semibold uppercase tracking-[0.24em] text-[#d4af37]/85">{event.church_time}</p>
-              ) : null}
-            </div>
-          ) : null}
-
-          {(event.dress_code || event.color_palette || event.theme) ? (
-            <div className="mx-auto mt-16 grid max-w-3xl gap-5 md:grid-cols-3">
-              {event.dress_code ? (
-                <div>
-                  <p className="kais-eyebrow">Tenida</p>
-                  <p className="mt-3 font-display text-xl italic text-[#f5ecd9]/85 md:text-2xl">{event.dress_code}</p>
-                </div>
-              ) : null}
-              {event.color_palette ? (
-                <div>
-                  <p className="kais-eyebrow">Gama de colores</p>
-                  <p className="mt-3 font-display text-xl italic text-[#f5ecd9]/85 md:text-2xl">{event.color_palette}</p>
-                </div>
-              ) : null}
-              {event.theme ? (
-                <div>
-                  <p className="kais-eyebrow">Tematica</p>
-                  <p className="mt-3 font-display text-xl italic text-[#f5ecd9]/85 md:text-2xl">{event.theme}</p>
-                </div>
-              ) : null}
-            </div>
-          ) : null}
+          <PresentationSectionContent event={event} />
+          <MessagesSectionContent event={event} />
+          <DetailsSectionContent event={event} />
+          <ChurchSectionContent event={event} />
+          <DresscodeSectionContent event={event} />
         </div>
         {canvasDesign && (
           <>
@@ -701,10 +590,7 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
           freeDecorations={freeDecorations}
         />
         <div className="pointer-events-none absolute inset-x-0 top-0 h-px kais-hairline" />
-        <div className="kais-brand-footer relative z-10">
-          <p className="kais-brand-footer__eyebrow">Una experiencia de</p>
-          <Link href="/" className="kais-brand-footer__name">KAIS Invitaciones</Link>
-        </div>
+        <FooterBrandContent />
         {canvasDesign && <CanvasRenderer design={canvasDesign} sectionId="footer" />}
       </footer>
 

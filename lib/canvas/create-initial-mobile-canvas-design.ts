@@ -84,11 +84,12 @@ export function createInitialMobileCanvasDesign(
       textShadow: "0 4px 18px rgba(0,0,0,0.55)",
       style: { animation: "fade-up", animationDuration: "1s", animationDelay: "80ms" },
     }),
-    textElement("event-date", dateLabel, "hero", centerX(300), sectionMidY("hero", 58, 24), 300, 24, 5, {
+    textElement("event-date", dateLabel, "hero", centerX(360), sectionMidY("hero", 58, 24), 360, 24, 5, {
       color: themeTokens.body,
       fontFamily: DISPLAY_FONT,
       fontSize: 25,
       fontStyle: "italic",
+      textAlign: "center",
       textShadow: "0 2px 12px rgba(0,0,0,0.55)",
       style: { animation: "fade-up", animationDuration: "1s", animationDelay: "180ms" },
     }),
@@ -101,7 +102,7 @@ export function createInitialMobileCanvasDesign(
       textShadow: "0 2px 10px rgba(0,0,0,0.55)",
       style: { animation: "fade-up", animationDuration: "900ms" },
     }),
-    textElement("countdown-placeholder", "00 DIAS   00 HORAS   00 MIN   00 SEG", "countdown", centerX(330), sectionMidY("countdown", 48, 42), 330, 42, 7, {
+    textElement("countdown-placeholder", "00 DIAS   00 HORAS   00 MIN   00 SEG", "countdown", centerX(360), sectionMidY("countdown", 48, 42), 360, 42, 7, {
       color: themeTokens.body,
       fontSize: 13,
       fontWeight: "600",
@@ -140,7 +141,7 @@ export function createInitialMobileCanvasDesign(
       fontStyle: "italic",
       textShadow: "0 2px 10px rgba(0,0,0,0.55)",
     }),
-    textElement("rsvp-button", "CONFIRMAR ASISTENCIA", "rsvp", centerX(290), sectionMidY("rsvp", 54, 52), 290, 52, 20, {
+    textElement("rsvp-button", "CONFIRMAR ASISTENCIA", "rsvp", centerX(340), sectionMidY("rsvp", 54, 52), 340, 52, 20, {
       color: themeTokens.buttonText,
       fontSize: 15,
       fontWeight: "700",
@@ -178,7 +179,7 @@ export function createInitialMobileCanvasDesign(
 
 /** Left-edge px for an element centred horizontally in the 390-wide canvas. */
 function centerX(width: number): number {
-  return Math.max(0, (MOBILE_CANVAS_WIDTH - width) / 2);
+  return Math.round(Math.max(0, (MOBILE_CANVAS_WIDTH - width) / 2));
 }
 
 /** Top-edge px of a section. */

@@ -200,17 +200,17 @@ function buildDecorationBackground(
 ): string {
   switch (preset) {
     case "blur-circle":
-      return `radial-gradient(circle, ${hexToRgba(color, 0.65)} 0%, ${hexToRgba(color, 0.28)} 42%, ${hexToRgba(color, 0)} 72%)`;
+      return `radial-gradient(circle, ${hexToRgba(color, 1)} 0%, ${hexToRgba(accentColor, 0.9)} 30%, ${hexToRgba(accentColor, 0.45)} 55%, ${hexToRgba(accentColor, 0)} 75%)`;
     case "glow":
-      return `radial-gradient(circle, ${hexToRgba(color, 1)} 0%, ${hexToRgba(accentColor, 0.35)} 40%, ${hexToRgba(color, 0)} 70%)`;
+      return `radial-gradient(circle, ${hexToRgba(color, 1)} 0%, ${hexToRgba(accentColor, 0.92)} 28%, ${hexToRgba(accentColor, 0.55)} 52%, ${hexToRgba(accentColor, 0)} 76%)`;
     case "flower-shape":
-      return `radial-gradient(circle at 40% 40%, ${hexToRgba(color, 0.7)} 0%, ${hexToRgba(accentColor, 0.38)} 42%, ${hexToRgba(accentColor, 0)} 72%)`;
+      return `radial-gradient(circle at 40% 40%, ${hexToRgba(color, 1)} 0%, ${hexToRgba(accentColor, 0.86)} 38%, ${hexToRgba(accentColor, 0.38)} 60%, ${hexToRgba(accentColor, 0)} 78%)`;
     case "gradient-overlay":
-      return `linear-gradient(to bottom, ${hexToRgba(color, 0.05)} 0%, ${hexToRgba(color, 0.40)} 55%, ${hexToRgba(color, 0.62)} 100%)`;
+      return `linear-gradient(to bottom, ${hexToRgba(color, 0)} 0%, ${hexToRgba(color, 0.35)} 42%, ${hexToRgba(color, 0.85)} 100%)`;
     case "divider":
-      return `linear-gradient(90deg, rgba(255,255,255,0) 0%, ${hexToRgba(accentColor, 0.95)} 28%, ${hexToRgba(color, 0.92)} 50%, ${hexToRgba(accentColor, 0.95)} 72%, rgba(255,255,255,0) 100%)`;
+      return `linear-gradient(90deg, rgba(255,255,255,0) 0%, ${hexToRgba(accentColor, 1)} 28%, ${hexToRgba(color, 1)} 50%, ${hexToRgba(accentColor, 1)} 72%, rgba(255,255,255,0) 100%)`;
     default:
-      return `radial-gradient(circle, ${hexToRgba(color, 0.6)} 0%, ${hexToRgba(color, 0)} 70%)`;
+      return `radial-gradient(circle, ${hexToRgba(color, 1)} 0%, ${hexToRgba(color, 0.5)} 52%, ${hexToRgba(color, 0)} 76%)`;
   }
 }
 
@@ -242,7 +242,6 @@ function createImageElement(url: string, sectionId: CanvasSectionId): import("@/
 
 function createEffectElement(preset: EffectPreset, sectionId: CanvasSectionId): CanvasTextElement {
   // x=50 => CSS left:50% + translate(-50%) => element is centered
-  // opacity:1 on all presets — use alpha in gradient colors for subtlety
   const base: CanvasTextElement = {
     id: crypto.randomUUID().slice(0, 8),
     type: "text",
@@ -286,11 +285,13 @@ function createEffectElement(preset: EffectPreset, sectionId: CanvasSectionId): 
       height: 200,
       style: {
         ...base.style,
-        background: buildDecorationBackground("blur-circle", "#ffffff", "#f4d27a"),
-        blur: 22,
+        background: buildDecorationBackground("blur-circle", "#ffe696", "#ffb43c"),
+        blur: 10,
         borderRadius: 9999,
         opacity: 1,
         mixBlendMode: "screen",
+        color: "#ffe696",
+        accentColor: "#ffb43c",
       },
     };
   }
@@ -307,6 +308,7 @@ function createEffectElement(preset: EffectPreset, sectionId: CanvasSectionId): 
         borderRadius: 9999,
         opacity: 1,
         mixBlendMode: "screen",
+        boxShadow: "0 0 36px rgba(244,210,122,0.85), 0 0 90px rgba(244,210,122,0.42)",
         animation: "pulse-glow",
         animationDuration: "3s",
         color: "#ffe6a0",
@@ -1930,11 +1932,11 @@ function TextPropertiesPanel({ element, onChange, onDelete }: TextPanelProps) {
         <input
           type="range"
           min={0}
-          max={1}
-          step={0.01}
-          value={(element.style?.opacity ?? element.opacity) ?? 1}
+          max={100}
+          step={1}
+          value={Math.round(((element.style?.opacity ?? element.opacity) ?? 1) * 100)}
           onChange={(e) => {
-            const opacity = clamp(Number(e.target.value), 0, 1);
+            const opacity = clamp(Number(e.target.value) / 100, 0, 1);
             // Sync both element.opacity and style.opacity so renderer always picks it up
             onChange(
               element.style !== undefined
@@ -2022,11 +2024,11 @@ function ImagePropertiesPanel({ element, onChange, onDelete }: ImagePanelProps) 
         <input
           type="range"
           min={0}
-          max={1}
-          step={0.01}
-          value={(element.style?.opacity ?? element.opacity) ?? 1}
+          max={100}
+          step={1}
+          value={Math.round(((element.style?.opacity ?? element.opacity) ?? 1) * 100)}
           onChange={(e) => {
-            const opacity = clamp(Number(e.target.value), 0, 1);
+            const opacity = clamp(Number(e.target.value) / 100, 0, 1);
             // Sync both element.opacity and style.opacity so renderer always picks it up
             onChange(
               element.style !== undefined

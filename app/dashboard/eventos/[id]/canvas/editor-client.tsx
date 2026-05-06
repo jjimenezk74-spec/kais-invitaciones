@@ -338,7 +338,7 @@ export function CanvasEditorClient({
   });
   const [activeSectionId, setActiveSectionId] = useState<CanvasSectionId>("hero");
 
-  // Scale: wrapper width / REF_W
+  // Scale: fit the simulated phone viewport inside the editor viewport.
   const wrapperRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(0.55);
 
@@ -352,8 +352,11 @@ export function CanvasEditorClient({
     }
     const update = () => {
       if (!wrapperRef.current) return;
-      const w = wrapperRef.current.getBoundingClientRect().width - 32;
-      setScale(Math.max(0.3, Math.min(1, w / REF_W)));
+      const rect = wrapperRef.current.getBoundingClientRect();
+      const availableW = Math.max(0, rect.width - 32);
+      const availableH = Math.max(0, rect.height - 48);
+      const nextScale = Math.min(availableW / REF_W, availableH / REF_H, 1);
+      setScale(Math.max(0.28, nextScale));
     };
     update();
     window.addEventListener("resize", update);
@@ -679,7 +682,7 @@ export function CanvasEditorClient({
         {/* ── Canvas area ────────────────────────────────────────────── */}
         <div
           ref={wrapperRef}
-          className="flex flex-1 items-start justify-center overflow-auto bg-neutral-950 p-4 pt-6"
+          className="flex flex-1 items-start justify-center overflow-hidden bg-neutral-950 p-4 pt-6"
           onClick={() => dispatch({ type: "SELECT", id: null })}
         >
           {/* Outer shell — real screen dimensions */}
@@ -689,6 +692,7 @@ export function CanvasEditorClient({
               height: REF_H * scale,
               flexShrink: 0,
               position: "relative",
+              overflow: "hidden",
             }}
           >
             {/* Inner stage at reference 390×844, scaled with CSS transform */}
@@ -698,9 +702,9 @@ export function CanvasEditorClient({
                 height: REF_H,
                 position: "absolute",
                 top: 0,
-                left: 0,
-                transform: `scale(${scale})`,
-                transformOrigin: "top left",
+                left: "50%",
+                transform: `translateX(-50%) scale(${scale})`,
+                transformOrigin: "top center",
                 borderRadius: 12,
                 overflowX: "hidden",
                 overflowY: "auto",

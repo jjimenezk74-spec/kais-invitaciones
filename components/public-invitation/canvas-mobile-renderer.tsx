@@ -162,7 +162,8 @@ function CanvasMobileText({
         textDecoration: element.textDecoration === "underline" ? "underline" : "none",
         textShadow: getStringElementStyleValue(element, "textShadow") ?? element.textShadow ?? undefined,
         whiteSpace: "pre-wrap",
-        wordBreak: "break-word",
+        overflowWrap: "normal",
+        wordBreak: "normal",
       }}
     >
       {element.content}

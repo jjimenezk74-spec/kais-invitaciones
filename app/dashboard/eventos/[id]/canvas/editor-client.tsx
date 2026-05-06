@@ -53,7 +53,7 @@ const CANVAS_SECTIONS: { id: CanvasSectionId; label: string }[] = [
 // Drag state — union of move / resize modes
 // ─────────────────────────────────────────────────────────────────────────────
 
-type ResizeHandle = "tl" | "tr" | "bl" | "br";
+type ResizeHandle = "tl" | "t" | "tr" | "r" | "br" | "b" | "bl" | "l";
 
 type DragMove = {
   kind: "move";
@@ -70,9 +70,10 @@ type DragResize = {
   handle: ResizeHandle;
   startMouseX: number;
   startMouseY: number;
+  startX: number;
+  startY: number;
   startWidth: number;
   startHeight: number;
-  startFontSize: number;
   elementType: "text" | "image";
 };
 
@@ -98,7 +99,7 @@ type EditorAction =
   | { type: "UPDATE_TEXT"; id: string; patch: Partial<CanvasTextElement> }
   | { type: "UPDATE_ELEMENT"; id: string; patch: Partial<CanvasElement> }
   | { type: "MOVE"; id: string; x: number; y: number }
-  | { type: "RESIZE"; id: string; width: number; fontSize?: number; height?: number }
+  | { type: "RESIZE"; id: string; x?: number; y?: number; width: number; height?: number }
   | { type: "DUPLICATE"; id: string }
   | { type: "DELETE"; id: string }
   | { type: "BRING_FORWARD"; id: string }
@@ -132,7 +133,7 @@ function createTextElement(sectionId: CanvasSectionId): CanvasTextElement {
     id: crypto.randomUUID().slice(0, 8),
     type: "text",
     sectionId,
-    x: 50,
+    x: ((REF_W - 280) / 2 / REF_W) * 100,
     y: getGlobalYPercent(sectionId, 50),
     width: 280,
     height: null,
@@ -165,7 +166,7 @@ function createImageElement(url: string, sectionId: CanvasSectionId): import("@/
     id: crypto.randomUUID().slice(0, 8),
     type: "image",
     sectionId,
-    x: 50,
+    x: ((REF_W - 120) / 2 / REF_W) * 100,
     y: getGlobalYPercent(sectionId, 30),
     width: 120,
     height: 120,
@@ -204,6 +205,38 @@ function snapPercent(value: number, guides: number[]) {
   const threshold = 1.2;
   const guide = guides.find((item) => Math.abs(item - value) <= threshold);
   return guide ?? value;
+}
+
+function getElementCanvasRect(element: CanvasElement, canvasDesign: CanvasDesign) {
+  const canvasWidth = canvasDesign.width ?? REF_W;
+  const canvasHeight = canvasDesign.height ?? MOBILE_CANVAS_HEIGHT;
+  return {
+    x: (element.x / 100) * canvasWidth,
+    y: (element.y / 100) * canvasHeight,
+    width: element.width,
+    height: element.height ?? estimateElementHeight(element),
+  };
+}
+
+function estimateElementHeight(element: CanvasElement) {
+  if (element.type === "image") return element.height ?? element.width;
+
+  const explicitLines = element.content.split("\n").length;
+  const charsPerLine = Math.max(1, Math.floor(element.width / Math.max(element.fontSize * 0.55, 1)));
+  const wrappedLines = element.content
+    .split("\n")
+    .reduce((lines, line) => lines + Math.max(1, Math.ceil(line.length / charsPerLine)), 0);
+  const lineCount = Math.max(explicitLines, wrappedLines);
+
+  return Math.max(24, lineCount * element.fontSize * element.lineHeight);
+}
+
+function canvasXToPercent(x: number, canvasDesign: CanvasDesign) {
+  return (x / (canvasDesign.width ?? REF_W)) * 100;
+}
+
+function canvasYToPercent(y: number, canvasDesign: CanvasDesign) {
+  return (y / (canvasDesign.height ?? MOBILE_CANVAS_HEIGHT)) * 100;
 }
 
 function reducer(state: EditorState, action: EditorAction): EditorState {
@@ -287,10 +320,9 @@ function reducer(state: EditorState, action: EditorAction): EditorState {
             el.id === action.id
               ? {
                   ...el,
+                  ...(action.x !== undefined ? { x: clamp(action.x, 0, 100) } : {}),
+                  ...(action.y !== undefined ? { y: clamp(action.y, 0, 100) } : {}),
                   width: clamp(action.width, 24, 600),
-                  ...(action.fontSize !== undefined && el.type === "text"
-                    ? { fontSize: clamp(action.fontSize, 10, 120) }
-                    : {}),
                   ...(action.height !== undefined
                     ? { height: clamp(action.height, 24, 600) }
                     : {}),
@@ -542,7 +574,7 @@ export function CanvasEditorClient({
         startElY: el.y,
       };
     },
-    [state.design.elements]
+    [state.design]
   );
 
   const handleCanvasMouseDown = useCallback(
@@ -571,23 +603,21 @@ export function CanvasEditorClient({
       e.preventDefault();
       const el = state.design.elements.find((el) => el.id === elementId);
       if (!el) return;
-      const safeStartWidth = el.width > 0 ? el.width : 240;
-      // For images: use height if set, else assume square (= width)
-      const startHeight = el.height != null && el.height > 0 ? el.height : safeStartWidth;
-      const startFontSize = el.type === "text" ? (el.fontSize > 0 ? el.fontSize : 28) : 28;
+      const rect = getElementCanvasRect(el, state.design);
       dragRef.current = {
         kind: "resize",
         elementId,
         handle,
         startMouseX: e.clientX,
         startMouseY: e.clientY,
-        startWidth: safeStartWidth,
-        startHeight,
-        startFontSize,
+        startX: rect.x,
+        startY: rect.y,
+        startWidth: rect.width,
+        startHeight: rect.height,
         elementType: el.type,
       };
     },
-    [state.design.elements]
+    [state.design]
   );
 
   // Mouse move — handles both move and resize
@@ -610,36 +640,51 @@ export function CanvasEditorClient({
       } else if (drag.kind === "resize") {
         const dxCanvas = (e.clientX - drag.startMouseX) / scale;
         const dyCanvas = (e.clientY - drag.startMouseY) / scale;
+        const affectsLeft = drag.handle.includes("l");
+        const affectsRight = drag.handle.includes("r");
+        const affectsTop = drag.handle.includes("t");
+        const affectsBottom = drag.handle.includes("b");
 
-        if (drag.elementType === "image") {
-          // Proportional resize: pick largest delta per handle direction
-          let delta: number;
-          if (drag.handle === "br")      delta = Math.max(dxCanvas, dyCanvas);
-          else if (drag.handle === "bl") delta = Math.max(-dxCanvas, dyCanvas);
-          else if (drag.handle === "tr") delta = Math.max(dxCanvas, -dyCanvas);
-          else                           delta = Math.max(-dxCanvas, -dyCanvas); // tl
-          const scaleFactor = drag.startWidth > 0 ? (drag.startWidth + delta) / drag.startWidth : 1;
-          dispatch({
-            type: "RESIZE",
-            id: drag.elementId,
-            width:  clamp(drag.startWidth  * scaleFactor, 24, 600),
-            height: clamp(drag.startHeight * scaleFactor, 24, 600),
-          });
-        } else {
-          // Text: width + fontSize proportional (horizontal axis only)
-          const isLeft = drag.handle === "tl" || drag.handle === "bl";
-          const newWidth = drag.startWidth + (isLeft ? -dxCanvas : dxCanvas);
-          const scaleFactor = drag.startWidth > 0 ? newWidth / drag.startWidth : 1;
-          dispatch({
-            type: "RESIZE",
-            id: drag.elementId,
-            width: newWidth,
-            fontSize: drag.startFontSize * scaleFactor,
-          });
+        let nextX = drag.startX;
+        let nextY = drag.startY;
+        let nextWidth = drag.startWidth;
+        let nextHeight = drag.startHeight;
+
+        if (affectsLeft) {
+          nextX = drag.startX + dxCanvas;
+          nextWidth = drag.startWidth - dxCanvas;
+        } else if (affectsRight) {
+          nextWidth = drag.startWidth + dxCanvas;
         }
+
+        if (affectsTop) {
+          nextY = drag.startY + dyCanvas;
+          nextHeight = drag.startHeight - dyCanvas;
+        } else if (affectsBottom) {
+          nextHeight = drag.startHeight + dyCanvas;
+        }
+
+        if (nextWidth < 24 && affectsLeft) {
+          nextX -= 24 - nextWidth;
+        }
+        if (nextHeight < 24 && affectsTop) {
+          nextY -= 24 - nextHeight;
+        }
+
+        const width = clamp(nextWidth, 24, 600);
+        const height = clamp(nextHeight, 24, 600);
+
+        dispatch({
+          type: "RESIZE",
+          id: drag.elementId,
+          x: affectsLeft ? canvasXToPercent(nextX, state.design) : undefined,
+          y: affectsTop ? canvasYToPercent(nextY, state.design) : undefined,
+          width,
+          height,
+        });
       }
     },
-    [documentHeight, scale]
+    [documentHeight, scale, state.design]
   );
 
   const handleMouseUp = useCallback(() => {
@@ -717,6 +762,7 @@ export function CanvasEditorClient({
           <StageElement
             key={selectedElement.id}
             element={selectedElement}
+            rect={getElementCanvasRect(selectedElement, state.design)}
             selected
             ghost
             onMoveStart={(e) => handleElementMouseDown(e, selectedElement.id)}
@@ -1039,6 +1085,7 @@ export function CanvasEditorClient({
 
 type StageElementProps = {
   element: CanvasElement;
+  rect: ReturnType<typeof getElementCanvasRect>;
   selected: boolean;
   onMoveStart: (e: React.MouseEvent) => void;
   onResizeStart: (e: React.MouseEvent, handle: ResizeHandle) => void;
@@ -1054,6 +1101,7 @@ type StageElementProps = {
 
 function StageElement({
   element,
+  rect,
   selected,
   onMoveStart,
   onResizeStart,
@@ -1069,10 +1117,10 @@ function StageElement({
   // Wrapper: positions the element on the canvas
   const wrapperStyle: React.CSSProperties = {
     position: "absolute",
-    left: `${element.x}%`,
-    top: `${element.y}%`,
-    width: element.width,
-    height: element.height ?? undefined,
+    left: rect.x,
+    top: rect.y,
+    width: rect.width,
+    height: rect.height,
     transform: `rotate(${element.rotation}deg)`,
     zIndex: element.zIndex,
     cursor: element.locked ? "default" : selected ? "grab" : "pointer",
@@ -1110,8 +1158,10 @@ function StageElement({
             textDecoration: element.textDecoration,
             opacity: ghost ? 0 : element.opacity,
             whiteSpace: "pre-wrap",
-            wordBreak: "break-word",
+            overflowWrap: "normal",
+            wordBreak: "normal",
             width: "100%",
+            height: "100%",
           }}
         >
           {element.content}
@@ -1143,7 +1193,7 @@ function StageElement({
             style={{
               position: "absolute",
               left: "50%",
-              top: -42,
+              top: -48,
               transform: "translateX(-50%)",
               display: "flex",
               gap: 4,
@@ -1166,7 +1216,7 @@ function StageElement({
             <ToolbarButton title="Ocultar" onClick={onToggleVisible}><EyeOff className="h-3.5 w-3.5" /></ToolbarButton>
             <ToolbarButton title="Eliminar" onClick={onDelete}><Trash2 className="h-3.5 w-3.5" /></ToolbarButton>
           </div>
-          {(["tl", "tr", "bl", "br"] as ResizeHandle[]).map((handle) => (
+          {(["tl", "t", "tr", "r", "br", "b", "bl", "l"] as ResizeHandle[]).map((handle) => (
             <ResizeHandleNode
               key={handle}
               handle={handle}
@@ -1185,9 +1235,13 @@ function StageElement({
 
 const HANDLE_STYLE: Record<ResizeHandle, React.CSSProperties> = {
   tl: { top: -HANDLE_PX / 2, left: -HANDLE_PX / 2, cursor: "nwse-resize" },
+  t: { top: -HANDLE_PX / 2, left: "50%", transform: "translateX(-50%)", cursor: "ns-resize" },
   tr: { top: -HANDLE_PX / 2, right: -HANDLE_PX / 2, cursor: "nesw-resize" },
-  bl: { bottom: -HANDLE_PX / 2, left: -HANDLE_PX / 2, cursor: "nesw-resize" },
+  r: { top: "50%", right: -HANDLE_PX / 2, transform: "translateY(-50%)", cursor: "ew-resize" },
   br: { bottom: -HANDLE_PX / 2, right: -HANDLE_PX / 2, cursor: "nwse-resize" },
+  b: { bottom: -HANDLE_PX / 2, left: "50%", transform: "translateX(-50%)", cursor: "ns-resize" },
+  bl: { bottom: -HANDLE_PX / 2, left: -HANDLE_PX / 2, cursor: "nesw-resize" },
+  l: { top: "50%", left: -HANDLE_PX / 2, transform: "translateY(-50%)", cursor: "ew-resize" },
 };
 
 function ResizeHandleNode({

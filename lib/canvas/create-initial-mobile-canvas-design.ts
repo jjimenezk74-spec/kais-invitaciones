@@ -63,10 +63,10 @@ export function createInitialMobileCanvasDesign(
       letterSpacing: 0.42,
       textShadow: "0 2px 10px rgba(0,0,0,0.45)",
     }),
-    textElement("main-title", title, "hero", 50, yInSection("hero", 39), 330, null, 4, {
+    textElement("main-title", title, "hero", 50, yInSection("hero", 39), 360, null, 4, {
       color: themeTokens.title,
       fontFamily: DISPLAY_FONT,
-      fontSize: title.length > 18 ? 56 : 68,
+      fontSize: title.length > 18 ? 52 : 66,
       fontWeight: "400",
       fontStyle: "italic",
       lineHeight: 0.95,
@@ -185,7 +185,7 @@ function textElement(
     id,
     type: "text",
     sectionId,
-    x,
+    x: centerXToLeftPercent(x, width),
     y,
     width,
     height,
@@ -226,7 +226,7 @@ function imageElement(
     id,
     type: "image",
     sectionId,
-    x,
+    x: centerXToLeftPercent(x, width),
     y,
     width,
     height,
@@ -245,6 +245,11 @@ function imageElement(
     flipX: false,
     flipY: false,
   };
+}
+
+function centerXToLeftPercent(centerXPercent: number, width: number) {
+  const centerX = (centerXPercent / 100) * MOBILE_CANVAS_WIDTH;
+  return ((centerX - width / 2) / MOBILE_CANVAS_WIDTH) * 100;
 }
 
 function imageOverlayElement(color: string): CanvasImageElement {

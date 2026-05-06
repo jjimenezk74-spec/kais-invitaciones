@@ -126,6 +126,12 @@ type CanvasBaseElement = {
     animation?: string;
     animationDelay?: string;
     animationDuration?: string;
+    /** Color principal para decoraciones parametricas (hex). */
+    color?: string;
+    /** Color de acento para decoraciones parametricas (hex). */
+    accentColor?: string;
+    /** Preset de decoracion para regenerar background al cambiar color. */
+    decorationPreset?: string;
   };
 };
 
@@ -354,9 +360,9 @@ export type EventPhoto = {
   storage_path: string;
   public_url: string;
   guest_name: string | null;
-  is_approved: boolean;
   status: "pendiente" | "aprobada" | "rechazada";
   is_public: boolean;
+  is_approved: boolean;
   approved_at: string | null;
   approved_by_event_login: string | null;
   created_at: string;
@@ -371,6 +377,7 @@ export type EventLogin = {
   expires_at: string | null;
   last_login_at: string | null;
   created_at: string;
+  updated_at?: string | null;
   created_by: string | null;
 };
 
@@ -389,7 +396,7 @@ export type LivePhoto = {
   guest_name: string | null;
   guest_message: string | null;
   approved: boolean;
-  featured: boolean;
   rejected: boolean;
+  featured: boolean;
   created_at: string;
 };

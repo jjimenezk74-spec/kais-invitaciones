@@ -114,9 +114,10 @@ function CanvasMobileElement({
     left: `${element.x}%`,
     top: `${element.y}%`,
     width: element.width,
-    height: element.height ?? undefined,
+    height: element.height ?? getFallbackElementHeight(element),
     opacity: getElementStyleValue(element, "opacity") ?? element.opacity,
     transform: buildTransform(element.rotation),
+    transformOrigin: "center center",
     zIndex: element.zIndex,
     pointerEvents: mode === "editor" ? "auto" : "none",
     cursor: mode === "editor" ? (element.locked ? "default" : "move") : "default",
@@ -125,6 +126,8 @@ function CanvasMobileElement({
     background: getElementStyleValue(element, "background"),
     backdropFilter: getBackdropFilter(element),
     animation: getElementStyleValue(element, "animation"),
+    boxSizing: "border-box",
+    overflow: "hidden",
   };
 
   if (element.type === "text") {
@@ -138,6 +141,17 @@ function CanvasMobileElement({
   return null;
 }
 
+function getFallbackElementHeight(element: CanvasElement) {
+  if (element.type === "image") return element.height ?? element.width;
+
+  const charsPerLine = Math.max(1, Math.floor(element.width / Math.max(element.fontSize * 0.55, 1)));
+  const wrappedLines = element.content
+    .split("\n")
+    .reduce((lines, line) => lines + Math.max(1, Math.ceil(line.length / charsPerLine)), 0);
+
+  return Math.max(24, wrappedLines * element.fontSize * element.lineHeight);
+}
+
 function CanvasMobileText({
   element,
   style,
@@ -146,11 +160,26 @@ function CanvasMobileText({
   style: CSSProperties;
 }) {
   return (
-    <p
+    <div
       data-element-id={element.id}
       data-section-id={element.sectionId ?? "hero"}
+      style={style}
+    >
+      <p
       style={{
-        ...style,
+        width: "100%",
+        height: "100%",
+        display: "flex",
+        alignItems: "center",
+        justifyContent:
+          element.textAlign === "center"
+            ? "center"
+            : element.textAlign === "right"
+              ? "flex-end"
+              : "flex-start",
+        margin: 0,
+        padding: 0,
+        boxSizing: "border-box",
         fontFamily: element.fontFamily,
         fontSize: element.fontSize,
         fontWeight: element.fontWeight,
@@ -162,12 +191,14 @@ function CanvasMobileText({
         textDecoration: element.textDecoration === "underline" ? "underline" : "none",
         textShadow: getStringElementStyleValue(element, "textShadow") ?? element.textShadow ?? undefined,
         whiteSpace: "pre-wrap",
-        overflowWrap: "normal",
+        overflowWrap: "break-word",
         wordBreak: "normal",
+        overflow: "hidden",
       }}
-    >
-      {element.content}
-    </p>
+      >
+        {element.content}
+      </p>
+    </div>
   );
 }
 
@@ -180,21 +211,28 @@ function CanvasMobileImage({
 }) {
   return (
     // eslint-disable-next-line @next/next/no-img-element
-    <img
+    <div
       data-element-id={element.id}
       data-section-id={element.sectionId ?? "hero"}
+      style={style}
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
       src={element.url}
       alt=""
       draggable={false}
       loading="lazy"
       style={{
-        ...style,
         display: "block",
+        width: "100%",
+        height: "100%",
         objectFit: element.objectFit === "fill" ? "fill" : "contain",
         filter: buildImageFilter(element),
-        transform: `${buildTransform(element.rotation)}${element.flipX || element.flipY ? ` scale(${element.flipX ? -1 : 1}, ${element.flipY ? -1 : 1})` : ""}`,
+        transform: element.flipX || element.flipY ? `scale(${element.flipX ? -1 : 1}, ${element.flipY ? -1 : 1})` : undefined,
+        pointerEvents: "none",
       }}
-    />
+      />
+    </div>
   );
 }
 

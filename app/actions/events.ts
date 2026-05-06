@@ -156,7 +156,7 @@ export async function createEvent(formData: FormData) {
   });
 
   revalidatePath("/dashboard");
-  redirect(`/dashboard/eventos/${data.id}?saved=created`);
+  redirect(`/dashboard/eventos/${data.id}/canvas`);
 }
 
 async function initializeEventCanvasDesign({

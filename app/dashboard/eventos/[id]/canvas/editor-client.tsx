@@ -1274,20 +1274,6 @@ export function CanvasEditorClient({
               </p>
             </div>
           )}
-          {/* ── Layers panel ─────────────────────────────────────────── */}
-          <div className="border-t border-neutral-800">
-            <LayersPanel
-              elements={state.design.elements.filter(
-                (el) => (el.sectionId ?? "hero") === activeSectionId
-              )}
-              selectedId={state.selectedId}
-              onSelect={(id) => dispatch({ type: "SELECT", id })}
-              onBringForward={(id) => dispatch({ type: "BRING_FORWARD", id })}
-              onSendBackward={(id) => dispatch({ type: "SEND_BACKWARD", id })}
-              onBringToFront={(id) => dispatch({ type: "BRING_TO_FRONT", id })}
-              onSendToBack={(id) => dispatch({ type: "SEND_TO_BACK", id })}
-            />
-          </div>
         </aside>
       </div>
     </div>

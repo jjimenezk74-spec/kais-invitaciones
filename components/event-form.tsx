@@ -348,44 +348,15 @@ export function EventForm({
       ref={formRef}
       action={action}
       className="grid gap-6"
-      onSubmit={async (submitEvent) => {
+      onSubmit={(submitEvent) => {
         if (!finalSubmitIntentRef.current) {
           submitEvent.preventDefault();
           setUploadError("");
           return;
         }
 
-        submitEvent.preventDefault();
-        const form = submitEvent.currentTarget;
-        const error = validateUploads(form);
-        if (error) {
-          finalSubmitIntentRef.current = false;
-          setUploadError(error);
-          window.requestAnimationFrame(() => {
-            document.getElementById("event-form-upload-error")?.scrollIntoView({ behavior: "smooth", block: "center" });
-          });
-          return;
-        }
-
         setUploadError("");
         setIsFinalSubmitting(true);
-
-        try {
-          if (hasPendingUploads(form)) {
-            await uploadFilesToSupabase(form, setUploadStatus);
-            clearFileInput(form, "cover_image_file");
-            clearFileInput(form, "mobile_cover_image_file");
-            clearFileInput(form, "music_file");
-            visualDecorations.forEach((decoration) => clearFileInput(form, getVisualDecorationFileInputName(decoration.id)));
-          }
-          await action(new FormData(form));
-        } catch (submitFailure) {
-          if (isNextRedirectError(submitFailure)) throw submitFailure;
-          finalSubmitIntentRef.current = false;
-          setUploadError(submitFailure instanceof Error ? submitFailure.message : "No se pudo crear la invitación. Intenta nuevamente.");
-          setIsFinalSubmitting(false);
-          setUploadStatus("");
-        }
       }}
     >
       {uploadError ? (
@@ -1058,9 +1029,11 @@ function WizardActions({
         </Button>
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <Button type="button" variant="ghost" className="text-[#6d1f32] hover:bg-[#f7efe7]" onClick={onSaveDraft}>
-            Guardar borrador
-          </Button>
+          {isEditing ? (
+            <Button type="button" variant="ghost" className="text-[#6d1f32] hover:bg-[#f7efe7]" onClick={onSaveDraft}>
+              Guardar borrador
+            </Button>
+          ) : null}
           {isEditing || isLastStep ? (
             <Button
               type="button"

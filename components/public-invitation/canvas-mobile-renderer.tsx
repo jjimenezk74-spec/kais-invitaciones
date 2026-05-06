@@ -162,6 +162,7 @@ function CanvasMobileElement({
 }) {
   const visualStyle = element.style ?? {};
   const elementShadow = visualStyle.boxShadow ?? "";
+  const paintKey = buildElementPaintKey(element);
 
   // Outer wrapper: handles positioning and the selection ring.
   // Opacity is NOT here — so the outline is always fully visible even on
@@ -237,11 +238,11 @@ function CanvasMobileElement({
     ) : null;
 
   if (element.type === "text") {
-    return <CanvasMobileText element={element} mode={mode} wrapperStyle={wrapperStyle} innerStyle={innerStyle} editorProps={editorProps} controls={controls} />;
+    return <CanvasMobileText element={element} mode={mode} wrapperStyle={wrapperStyle} innerStyle={innerStyle} paintKey={paintKey} editorProps={editorProps} controls={controls} />;
   }
 
   if (element.type === "image") {
-    return <CanvasMobileImage element={element} wrapperStyle={wrapperStyle} innerStyle={innerStyle} editorProps={editorProps} controls={controls} />;
+    return <CanvasMobileImage element={element} wrapperStyle={wrapperStyle} innerStyle={innerStyle} paintKey={paintKey} editorProps={editorProps} controls={controls} />;
   }
 
   return null;
@@ -263,6 +264,7 @@ function CanvasMobileText({
   mode,
   wrapperStyle,
   innerStyle,
+  paintKey,
   editorProps,
   controls,
 }: {
@@ -270,6 +272,7 @@ function CanvasMobileText({
   mode: "public" | "editor";
   wrapperStyle: CSSProperties;
   innerStyle: CSSProperties;
+  paintKey: string;
   editorProps: HTMLAttributes<HTMLDivElement>;
   controls: ReactNode;
 }) {
@@ -280,7 +283,7 @@ function CanvasMobileText({
       style={wrapperStyle}
       {...editorProps}
     >
-      <div style={innerStyle}>
+      <div key={paintKey} style={innerStyle}>
         <p
         style={{
           width: "100%",
@@ -319,12 +322,14 @@ function CanvasMobileImage({
   element,
   wrapperStyle,
   innerStyle,
+  paintKey,
   editorProps,
   controls,
 }: {
   element: CanvasImageElement;
   wrapperStyle: CSSProperties;
   innerStyle: CSSProperties;
+  paintKey: string;
   editorProps: HTMLAttributes<HTMLDivElement>;
   controls: ReactNode;
 }) {
@@ -335,7 +340,7 @@ function CanvasMobileImage({
       style={wrapperStyle}
       {...editorProps}
     >
-      <div style={innerStyle}>
+      <div key={paintKey} style={innerStyle}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
         src={element.url}
@@ -554,6 +559,36 @@ function buildTransform(rotation: number): string {
 function buildElementBackground(element: CanvasElement) {
   const style = element.style;
   return style?.gradient ?? style?.background;
+}
+
+function buildElementPaintKey(element: CanvasElement) {
+  const style = element.style ?? {};
+  return [
+    element.id,
+    element.type,
+    element.visible,
+    element.opacity,
+    style.opacity,
+    style.background,
+    style.backgroundImage,
+    style.gradient,
+    style.blur,
+    style.filter,
+    style.backdropFilter,
+    style.mixBlendMode,
+    style.boxShadow,
+    style.textShadow,
+    style.border,
+    style.borderRadius,
+    style.animation,
+    style.animationDelay,
+    style.animationDuration,
+    style.decorationPreset,
+    style.color,
+    style.accentColor,
+  ]
+    .filter((value) => value !== undefined && value !== null)
+    .join("|");
 }
 
 function buildElementBackgroundImage(element: CanvasElement) {

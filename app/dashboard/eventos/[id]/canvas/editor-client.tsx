@@ -466,12 +466,20 @@ function reducer(state: EditorState, action: EditorAction): EditorState {
       };
     }
     case "ADD_EFFECT": {
-      const el = createEffectElement(action.preset, action.sectionId);
+      const created = createEffectElement(action.preset, action.sectionId);
       const maxZ = state.design.elements.reduce((m, e) => Math.max(m, e.zIndex), 0);
-      el.zIndex = maxZ + 1;
+      const el: CanvasTextElement = {
+        ...created,
+        zIndex: maxZ + 1,
+        style: { ...(created.style ?? {}) },
+      };
       return {
         ...state,
-        design: { ...state.design, elements: [...state.design.elements, el] },
+        design: {
+          ...state.design,
+          elements: [...state.design.elements, el],
+          updatedAt: new Date().toISOString(),
+        },
         selectedId: el.id,
         isDirty: true,
       };

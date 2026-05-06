@@ -2,7 +2,7 @@
 
 import { useReducer, useRef, useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { ArrowLeft, Trash2, Plus, Save, X, Eye } from "lucide-react";
+import { ArrowLeft, Trash2, Plus, Save, X, Eye, Copy, Lock, Unlock, EyeOff, BringToFront, SendToBack } from "lucide-react";
 import { saveCanvasDesign, clearCanvasDesign } from "@/app/actions/canvas";
 import { CanvasMobileRenderer } from "@/components/public-invitation/canvas-mobile-renderer";
 import {
@@ -93,18 +93,24 @@ type EditorState = {
 
 type EditorAction =
   | { type: "ADD_TEXT"; sectionId: CanvasSectionId }
+  | { type: "ADD_IMAGE_URL"; url: string; sectionId: CanvasSectionId }
   | { type: "SELECT"; id: string | null }
   | { type: "UPDATE_TEXT"; id: string; patch: Partial<CanvasTextElement> }
+  | { type: "UPDATE_ELEMENT"; id: string; patch: Partial<CanvasElement> }
   | { type: "MOVE"; id: string; x: number; y: number }
   | { type: "RESIZE"; id: string; width: number; fontSize?: number; height?: number }
+  | { type: "DUPLICATE"; id: string }
   | { type: "DELETE"; id: string }
+  | { type: "BRING_FORWARD"; id: string }
+  | { type: "SEND_BACKWARD"; id: string }
   | { type: "MARK_SAVING" }
   | { type: "MARK_SAVED" }
   | { type: "MARK_ERROR" }
   | { type: "ADD_IMAGE"; url: string; sectionId: CanvasSectionId }
   | { type: "SET_SECTION_ID"; id: string; sectionId: CanvasSectionId }
   | { type: "UPDATE_IMAGE"; id: string; patch: Partial<CanvasImageElement> }
-  | { type: "CLEAR" };
+  | { type: "CLEAR" }
+  | { type: "RESTORE"; design: CanvasDesign };
 
 function createEmptyDesign(): CanvasDesign {
   return {
@@ -180,9 +186,40 @@ function createImageElement(url: string, sectionId: CanvasSectionId): import("@/
   };
 }
 
+function cloneDesign(design: CanvasDesign): CanvasDesign {
+  return JSON.parse(JSON.stringify(design)) as CanvasDesign;
+}
+
+function createDuplicatedElement(element: CanvasElement): CanvasElement {
+  return {
+    ...cloneDesign({ ...createEmptyDesign(), elements: [element] }).elements[0],
+    id: crypto.randomUUID().slice(0, 8),
+    x: clamp(element.x + 4, 0, 100),
+    y: clamp(element.y + 1.5, 0, 100),
+    locked: false,
+  } as CanvasElement;
+}
+
+function snapPercent(value: number, guides: number[]) {
+  const threshold = 1.2;
+  const guide = guides.find((item) => Math.abs(item - value) <= threshold);
+  return guide ?? value;
+}
+
 function reducer(state: EditorState, action: EditorAction): EditorState {
   switch (action.type) {
     case "ADD_IMAGE": {
+      const el = createImageElement(action.url, action.sectionId);
+      const maxZ = state.design.elements.reduce((m, e) => Math.max(m, e.zIndex), 0);
+      el.zIndex = maxZ + 1;
+      return {
+        ...state,
+        design: { ...state.design, elements: [...state.design.elements, el] },
+        selectedId: el.id,
+        isDirty: true,
+      };
+    }
+    case "ADD_IMAGE_URL": {
       const el = createImageElement(action.url, action.sectionId);
       const maxZ = state.design.elements.reduce((m, e) => Math.max(m, e.zIndex), 0);
       el.zIndex = maxZ + 1;
@@ -213,6 +250,17 @@ function reducer(state: EditorState, action: EditorAction): EditorState {
           ...state.design,
           elements: state.design.elements.map((el) =>
             el.id === action.id && el.type === "text" ? { ...el, ...action.patch } : el
+          ),
+        },
+        isDirty: true,
+      };
+    case "UPDATE_ELEMENT":
+      return {
+        ...state,
+        design: {
+          ...state.design,
+          elements: state.design.elements.map((el) =>
+            el.id === action.id ? { ...el, ...action.patch } as CanvasElement : el
           ),
         },
         isDirty: true,
@@ -261,6 +309,41 @@ function reducer(state: EditorState, action: EditorAction): EditorState {
         isDirty: true,
       };
     }
+    case "DUPLICATE": {
+      const source = state.design.elements.find((el) => el.id === action.id);
+      if (!source) return state;
+      const duplicate = createDuplicatedElement(source);
+      const maxZ = state.design.elements.reduce((m, e) => Math.max(m, e.zIndex), 0);
+      duplicate.zIndex = maxZ + 1;
+      return {
+        ...state,
+        design: { ...state.design, elements: [...state.design.elements, duplicate] },
+        selectedId: duplicate.id,
+        isDirty: true,
+      };
+    }
+    case "BRING_FORWARD":
+      return {
+        ...state,
+        design: {
+          ...state.design,
+          elements: state.design.elements.map((el) =>
+            el.id === action.id ? { ...el, zIndex: clamp(el.zIndex + 1, 1, 99) } : el
+          ),
+        },
+        isDirty: true,
+      };
+    case "SEND_BACKWARD":
+      return {
+        ...state,
+        design: {
+          ...state.design,
+          elements: state.design.elements.map((el) =>
+            el.id === action.id ? { ...el, zIndex: clamp(el.zIndex - 1, 1, 99) } : el
+          ),
+        },
+        isDirty: true,
+      };
     case "SET_SECTION_ID":
       return {
         ...state,
@@ -295,6 +378,14 @@ function reducer(state: EditorState, action: EditorAction): EditorState {
         design: createEmptyDesign(),
         selectedId: null,
         isDirty: false,
+        saveStatus: "saved",
+      };
+    case "RESTORE":
+      return {
+        ...state,
+        design: normalizeCanvasDesign(action.design),
+        selectedId: null,
+        isDirty: true,
         saveStatus: "saved",
       };
     default:
@@ -336,6 +427,11 @@ export function CanvasEditorClient({
   // Scale: fit the simulated phone viewport inside the editor viewport.
   const wrapperRef = useRef<HTMLDivElement>(null);
   const stageScrollRef = useRef<HTMLDivElement>(null);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const historyRef = useRef<CanvasDesign[]>([]);
+  const redoRef = useRef<CanvasDesign[]>([]);
+  const historyLastRef = useRef<string>("");
+  const restoringRef = useRef(false);
   const [scale, setScale] = useState(0.55);
   const documentHeight = state.design.height ?? REF_H;
 
@@ -359,6 +455,71 @@ export function CanvasEditorClient({
     window.addEventListener("resize", update);
     return () => window.removeEventListener("resize", update);
   }, []);
+
+  useEffect(() => {
+    const current = JSON.stringify(state.design);
+    if (!historyLastRef.current) {
+      historyLastRef.current = current;
+      historyRef.current = [cloneDesign(state.design)];
+      return;
+    }
+    if (restoringRef.current) {
+      restoringRef.current = false;
+      historyLastRef.current = current;
+      return;
+    }
+    if (current !== historyLastRef.current) {
+      historyRef.current = [...historyRef.current.slice(-39), cloneDesign(state.design)];
+      redoRef.current = [];
+      historyLastRef.current = current;
+    }
+  }, [state.design]);
+
+  useEffect(() => {
+    if (!state.isDirty || state.saveStatus === "saving") return;
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(async () => {
+      dispatch({ type: "MARK_SAVING" });
+      const { error } = await saveCanvasDesign(eventId, {
+        ...normalizeCanvasDesign(state.design),
+        updatedAt: new Date().toISOString(),
+      });
+      dispatch(error ? { type: "MARK_ERROR" } : { type: "MARK_SAVED" });
+    }, 1200);
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    };
+  }, [eventId, state.design, state.isDirty, state.saveStatus]);
+
+  const undo = useCallback(() => {
+    if (historyRef.current.length <= 1) return;
+    const current = historyRef.current[historyRef.current.length - 1];
+    const previous = historyRef.current[historyRef.current.length - 2];
+    redoRef.current = [cloneDesign(current), ...redoRef.current.slice(0, 39)];
+    historyRef.current = historyRef.current.slice(0, -1);
+    restoringRef.current = true;
+    dispatch({ type: "RESTORE", design: previous });
+  }, []);
+
+  const redo = useCallback(() => {
+    const next = redoRef.current[0];
+    if (!next) return;
+    redoRef.current = redoRef.current.slice(1);
+    historyRef.current = [...historyRef.current, cloneDesign(next)];
+    restoringRef.current = true;
+    dispatch({ type: "RESTORE", design: next });
+  }, []);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== "z") return;
+      event.preventDefault();
+      if (event.shiftKey) redo();
+      else undo();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [redo, undo]);
 
   // ── Drag ref (move OR resize) ─────────────────────────────────────────────
 
@@ -418,11 +579,13 @@ export function CanvasEditorClient({
       if (drag.kind === "move") {
         const dxPct = ((e.clientX - drag.startMouseX) / scale / REF_W) * 100;
         const dyPct = ((e.clientY - drag.startMouseY) / scale / documentHeight) * 100;
+        const nextX = snapPercent(drag.startElX + dxPct, [0, 5, 50, 95, 100]);
+        const nextY = snapPercent(drag.startElY + dyPct, [0, 50, 100]);
         dispatch({
           type: "MOVE",
           id: drag.elementId,
-          x: drag.startElX + dxPct,
-          y: drag.startElY + dyPct,
+          x: nextX,
+          y: nextY,
         });
       } else if (drag.kind === "resize") {
         const dxCanvas = (e.clientX - drag.startMouseX) / scale;
@@ -543,6 +706,12 @@ export function CanvasEditorClient({
               e.stopPropagation();
               dispatch({ type: "SELECT", id: el.id });
             }}
+            onDuplicate={() => dispatch({ type: "DUPLICATE", id: el.id })}
+            onDelete={() => dispatch({ type: "DELETE", id: el.id })}
+            onForward={() => dispatch({ type: "BRING_FORWARD", id: el.id })}
+            onBackward={() => dispatch({ type: "SEND_BACKWARD", id: el.id })}
+            onToggleLock={() => dispatch({ type: "UPDATE_ELEMENT", id: el.id, patch: { locked: !el.locked } })}
+            onToggleVisible={() => dispatch({ type: "UPDATE_ELEMENT", id: el.id, patch: { visible: !el.visible } })}
           />
         ))}
       </div>
@@ -641,6 +810,31 @@ export function CanvasEditorClient({
           >
             <Plus className="h-3.5 w-3.5" />
             Texto
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              const url = window.prompt("URL de imagen");
+              if (url?.trim()) dispatch({ type: "ADD_IMAGE_URL", url: url.trim(), sectionId: activeSectionId });
+            }}
+            className="flex items-center gap-1.5 rounded-md bg-neutral-800 px-3 py-1.5 text-xs text-neutral-200 transition hover:bg-neutral-700"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Imagen
+          </button>
+          <button
+            type="button"
+            onClick={undo}
+            className="rounded-md border border-neutral-700 px-2 py-1.5 text-xs text-neutral-300 transition hover:bg-neutral-800"
+          >
+            Undo
+          </button>
+          <button
+            type="button"
+            onClick={redo}
+            className="rounded-md border border-neutral-700 px-2 py-1.5 text-xs text-neutral-300 transition hover:bg-neutral-800"
+          >
+            Redo
           </button>
           <button
             type="button"
@@ -828,6 +1022,12 @@ type StageElementProps = {
   onResizeStart: (e: React.MouseEvent, handle: ResizeHandle) => void;
   onClick: (e: React.MouseEvent) => void;
   ghost?: boolean;
+  onDuplicate: () => void;
+  onDelete: () => void;
+  onForward: () => void;
+  onBackward: () => void;
+  onToggleLock: () => void;
+  onToggleVisible: () => void;
 };
 
 function StageElement({
@@ -837,6 +1037,12 @@ function StageElement({
   onResizeStart,
   onClick,
   ghost = false,
+  onDuplicate,
+  onDelete,
+  onForward,
+  onBackward,
+  onToggleLock,
+  onToggleVisible,
 }: StageElementProps) {
   // Wrapper: positions the element on the canvas
   const wrapperStyle: React.CSSProperties = {
@@ -909,6 +1115,33 @@ function StageElement({
       {/* ── Resize handles (only when selected) ─────────────────────── */}
       {selected && (
         <>
+          <div
+            style={{
+              position: "absolute",
+              left: "50%",
+              top: -42,
+              transform: "translateX(-50%)",
+              display: "flex",
+              gap: 4,
+              borderRadius: 999,
+              background: "rgba(17,24,39,0.96)",
+              border: "1px solid rgba(255,255,255,0.14)",
+              padding: 4,
+              zIndex: 10000,
+              boxShadow: "0 10px 30px rgba(0,0,0,0.35)",
+            }}
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <ToolbarButton title="Duplicar" onClick={onDuplicate}><Copy className="h-3.5 w-3.5" /></ToolbarButton>
+            <ToolbarButton title="Traer adelante" onClick={onForward}><BringToFront className="h-3.5 w-3.5" /></ToolbarButton>
+            <ToolbarButton title="Enviar atras" onClick={onBackward}><SendToBack className="h-3.5 w-3.5" /></ToolbarButton>
+            <ToolbarButton title={element.locked ? "Desbloquear" : "Bloquear"} onClick={onToggleLock}>
+              {element.locked ? <Unlock className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}
+            </ToolbarButton>
+            <ToolbarButton title="Ocultar" onClick={onToggleVisible}><EyeOff className="h-3.5 w-3.5" /></ToolbarButton>
+            <ToolbarButton title="Eliminar" onClick={onDelete}><Trash2 className="h-3.5 w-3.5" /></ToolbarButton>
+          </div>
           {(["tl", "tr", "bl", "br"] as ResizeHandle[]).map((handle) => (
             <ResizeHandleNode
               key={handle}
@@ -961,6 +1194,129 @@ function ResizeHandleNode({
 // TextPropertiesPanel
 // ─────────────────────────────────────────────────────────────────────────────
 
+function ToolbarButton({
+  title,
+  onClick,
+  children,
+}: {
+  title: string;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      title={title}
+      onClick={onClick}
+      style={{
+        width: 26,
+        height: 26,
+        display: "grid",
+        placeItems: "center",
+        borderRadius: 999,
+        color: "#e5e7eb",
+        background: "rgba(255,255,255,0.08)",
+        border: "1px solid rgba(255,255,255,0.1)",
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
+function CommonPropertiesPanel({
+  element,
+  onChange,
+}: {
+  element: CanvasElement;
+  onChange: (patch: Partial<CanvasElement>) => void;
+}) {
+  const field = "grid grid-cols-2 gap-2 border-b border-neutral-800 px-4 py-3";
+  const label = "text-[10px] font-semibold uppercase tracking-widest text-neutral-500";
+  const input = "w-full rounded-md border border-neutral-700 bg-neutral-800 px-2 py-1.5 text-xs text-neutral-100 outline-none focus:border-indigo-500";
+
+  return (
+    <>
+      <div className={field}>
+        <NumberField label="X %" value={element.x} onChange={(x) => onChange({ x })} inputClass={input} labelClass={label} />
+        <NumberField label="Y %" value={element.y} onChange={(y) => onChange({ y })} inputClass={input} labelClass={label} />
+        <NumberField label="Ancho" value={element.width} onChange={(width) => onChange({ width })} inputClass={input} labelClass={label} />
+        <NumberField label="Alto" value={element.height ?? 0} onChange={(height) => onChange({ height: height > 0 ? height : null })} inputClass={input} labelClass={label} />
+        <NumberField label="Rotacion" value={element.rotation} onChange={(rotation) => onChange({ rotation })} inputClass={input} labelClass={label} />
+        <NumberField label="Z" value={element.zIndex} onChange={(zIndex) => onChange({ zIndex })} inputClass={input} labelClass={label} />
+      </div>
+      <div className="flex gap-2 border-b border-neutral-800 px-4 py-3">
+        <ToggleButton active={element.visible} label={element.visible ? "Visible" : "Oculto"} onClick={() => onChange({ visible: !element.visible })} />
+        <ToggleButton active={element.locked} label={element.locked ? "Bloqueado" : "Libre"} onClick={() => onChange({ locked: !element.locked })} />
+      </div>
+    </>
+  );
+}
+
+function BoxStylePanel({
+  element,
+  onChange,
+}: {
+  element: CanvasElement;
+  onChange: (patch: Partial<CanvasElement>) => void;
+}) {
+  const style = element.style ?? {};
+  const field = "grid grid-cols-2 gap-2 border-b border-neutral-800 px-4 py-3";
+  const label = "text-[10px] font-semibold uppercase tracking-widest text-neutral-500";
+  const input = "w-full rounded-md border border-neutral-700 bg-neutral-800 px-2 py-1.5 text-xs text-neutral-100 outline-none focus:border-indigo-500";
+  const setStyle = (patch: NonNullable<CanvasElement["style"]>) => onChange({ style: { ...style, ...patch } });
+
+  return (
+    <div className={field}>
+      <div className="col-span-2">
+        <label className={label}>Fondo / gradient</label>
+        <input value={style.background ?? ""} onChange={(e) => setStyle({ background: e.target.value })} className={input} placeholder="rgba(...) o linear-gradient(...)" />
+      </div>
+      <NumberField label="Radio" value={style.borderRadius ?? 0} onChange={(borderRadius) => setStyle({ borderRadius })} inputClass={input} labelClass={label} />
+      <NumberField label="Blur" value={style.backdropBlur ?? 0} onChange={(backdropBlur) => setStyle({ backdropBlur })} inputClass={input} labelClass={label} />
+      <div className="col-span-2">
+        <label className={label}>Sombra texto/CSS</label>
+        <input value={style.textShadow ?? ""} onChange={(e) => setStyle({ textShadow: e.target.value })} className={input} placeholder="0 4px 18px rgba(...)" />
+      </div>
+    </div>
+  );
+}
+
+function NumberField({
+  label,
+  value,
+  onChange,
+  inputClass,
+  labelClass,
+}: {
+  label: string;
+  value: number;
+  onChange: (value: number) => void;
+  inputClass: string;
+  labelClass: string;
+}) {
+  return (
+    <label className="flex flex-col gap-1">
+      <span className={labelClass}>{label}</span>
+      <input type="number" value={Math.round(value * 100) / 100} onChange={(e) => onChange(Number(e.target.value))} className={inputClass} />
+    </label>
+  );
+}
+
+function ToggleButton({ active, label, onClick }: { active: boolean; label: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex-1 rounded-md border px-2 py-1.5 text-xs transition ${
+        active ? "border-indigo-500 bg-indigo-600 text-white" : "border-neutral-700 bg-neutral-800 text-neutral-300 hover:bg-neutral-700"
+      }`}
+    >
+      {label}
+    </button>
+  );
+}
+
 type TextPanelProps = {
   element: CanvasTextElement;
   onChange: (patch: Partial<CanvasTextElement>) => void;
@@ -986,6 +1342,9 @@ function TextPropertiesPanel({ element, onChange, onDelete }: TextPanelProps) {
           Eliminar
         </button>
       </div>
+
+      <CommonPropertiesPanel element={element} onChange={onChange as (patch: Partial<CanvasElement>) => void} />
+      <BoxStylePanel element={element} onChange={onChange as (patch: Partial<CanvasElement>) => void} />
 
       <div className={field}>
         <label className={label}>Texto</label>
@@ -1028,6 +1387,32 @@ function TextPropertiesPanel({ element, onChange, onDelete }: TextPanelProps) {
           step={1}
           value={element.fontSize}
           onChange={(e) => onChange({ fontSize: Number(e.target.value) })}
+          className="w-full accent-indigo-500"
+        />
+      </div>
+
+      <div className={field}>
+        <label className={label}>Interlineado ({element.lineHeight})</label>
+        <input
+          type="range"
+          min={0.8}
+          max={2.4}
+          step={0.05}
+          value={element.lineHeight}
+          onChange={(e) => onChange({ lineHeight: Number(e.target.value) })}
+          className="w-full accent-indigo-500"
+        />
+      </div>
+
+      <div className={field}>
+        <label className={label}>Tracking ({element.letterSpacing}em)</label>
+        <input
+          type="range"
+          min={-0.05}
+          max={0.5}
+          step={0.01}
+          value={element.letterSpacing}
+          onChange={(e) => onChange({ letterSpacing: Number(e.target.value) })}
           className="w-full accent-indigo-500"
         />
       </div>
@@ -1185,6 +1570,31 @@ function ImagePropertiesPanel({ element, onChange, onDelete }: ImagePanelProps) 
           <Trash2 className="h-3.5 w-3.5" />
           Eliminar
         </button>
+      </div>
+
+      <CommonPropertiesPanel element={element} onChange={onChange as (patch: Partial<CanvasElement>) => void} />
+      <BoxStylePanel element={element} onChange={onChange as (patch: Partial<CanvasElement>) => void} />
+
+      <div className={field}>
+        <label className={label}>URL imagen</label>
+        <input
+          type="url"
+          value={element.url}
+          onChange={(e) => onChange({ url: e.target.value })}
+          className={input}
+        />
+      </div>
+
+      <div className={field}>
+        <label className={label}>Ajuste</label>
+        <select
+          value={element.objectFit}
+          onChange={(e) => onChange({ objectFit: e.target.value as CanvasImageElement["objectFit"] })}
+          className={input}
+        >
+          <option value="contain">Contain</option>
+          <option value="fill">Fill</option>
+        </select>
       </div>
 
       <div className={field}>

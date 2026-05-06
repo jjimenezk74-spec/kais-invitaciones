@@ -123,6 +123,8 @@ type EditorAction =
   | { type: "DELETE"; id: string }
   | { type: "BRING_FORWARD"; id: string }
   | { type: "SEND_BACKWARD"; id: string }
+  | { type: "BRING_TO_FRONT"; id: string }
+  | { type: "SEND_TO_BACK"; id: string }
   | { type: "MARK_SAVING" }
   | { type: "MARK_SAVED" }
   | { type: "MARK_ERROR" }
@@ -181,6 +183,37 @@ function clamp(v: number, min: number, max: number) {
   return Math.min(max, Math.max(min, v));
 }
 
+// ─── Decoration color helpers ─────────────────────────────────────────────────
+
+function hexToRgba(hex: string, alpha: number): string {
+  const clean = hex.replace("#", "");
+  const r = parseInt(clean.slice(0, 2), 16) || 0;
+  const g = parseInt(clean.slice(2, 4), 16) || 0;
+  const b = parseInt(clean.slice(4, 6), 16) || 0;
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+function buildDecorationBackground(
+  preset: string,
+  color = "#ffffff",
+  accentColor = "#f4d27a"
+): string {
+  switch (preset) {
+    case "blur-circle":
+      return `radial-gradient(circle, ${hexToRgba(color, 0.65)} 0%, ${hexToRgba(color, 0.28)} 42%, ${hexToRgba(color, 0)} 72%)`;
+    case "glow":
+      return `radial-gradient(circle, ${hexToRgba(color, 1)} 0%, ${hexToRgba(accentColor, 0.35)} 40%, ${hexToRgba(color, 0)} 70%)`;
+    case "flower-shape":
+      return `radial-gradient(circle at 40% 40%, ${hexToRgba(color, 0.7)} 0%, ${hexToRgba(accentColor, 0.38)} 42%, ${hexToRgba(accentColor, 0)} 72%)`;
+    case "gradient-overlay":
+      return `linear-gradient(to bottom, ${hexToRgba(color, 0.05)} 0%, ${hexToRgba(color, 0.40)} 55%, ${hexToRgba(color, 0.62)} 100%)`;
+    case "divider":
+      return `linear-gradient(90deg, rgba(255,255,255,0) 0%, ${hexToRgba(accentColor, 0.95)} 28%, ${hexToRgba(color, 0.92)} 50%, ${hexToRgba(accentColor, 0.95)} 72%, rgba(255,255,255,0) 100%)`;
+    default:
+      return `radial-gradient(circle, ${hexToRgba(color, 0.6)} 0%, ${hexToRgba(color, 0)} 70%)`;
+  }
+}
+
 function createImageElement(url: string, sectionId: CanvasSectionId): import("@/lib/types").CanvasImageElement {
   return {
     id: crypto.randomUUID().slice(0, 8),
@@ -208,17 +241,19 @@ function createImageElement(url: string, sectionId: CanvasSectionId): import("@/
 }
 
 function createEffectElement(preset: EffectPreset, sectionId: CanvasSectionId): CanvasTextElement {
+  // x=50 => CSS left:50% + translate(-50%) => element is centered
+  // opacity:1 on all presets — use alpha in gradient colors for subtlety
   const base: CanvasTextElement = {
     id: crypto.randomUUID().slice(0, 8),
     type: "text",
     sectionId,
-    x: ((REF_W - 180) / 2 / REF_W) * 100,
+    x: 50,
     y: getGlobalYPercent(sectionId, 50),
     width: 180,
     height: 180,
     rotation: 0,
     opacity: 1,
-    zIndex: 1,
+    zIndex: 3,
     locked: false,
     visible: true,
     device: "all",
@@ -236,20 +271,26 @@ function createEffectElement(preset: EffectPreset, sectionId: CanvasSectionId): 
     autoHeight: false,
     style: {
       borderRadius: 999,
-      opacity: 0.7,
+      opacity: 1,
       mixBlendMode: "screen",
+      decorationPreset: preset,
+      color: "#ffffff",
+      accentColor: "#f4d27a",
     },
   };
 
   if (preset === "blur-circle") {
     return {
       ...base,
-      width: 190,
-      height: 190,
+      width: 200,
+      height: 200,
       style: {
         ...base.style,
-        background: "radial-gradient(circle, rgba(255,255,255,0.36) 0%, rgba(255,255,255,0.12) 44%, rgba(255,255,255,0) 72%)",
-        blur: 8,
+        background: buildDecorationBackground("blur-circle", "#ffffff", "#f4d27a"),
+        blur: 22,
+        borderRadius: 9999,
+        opacity: 1,
+        mixBlendMode: "screen",
       },
     };
   }
@@ -257,14 +298,19 @@ function createEffectElement(preset: EffectPreset, sectionId: CanvasSectionId): 
   if (preset === "glow") {
     return {
       ...base,
-      width: 220,
-      height: 220,
+      width: 140,
+      height: 140,
       style: {
         ...base.style,
-        background: "radial-gradient(circle, rgba(244,210,122,0.62) 0%, rgba(236,72,153,0.22) 38%, rgba(244,210,122,0) 72%)",
-        boxShadow: "0 0 46px rgba(244,210,122,0.28)",
+        background: buildDecorationBackground("glow", "#ffe6a0", "#f4d27a"),
+        blur: 8,
+        borderRadius: 9999,
+        opacity: 1,
+        mixBlendMode: "screen",
         animation: "pulse-glow",
         animationDuration: "3s",
+        color: "#ffe6a0",
+        accentColor: "#f4d27a",
       },
     };
   }
@@ -274,12 +320,18 @@ function createEffectElement(preset: EffectPreset, sectionId: CanvasSectionId): 
       ...base,
       width: 150,
       height: 150,
-      rotation: -14,
+      rotation: -12,
+      zIndex: 4,
       style: {
         ...base.style,
-        background: "radial-gradient(circle at 35% 35%, rgba(255,250,245,0.7), rgba(182,74,90,0.42) 38%, rgba(122,31,43,0) 70%)",
-        border: "1px solid rgba(255,255,255,0.18)",
-        filter: "drop-shadow(0 20px 38px rgba(122,31,43,0.25))",
+        background: buildDecorationBackground("flower-shape", "#fff8dc", "#f4d27a"),
+        border: "1px solid rgba(255,255,255,0.22)",
+        blur: 3,
+        borderRadius: 42,
+        opacity: 1,
+        mixBlendMode: "screen",
+        color: "#fff8dc",
+        accentColor: "#f4d27a",
       },
     };
   }
@@ -287,32 +339,39 @@ function createEffectElement(preset: EffectPreset, sectionId: CanvasSectionId): 
   if (preset === "gradient-overlay") {
     return {
       ...base,
-      x: 0,
-      y: getGlobalYPercent(sectionId, 18),
+      x: 50,
+      y: getGlobalYPercent(sectionId, 50),
       width: REF_W,
-      height: 360,
-      zIndex: 1,
+      height: REF_H,
+      zIndex: 2,
       style: {
         ...base.style,
         borderRadius: 0,
-        opacity: 0.84,
+        opacity: 1,
         mixBlendMode: "normal",
-        background: "linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(20,8,12,0.38) 52%, rgba(20,8,12,0.82) 100%)",
+        background: buildDecorationBackground("gradient-overlay", "#000000", "#000000"),
+        color: "#000000",
+        accentColor: "#000000",
       },
     };
   }
 
+  // divider / separator
   return {
     ...base,
-    x: ((REF_W - 260) / 2 / REF_W) * 100,
-    width: 260,
-    height: 2,
+    x: 50,
+    width: 240,
+    height: 28,
+    zIndex: 3,
     style: {
       ...base.style,
       borderRadius: 999,
-      opacity: 0.9,
-      background: "linear-gradient(90deg, rgba(255,255,255,0), rgba(244,210,122,0.9), rgba(255,255,255,0))",
-      boxShadow: "0 0 18px rgba(244,210,122,0.24)",
+      opacity: 1,
+      mixBlendMode: "screen",
+      background: buildDecorationBackground("divider", "#ffffff", "#f4d27a"),
+      boxShadow: "0 0 14px rgba(244,210,122,0.5)",
+      color: "#ffffff",
+      accentColor: "#f4d27a",
     },
   };
 }
@@ -517,6 +576,32 @@ function reducer(state: EditorState, action: EditorAction): EditorState {
         },
         isDirty: true,
       };
+    case "BRING_TO_FRONT": {
+      const maxZ = state.design.elements.reduce((m, e) => Math.max(m, e.zIndex), 0);
+      return {
+        ...state,
+        design: {
+          ...state.design,
+          elements: state.design.elements.map((el) =>
+            el.id === action.id ? { ...el, zIndex: maxZ + 1 } : el
+          ),
+        },
+        isDirty: true,
+      };
+    }
+    case "SEND_TO_BACK": {
+      const minZ = state.design.elements.reduce((m, e) => Math.min(m, e.zIndex), 99);
+      return {
+        ...state,
+        design: {
+          ...state.design,
+          elements: state.design.elements.map((el) =>
+            el.id === action.id ? { ...el, zIndex: Math.max(1, minZ - 1) } : el
+          ),
+        },
+        isDirty: true,
+      };
+    }
     case "SET_SECTION_ID":
       return {
         ...state,
@@ -1179,6 +1264,20 @@ export function CanvasEditorClient({
               </p>
             </div>
           )}
+          {/* ── Layers panel ─────────────────────────────────────────── */}
+          <div className="border-t border-neutral-800">
+            <LayersPanel
+              elements={state.design.elements.filter(
+                (el) => (el.sectionId ?? "hero") === activeSectionId
+              )}
+              selectedId={state.selectedId}
+              onSelect={(id) => dispatch({ type: "SELECT", id })}
+              onBringForward={(id) => dispatch({ type: "BRING_FORWARD", id })}
+              onSendBackward={(id) => dispatch({ type: "SEND_BACKWARD", id })}
+              onBringToFront={(id) => dispatch({ type: "BRING_TO_FRONT", id })}
+              onSendToBack={(id) => dispatch({ type: "SEND_TO_BACK", id })}
+            />
+          </div>
         </aside>
       </div>
     </div>
@@ -1453,7 +1552,78 @@ function BoxStylePanel({
 
   return (
     <div className={field}>
-      <NumberField label="Opacidad" value={style.opacity ?? element.opacity ?? 1} onChange={(opacity) => setStyle({ opacity: clamp(opacity, 0, 1) })} inputClass={input} labelClass={label} />
+      {/* Opacidad — UI 0-100, internamente 0-1 */}
+      <div className="col-span-2 flex flex-col gap-1">
+        <label className={label}>
+          Opacidad — {Math.round((style.opacity ?? element.opacity ?? 1) * 100)}
+        </label>
+        <div className="flex items-center gap-2">
+          <input
+            type="range"
+            min={0}
+            max={100}
+            step={1}
+            value={Math.round((style.opacity ?? element.opacity ?? 1) * 100)}
+            onChange={(e) => setStyle({ opacity: clamp(Number(e.target.value) / 100, 0, 1) })}
+            className="flex-1 accent-indigo-500"
+          />
+          <input
+            type="text"
+            inputMode="decimal"
+            value={Math.round((style.opacity ?? element.opacity ?? 1) * 100)}
+            onChange={(e) => {
+              const raw = e.target.value.replace(",", ".");
+              if (!raw) return;
+              const parsed = Number(raw);
+              if (!Number.isNaN(parsed)) setStyle({ opacity: clamp(parsed / 100, 0, 1) });
+            }}
+            className={input + " w-14 shrink-0 text-center"}
+          />
+        </div>
+      </div>
+      {/* Colores para decoraciones parametricas */}
+      {style.decorationPreset && (
+        <>
+          <div className="col-span-2">
+            <label className={label}>Color principal</label>
+            <div className="flex items-center gap-2">
+              <input
+                type="color"
+                value={style.color ?? "#ffffff"}
+                onChange={(e) => {
+                  const color = e.target.value;
+                  const accentColor = style.accentColor ?? "#f4d27a";
+                  setStyle({
+                    color,
+                    background: buildDecorationBackground(style.decorationPreset!, color, accentColor),
+                  });
+                }}
+                className="h-8 w-10 cursor-pointer rounded border border-neutral-700 bg-neutral-800 p-0.5"
+              />
+              <span className="text-xs text-neutral-400 font-mono">{style.color ?? "#ffffff"}</span>
+            </div>
+          </div>
+          <div className="col-span-2">
+            <label className={label}>Color acento</label>
+            <div className="flex items-center gap-2">
+              <input
+                type="color"
+                value={style.accentColor ?? "#f4d27a"}
+                onChange={(e) => {
+                  const accentColor = e.target.value;
+                  const color = style.color ?? "#ffffff";
+                  setStyle({
+                    accentColor,
+                    background: buildDecorationBackground(style.decorationPreset!, color, accentColor),
+                  });
+                }}
+                className="h-8 w-10 cursor-pointer rounded border border-neutral-700 bg-neutral-800 p-0.5"
+              />
+              <span className="text-xs text-neutral-400 font-mono">{style.accentColor ?? "#f4d27a"}</span>
+            </div>
+          </div>
+        </>
+      )}
       <NumberField label="Radio" value={style.borderRadius ?? 0} onChange={(borderRadius) => setStyle({ borderRadius })} inputClass={input} labelClass={label} />
       <div className="col-span-2">
         <label className={label}>Fondo</label>
@@ -1525,7 +1695,18 @@ function NumberField({
   return (
     <label className="flex flex-col gap-1">
       <span className={labelClass}>{label}</span>
-      <input type="number" value={Math.round(value * 100) / 100} onChange={(e) => onChange(Number(e.target.value))} className={inputClass} />
+      <input
+        type="number"
+        step="any"
+        value={Math.round(value * 100) / 100}
+        onChange={(e) => {
+          const raw = e.target.value.replace(",", ".");
+          if (!raw) return;
+          const parsed = Number(raw);
+          if (!Number.isNaN(parsed)) onChange(parsed);
+        }}
+        className={inputClass}
+      />
     </label>
   );
 }
@@ -1743,14 +1924,24 @@ function TextPropertiesPanel({ element, onChange, onDelete }: TextPanelProps) {
       </div>
 
       <div className={field}>
-        <label className={label}>Opacidad ({Math.round(element.opacity * 100)}%)</label>
+        <label className={label}>
+          Opacidad ({Math.round(((element.style?.opacity ?? element.opacity) ?? 1) * 100)}%)
+        </label>
         <input
           type="range"
           min={0}
           max={1}
           step={0.01}
-          value={element.opacity}
-          onChange={(e) => onChange({ opacity: Number(e.target.value) })}
+          value={(element.style?.opacity ?? element.opacity) ?? 1}
+          onChange={(e) => {
+            const opacity = clamp(Number(e.target.value), 0, 1);
+            // Sync both element.opacity and style.opacity so renderer always picks it up
+            onChange(
+              element.style !== undefined
+                ? { opacity, style: { ...element.style, opacity } }
+                : { opacity }
+            );
+          }}
           className="w-full accent-indigo-500"
         />
       </div>
@@ -1825,14 +2016,24 @@ function ImagePropertiesPanel({ element, onChange, onDelete }: ImagePanelProps) 
       </div>
 
       <div className={field}>
-        <label className={label}>Opacidad ({Math.round(element.opacity * 100)}%)</label>
+        <label className={label}>
+          Opacidad ({Math.round(((element.style?.opacity ?? element.opacity) ?? 1) * 100)}%)
+        </label>
         <input
           type="range"
           min={0}
           max={1}
           step={0.01}
-          value={element.opacity}
-          onChange={(e) => onChange({ opacity: Number(e.target.value) })}
+          value={(element.style?.opacity ?? element.opacity) ?? 1}
+          onChange={(e) => {
+            const opacity = clamp(Number(e.target.value), 0, 1);
+            // Sync both element.opacity and style.opacity so renderer always picks it up
+            onChange(
+              element.style !== undefined
+                ? { opacity, style: { ...element.style, opacity } }
+                : { opacity }
+            );
+          }}
           className="w-full accent-indigo-500"
         />
       </div>
@@ -1882,5 +2083,108 @@ function ImagePropertiesPanel({ element, onChange, onDelete }: ImagePanelProps) 
         </div>
       </div>
     </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LayersPanel
+// ─────────────────────────────────────────────────────────────────────────────
+
+function LayersPanel({
+  elements,
+  selectedId,
+  onSelect,
+  onBringForward,
+  onSendBackward,
+  onBringToFront,
+  onSendToBack,
+}: {
+  elements: CanvasElement[];
+  selectedId: string | null;
+  onSelect: (id: string) => void;
+  onBringForward: (id: string) => void;
+  onSendBackward: (id: string) => void;
+  onBringToFront: (id: string) => void;
+  onSendToBack: (id: string) => void;
+}) {
+  const sorted = [...elements].sort((a, b) => b.zIndex - a.zIndex);
+
+  function elementLabel(el: CanvasElement): string {
+    if (el.type === "image") return `Imagen z${el.zIndex}`;
+    const preset = el.style?.decorationPreset;
+    if (preset) {
+      const names: Record<string, string> = {
+        "blur-circle": "Circulo blur",
+        glow: "Brillo",
+        "flower-shape": "Flor",
+        "gradient-overlay": "Overlay",
+        divider: "Separador",
+      };
+      return `${names[preset] ?? preset} z${el.zIndex}`;
+    }
+    const snippet = el.content?.slice(0, 18) || "(vacio)";
+    return `Texto "${snippet}" z${el.zIndex}`;
+  }
+
+  if (elements.length === 0) {
+    return (
+      <div className="px-4 py-3 text-xs text-neutral-600">Sin elementos en esta sección</div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col">
+      <p className="px-4 py-2 text-[10px] font-semibold uppercase tracking-widest text-neutral-500">
+        Capas (z desc)
+      </p>
+      {sorted.map((el) => {
+        const isSelected = el.id === selectedId;
+        return (
+          <div
+            key={el.id}
+            className={`flex items-center gap-1 border-b border-neutral-800 px-3 py-1.5 ${
+              isSelected ? "bg-indigo-950" : "hover:bg-neutral-800"
+            }`}
+          >
+            <button
+              type="button"
+              onClick={() => onSelect(el.id)}
+              className={`flex-1 truncate text-left text-[11px] ${
+                isSelected ? "text-indigo-300 font-semibold" : "text-neutral-300"
+              }`}
+            >
+              {elementLabel(el)}
+            </button>
+            <div className="flex shrink-0 gap-0.5">
+              <LayerBtn title="Frente total" onClick={() => onBringToFront(el.id)}>↑↑</LayerBtn>
+              <LayerBtn title="Subir" onClick={() => onBringForward(el.id)}>↑</LayerBtn>
+              <LayerBtn title="Bajar" onClick={() => onSendBackward(el.id)}>↓</LayerBtn>
+              <LayerBtn title="Fondo total" onClick={() => onSendToBack(el.id)}>↓↓</LayerBtn>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function LayerBtn({
+  title,
+  onClick,
+  children,
+}: {
+  title: string;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      title={title}
+      onClick={onClick}
+      className="w-6 h-6 flex items-center justify-center rounded text-[10px] font-bold text-neutral-400 hover:bg-neutral-700 hover:text-neutral-100 transition"
+    >
+      {children}
+    </button>
   );
 }

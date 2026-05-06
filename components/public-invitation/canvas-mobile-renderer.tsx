@@ -161,23 +161,43 @@ function CanvasMobileElement({
   onToggleVisible?: (elementId: string) => void;
 }) {
   const visualStyle = element.style ?? {};
-  const selectedShadow = selected ? "0 0 0 4px rgba(124,108,255,0.20)" : "";
   const elementShadow = visualStyle.boxShadow ?? "";
-  const baseStyle: CSSProperties = {
+
+  // Outer wrapper: handles positioning and the selection ring.
+  // Opacity is NOT here — so the outline is always fully visible even on
+  // transparent effects (blur-circle opacity 0.35, etc.).
+  const wrapperStyle: CSSProperties = {
     position: "absolute",
     left: `${element.x}%`,
     top: `${element.y}%`,
     width: element.width,
     height: element.height ?? getFallbackElementHeight(element),
-    opacity: typeof visualStyle.opacity === "number" ? visualStyle.opacity : element.opacity,
     transform: buildTransform(element.rotation),
     transformOrigin: "center center",
     zIndex: element.zIndex,
     pointerEvents: mode === "editor" ? "auto" : "none",
     cursor: mode === "editor" ? (element.locked ? "default" : "move") : "default",
     userSelect: "none",
-    outline: selected ? "2px solid #7c6cff" : undefined,
-    boxShadow: [selectedShadow, elementShadow].filter(Boolean).join(", ") || undefined,
+    borderRadius: visualStyle.borderRadius,
+    boxSizing: "border-box",
+    overflow: "visible",
+    // Selection ring lives here — never faded by inner opacity
+    outline: selected ? "2px solid #8b7cff" : undefined,
+    outlineOffset: selected ? "1px" : undefined,
+    boxShadow: selected
+      ? "0 0 0 4px rgba(139,124,255,0.40), 0 0 0 1px rgba(255,255,255,0.55)"
+      : undefined,
+  };
+
+  // Inner container: all visual effects and opacity.
+  // Keeping opacity here means the selection ring above is never affected.
+  // willChange + translateZ(0) force GPU compositing so filter:blur() and
+  // backgrounds render immediately even inside CSS transform parents.
+  const innerStyle: CSSProperties = {
+    position: "relative",
+    width: "100%",
+    height: "100%",
+    opacity: typeof visualStyle.opacity === "number" ? visualStyle.opacity : element.opacity,
     borderRadius: visualStyle.borderRadius,
     border: visualStyle.border,
     background: buildElementBackground(element),
@@ -189,8 +209,11 @@ function CanvasMobileElement({
     animation: buildAnimationValue(element),
     animationDelay: visualStyle.animationDelay,
     animationDuration: visualStyle.animationDuration,
+    boxShadow: elementShadow || undefined,
     boxSizing: "border-box",
-    overflow: "visible",
+    // Force GPU layer so blur/gradient render on first paint (no reload needed)
+    willChange: "filter, opacity, background",
+    transform: "translateZ(0)",
   };
 
   const editorProps =
@@ -214,11 +237,11 @@ function CanvasMobileElement({
     ) : null;
 
   if (element.type === "text") {
-    return <CanvasMobileText element={element} mode={mode} style={baseStyle} editorProps={editorProps} controls={controls} />;
+    return <CanvasMobileText element={element} mode={mode} wrapperStyle={wrapperStyle} innerStyle={innerStyle} editorProps={editorProps} controls={controls} />;
   }
 
   if (element.type === "image") {
-    return <CanvasMobileImage element={element} style={baseStyle} editorProps={editorProps} controls={controls} />;
+    return <CanvasMobileImage element={element} wrapperStyle={wrapperStyle} innerStyle={innerStyle} editorProps={editorProps} controls={controls} />;
   }
 
   return null;
@@ -238,13 +261,15 @@ function getFallbackElementHeight(element: CanvasElement) {
 function CanvasMobileText({
   element,
   mode,
-  style,
+  wrapperStyle,
+  innerStyle,
   editorProps,
   controls,
 }: {
   element: CanvasTextElement;
   mode: "public" | "editor";
-  style: CSSProperties;
+  wrapperStyle: CSSProperties;
+  innerStyle: CSSProperties;
   editorProps: HTMLAttributes<HTMLDivElement>;
   controls: ReactNode;
 }) {
@@ -252,37 +277,39 @@ function CanvasMobileText({
     <div
       data-element-id={element.id}
       data-section-id={element.sectionId ?? "hero"}
-      style={style}
+      style={wrapperStyle}
       {...editorProps}
     >
-      <p
-      style={{
-        width: "100%",
-        minHeight: "100%",
-        height: "auto",
-        display: "block",
-        margin: 0,
-        padding: 0,
-        boxSizing: "border-box",
-        fontFamily: element.fontFamily,
-        fontSize: element.fontSize,
-        fontWeight: element.fontWeight,
-        fontStyle: element.fontStyle,
-        textAlign: element.textAlign,
-        color: element.color,
-        lineHeight: element.lineHeight,
-        letterSpacing: `${element.letterSpacing}em`,
-        textDecoration: element.textDecoration === "underline" ? "underline" : "none",
-        textShadow: getStringElementStyleValue(element, "textShadow") ?? element.textShadow ?? undefined,
-        whiteSpace: "pre-wrap",
-        overflowWrap: "break-word",
-        wordBreak: "normal",
-        lineBreak: "auto",
-        overflow: mode === "editor" ? "visible" : "hidden",
-      }}
-      >
-        {element.content}
-      </p>
+      <div style={innerStyle}>
+        <p
+        style={{
+          width: "100%",
+          minHeight: "100%",
+          height: "auto",
+          display: "block",
+          margin: 0,
+          padding: 0,
+          boxSizing: "border-box",
+          fontFamily: element.fontFamily,
+          fontSize: element.fontSize,
+          fontWeight: element.fontWeight,
+          fontStyle: element.fontStyle,
+          textAlign: element.textAlign,
+          color: element.color,
+          lineHeight: element.lineHeight,
+          letterSpacing: `${element.letterSpacing}em`,
+          textDecoration: element.textDecoration === "underline" ? "underline" : "none",
+          textShadow: getStringElementStyleValue(element, "textShadow") ?? element.textShadow ?? undefined,
+          whiteSpace: "pre-wrap",
+          overflowWrap: "break-word",
+          wordBreak: "normal",
+          lineBreak: "auto",
+          overflow: mode === "editor" ? "visible" : "hidden",
+        }}
+        >
+          {element.content}
+        </p>
+      </div>
       {controls}
     </div>
   );
@@ -290,12 +317,14 @@ function CanvasMobileText({
 
 function CanvasMobileImage({
   element,
-  style,
+  wrapperStyle,
+  innerStyle,
   editorProps,
   controls,
 }: {
   element: CanvasImageElement;
-  style: CSSProperties;
+  wrapperStyle: CSSProperties;
+  innerStyle: CSSProperties;
   editorProps: HTMLAttributes<HTMLDivElement>;
   controls: ReactNode;
 }) {
@@ -303,26 +332,28 @@ function CanvasMobileImage({
     <div
       data-element-id={element.id}
       data-section-id={element.sectionId ?? "hero"}
-      style={style}
+      style={wrapperStyle}
       {...editorProps}
     >
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-      src={element.url}
-      alt=""
-      draggable={false}
-      loading="lazy"
-      style={{
-        display: "block",
-        width: "100%",
-        height: "100%",
-        objectFit: element.objectFit === "fill" ? "fill" : "contain",
-        filter: buildImageFilter(element),
-        borderRadius: element.style?.borderRadius,
-        transform: element.flipX || element.flipY ? `scale(${element.flipX ? -1 : 1}, ${element.flipY ? -1 : 1})` : undefined,
-        pointerEvents: "none",
-      }}
-      />
+      <div style={innerStyle}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+        src={element.url}
+        alt=""
+        draggable={false}
+        loading="lazy"
+        style={{
+          display: "block",
+          width: "100%",
+          height: "100%",
+          objectFit: element.objectFit === "fill" ? "fill" : "contain",
+          filter: buildImageFilter(element),
+          borderRadius: element.style?.borderRadius,
+          transform: element.flipX || element.flipY ? `scale(${element.flipX ? -1 : 1}, ${element.flipY ? -1 : 1})` : undefined,
+          pointerEvents: "none",
+        }}
+        />
+      </div>
       {controls}
     </div>
   );

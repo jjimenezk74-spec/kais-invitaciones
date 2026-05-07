@@ -92,6 +92,15 @@ type InspectorGroup =
   | "action"
   | "visibility";
 
+type SnapLine = {
+  id: string;
+  type: "vertical" | "horizontal";
+  position: number;
+  start: number;
+  end: number;
+  label?: string;
+};
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants & initial design
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1107,10 +1116,12 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [activeTool, setActiveTool] = useState<ToolId | null>(null);
   const [zoom, setZoom] = useState(0.75);
+  const [viewportMode, setViewportMode] = useState<"mobile" | "desktop">("mobile");
   const [saved, setSaved] = useState(false);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [saveError, setSaveError] = useState<string | null>(null);
   const [preview, setPreview] = useState(false);
+  const [snapLines, setSnapLines] = useState<SnapLine[]>([]);
 
   const canvasRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -1126,6 +1137,97 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
   const selected = elements.find((e) => e.id === selectedId) ?? null;
   const activeSection = sections.find((section) => section.id === activeSectionId) ?? sections[0] ?? DEFAULT_SECTIONS[0];
   const documentHeight = sections.at(-1) ? sections.at(-1)!.y + sections.at(-1)!.height : DEFAULT_DOCUMENT_H;
+  const canvasW = viewportMode === "desktop" ? 1000 : CANVAS_W;
+  const SNAP_TOLERANCE = 6;
+
+  const getSnappedPosition = useCallback((
+    moving: V3Element,
+    proposedX: number,
+    proposedY: number,
+    allElements: V3Element[]
+  ) => {
+    const width = moving.width;
+    const height = moving.height ?? 60;
+    const verticalCandidates: { distance: number; x: number; line: SnapLine }[] = [];
+    const horizontalCandidates: { distance: number; y: number; line: SnapLine }[] = [];
+
+    const considerVertical = (targetX: number, sourceOffset: number, label?: string) => {
+      const distance = Math.abs(proposedX + sourceOffset - targetX);
+      if (distance > SNAP_TOLERANCE) return;
+      verticalCandidates.push({
+        distance,
+        x: targetX - sourceOffset,
+        line: {
+          id: `v-${Math.round(targetX)}-${label ?? "align"}`,
+          type: "vertical",
+          position: Math.round(targetX),
+          start: 0,
+          end: documentHeight,
+          label
+        }
+      });
+    };
+
+    const considerHorizontal = (targetY: number, sourceOffset: number, label?: string) => {
+      const distance = Math.abs(proposedY + sourceOffset - targetY);
+      if (distance > SNAP_TOLERANCE) return;
+      horizontalCandidates.push({
+        distance,
+        y: targetY - sourceOffset,
+        line: {
+          id: `h-${Math.round(targetY)}-${label ?? "align"}`,
+          type: "horizontal",
+          position: Math.round(targetY),
+          start: 0,
+          end: canvasW,
+          label
+        }
+      });
+    };
+
+    considerVertical(canvasW / 2, width / 2, "centro");
+
+    sections.forEach((section) => {
+      considerHorizontal(section.y + section.height / 2, height / 2, "centro");
+    });
+
+    allElements
+      .filter((el) => el.id !== moving.id && el.visible)
+      .forEach((el) => {
+        const otherHeight = el.height ?? 60;
+        const verticalTargets = [el.x, el.x + el.width / 2, el.x + el.width];
+        const verticalOffsets = [0, width / 2, width];
+        const horizontalTargets = [el.y, el.y + otherHeight / 2, el.y + otherHeight];
+        const horizontalOffsets = [0, height / 2, height];
+
+        verticalTargets.forEach((target) => {
+          verticalOffsets.forEach((offset) => considerVertical(target, offset, "alineado"));
+        });
+        horizontalTargets.forEach((target) => {
+          horizontalOffsets.forEach((offset) => considerHorizontal(target, offset, "alineado"));
+        });
+      });
+
+    const bestVertical = verticalCandidates.sort((a, b) => a.distance - b.distance)[0];
+    const bestHorizontal = horizontalCandidates.sort((a, b) => a.distance - b.distance)[0];
+    const lines: SnapLine[] = [];
+    let nextX = proposedX;
+    let nextY = proposedY;
+    if (bestVertical) {
+      nextX = bestVertical.x;
+      lines.push(bestVertical.line);
+    }
+    if (bestHorizontal) {
+      nextY = bestHorizontal.y;
+      lines.push(bestHorizontal.line);
+    }
+
+    return {
+      x: Math.round(nextX),
+      y: Math.round(nextY),
+      lines
+    };
+  }, [canvasW, documentHeight, sections]);
 
   const scrollToSection = (section: V3Section) => {
     setActiveSectionId(section.id);
@@ -1162,13 +1264,16 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
         const { id, startX, startY, elX, elY } = dragRef.current;
         const dx = (e.clientX - startX) / zoom;
         const dy = (e.clientY - startY) / zoom;
+        let nextSnapLines: SnapLine[] = [];
         setElements((prev) =>
-          prev.map((el) =>
-            el.id === id
-              ? { ...el, x: Math.round(elX + dx), y: Math.round(elY + dy) }
-              : el
-          )
+          prev.map((el) => {
+            if (el.id !== id) return el;
+            const snapped = getSnappedPosition(el, elX + dx, elY + dy, prev);
+            nextSnapLines = snapped.lines;
+            return { ...el, x: snapped.x, y: snapped.y };
+          })
         );
+        setSnapLines(nextSnapLines);
       }
       if (resizeRef.current) {
         const { id, handle, startX, startY, origX, origY, origW, origH } = resizeRef.current;
@@ -1187,11 +1292,15 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
         );
       }
     };
-    const onUp = () => { dragRef.current = null; resizeRef.current = null; };
+    const onUp = () => {
+      dragRef.current = null;
+      resizeRef.current = null;
+      setSnapLines([]);
+    };
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
     return () => { window.removeEventListener("mousemove", onMove); window.removeEventListener("mouseup", onUp); };
-  }, [zoom]);
+  }, [getSnappedPosition, zoom]);
 
   // ── Add elements ────────────────────────────────────────────────────────────────────────────
   const addText = (kind: "title" | "subtitle" | "paragraph") => {
@@ -1427,9 +1536,6 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
   };
 
   // ── Viewport toggle: Móvil / Escritorio (solo visual, no afecta save) ────────
-  const [viewportMode, setViewportMode] = useState<"mobile" | "desktop">("mobile");
-  const canvasW = viewportMode === "desktop" ? 1000 : CANVAS_W;
-
   // ── Responsive: track viewport width to auto-manage inspector ──────────────
   const [vw, setVw] = useState(() => typeof window !== "undefined" ? window.innerWidth : 1440);
   const [inspectorOpen, setInspectorOpen] = useState(() =>
@@ -1776,6 +1882,45 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
                       onResizeMouseDown={(e, h) => !preview && onResizeStart(e, el.id, h)}
                     />
                   ))}
+
+                {!preview && snapLines.map((line) => (
+                  <div
+                    key={line.id}
+                    style={{
+                      position: "absolute",
+                      left: line.type === "vertical" ? line.position : line.start,
+                      top: line.type === "horizontal" ? line.position : line.start,
+                      width: line.type === "vertical" ? 1 : line.end - line.start,
+                      height: line.type === "horizontal" ? 1 : line.end - line.start,
+                      background: "#a78bfa",
+                      boxShadow: "0 0 12px rgba(167,139,250,0.65)",
+                      zIndex: 9998,
+                      pointerEvents: "none",
+                    }}
+                  >
+                    {line.label && (
+                      <span
+                        style={{
+                          position: "absolute",
+                          left: line.type === "vertical" ? 6 : 8,
+                          top: line.type === "vertical" ? 10 : -22,
+                          padding: "3px 7px",
+                          borderRadius: 999,
+                          background: "rgba(22,22,31,0.92)",
+                          border: "1px solid rgba(167,139,250,0.45)",
+                          color: "#ddd6fe",
+                          fontSize: 9,
+                          fontWeight: 700,
+                          letterSpacing: "0.06em",
+                          textTransform: "uppercase",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {line.label}
+                      </span>
+                    )}
+                  </div>
+                ))}
 
                 {preview && (
                   <div style={{

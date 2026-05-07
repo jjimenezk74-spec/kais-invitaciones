@@ -504,7 +504,6 @@ function RenderElement({
             position: "absolute", inset: 0,
             background: el.background,
             borderRadius: el.borderRadius,
-            border: computeBorder(el),
             display: "flex",
             alignItems: "center",
             justifyContent: "center",

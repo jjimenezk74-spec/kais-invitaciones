@@ -113,6 +113,13 @@ function buildSections(templates = DEFAULT_SECTION_TEMPLATES): V3Section[] {
 }
 
 const DEFAULT_SECTIONS = buildSections();
+
+/** Recalculate y offsets after reorder / insert / delete so sections stack without gaps. */
+function recalcSectionY(secs: V3Section[]): V3Section[] {
+  let y = 0;
+  return secs.map((s) => { const n = { ...s, y }; y += s.height; return n; });
+}
+
 const DEFAULT_DOCUMENT_H = DEFAULT_SECTIONS.at(-1)!.y + DEFAULT_SECTIONS.at(-1)!.height;
 
 const INITIAL_ELEMENTS: V3Element[] = [
@@ -786,10 +793,30 @@ function ExpandedPanel({
 function RightPanel({
   element,
   onChange,
+  onDuplicate,
+  onDelete,
+  onBringToFront,
+  onSendToBack,
+  section,
+  onDuplicateSection,
+  onDeleteSection,
+  onMoveSectionUp,
+  onMoveSectionDown,
 }: {
   element: V3Element | null;
   onChange: (id: string, patch: Partial<V3Element>) => void;
+  onDuplicate: () => void;
+  onDelete: () => void;
+  onBringToFront: () => void;
+  onSendToBack: () => void;
+  section: V3Section | null;
+  onDuplicateSection: () => void;
+  onDeleteSection: () => void;
+  onMoveSectionUp: () => void;
+  onMoveSectionDown: () => void;
 }) {
+  const [pendingDelete, setPendingDelete] = React.useState<"element" | "section" | null>(null);
+
   const s: React.CSSProperties = {
     width: "100%",
     height: "100%",
@@ -814,14 +841,63 @@ function RightPanel({
     fontFamily: "Inter, system-ui, sans-serif",
     outline: "none", boxSizing: "border-box",
   };
+  const actionBtnStyle: React.CSSProperties = {
+    padding: "7px 10px",
+    background: "#1e1e2d",
+    border: "1px solid #2a2a3d",
+    borderRadius: 8,
+    cursor: "pointer",
+    color: "#c8c4f0",
+    fontSize: 11,
+    fontFamily: "Inter, system-ui, sans-serif",
+    textAlign: "left",
+    transition: "all 0.12s",
+    width: "100%",
+  };
 
+  // ── Section panel (no element selected) ──────────────────────────────────
   if (!element) {
+    if (section) {
+      return (
+        <div style={s}>
+          <div style={{ padding: "14px 16px", borderBottom: "1px solid #2a2a3d" }}>
+            <p style={{ color: "#c8a96a", fontSize: 10, letterSpacing: "0.1em", fontFamily: "Inter, system-ui, sans-serif", margin: 0, textTransform: "uppercase", opacity: 0.75 }}>Sección</p>
+            <p style={{ color: "#e8e6ff", fontSize: 14, fontWeight: "600", fontFamily: "Inter, system-ui, sans-serif", margin: "4px 0 0" }}>
+              {section.label}
+            </p>
+          </div>
+          <div style={{ padding: "14px 16px", display: "flex", flexDirection: "column", gap: 6 }}>
+            <button type="button" onClick={onDuplicateSection} style={actionBtnStyle}>⧉ Duplicar sección</button>
+            <button type="button" onClick={onMoveSectionUp} style={actionBtnStyle}>↑ Subir sección</button>
+            <button type="button" onClick={onMoveSectionDown} style={actionBtnStyle}>↓ Bajar sección</button>
+            <div style={{ height: 1, background: "#2a2a3d", margin: "4px 0" }} />
+            {pendingDelete === "section" ? (
+              <div style={{ display: "flex", gap: 6 }}>
+                <button type="button" onClick={() => { onDeleteSection(); setPendingDelete(null); }}
+                  style={{ ...actionBtnStyle, flex: 1, background: "rgba(220,38,38,0.22)", border: "1px solid rgba(220,38,38,0.5)", color: "#f87171" }}>
+                  Confirmar eliminación
+                </button>
+                <button type="button" onClick={() => setPendingDelete(null)}
+                  style={{ ...actionBtnStyle, width: "auto", padding: "7px 14px", color: "#8884a8" }}>
+                  Cancelar
+                </button>
+              </div>
+            ) : (
+              <button type="button" onClick={() => setPendingDelete("section")}
+                style={{ ...actionBtnStyle, background: "rgba(220,38,38,0.1)", border: "1px solid rgba(220,38,38,0.28)", color: "#f87171" }}>
+                ✕ Eliminar sección
+              </button>
+            )}
+          </div>
+        </div>
+      );
+    }
     return (
       <div style={s}>
-        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 10 }}>
+        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 10, padding: "0 20px" }}>
           <span style={{ fontSize: 28, opacity: 0.25 }}>◻</span>
-          <p style={{ color: "#8884a8", fontSize: 12, fontFamily: "Inter, system-ui, sans-serif", textAlign: "center", margin: 0 }}>
-            Selecciona un elemento para editar sus propiedades
+          <p style={{ color: "#8884a8", fontSize: 12, fontFamily: "Inter, system-ui, sans-serif", textAlign: "center", margin: 0, lineHeight: 1.6 }}>
+            Selecciona un elemento en el canvas, o una sección en el panel izquierdo
           </p>
         </div>
       </div>
@@ -830,12 +906,41 @@ function RightPanel({
 
   return (
     <div style={s}>
-      {/* Header */}
+      {/* Element header */}
       <div style={{ padding: "14px 16px", borderBottom: "1px solid #2a2a3d" }}>
-        <p style={{ color: "#e8e6ff", fontSize: 12, fontWeight: "600", fontFamily: "Inter, system-ui, sans-serif", margin: 0 }}>
+        <p style={{ color: "#c8a96a", fontSize: 10, letterSpacing: "0.1em", fontFamily: "Inter, system-ui, sans-serif", margin: 0, textTransform: "uppercase", opacity: 0.75 }}>Elemento</p>
+        <p style={{ color: "#e8e6ff", fontSize: 14, fontWeight: "600", fontFamily: "Inter, system-ui, sans-serif", margin: "4px 0 0" }}>
           {element.type === "text" ? "Texto" : element.type === "app" ? "Bloque App" : element.type === "decoration" ? "Decoración" : "Forma"}
           {element.locked && <span style={{ marginLeft: 8, color: "#c8a96a", fontSize: 10 }}>🔒</span>}
         </p>
+      </div>
+      {/* Element actions */}
+      <div style={{ padding: "10px 16px", borderBottom: "1px solid #2a2a3d", display: "flex", flexDirection: "column", gap: 5 }}>
+        <div style={{ display: "flex", gap: 5 }}>
+          <button type="button" onClick={onDuplicate}
+            style={{ ...actionBtnStyle, flex: 1, textAlign: "center" }}>⧉ Duplicar</button>
+          <button type="button" onClick={onBringToFront}
+            style={{ ...actionBtnStyle, flex: 1, textAlign: "center" }}>↑ Al frente</button>
+          <button type="button" onClick={onSendToBack}
+            style={{ ...actionBtnStyle, flex: 1, textAlign: "center" }}>↓ Atrás</button>
+        </div>
+        {pendingDelete === "element" ? (
+          <div style={{ display: "flex", gap: 5 }}>
+            <button type="button" onClick={() => { onDelete(); setPendingDelete(null); }}
+              style={{ ...actionBtnStyle, flex: 1, background: "rgba(220,38,38,0.22)", border: "1px solid rgba(220,38,38,0.5)", color: "#f87171", textAlign: "center" }}>
+              Confirmar eliminación
+            </button>
+            <button type="button" onClick={() => setPendingDelete(null)}
+              style={{ ...actionBtnStyle, width: "auto", padding: "7px 14px", color: "#8884a8", textAlign: "center" }}>
+              Cancelar
+            </button>
+          </div>
+        ) : (
+          <button type="button" onClick={() => setPendingDelete("element")}
+            style={{ ...actionBtnStyle, background: "rgba(220,38,38,0.1)", border: "1px solid rgba(220,38,38,0.28)", color: "#f87171", textAlign: "center" }}>
+            ✕ Eliminar elemento
+          </button>
+        )}
       </div>
 
       <div style={{ padding: "14px 16px", display: "flex", flexDirection: "column", gap: 16 }}>
@@ -1409,6 +1514,75 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
     setSelectedId(null);
   };
 
+  const duplicateElement = () => {
+    if (!selectedId) return;
+    const el = elements.find((e) => e.id === selectedId);
+    if (!el) return;
+    const newEl: V3Element = { ...el, id: `el-${Date.now()}`, x: el.x + 14, y: el.y + 14, zIndex: elements.length };
+    setElements((prev) => [...prev, newEl]);
+    setSelectedId(newEl.id);
+  };
+
+  const bringToFront = () => {
+    if (!selectedId) return;
+    const maxZ = Math.max(...elements.map((e) => e.zIndex));
+    setElements((prev) => prev.map((e) => e.id === selectedId ? { ...e, zIndex: maxZ + 1 } : e));
+  };
+
+  const sendToBack = () => {
+    if (!selectedId) return;
+    const minZ = Math.min(...elements.map((e) => e.zIndex));
+    setElements((prev) => prev.map((e) => e.id === selectedId ? { ...e, zIndex: minZ - 1 } : e));
+  };
+
+  const deleteSection = (sectionId: string) => {
+    setSections((prev) => {
+      if (prev.length <= 1) return prev; // never delete the last section
+      return recalcSectionY(prev.filter((s) => s.id !== sectionId));
+    });
+    setSections((prev) => {
+      if (activeSectionId === sectionId) {
+        setActiveSectionId(prev[0]?.id ?? "");
+      }
+      return prev;
+    });
+    setSelectedId(null);
+  };
+
+  const duplicateSection = (sectionId: string) => {
+    setSections((prev) => {
+      const idx = prev.findIndex((s) => s.id === sectionId);
+      if (idx === -1) return prev;
+      const orig = prev[idx];
+      const copy: V3Section = { ...orig, id: `custom-${Date.now()}`, label: `${orig.label} (copia)` };
+      const next = [...prev];
+      next.splice(idx + 1, 0, copy);
+      setActiveSectionId(copy.id);
+      return recalcSectionY(next);
+    });
+    setSelectedId(null);
+  };
+
+  const moveSectionUp = (sectionId: string) => {
+    setSections((prev) => {
+      const idx = prev.findIndex((s) => s.id === sectionId);
+      if (idx <= 0) return prev;
+      const next = [...prev];
+      [next[idx - 1], next[idx]] = [next[idx], next[idx - 1]];
+      return recalcSectionY(next);
+    });
+  };
+
+  const moveSectionDown = (sectionId: string) => {
+    setSections((prev) => {
+      const idx = prev.findIndex((s) => s.id === sectionId);
+      if (idx >= prev.length - 1) return prev;
+      const next = [...prev];
+      [next[idx], next[idx + 1]] = [next[idx + 1], next[idx]];
+      return recalcSectionY(next);
+    });
+  };
+
   const addDemoSection = () => {
     const last = sections.at(-1);
     const next: V3Section = {
@@ -1695,7 +1869,7 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
                   key={section.id}
                   type="button"
                   title={section.label}
-                  onClick={() => scrollToSection(section)}
+                  onClick={() => { scrollToSection(section); setSelectedId(null); }}
                   style={{
                     width: 54,
                     minHeight: 30,
@@ -1717,42 +1891,26 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
             })}
             <button
               type="button"
-              title="Agregar seccion"
+              title="Agregar sección"
               onClick={addDemoSection}
               style={{
-                width: 36,
-                height: 28,
+                width: 60,
+                height: 32,
                 borderRadius: 8,
                 border: "1px solid rgba(124,58,237,0.55)",
                 background: "rgba(124,58,237,0.18)",
                 color: "#c4b5fd",
                 cursor: "pointer",
-                fontSize: 16,
-                lineHeight: 1
+                fontSize: 9,
+                fontWeight: 700,
+                letterSpacing: "0.04em",
+                fontFamily: "Inter, system-ui, sans-serif",
+                lineHeight: 1.2,
               }}
             >
-              +
+              + Sección
             </button>
           </div>
-
-          {/* Delete selected */}
-          {selectedId && (
-            <button
-              type="button"
-              onClick={deleteSelected}
-              title="Eliminar"
-              style={{
-                marginTop: "auto", marginBottom: 10,
-                width: 36, height: 36, borderRadius: 8,
-                background: "rgba(220,38,38,0.15)",
-                border: "1px solid rgba(220,38,38,0.35)",
-                cursor: "pointer", color: "#f87171",
-                fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center",
-              }}
-            >
-              ✕
-            </button>
-          )}
         </div>
 
         {/* ── EXPANDED PANEL ── */}
@@ -1917,7 +2075,19 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
             boxShadow: inspectorIsOverlay ? "-24px 0 60px rgba(0,0,0,0.45)" : undefined,
             transition: "width 0.2s",
           }}>
-            <RightPanel element={selected && !preview ? selected : null} onChange={patchElement} />
+            <RightPanel
+              element={selected && !preview ? selected : null}
+              onChange={patchElement}
+              onDuplicate={duplicateElement}
+              onDelete={deleteSelected}
+              onBringToFront={bringToFront}
+              onSendToBack={sendToBack}
+              section={!selected && !preview ? activeSection : null}
+              onDuplicateSection={() => duplicateSection(activeSectionId)}
+              onDeleteSection={() => deleteSection(activeSectionId)}
+              onMoveSectionUp={() => moveSectionUp(activeSectionId)}
+              onMoveSectionDown={() => moveSectionDown(activeSectionId)}
+            />
           </div>
         )}
 

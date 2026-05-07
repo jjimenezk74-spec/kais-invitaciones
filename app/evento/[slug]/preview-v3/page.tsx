@@ -83,7 +83,7 @@ export default async function PreviewV3Page({ params }: Props) {
     const admin = createAdminClient();
     const { data, error: dbError } = await admin
       .from("events")
-      .select("id, slug, hosts_names, title, canvas_design")
+      .select("id, slug, hosts_names, title, canvas_design, event_date, event_time")
       .eq("slug", slug)
       .maybeSingle();
 
@@ -173,6 +173,7 @@ export default async function PreviewV3Page({ params }: Props) {
             design={asObj}
             eventTitle={eventTitle}
             eventSlug={data.slug ?? slug}
+            eventDate={data.event_date && data.event_time ? `${data.event_date}T${data.event_time}` : undefined}
             mode="preview"
           />
         </div>

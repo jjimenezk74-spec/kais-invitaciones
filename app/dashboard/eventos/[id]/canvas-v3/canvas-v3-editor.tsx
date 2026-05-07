@@ -54,6 +54,8 @@ interface V3Element {
     url?: string;
     primaryColor?: string;
     textColor?: string;
+    countdownTarget?: string;
+    countdownMode?: "event" | "custom";
   };
 }
 
@@ -951,6 +953,7 @@ function RightPanel({
   onLayerMoveUp,
   onLayerMoveDown,
   onReorderLayers,
+  eventDate,
 }: {
   element: V3Element | null;
   onChange: (id: string, patch: Partial<V3Element>) => void;
@@ -972,6 +975,7 @@ function RightPanel({
   onLayerMoveUp: (id: string) => void;
   onLayerMoveDown: (id: string) => void;
   onReorderLayers: (orderedIds: string[]) => void;
+  eventDate?: string;
 }) {
   const [pendingDelete, setPendingDelete] = React.useState<"element" | "section" | null>(null);
   const [openGroup, setOpenGroup] = React.useState<InspectorGroup>("content");
@@ -1389,7 +1393,38 @@ function RightPanel({
         {renderGroup("stroke", "Contorno", <><div><span style={labelStyle}>Borde redondeado: {element.borderRadius ?? 0}px</span><input type="range" min={0} max={999} step={1} value={element.borderRadius ?? 0} onChange={(e) => onChange(element.id, { borderRadius: Number(e.target.value) })} style={{ width: "100%", accentColor: "#7c3aed" }} /></div><div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}><span style={{ ...labelStyle, margin: 0 }}>Activar contorno</span><button type="button" onClick={() => onChange(element.id, hasBorder(element) ? { borderWidth: 0, borderStyle: "none" } : { borderWidth: 1, borderStyle: "solid", borderColor: element.borderColor ?? "#c8a96a" })} style={{ ...actionBtnStyle, width: "auto", padding: "6px 10px" }}>{hasBorder(element) ? "Activo" : "Inactivo"}</button></div>{hasBorder(element) && <><input type="text" value={element.borderColor ?? ""} placeholder="rgba(200,169,106,0.35)" onChange={(e) => onChange(element.id, { borderColor: e.target.value })} style={inputStyle} /><input type="range" min={1} max={12} step={1} value={element.borderWidth ?? 1} onChange={(e) => onChange(element.id, { borderWidth: Number(e.target.value) })} style={{ width: "100%", accentColor: "#7c3aed" }} /><div style={{ display: "flex", gap: 4 }}>{(["solid", "dashed"] as const).map((borderStyle) => <button key={borderStyle} type="button" onClick={() => onChange(element.id, { borderStyle })} style={{ ...actionBtnStyle, textAlign: "center", background: (element.borderStyle ?? "solid") === borderStyle ? "#2a1f4d" : "#1e1e2d" }}>{borderStyle === "solid" ? "Sólido" : "Discontinuo"}</button>)}</div></>}</>, element.type !== "text", "Contorno")}
         {renderGroup("shadow", "Sombra", <>{element.type === "text" && <div><span style={labelStyle}>Sombra de texto</span><input type="text" value={element.textShadow ?? ""} placeholder="0 2px 10px rgba(...)" onChange={(e) => onChange(element.id, { textShadow: e.target.value })} style={inputStyle} /></div>}{(element.type === "shape" || element.type === "decoration") && element.blur !== undefined && <div><span style={labelStyle}>Desenfoque: {element.blur ?? 0}px</span><input type="range" min={0} max={40} step={1} value={element.blur ?? 0} onChange={(e) => onChange(element.id, { blur: Number(e.target.value) })} style={{ width: "100%", accentColor: "#7c3aed" }} /></div>}</>, element.type === "text" || element.type === "shape" || element.type === "decoration", "Sombra")}
         {renderGroup("spacing", "Espaciado interno", <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>{(["x", "y", "width", "height"] as const).map((k) => <div key={k}><span style={{ ...labelStyle, fontSize: 9 }}>{k === "x" ? "Posición X" : k === "y" ? "Posición Y" : k === "width" ? "Ancho" : "Alto"}</span><input type="number" value={Math.round(element[k] as number) || 0} disabled={element.locked} onChange={(e) => onChange(element.id, { [k]: Number(e.target.value) })} style={{ ...inputStyle, opacity: element.locked ? 0.5 : 1 }} /></div>)}</div>, true, "Ajustes")}
-        {renderGroup("action", "Acción", <>{element.type === "app" && <div><span style={labelStyle}>URL de muestra</span><input type="text" value={element.config?.url ?? ""} onChange={(e) => onChange(element.id, { config: { ...(element.config ?? {}), url: e.target.value } })} style={inputStyle} /></div>}<div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}><button type="button" onClick={onDuplicate} style={{ ...actionBtnStyle, textAlign: "center" }}>Duplicar</button><button type="button" onClick={onBringToFront} style={{ ...actionBtnStyle, textAlign: "center" }}>Traer al frente</button><button type="button" onClick={onSendToBack} style={{ ...actionBtnStyle, textAlign: "center" }}>Enviar atrás</button><button type="button" onClick={() => setPendingDelete("element")} style={{ ...actionBtnStyle, textAlign: "center", color: "#f87171" }}>Eliminar</button></div></>, true, "Acción")}
+        {renderGroup("action", "Acción", <>
+          {element.type === "app" && normalizeAppType(element) !== "countdown" && <div><span style={labelStyle}>URL de muestra</span><input type="text" value={element.config?.url ?? ""} onChange={(e) => onChange(element.id, { config: { ...(element.config ?? {}), url: e.target.value } })} style={inputStyle} /></div>}
+          {element.type === "app" && normalizeAppType(element) === "countdown" && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <span style={{ ...labelStyle, fontWeight: 700, color: "#c4b5fd" }}>⏱ Cuenta Regresiva</span>
+              <div>
+                <span style={labelStyle}>Fuente de la fecha</span>
+                <div style={{ display: "flex", gap: 4 }}>
+                  {(["event", "custom"] as const).map((mode) => (
+                    <button key={mode} type="button" onClick={() => onChange(element.id, { config: { ...(element.config ?? {}), countdownMode: mode } })} style={{ ...actionBtnStyle, flex: 1, textAlign: "center", background: (element.config?.countdownMode ?? "event") === mode ? "#2a1f4d" : "#1e1e2d", color: (element.config?.countdownMode ?? "event") === mode ? "#a78bfa" : "#c8c4f0" }}>
+                      {mode === "event" ? "Fecha del evento" : "Personalizada"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {(element.config?.countdownMode ?? "event") === "event" && (
+                <div style={{ padding: "6px 8px", borderRadius: 6, background: "rgba(124,58,237,0.12)", border: "1px solid rgba(124,58,237,0.25)" }}>
+                  <span style={{ ...labelStyle, margin: 0, color: eventDate ? "#a78bfa" : "#f87171" }}>
+                    {eventDate ? `📅 ${new Date(eventDate).toLocaleDateString("es", { day: "numeric", month: "long", year: "numeric" })}` : "⚠ Sin fecha configurada en el evento"}
+                  </span>
+                </div>
+              )}
+              {element.config?.countdownMode === "custom" && (
+                <div>
+                  <span style={labelStyle}>Fecha y hora objetivo</span>
+                  <input type="datetime-local" value={element.config?.countdownTarget ? element.config.countdownTarget.slice(0, 16) : ""} onChange={(e) => onChange(element.id, { config: { ...(element.config ?? {}), countdownTarget: e.target.value ? new Date(e.target.value).toISOString() : "" } })} style={{ ...inputStyle, colorScheme: "dark" }} />
+                </div>
+              )}
+            </div>
+          )}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}><button type="button" onClick={onDuplicate} style={{ ...actionBtnStyle, textAlign: "center" }}>Duplicar</button><button type="button" onClick={onBringToFront} style={{ ...actionBtnStyle, textAlign: "center" }}>Traer al frente</button><button type="button" onClick={onSendToBack} style={{ ...actionBtnStyle, textAlign: "center" }}>Enviar atrás</button><button type="button" onClick={() => setPendingDelete("element")} style={{ ...actionBtnStyle, textAlign: "center", color: "#f87171" }}>Eliminar</button></div>
+        </>, true, "Acción")}
         {renderGroup("visibility", "Visibilidad", <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}><span style={{ ...labelStyle, margin: 0 }}>Visible</span><button type="button" onClick={() => onChange(element.id, { visible: !element.visible })} style={{ width: 36, height: 20, borderRadius: 10, background: element.visible ? "#7c3aed" : "#2a2a3d", border: "none", cursor: "pointer", position: "relative", transition: "background 0.2s" }}><span style={{ position: "absolute", top: 2, left: element.visible ? 18 : 2, width: 16, height: 16, background: "#fff", borderRadius: 8, transition: "left 0.2s" }} /></button></div>, true, "Vista")}
       </div>
     </div>
@@ -1405,9 +1440,10 @@ type CanvasEditorV3Props = {
   eventSlug?: string;
   eventTitle: string;
   initialDesign?: unknown;
+  eventDate?: string; // "YYYY-MM-DDTHH:mm:ss"
 };
 
-export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign = null }: CanvasEditorV3Props) {
+export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign = null, eventDate }: CanvasEditorV3Props) {
   const parsedInitialDesign = normalizeInitialV3Design(initialDesign);
   const [elements, setElements] = useState<V3Element[]>(
     () => parsedInitialDesign?.elements ?? INITIAL_ELEMENTS
@@ -3179,6 +3215,7 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
               onLayerMoveUp={layerMoveUp}
               onLayerMoveDown={layerMoveDown}
               onReorderLayers={reorderLayers}
+              eventDate={eventDate}
             />
           </div>
         )}

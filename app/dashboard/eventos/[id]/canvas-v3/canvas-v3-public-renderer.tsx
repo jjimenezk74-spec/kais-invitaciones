@@ -41,7 +41,13 @@ export interface V3Element {
   // app
   appKind?: V3AppType | "album" | "live";
   appType?: V3AppType;
-  config?: { url?: string; primaryColor?: string; textColor?: string };
+  config?: {
+    url?: string;
+    primaryColor?: string;
+    textColor?: string;
+    countdownTarget?: string;
+    countdownMode?: "event" | "custom";
+  };
 }
 
 export interface V3Section {
@@ -237,7 +243,7 @@ function resolveAppType(el: V3Element): V3AppType | null {
 // Single element renderer (no editing chrome)
 // ─────────────────────────────────────────────────────────────────────────────
 
-function PublicElement({ el, eventSlug }: { el: V3Element; eventSlug?: string }) {
+function PublicElement({ el, eventSlug, eventDate }: { el: V3Element; eventSlug?: string; eventDate?: string }) {
   if (!el.visible) return null;
 
   const appType = el.type === "app" ? resolveAppType(el) : null;
@@ -279,7 +285,7 @@ function PublicElement({ el, eventSlug }: { el: V3Element; eventSlug?: string })
 
     const inner =
       appType === "countdown" ? (
-        <CountdownBlock el={el} />
+        <CountdownBlock el={el} eventDate={eventDate} />
       ) : appType === "qr" ? (
         <QrBlock el={el} />
       ) : (
@@ -379,8 +385,48 @@ function PublicElement({ el, eventSlug }: { el: V3Element; eventSlug?: string })
 // Countdown app block (live counter)
 // ─────────────────────────────────────────────────────────────────────────────
 
-function CountdownBlock({ el }: { el: V3Element }) {
-  const [units] = useState({ days: "45", hrs: "12", min: "08", seg: "30" });
+const CD_PLACEHOLDER = { days: "45", hrs: "12", min: "08", seg: "30" };
+
+function resolveCountdownTarget(el: V3Element, eventDate?: string): Date | null {
+  const mode = el.config?.countdownMode ?? "event";
+  if (mode === "custom") {
+    const raw = el.config?.countdownTarget ?? "";
+    if (!raw) return null;
+    const d = new Date(raw);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  if (eventDate) {
+    const d = new Date(eventDate);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  return null;
+}
+
+function calcCountdownUnits(target: Date): typeof CD_PLACEHOLDER {
+  const diff = target.getTime() - Date.now();
+  if (diff <= 0) return { days: "00", hrs: "00", min: "00", seg: "00" };
+  const s = Math.floor(diff / 1000);
+  return {
+    days: String(Math.floor(s / 86400)).padStart(2, "0"),
+    hrs: String(Math.floor((s % 86400) / 3600)).padStart(2, "0"),
+    min: String(Math.floor((s % 3600) / 60)).padStart(2, "0"),
+    seg: String(s % 60).padStart(2, "0"),
+  };
+}
+
+function CountdownBlock({ el, eventDate }: { el: V3Element; eventDate?: string }) {
+  const [units, setUnits] = useState<typeof CD_PLACEHOLDER>(CD_PLACEHOLDER);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+    const target = resolveCountdownTarget(el, eventDate);
+    if (!target) return;
+    setUnits(calcCountdownUnits(target));
+    const id = setInterval(() => setUnits(calcCountdownUnits(target)), 1000);
+    return () => clearInterval(id);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [el.config?.countdownMode, el.config?.countdownTarget, eventDate]);
+  const display = mounted ? units : CD_PLACEHOLDER;
   const textColor = el.color ?? "#e8e6ff";
   return (
     <div
@@ -394,7 +440,7 @@ function CountdownBlock({ el }: { el: V3Element }) {
       {(["days", "hrs", "min", "seg"] as const).map((key, i) => (
         <div key={key} style={{ textAlign: "center" }}>
           <strong style={{ display: "block", color: textColor, fontSize: 18 }}>
-            {units[key]}
+            {display[key]}
           </strong>
           <span
             style={{
@@ -474,10 +520,10 @@ function QrBlock({ el }: { el: V3Element }) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class SafeElement extends React.Component<
-  { el: V3Element; eventSlug?: string },
+  { el: V3Element; eventSlug?: string; eventDate?: string },
   { crashed: boolean }
 > {
-  constructor(props: { el: V3Element; eventSlug?: string }) {
+  constructor(props: { el: V3Element; eventSlug?: string; eventDate?: string }) {
     super(props);
     this.state = { crashed: false };
   }
@@ -489,7 +535,7 @@ class SafeElement extends React.Component<
   }
   render() {
     if (this.state.crashed) return null;
-    return <PublicElement el={this.props.el} eventSlug={this.props.eventSlug} />;
+    return <PublicElement el={this.props.el} eventSlug={this.props.eventSlug} eventDate={this.props.eventDate} />;
   }
 }
 
@@ -497,6 +543,7 @@ export interface CanvasV3PublicRendererProps {
   design: unknown; // acepta raw desde DB; normaliza internamente
   eventTitle?: string;
   eventSlug?: string;
+  eventDate?: string; // "YYYY-MM-DDTHH:mm:ss"
   mode?: "preview" | "public";
 }
 
@@ -504,6 +551,7 @@ export function CanvasV3PublicRenderer({
   design: rawProp,
   eventTitle,
   eventSlug,
+  eventDate,
   mode = "public",
 }: CanvasV3PublicRendererProps) {
   // Normalizar siempre internamente — nunca bloqueado desde afuera
@@ -619,7 +667,7 @@ export function CanvasV3PublicRenderer({
           }}
         >
           {sortedElements.map((el) => (
-            <SafeElement key={el.id} el={el} eventSlug={eventSlug} />
+            <SafeElement key={el.id} el={el} eventSlug={eventSlug} eventDate={eventDate} />
           ))}
         </div>
       </div>

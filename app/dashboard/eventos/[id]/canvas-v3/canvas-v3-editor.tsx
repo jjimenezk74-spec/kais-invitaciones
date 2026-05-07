@@ -485,17 +485,17 @@ function RenderElement({
     ? { outline: "1px dashed rgba(124,58,237,0.55)", outlineOffset: "1px" }
     : {};
 
-  const handleSize = 8;
+  const handleSize = 10;
   const handles = ["tl", "t", "tr", "r", "br", "b", "bl", "l"];
   const handlePositions: Record<string, React.CSSProperties> = {
-    tl: { top: -handleSize / 2, left: -handleSize / 2, cursor: "nwse-resize" },
-    t: { top: -handleSize / 2, left: "50%", marginLeft: -handleSize / 2, cursor: "ns-resize" },
-    tr: { top: -handleSize / 2, right: -handleSize / 2, cursor: "nesw-resize" },
-    r: { top: "50%", right: -handleSize / 2, marginTop: -handleSize / 2, cursor: "ew-resize" },
-    br: { bottom: -handleSize / 2, right: -handleSize / 2, cursor: "nwse-resize" },
-    b: { bottom: -handleSize / 2, left: "50%", marginLeft: -handleSize / 2, cursor: "ns-resize" },
-    bl: { bottom: -handleSize / 2, left: -handleSize / 2, cursor: "nesw-resize" },
-    l: { top: "50%", left: -handleSize / 2, marginTop: -handleSize / 2, cursor: "ew-resize" },
+    tl: { top: -handleSize / 2, left: -handleSize / 2,                        cursor: "nwse-resize" },
+    t:  { top: -handleSize / 2, left: "50%", marginLeft: -handleSize / 2,     cursor: "ns-resize"   },
+    tr: { top: -handleSize / 2, right: -handleSize / 2,                       cursor: "nesw-resize" },
+    r:  { top: "50%", right: -handleSize / 2, marginTop: -handleSize / 2,     cursor: "ew-resize"   },
+    br: { bottom: -handleSize / 2, right: -handleSize / 2,                    cursor: "nwse-resize" },
+    b:  { bottom: -handleSize / 2, left: "50%", marginLeft: -handleSize / 2,  cursor: "ns-resize"   },
+    bl: { bottom: -handleSize / 2, left: -handleSize / 2,                     cursor: "nesw-resize" },
+    l:  { top: "50%", left: -handleSize / 2, marginTop: -handleSize / 2,      cursor: "ew-resize"   },
   };
   const toolbarLabel = el.type === "text" ? "Texto" : el.type === "app" ? "Bloque" : el.type === "decoration" ? "Decoración" : "Forma";
   const toolbarHint = el.type === "text" ? "Tipografía" : el.type === "app" ? "Acción" : "Forma";
@@ -597,18 +597,31 @@ function RenderElement({
         </div>
       )}
 
-      {/* Resize handles */}
+      {/* Resize handles — Canva-style */}
       {selected && !el.locked && handles.map((h) => (
         <div
           key={h}
           onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); onResizeMouseDown(e, h); }}
+          onMouseEnter={(e) => {
+            const d = e.currentTarget as HTMLDivElement;
+            d.style.transform = "scale(1.4)";
+            d.style.background = "#ede9fe";
+          }}
+          onMouseLeave={(e) => {
+            const d = e.currentTarget as HTMLDivElement;
+            d.style.transform = "scale(1)";
+            d.style.background = "#ffffff";
+          }}
           style={{
             position: "absolute",
-            width: handleSize, height: handleSize,
+            width: handleSize,
+            height: handleSize,
             background: "#ffffff",
             border: "2px solid #7c3aed",
-            borderRadius: 2,
+            borderRadius: 3,
+            boxShadow: "0 1px 4px rgba(0,0,0,0.35), 0 0 0 1px rgba(124,58,237,0.15)",
             zIndex: 9999,
+            transition: "transform 0.1s, background 0.1s",
             ...handlePositions[h],
           }}
         />
@@ -1297,9 +1310,9 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
             if (el.id !== id) return el;
             let x = origX, y = origY, w = origW, h = origH;
             if (handle.includes("r")) w = Math.max(40, origW + dx);
-            if (handle.includes("l")) { x = origX + dx; w = Math.max(40, origW - dx); }
-            if (handle.includes("b")) h = Math.max(20, origH + dy);
-            if (handle.includes("t")) { y = origY + dy; h = Math.max(20, origH - dy); }
+            if (handle.includes("l")) { w = Math.max(40, origW - dx); x = origX + (origW - w); }
+            if (handle.includes("b")) h = Math.max(24, origH + dy);
+            if (handle.includes("t")) { h = Math.max(24, origH - dy); y = origY + (origH - h); }
             return { ...el, x: Math.round(x), y: Math.round(y), width: Math.round(w), height: Math.round(h) };
           })
         );

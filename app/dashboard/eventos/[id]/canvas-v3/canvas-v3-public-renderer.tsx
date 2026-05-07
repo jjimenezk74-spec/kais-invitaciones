@@ -32,7 +32,10 @@ export interface V3Element {
   // shape / decoration
   background?: string;
   borderRadius?: number;
-  border?: string;
+  border?: string;       // legacy shorthand
+  borderColor?: string;
+  borderWidth?: number;
+  borderStyle?: "solid" | "dashed" | "none";
   opacity?: number;
   blur?: number;
   // app
@@ -87,6 +90,17 @@ function safeBackground(value: unknown, fallback: string): string {
   const trimmed = value.trim();
   if (!trimmed || trimmed === "0") return fallback;
   return trimmed;
+}
+
+function computeBorder(el: { border?: string; borderColor?: string; borderWidth?: number; borderStyle?: "solid" | "dashed" | "none" }): string | undefined {
+  if (el.borderWidth !== undefined || el.borderStyle !== undefined || el.borderColor !== undefined) {
+    const w = el.borderWidth ?? 1;
+    if (w === 0 || el.borderStyle === "none") return "none";
+    const s = el.borderStyle ?? "solid";
+    const c = el.borderColor ?? "rgba(200,169,106,0.35)";
+    return `${w}px ${s} ${c}`;
+  }
+  return el.border;
 }
 
 const DEFAULT_SECTION: V3Section = {
@@ -243,7 +257,7 @@ function PublicElement({ el, eventSlug }: { el: V3Element; eventSlug?: string })
     zIndex: safeNum(el.zIndex, 0),
     opacity: Math.min(1, Math.max(0, safeNum(el.opacity, 1))),
     borderRadius: el.borderRadius != null ? safeNum(el.borderRadius, 0) : undefined,
-    border: typeof el.border === "string" ? el.border : undefined,
+    border: computeBorder(el),
     overflow: "hidden",
   };
 

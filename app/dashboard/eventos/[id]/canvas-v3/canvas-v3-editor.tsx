@@ -40,7 +40,10 @@ interface V3Element {
   // shape / decoration
   background?: string;
   borderRadius?: number;
-  border?: string;
+  border?: string;       // legacy shorthand — prefer the three fields below
+  borderColor?: string;
+  borderWidth?: number;  // px, 0 = no border
+  borderStyle?: "solid" | "dashed" | "none";
   opacity?: number;
   blur?: number;
   // app
@@ -378,6 +381,25 @@ function normalizeAppType(element: V3Element): V3AppType | null {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Border helper — prefers explicit fields, falls back to legacy `border` string
+// ─────────────────────────────────────────────────────────────────────────────
+
+function computeBorder(el: { border?: string; borderColor?: string; borderWidth?: number; borderStyle?: "solid" | "dashed" | "none" }): string | undefined {
+  if (el.borderWidth !== undefined || el.borderStyle !== undefined || el.borderColor !== undefined) {
+    const w = el.borderWidth ?? 1;
+    if (w === 0 || el.borderStyle === "none") return "none";
+    const s = el.borderStyle ?? "solid";
+    const c = el.borderColor ?? "rgba(200,169,106,0.35)";
+    return `${w}px ${s} ${c}`;
+  }
+  return el.border; // legacy
+}
+
+function isHexColor(v: string): boolean {
+  return /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(v.trim());
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Render a single canvas element
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -403,7 +425,7 @@ function RenderElement({
     zIndex: el.zIndex,
     opacity: el.opacity ?? 1,
     borderRadius: el.borderRadius,
-    border: el.border,
+    border: computeBorder(el),
     cursor: el.locked ? "default" : selected ? "grab" : "pointer",
     userSelect: "none",
     overflow: "hidden",
@@ -482,7 +504,7 @@ function RenderElement({
             position: "absolute", inset: 0,
             background: el.background,
             borderRadius: el.borderRadius,
-            border: el.border,
+            border: computeBorder(el),
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -970,21 +992,41 @@ function RightPanel({
             </div>
             <div style={{ marginTop: 14 }}>
               <span style={labelStyle}>Color principal</span>
-              <input
-                type="text"
-                value={element.config?.primaryColor ?? element.background ?? ""}
-                onChange={(e) => onChange(element.id, { background: e.target.value, config: { ...(element.config ?? {}), primaryColor: e.target.value } })}
-                style={inputStyle}
-              />
+              <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                {isHexColor(element.config?.primaryColor ?? element.background ?? "") && (
+                  <input
+                    type="color"
+                    value={(element.config?.primaryColor ?? element.background ?? "#000000").trim()}
+                    onChange={(e) => onChange(element.id, { background: e.target.value, config: { ...(element.config ?? {}), primaryColor: e.target.value } })}
+                    style={{ width: 32, height: 28, padding: 2, borderRadius: 6, border: "1px solid #2a2a3d", background: "none", cursor: "pointer" }}
+                  />
+                )}
+                <input
+                  type="text"
+                  value={element.config?.primaryColor ?? element.background ?? ""}
+                  onChange={(e) => onChange(element.id, { background: e.target.value, config: { ...(element.config ?? {}), primaryColor: e.target.value } })}
+                  style={{ ...inputStyle, flex: 1 }}
+                />
+              </div>
             </div>
             <div style={{ marginTop: 14 }}>
               <span style={labelStyle}>Color texto</span>
-              <input
-                type="text"
-                value={element.color ?? element.config?.textColor ?? ""}
-                onChange={(e) => onChange(element.id, { color: e.target.value, config: { ...(element.config ?? {}), textColor: e.target.value } })}
-                style={inputStyle}
-              />
+              <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                {isHexColor(element.color ?? element.config?.textColor ?? "") && (
+                  <input
+                    type="color"
+                    value={(element.color ?? element.config?.textColor ?? "#ffffff").trim()}
+                    onChange={(e) => onChange(element.id, { color: e.target.value, config: { ...(element.config ?? {}), textColor: e.target.value } })}
+                    style={{ width: 32, height: 28, padding: 2, borderRadius: 6, border: "1px solid #2a2a3d", background: "none", cursor: "pointer" }}
+                  />
+                )}
+                <input
+                  type="text"
+                  value={element.color ?? element.config?.textColor ?? ""}
+                  onChange={(e) => onChange(element.id, { color: e.target.value, config: { ...(element.config ?? {}), textColor: e.target.value } })}
+                  style={{ ...inputStyle, flex: 1 }}
+                />
+              </div>
             </div>
             <div style={{ marginTop: 14 }}>
               <span style={labelStyle}>Borde redondeado</span>
@@ -998,6 +1040,59 @@ function RightPanel({
                 style={{ width: "100%", accentColor: "#7c3aed" }}
               />
             </div>
+            {/* ── Border controls ── */}
+            <div style={{ marginTop: 14 }}>
+              <span style={labelStyle}>Grosor de borde: {element.borderWidth ?? 0}px</span>
+              <input
+                type="range" min={0} max={12} step={1}
+                value={element.borderWidth ?? 0}
+                onChange={(e) => onChange(element.id, { borderWidth: Number(e.target.value) })}
+                style={{ width: "100%", accentColor: "#7c3aed" }}
+              />
+            </div>
+            {(element.borderWidth ?? 0) > 0 && (
+              <>
+                <div style={{ marginTop: 10 }}>
+                  <span style={labelStyle}>Color de borde</span>
+                  <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                    {isHexColor(element.borderColor ?? "") && (
+                      <input
+                        type="color"
+                        value={(element.borderColor ?? "#c8a96a").trim()}
+                        onChange={(e) => onChange(element.id, { borderColor: e.target.value })}
+                        style={{ width: 32, height: 28, padding: 2, borderRadius: 6, border: "1px solid #2a2a3d", background: "none", cursor: "pointer" }}
+                      />
+                    )}
+                    <input
+                      type="text"
+                      value={element.borderColor ?? ""}
+                      placeholder="rgba(200,169,106,0.35)"
+                      onChange={(e) => onChange(element.id, { borderColor: e.target.value })}
+                      style={{ ...inputStyle, flex: 1 }}
+                    />
+                  </div>
+                </div>
+                <div style={{ marginTop: 10 }}>
+                  <span style={labelStyle}>Estilo de borde</span>
+                  <div style={{ display: "flex", gap: 4 }}>
+                    {(["solid", "dashed", "none"] as const).map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() => onChange(element.id, { borderStyle: s })}
+                        style={{
+                          flex: 1, padding: "5px 0", fontSize: 11,
+                          background: (element.borderStyle ?? "solid") === s ? "#2a1f4d" : "#1e1e2d",
+                          color: (element.borderStyle ?? "solid") === s ? "#a78bfa" : "#8884a8",
+                          border: "1px solid #2a2a3d", borderRadius: 6, cursor: "pointer",
+                          fontFamily: "Inter, system-ui, sans-serif",
+                        }}
+                      >{s}</button>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
             <div style={{ marginTop: 14 }}>
               <span style={labelStyle}>URL demo</span>
               <input

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { saveCanvasDesignV3 } from "./actions";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -38,6 +39,14 @@ interface V3Element {
   // app
   appKind?: "rsvp" | "countdown" | "whatsapp" | "album" | "live" | "maps" | "qr";
 }
+
+type CanvasV3Design = {
+  version: 3;
+  viewport: "mobile";
+  width: number;
+  height: number;
+  elements: V3Element[];
+};
 
 type ToolId =
   | "templates"
@@ -164,6 +173,53 @@ const INITIAL_ELEMENTS: V3Element[] = [
     textAlign: "center",
   },
 ];
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function isV3Element(value: unknown): value is V3Element {
+  if (!isRecord(value)) return false;
+  return (
+    typeof value.id === "string" &&
+    typeof value.type === "string" &&
+    typeof value.x === "number" &&
+    typeof value.y === "number" &&
+    typeof value.width === "number" &&
+    (typeof value.height === "number" || value.height === null) &&
+    typeof value.locked === "boolean" &&
+    typeof value.visible === "boolean" &&
+    typeof value.zIndex === "number"
+  );
+}
+
+function normalizeInitialV3Design(value: unknown): CanvasV3Design | null {
+  if (!isRecord(value)) return null;
+  if (value.version !== 3) return null;
+  if (value.width !== CANVAS_W || value.height !== CANVAS_H) return null;
+  if (!Array.isArray(value.elements)) return null;
+
+  const elements = value.elements.filter(isV3Element);
+  if (elements.length !== value.elements.length) return null;
+
+  return {
+    version: 3,
+    viewport: "mobile",
+    width: CANVAS_W,
+    height: CANVAS_H,
+    elements
+  };
+}
+
+function createV3Design(elements: V3Element[]): CanvasV3Design {
+  return {
+    version: 3,
+    viewport: "mobile",
+    width: CANVAS_W,
+    height: CANVAS_H,
+    elements
+  };
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Sidebar tool icons
@@ -747,12 +803,23 @@ function RightPanel({
 // Main editor
 // ─────────────────────────────────────────────────────────────────────────────
 
-export function CanvasEditorV3() {
-  const [elements, setElements] = useState<V3Element[]>(INITIAL_ELEMENTS);
+type CanvasEditorV3Props = {
+  eventId: string;
+  eventTitle: string;
+  initialDesign?: unknown;
+};
+
+export function CanvasEditorV3({ eventId, eventTitle, initialDesign = null }: CanvasEditorV3Props) {
+  const parsedInitialDesign = normalizeInitialV3Design(initialDesign);
+  const [elements, setElements] = useState<V3Element[]>(
+    () => parsedInitialDesign?.elements ?? INITIAL_ELEMENTS
+  );
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [activeTool, setActiveTool] = useState<ToolId | null>(null);
   const [zoom, setZoom] = useState(0.75);
   const [saved, setSaved] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [preview, setPreview] = useState(false);
 
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -895,9 +962,24 @@ export function CanvasEditorV3() {
     setSelectedId(null);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    setSaveStatus("saving");
+    setSaveError(null);
+
+    const result = await saveCanvasDesignV3(eventId, createV3Design(elements));
+
+    if (!result.ok) {
+      setSaveStatus("error");
+      setSaveError(result.error ?? "No se pudo guardar.");
+      return;
+    }
+
     setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    setSaveStatus("saved");
+    setTimeout(() => {
+      setSaved(false);
+      setSaveStatus("idle");
+    }, 2000);
   };
 
   // ── Responsive: track viewport width to auto-manage inspector ──────────────
@@ -963,7 +1045,7 @@ export function CanvasEditorV3() {
           letterSpacing: "0.02em", overflow: "hidden", textOverflow: "ellipsis",
           whiteSpace: "nowrap",
         }}>
-          Valentina Gómez · Editor V3
+          {eventTitle} · Editor V3
         </div>
 
         {/* Zoom */}
@@ -982,9 +1064,15 @@ export function CanvasEditorV3() {
           {preview ? "✎ Editar" : "👁 Preview"}
         </button>
         <button type="button" onClick={handleSave}
-          style={{ ...topBtnStyle, flexShrink: 0, background: saved ? "#1a3a1a" : "#1e1e2d", color: saved ? "#4ade80" : "#c8c4f0", borderColor: saved ? "#4ade80" : "#2a2a3d" }}>
-          {saved ? "✓ Guardado" : "Guardar"}
+          disabled={saveStatus === "saving"}
+          style={{ ...topBtnStyle, flexShrink: 0, background: saved ? "#1a3a1a" : saveStatus === "error" ? "#3a1a1a" : "#1e1e2d", color: saved ? "#4ade80" : saveStatus === "error" ? "#f87171" : "#c8c4f0", borderColor: saved ? "#4ade80" : saveStatus === "error" ? "#f87171" : "#2a2a3d", opacity: saveStatus === "saving" ? 0.75 : 1 }}>
+          {saveStatus === "saving" ? "Guardando..." : saved ? "✓ Guardado" : saveStatus === "error" ? "Error" : "Guardar"}
         </button>
+        {saveError && (
+          <span style={{ color: "#fca5a5", fontSize: 11, maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {saveError}
+          </span>
+        )}
         <button
           type="button"
           style={{ ...topBtnStyle, flexShrink: 0, background: "linear-gradient(135deg,#7c3aed,#5b21b6)", color: "#fff", borderColor: "transparent" }}

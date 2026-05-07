@@ -399,6 +399,22 @@ function isHexColor(v: string): boolean {
   return /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(v.trim());
 }
 
+type FillMode = "color" | "gradient" | "none";
+function detectFillMode(el: Pick<V3Element, "background" | "config">): FillMode {
+  const bg = el.config?.primaryColor ?? el.background ?? "";
+  if (!bg || bg === "transparent") return "none";
+  if (bg.includes("gradient")) return "gradient";
+  return "color";
+}
+
+function hasBorder(el: Pick<V3Element, "border" | "borderWidth" | "borderStyle">): boolean {
+  if (el.borderWidth !== undefined) return el.borderWidth > 0;
+  if (el.borderStyle === "none") return false;
+  const b = el.border;
+  if (!b || b === "none" || b === "0") return false;
+  return true;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Render a single canvas element
 // ─────────────────────────────────────────────────────────────────────────────
@@ -989,25 +1005,65 @@ function RightPanel({
                 style={inputStyle}
               />
             </div>
+            {/* ── Relleno ── */}
             <div style={{ marginTop: 14 }}>
-              <span style={labelStyle}>Color principal</span>
-              <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                {isHexColor(element.config?.primaryColor ?? element.background ?? "") && (
-                  <input
-                    type="color"
-                    value={(element.config?.primaryColor ?? element.background ?? "#000000").trim()}
-                    onChange={(e) => onChange(element.id, { background: e.target.value, config: { ...(element.config ?? {}), primaryColor: e.target.value } })}
-                    style={{ width: 32, height: 28, padding: 2, borderRadius: 6, border: "1px solid #2a2a3d", background: "none", cursor: "pointer" }}
-                  />
-                )}
-                <input
-                  type="text"
-                  value={element.config?.primaryColor ?? element.background ?? ""}
-                  onChange={(e) => onChange(element.id, { background: e.target.value, config: { ...(element.config ?? {}), primaryColor: e.target.value } })}
-                  style={{ ...inputStyle, flex: 1 }}
-                />
+              <span style={labelStyle}>Relleno</span>
+              {/* Mode tabs */}
+              <div style={{ display: "flex", gap: 4, marginTop: 6 }}>
+                {(["color", "gradient", "none"] as const).map((mode) => {
+                  const active = detectFillMode(element) === mode;
+                  const labels: Record<string, string> = { color: "Color", gradient: "Gradiente", none: "Sin relleno" };
+                  return (
+                    <button
+                      key={mode}
+                      type="button"
+                      onClick={() => {
+                        if (mode === "none") {
+                          onChange(element.id, { background: "transparent", config: { ...(element.config ?? {}), primaryColor: "transparent" } });
+                        } else if (mode === "gradient") {
+                          const cur = element.config?.primaryColor ?? element.background ?? "";
+                          const val = cur.includes("gradient") ? cur : "linear-gradient(135deg,#7c3aed,#5b21b6)";
+                          onChange(element.id, { background: val, config: { ...(element.config ?? {}), primaryColor: val } });
+                        } else {
+                          const cur = element.config?.primaryColor ?? element.background ?? "";
+                          const val = (!cur || cur === "transparent" || cur.includes("gradient")) ? "#7c3aed" : cur;
+                          onChange(element.id, { background: val, config: { ...(element.config ?? {}), primaryColor: val } });
+                        }
+                      }}
+                      style={{
+                        flex: 1, padding: "5px 0", fontSize: 10,
+                        background: active ? "#2a1f4d" : "#1e1e2d",
+                        color: active ? "#a78bfa" : "#8884a8",
+                        border: `1px solid ${active ? "#7c3aed" : "#2a2a3d"}`,
+                        borderRadius: 6, cursor: "pointer",
+                        fontFamily: "Inter, system-ui, sans-serif",
+                      }}
+                    >{labels[mode]}</button>
+                  );
+                })}
               </div>
+              {/* Color / Gradient input */}
+              {detectFillMode(element) !== "none" && (
+                <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 8 }}>
+                  {detectFillMode(element) === "color" && isHexColor(element.config?.primaryColor ?? element.background ?? "") && (
+                    <input
+                      type="color"
+                      value={(element.config?.primaryColor ?? element.background ?? "#7c3aed").trim()}
+                      onChange={(e) => onChange(element.id, { background: e.target.value, config: { ...(element.config ?? {}), primaryColor: e.target.value } })}
+                      style={{ width: 32, height: 28, padding: 2, borderRadius: 6, border: "1px solid #2a2a3d", background: "none", cursor: "pointer" }}
+                    />
+                  )}
+                  <input
+                    type="text"
+                    value={element.config?.primaryColor ?? element.background ?? ""}
+                    placeholder={detectFillMode(element) === "gradient" ? "linear-gradient(135deg,…)" : "#7c3aed"}
+                    onChange={(e) => onChange(element.id, { background: e.target.value, config: { ...(element.config ?? {}), primaryColor: e.target.value } })}
+                    style={{ ...inputStyle, flex: 1 }}
+                  />
+                </div>
+              )}
             </div>
+            {/* ── Color texto ── */}
             <div style={{ marginTop: 14 }}>
               <span style={labelStyle}>Color texto</span>
               <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
@@ -1027,8 +1083,9 @@ function RightPanel({
                 />
               </div>
             </div>
+            {/* ── Esquinas redondeadas ── */}
             <div style={{ marginTop: 14 }}>
-              <span style={labelStyle}>Borde redondeado</span>
+              <span style={labelStyle}>Esquinas redondeadas: {element.borderRadius ?? 16}px</span>
               <input
                 type="range"
                 min={0}
@@ -1039,21 +1096,39 @@ function RightPanel({
                 style={{ width: "100%", accentColor: "#7c3aed" }}
               />
             </div>
-            {/* ── Border controls ── */}
+            {/* ── Contorno ── */}
             <div style={{ marginTop: 14 }}>
-              <span style={labelStyle}>Grosor de borde: {element.borderWidth ?? 0}px</span>
-              <input
-                type="range" min={0} max={12} step={1}
-                value={element.borderWidth ?? 0}
-                onChange={(e) => onChange(element.id, { borderWidth: Number(e.target.value) })}
-                style={{ width: "100%", accentColor: "#7c3aed" }}
-              />
-            </div>
-            {(element.borderWidth ?? 0) > 0 && (
-              <>
-                <div style={{ marginTop: 10 }}>
-                  <span style={labelStyle}>Color de borde</span>
-                  <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                <span style={labelStyle}>Contorno</span>
+                {/* Toggle switch */}
+                <div
+                  onClick={() => {
+                    const on = hasBorder(element);
+                    if (on) {
+                      onChange(element.id, { borderWidth: 0, borderStyle: "none" });
+                    } else {
+                      onChange(element.id, { borderWidth: 1, borderStyle: "solid", borderColor: element.borderColor ?? "#c8a96a" });
+                    }
+                  }}
+                  style={{
+                    width: 36, height: 20, borderRadius: 10, cursor: "pointer", flexShrink: 0,
+                    background: hasBorder(element) ? "#7c3aed" : "#2a2a3d",
+                    position: "relative", transition: "background 0.15s",
+                  }}
+                >
+                  <span style={{
+                    position: "absolute", top: 3,
+                    left: hasBorder(element) ? 18 : 3,
+                    width: 14, height: 14, borderRadius: "50%",
+                    background: "#fff", transition: "left 0.15s",
+                    display: "block",
+                  }} />
+                </div>
+              </div>
+              {hasBorder(element) && (
+                <>
+                  {/* Color de contorno */}
+                  <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 8 }}>
                     {isHexColor(element.borderColor ?? "#c8a96a") && (
                       <input
                         type="color"
@@ -1070,11 +1145,19 @@ function RightPanel({
                       style={{ ...inputStyle, flex: 1 }}
                     />
                   </div>
-                </div>
-                <div style={{ marginTop: 10 }}>
-                  <span style={labelStyle}>Estilo de borde</span>
+                  {/* Grosor */}
+                  <div style={{ marginBottom: 8 }}>
+                    <span style={{ ...labelStyle, fontSize: 10, marginBottom: 4 }}>Grosor: {element.borderWidth ?? 1}px</span>
+                    <input
+                      type="range" min={1} max={12} step={1}
+                      value={element.borderWidth ?? 1}
+                      onChange={(e) => onChange(element.id, { borderWidth: Number(e.target.value) })}
+                      style={{ width: "100%", accentColor: "#7c3aed" }}
+                    />
+                  </div>
+                  {/* Estilo */}
                   <div style={{ display: "flex", gap: 4 }}>
-                    {(["solid", "dashed", "none"] as const).map((s) => (
+                    {(["solid", "dashed"] as const).map((s) => (
                       <button
                         key={s}
                         type="button"
@@ -1086,12 +1169,12 @@ function RightPanel({
                           border: "1px solid #2a2a3d", borderRadius: 6, cursor: "pointer",
                           fontFamily: "Inter, system-ui, sans-serif",
                         }}
-                      >{s}</button>
+                      >{s === "solid" ? "Sólido" : "Punteado"}</button>
                     ))}
                   </div>
-                </div>
-              </>
-            )}
+                </>
+              )}
+            </div>
             <div style={{ marginTop: 14 }}>
               <span style={labelStyle}>URL demo</span>
               <input
@@ -1864,12 +1947,12 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────────────────
 // Shared button style
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────────────────
 // Shared button style
-// ─────────────────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────────────────
 
 const topBtnStyle: React.CSSProperties = {
   padding: "5px 12px",

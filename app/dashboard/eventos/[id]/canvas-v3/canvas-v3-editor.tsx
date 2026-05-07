@@ -85,6 +85,8 @@ type ToolId =
   | "apps"
   | "projects";
 
+type InvitationBlockKind = "date" | "countdown" | "location" | "dresscode" | "message";
+
 type InspectorGroup =
   | "content"
   | "typography"
@@ -675,6 +677,7 @@ function ExpandedPanel({
   onAddText,
   onAddElement,
   onAddApp,
+  onAddInvitationBlock,
   onApplyTheme,
   activeThemeId,
 }: {
@@ -682,6 +685,7 @@ function ExpandedPanel({
   onAddText: (kind: "title" | "subtitle" | "paragraph") => void;
   onAddElement: (kind: string) => void;
   onAddApp: (kind: string) => void;
+  onAddInvitationBlock: (kind: InvitationBlockKind) => void;
   onApplyTheme: (theme: CanvasV3Theme) => void;
   activeThemeId: string;
 }) {
@@ -718,6 +722,13 @@ function ExpandedPanel({
   }
 
   if (tool === "elements") {
+    const invitationBlocks: { id: InvitationBlockKind; icon: string; label: string; description: string }[] = [
+      { id: "date", icon: "◇", label: "Fecha", description: "Día, mes, año y hora" },
+      { id: "countdown", icon: "⏱", label: "Cuenta regresiva", description: "Días, horas y minutos" },
+      { id: "location", icon: "⌖", label: "Ubicación", description: "Lugar, dirección y mapa" },
+      { id: "dresscode", icon: "◐", label: "Vestimenta", description: "Tenida y paleta de colores" },
+      { id: "message", icon: "❞", label: "Mensaje", description: "Frase elegante para invitados" },
+    ];
     const cats = [
       { label: "Formas", items: ["Rectángulo", "Círculo", "Línea"] },
       { label: "Flores", items: ["Rosa", "Flor 1", "Flor 2"] },
@@ -727,6 +738,54 @@ function ExpandedPanel({
     ];
     return (
       <div style={{ padding: "12px 14px", overflowY: "auto", maxHeight: "calc(100vh - 56px)" }}>
+        <div style={{ marginBottom: 16 }}>
+          <p style={{ color: "#c8a96a", fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", margin: "0 0 8px", fontWeight: 800 }}>
+            Bloques de invitación
+          </p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+            {invitationBlocks.map((block) => (
+              <button
+                key={block.id}
+                type="button"
+                onClick={() => onAddInvitationBlock(block.id)}
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "30px 1fr",
+                  gap: 10,
+                  alignItems: "center",
+                  width: "100%",
+                  padding: "10px 12px",
+                  background: "linear-gradient(135deg,rgba(124,58,237,0.16),rgba(200,169,106,0.08))",
+                  border: "1px solid rgba(200,169,106,0.24)",
+                  borderRadius: 12,
+                  cursor: "pointer",
+                  textAlign: "left",
+                  transition: "border-color 0.15s, transform 0.15s",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = "rgba(200,169,106,0.55)";
+                  e.currentTarget.style.transform = "translateY(-1px)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = "rgba(200,169,106,0.24)";
+                  e.currentTarget.style.transform = "translateY(0)";
+                }}
+              >
+                <span style={{ width: 30, height: 30, borderRadius: 10, display: "grid", placeItems: "center", background: "rgba(200,169,106,0.14)", color: "#f4d28a", fontSize: 15 }}>
+                  {block.icon}
+                </span>
+                <span>
+                  <span style={{ display: "block", color: "#e8e6ff", fontSize: 12, fontWeight: 800, fontFamily: "Inter, system-ui, sans-serif" }}>
+                    {block.label}
+                  </span>
+                  <span style={{ display: "block", marginTop: 2, color: "#8884a8", fontSize: 10, lineHeight: 1.25, fontFamily: "Inter, system-ui, sans-serif" }}>
+                    {block.description}
+                  </span>
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
         {cats.map((cat) => (
           <div key={cat.label} style={{ marginBottom: 14 }}>
             <p style={{ color: "#8884a8", fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", margin: "0 0 8px" }}>
@@ -1713,6 +1772,155 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
     setActiveTool(null);
   };
 
+  const addInvitationBlock = (kind: InvitationBlockKind) => {
+    pushHistory(snapshot());
+    const stamp = Date.now();
+    const sectionY = activeSection?.y ?? 0;
+    const baseY = sectionY + 86;
+    const baseZ = elementsRef.current.length;
+    const makeId = (name: string) => `block-${kind}-${name}-${stamp}`;
+    const card = (
+      name: string,
+      x: number,
+      y: number,
+      width: number,
+      height: number,
+      extra: Partial<V3Element> = {}
+    ): V3Element => ({
+      id: makeId(name),
+      type: "decoration",
+      x,
+      y,
+      width,
+      height,
+      locked: false,
+      visible: true,
+      zIndex: baseZ,
+      background: "linear-gradient(135deg,rgba(255,255,255,0.09),rgba(200,169,106,0.08))",
+      border: "1px solid rgba(200,169,106,0.26)",
+      borderRadius: 22,
+      opacity: 1,
+      ...extra,
+    });
+    const text = (
+      name: string,
+      content: string,
+      x: number,
+      y: number,
+      width: number,
+      height: number | null,
+      extra: Partial<V3Element> = {}
+    ): V3Element => ({
+      id: makeId(name),
+      type: "text",
+      x,
+      y,
+      width,
+      height,
+      locked: false,
+      visible: true,
+      zIndex: baseZ + 1,
+      content,
+      fontSize: 14,
+      fontFamily: "Inter, system-ui, sans-serif",
+      fontWeight: "500",
+      color: "#f6ead2",
+      textAlign: "center",
+      lineHeight: 1.35,
+      letterSpacing: 0,
+      textShadow: "0 2px 12px rgba(0,0,0,0.45)",
+      ...extra,
+    });
+    const app = (
+      name: string,
+      appType: V3AppType,
+      content: string,
+      x: number,
+      y: number,
+      width: number,
+      height: number,
+      extra: Partial<V3Element> = {}
+    ): V3Element => ({
+      id: makeId(name),
+      type: "app",
+      x,
+      y,
+      width,
+      height,
+      locked: false,
+      visible: true,
+      zIndex: baseZ + 2,
+      appKind: appType,
+      appType,
+      content,
+      background: "linear-gradient(135deg,#c8a96a,#8f6a2d)",
+      color: "#1a0a18",
+      borderRadius: 16,
+      opacity: 1,
+      config: {
+        url: appType === "maps" ? "https://maps.google.com" : "",
+        primaryColor: "linear-gradient(135deg,#c8a96a,#8f6a2d)",
+        textColor: "#1a0a18",
+      },
+      ...extra,
+    });
+
+    let next: V3Element[] = [];
+
+    if (kind === "date") {
+      next = [
+        card("card", cx(330), baseY, 330, 174),
+        text("eyebrow", "FECHA DEL EVENTO", cx(260), baseY + 22, 260, 18, { fontSize: 10, fontWeight: "800", color: "#c8a96a", letterSpacing: 0.18 }),
+        text("day", "14", cx(94), baseY + 48, 94, 64, { fontSize: 58, fontFamily: "'Playfair Display', Georgia, serif", fontWeight: "500", color: "#fff7ef", lineHeight: 1 }),
+        text("month", "JUNIO 2026", cx(190), baseY + 68, 190, 26, { fontSize: 20, fontFamily: "'Playfair Display', Georgia, serif", fontStyle: "italic", color: "#f4d28a" }),
+        text("time", "20:00 HS", cx(190), baseY + 108, 190, 24, { fontSize: 12, fontWeight: "800", color: "#e8e0cc", letterSpacing: 0.14 }),
+        card("divider", cx(250), baseY + 144, 250, 1, { borderRadius: 0, background: "linear-gradient(90deg,transparent,#c8a96a,transparent)", border: undefined }),
+      ];
+    } else if (kind === "countdown") {
+      next = [
+        card("card", cx(340), baseY, 340, 150, { background: "linear-gradient(135deg,rgba(124,58,237,0.22),rgba(200,169,106,0.08))" }),
+        text("title", "FALTA POCO", cx(240), baseY + 20, 240, 18, { fontSize: 10, fontWeight: "900", color: "#c8a96a", letterSpacing: 0.2 }),
+        text("numbers", "45    12    08", cx(292), baseY + 52, 292, 42, { fontSize: 34, fontWeight: "800", color: "#fff7ef", letterSpacing: 0.05 }),
+        text("labels", "DÍAS        HORAS        MIN", cx(292), baseY + 96, 292, 18, { fontSize: 9, fontWeight: "800", color: "#a78bfa", letterSpacing: 0.12 }),
+        text("caption", "para celebrar juntos", cx(260), baseY + 120, 260, 18, { fontSize: 13, fontFamily: "'Playfair Display', Georgia, serif", fontStyle: "italic", color: "#f4d28a" }),
+      ];
+    } else if (kind === "location") {
+      next = [
+        card("card", cx(340), baseY, 340, 196),
+        text("icon", "⌖", cx(42), baseY + 22, 42, 40, { fontSize: 28, color: "#c8a96a" }),
+        text("label", "UBICACIÓN", cx(230), baseY + 24, 230, 18, { fontSize: 10, fontWeight: "900", color: "#c8a96a", letterSpacing: 0.18 }),
+        text("place", "Salón de eventos", cx(270), baseY + 55, 270, 28, { fontSize: 23, fontFamily: "'Playfair Display', Georgia, serif", fontStyle: "italic", color: "#fff7ef" }),
+        text("address", "Av. principal 123 · Asunción", cx(284), baseY + 92, 284, 34, { fontSize: 13, color: "#d8cfbd", lineHeight: 1.3 }),
+        app("map", "maps", "Ver mapa", cx(220), baseY + 138, 220, 44, { borderRadius: 14 }),
+      ];
+    } else if (kind === "dresscode") {
+      next = [
+        card("card", cx(340), baseY, 340, 178),
+        text("label", "CÓDIGO DE VESTIMENTA", cx(280), baseY + 24, 280, 18, { fontSize: 10, fontWeight: "900", color: "#c8a96a", letterSpacing: 0.16 }),
+        text("title", "Elegante formal", cx(280), baseY + 58, 280, 32, { fontSize: 28, fontFamily: "'Playfair Display', Georgia, serif", fontStyle: "italic", color: "#fff7ef" }),
+        text("hint", "Sugerimos tonos neutros y acentos champagne.", cx(290), baseY + 100, 290, 34, { fontSize: 13, color: "#d8cfbd", lineHeight: 1.35 }),
+        card("swatch-1", cx(96) - 58, baseY + 140, 30, 30, { borderRadius: 999, background: "#f6ead2", border: "1px solid rgba(255,255,255,0.45)" }),
+        card("swatch-2", cx(96) - 18, baseY + 140, 30, 30, { borderRadius: 999, background: "#c8a96a", border: "1px solid rgba(255,255,255,0.25)" }),
+        card("swatch-3", cx(96) + 22, baseY + 140, 30, 30, { borderRadius: 999, background: "#7c3aed", border: "1px solid rgba(255,255,255,0.25)" }),
+      ];
+    } else {
+      next = [
+        card("card", cx(340), baseY, 340, 190, { background: "linear-gradient(135deg,rgba(255,255,255,0.10),rgba(124,58,237,0.10))" }),
+        text("quote-open", "“", cx(40), baseY + 16, 40, 48, { fontSize: 58, fontFamily: "'Playfair Display', Georgia, serif", color: "#c8a96a", lineHeight: 0.9 }),
+        text("message", "Gracias por acompañarnos en una noche tan especial. Tu presencia hace que este momento sea inolvidable.", cx(286), baseY + 56, 286, null, { fontSize: 16, fontFamily: "'Playfair Display', Georgia, serif", fontStyle: "italic", color: "#fff7ef", lineHeight: 1.45 }),
+        text("signature", "Con cariño", cx(220), baseY + 148, 220, 24, { fontSize: 12, fontWeight: "800", color: "#c8a96a", letterSpacing: 0.14 }),
+      ];
+    }
+
+    const selected = next.map((element) => element.id);
+    setElements((prev) => [
+      ...prev,
+      ...next.map((element, index) => ({ ...element, zIndex: baseZ + index })),
+    ]);
+    setSelectedIds(selected);
+    setActiveTool(null);
+  };
+
   const addApp = (kind: string) => {
     pushHistory(snapshot());
     const id = `app-${Date.now()}`;
@@ -2383,6 +2591,7 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
                 onAddText={addText}
                 onAddElement={addElement}
                 onAddApp={addApp}
+                onAddInvitationBlock={addInvitationBlock}
                 onApplyTheme={applyTheme}
                 activeThemeId={themeId}
               />

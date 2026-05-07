@@ -508,7 +508,9 @@ function RightPanel({
   onChange: (id: string, patch: Partial<V3Element>) => void;
 }) {
   const s: React.CSSProperties = {
-    width: 240,
+    width: "100%",
+    height: "100%",
+    minWidth: 0,
     flexShrink: 0,
     background: "#16161f",
     borderLeft: "1px solid #2a2a3d",
@@ -898,8 +900,29 @@ export function CanvasEditorV3() {
     setTimeout(() => setSaved(false), 2000);
   };
 
-  const ICON_SIDEBAR_W = 60;
-  const EXPANDED_PANEL_W = activeTool ? 220 : 0;
+  // ── Responsive: track viewport width to auto-manage inspector ──────────────
+  const [vw, setVw] = useState(() => typeof window !== "undefined" ? window.innerWidth : 1440);
+  const [inspectorOpen, setInspectorOpen] = useState(() =>
+    typeof window !== "undefined" ? window.innerWidth >= 1400 : true
+  );
+
+  useEffect(() => {
+    const onResize = () => {
+      const w = window.innerWidth;
+      setVw(w);
+      if (w < 1400) setInspectorOpen(false);
+      else setInspectorOpen(true);
+    };
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
+  const ICON_SIDEBAR_W = 72;
+  const EXPANDED_PANEL_W = 260;
+  // Inspector width: 320px on wide screens, 280px on laptop
+  const INSPECTOR_W = vw >= 1600 ? 320 : 280;
+  // On laptop and smaller screens inspector renders as overlay drawer
+  const inspectorIsOverlay = vw < 1400;
 
   // ─────────────────────────────────────────────────────────────────────────
   // Render
@@ -907,7 +930,7 @@ export function CanvasEditorV3() {
   return (
     <div style={{
       display: "flex", flexDirection: "column",
-      height: "100vh", width: "100vw",
+      height: "100vh", width: "100%", maxWidth: "100vw", minWidth: 0,
       background: "#0f0f17", overflow: "hidden",
       fontFamily: "Inter, system-ui, sans-serif",
     }}>
@@ -917,17 +940,17 @@ export function CanvasEditorV3() {
         background: "#16161f",
         borderBottom: "1px solid #2a2a3d",
         display: "flex", alignItems: "center",
-        padding: "0 16px", gap: 12, zIndex: 50,
+        padding: "0 16px", gap: 10, zIndex: 50,
+        minWidth: 0,
       }}>
         {/* Back */}
         <a
           href="../"
           style={{
-            display: "flex", alignItems: "center", gap: 6,
+            display: "flex", alignItems: "center", gap: 5,
             color: "#9898b8", fontSize: 12, textDecoration: "none",
-            padding: "5px 10px", borderRadius: 8,
+            padding: "5px 10px", borderRadius: 8, flexShrink: 0,
             border: "1px solid #2a2a3d", background: "#1e1e2d",
-            transition: "color 0.15s",
           }}
         >
           ← Volver
@@ -935,46 +958,64 @@ export function CanvasEditorV3() {
 
         {/* Event name */}
         <div style={{
-          flex: 1, textAlign: "center",
+          flex: 1, textAlign: "center", minWidth: 0,
           color: "#c8c4f0", fontSize: 13, fontWeight: "600",
-          letterSpacing: "0.02em",
+          letterSpacing: "0.02em", overflow: "hidden", textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
         }}>
           Valentina Gómez · Editor V3
         </div>
 
         {/* Zoom */}
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
           <button type="button" onClick={() => setZoom(z => Math.max(0.3, +(z - 0.1).toFixed(1)))}
-            style={{ ...topBtnStyle, padding: "4px 8px", fontSize: 16 }}>−</button>
-          <span style={{ color: "#8884a8", fontSize: 11, minWidth: 36, textAlign: "center" }}>
+            style={{ ...topBtnStyle, padding: "4px 8px", fontSize: 15 }}>−</button>
+          <span style={{ color: "#8884a8", fontSize: 11, minWidth: 32, textAlign: "center" }}>
             {Math.round(zoom * 100)}%
           </span>
           <button type="button" onClick={() => setZoom(z => Math.min(2, +(z + 0.1).toFixed(1)))}
-            style={{ ...topBtnStyle, padding: "4px 8px", fontSize: 16 }}>+</button>
+            style={{ ...topBtnStyle, padding: "4px 8px", fontSize: 15 }}>+</button>
         </div>
 
         {/* Actions */}
-        <button type="button" onClick={() => setPreview(!preview)} style={topBtnStyle}>
+        <button type="button" onClick={() => setPreview(!preview)} style={{ ...topBtnStyle, flexShrink: 0 }}>
           {preview ? "✎ Editar" : "👁 Preview"}
         </button>
         <button type="button" onClick={handleSave}
-          style={{ ...topBtnStyle, background: saved ? "#1a3a1a" : "#1e1e2d", color: saved ? "#4ade80" : "#c8c4f0", borderColor: saved ? "#4ade80" : "#2a2a3d" }}>
-          {saved ? "✓ Guardado" : "Guardar demo"}
+          style={{ ...topBtnStyle, flexShrink: 0, background: saved ? "#1a3a1a" : "#1e1e2d", color: saved ? "#4ade80" : "#c8c4f0", borderColor: saved ? "#4ade80" : "#2a2a3d" }}>
+          {saved ? "✓ Guardado" : "Guardar"}
         </button>
         <button
           type="button"
-          style={{ ...topBtnStyle, background: "linear-gradient(135deg,#7c3aed,#5b21b6)", color: "#fff", borderColor: "transparent" }}
+          style={{ ...topBtnStyle, flexShrink: 0, background: "linear-gradient(135deg,#7c3aed,#5b21b6)", color: "#fff", borderColor: "transparent" }}
         >
-          Publicar demo
+          Publicar
         </button>
+
+        {/* Inspector toggle (always visible in top bar for small screens) */}
+        {vw < 1400 && (
+          <button
+            type="button"
+            title={inspectorOpen ? "Cerrar inspector" : "Propiedades"}
+            onClick={() => setInspectorOpen(o => !o)}
+            style={{
+              ...topBtnStyle, flexShrink: 0,
+              background: inspectorOpen ? "#2a1f4d" : "#1e1e2d",
+              color: inspectorOpen ? "#a78bfa" : "#8884a8",
+              borderColor: inspectorOpen ? "#7c3aed" : "#2a2a3d",
+            }}
+          >
+            Propiedades
+          </button>
+        )}
       </div>
 
       {/* ── BODY ── */}
-      <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+      <div style={{ flex: 1, display: "flex", overflow: "hidden", minWidth: 0, position: "relative" }}>
 
         {/* ── ICON SIDEBAR ── */}
         <div style={{
-          width: ICON_SIDEBAR_W, flexShrink: 0,
+          width: ICON_SIDEBAR_W, minWidth: ICON_SIDEBAR_W, flexShrink: 0,
           background: "#16161f",
           borderRight: "1px solid #2a2a3d",
           display: "flex", flexDirection: "column",
@@ -989,7 +1030,7 @@ export function CanvasEditorV3() {
                 onClick={() => setActiveTool(active ? null : tool.id)}
                 title={tool.label}
                 style={{
-                  width: 48, height: 48, borderRadius: 10,
+                  width: 52, height: 52, borderRadius: 10,
                   background: active ? "#2a1f4d" : "transparent",
                   border: active ? "1px solid #7c3aed" : "1px solid transparent",
                   cursor: "pointer", color: active ? "#a78bfa" : "#8884a8",
@@ -1029,13 +1070,14 @@ export function CanvasEditorV3() {
         {/* ── EXPANDED PANEL ── */}
         {activeTool && (
           <div style={{
-            width: EXPANDED_PANEL_W, flexShrink: 0,
+            width: EXPANDED_PANEL_W, maxWidth: EXPANDED_PANEL_W, minWidth: 0, flexShrink: 0,
             background: "#16161f",
             borderRight: "1px solid #2a2a3d",
             overflowY: "auto", zIndex: 40,
+            display: "flex", flexDirection: "column",
           }}>
             <div style={{
-              padding: "14px 14px 10px",
+              padding: "14px 14px 10px", flexShrink: 0,
               borderBottom: "1px solid #2a2a3d",
               display: "flex", justifyContent: "space-between", alignItems: "center",
             }}>
@@ -1050,26 +1092,33 @@ export function CanvasEditorV3() {
                 ✕
               </button>
             </div>
-            <ExpandedPanel
-              tool={activeTool}
-              onAddText={addText}
-              onAddElement={addElement}
-              onAddApp={addApp}
-            />
+            <div style={{ flex: 1, overflowY: "auto" }}>
+              <ExpandedPanel
+                tool={activeTool}
+                onAddText={addText}
+                onAddElement={addElement}
+                onAddApp={addApp}
+              />
+            </div>
           </div>
         )}
 
         {/* ── CANVAS AREA ── */}
         <div
           style={{
-            flex: 1, overflow: "auto",
+            flex: 1, minWidth: 0, overflow: "auto",
             display: "flex", alignItems: "flex-start", justifyContent: "center",
-            padding: "40px 20px",
+            padding: vw < 1400 ? "24px 12px" : "36px 24px",
             background: "#111118",
           }}
           onClick={() => setSelectedId(null)}
         >
-          <div style={{ transform: `scale(${zoom})`, transformOrigin: "top center", flexShrink: 0 }}>
+          {/* Wrapper preserves natural canvas size before scaling */}
+          <div style={{
+            flexShrink: 0,
+            transform: `scale(${zoom})`,
+            transformOrigin: "top center",
+          }}>
             {/* Canvas container */}
             <div
               ref={canvasRef}
@@ -1082,7 +1131,6 @@ export function CanvasEditorV3() {
                 boxShadow: "0 32px 80px rgba(0,0,0,0.6), 0 0 0 1px #2a2a3d",
               }}
             >
-              {/* Render elements sorted by zIndex */}
               {[...elements]
                 .filter((el) => el.visible)
                 .sort((a, b) => a.zIndex - b.zIndex)
@@ -1097,19 +1145,17 @@ export function CanvasEditorV3() {
                   />
                 ))}
 
-              {/* Preview overlay hint */}
               {preview && (
                 <div style={{
                   position: "absolute", bottom: 12, left: "50%", transform: "translateX(-50%)",
-                  background: "rgba(0,0,0,0.7)", borderRadius: 20, padding: "4px 12px",
-                  color: "#c8a96a", fontSize: 10, letterSpacing: "0.1em", pointerEvents: "none",
+                  background: "rgba(0,0,0,0.72)", borderRadius: 20, padding: "4px 14px",
+                  color: "#c8a96a", fontSize: 10, letterSpacing: "0.12em", pointerEvents: "none",
                 }}>
                   MODO PREVIEW
                 </div>
               )}
             </div>
 
-            {/* Canvas size label */}
             <p style={{
               textAlign: "center", marginTop: 10,
               color: "#4a4a6a", fontSize: 10, letterSpacing: "0.08em",
@@ -1120,8 +1166,56 @@ export function CanvasEditorV3() {
           </div>
         </div>
 
-        {/* ── RIGHT PANEL ── */}
-        <RightPanel element={selected && !preview ? selected : null} onChange={patchElement} />
+        {/* ── RIGHT INSPECTOR — inline on ≥1400px, overlay drawer on laptop/mobile ── */}
+        {inspectorOpen && inspectorIsOverlay && (
+          /* Backdrop for drawer */
+          <div
+            style={{
+              position: "absolute", inset: 0, zIndex: 49,
+              background: "rgba(0,0,0,0.45)",
+            }}
+            onClick={() => setInspectorOpen(false)}
+          />
+        )}
+
+        {inspectorOpen && (
+          <div style={{
+            position: inspectorIsOverlay ? "absolute" : "relative",
+            top: inspectorIsOverlay ? 0 : undefined,
+            right: inspectorIsOverlay ? 0 : undefined,
+            bottom: inspectorIsOverlay ? 0 : undefined,
+            width: INSPECTOR_W,
+            minWidth: INSPECTOR_W,
+            height: "100%",
+            flexShrink: 0, zIndex: 50,
+            boxShadow: inspectorIsOverlay ? "-24px 0 60px rgba(0,0,0,0.45)" : undefined,
+            transition: "width 0.2s",
+          }}>
+            <RightPanel element={selected && !preview ? selected : null} onChange={patchElement} />
+          </div>
+        )}
+
+        {/* Floating toggle when inspector is closed (≥1400px) */}
+        {!inspectorOpen && !inspectorIsOverlay && (
+          <button
+            type="button"
+            title="Abrir propiedades"
+            onClick={() => setInspectorOpen(true)}
+            style={{
+              position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)",
+              zIndex: 45, width: 28, height: 64, borderRadius: 8,
+              background: "#1e1e2d", border: "1px solid #2a2a3d",
+              cursor: "pointer", color: "#8884a8", fontSize: 10,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              writingMode: "vertical-rl",
+              transition: "all 0.15s",
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = "#a78bfa"; e.currentTarget.style.borderColor = "#7c3aed"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = "#8884a8"; e.currentTarget.style.borderColor = "#2a2a3d"; }}
+          >
+            Props
+          </button>
+        )}
       </div>
     </div>
   );

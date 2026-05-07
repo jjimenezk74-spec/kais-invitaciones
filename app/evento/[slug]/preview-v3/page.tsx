@@ -97,12 +97,21 @@ export default async function PreviewV3Page({ params }: Props) {
 
     if (!data) notFound();
 
+    // ── diagnostic log (temporary) ──────────────────────────────────────────
+    const rawDesign = data.canvas_design as Record<string, unknown> | null | undefined;
+    const rawType = rawDesign === null ? "null" : typeof rawDesign;
+    const sectionsCount = Array.isArray(rawDesign?.sections) ? rawDesign!.sections.length : -1;
+    const elementsCount = Array.isArray(rawDesign?.elements) ? rawDesign!.elements.length : -1;
+
     let design = null;
     try {
       design = normalizePublicV3Design(data.canvas_design);
     } catch (normErr) {
       console.error("[preview-v3] normalize error", normErr);
     }
+
+    const normalizedSectionsCount = design?.sections.length ?? -1;
+    console.log("[preview-v3]", { slug, rawType, sectionsCount, elementsCount, normalizedSectionsCount, designNull: design === null });
 
     if (!design) return noDesignUI(slug);
 

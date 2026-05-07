@@ -69,42 +69,80 @@ function isRecord(v: unknown): v is Record<string, unknown> {
 }
 
 export function normalizePublicV3Design(value: unknown): CanvasV3Design | null {
-  if (!isRecord(value)) return null;
-  if (value.version !== 3) return null;
-  if (typeof value.width !== "number" || value.width !== 390) return null;
-  if (typeof value.height !== "number") return null;
-  if (!Array.isArray(value.elements) || value.elements.length === 0) return null;
-  if (!Array.isArray(value.sections) || value.sections.length === 0) return null;
+  try {
+    if (!isRecord(value)) return null;
+    if (value.version !== 3) return null;
+    // Width must be 390, but be lenient about the exact check in case of minor rounding
+    const w = Number(value.width);
+    if (!Number.isFinite(w) || w < 380 || w > 400) return null;
+    const h = Number(value.height);
+    if (!Number.isFinite(h) || h <= 0) return null;
+    if (!Array.isArray(value.elements)) return null;
+    if (!Array.isArray(value.sections)) return null;
 
-  const elements = (value.elements as unknown[]).filter(
-    (e): e is V3Element =>
-      isRecord(e) &&
-      typeof e.id === "string" &&
-      typeof e.x === "number" &&
-      typeof e.y === "number" &&
-      typeof e.width === "number" &&
-      typeof e.zIndex === "number"
-  );
+    const elements = (value.elements as unknown[]).reduce<V3Element[]>((acc, e) => {
+      try {
+        if (
+          isRecord(e) &&
+          typeof e.id === "string" &&
+          Number.isFinite(Number(e.x)) &&
+          Number.isFinite(Number(e.y)) &&
+          Number.isFinite(Number(e.width))
+        ) {
+          acc.push({
+            ...(e as unknown as V3Element),
+            id: String(e.id),
+            type: (["text", "shape", "app", "decoration"].includes(e.type as string)
+              ? e.type
+              : "shape") as V3Element["type"],
+            x: Number(e.x),
+            y: Number(e.y),
+            width: Math.max(1, Number(e.width)),
+            height: e.height != null && Number.isFinite(Number(e.height)) ? Number(e.height) : null,
+            locked: Boolean(e.locked),
+            visible: e.visible !== false,
+            zIndex: Number.isFinite(Number(e.zIndex)) ? Number(e.zIndex) : 0,
+          });
+        }
+      } catch { /* skip malformed element */ }
+      return acc;
+    }, []);
 
-  const sections = (value.sections as unknown[]).filter(
-    (s): s is V3Section =>
-      isRecord(s) &&
-      typeof s.id === "string" &&
-      typeof s.y === "number" &&
-      typeof s.height === "number"
-  );
+    const sections = (value.sections as unknown[]).reduce<V3Section[]>((acc, s) => {
+      try {
+        if (
+          isRecord(s) &&
+          typeof s.id === "string" &&
+          Number.isFinite(Number(s.y)) &&
+          Number.isFinite(Number(s.height))
+        ) {
+          acc.push({
+            id: String(s.id),
+            label: typeof s.label === "string" ? s.label : String(s.id),
+            y: Number(s.y),
+            height: Math.max(1, Number(s.height)),
+            background: typeof s.background === "string" ? s.background : "#0f0f17",
+          });
+        }
+      } catch { /* skip malformed section */ }
+      return acc;
+    }, []);
 
-  if (!elements.length || !sections.length) return null;
+    // Need at least one section to render anything meaningful
+    if (!sections.length) return null;
 
-  return {
-    version: 3,
-    viewport: "mobile",
-    width: 390,
-    height: value.height as number,
-    themeId: typeof value.themeId === "string" ? value.themeId : "kais-luxury",
-    sections,
-    elements,
-  };
+    return {
+      version: 3,
+      viewport: "mobile",
+      width: 390,
+      height: h,
+      themeId: typeof value.themeId === "string" ? value.themeId : "kais-luxury",
+      sections,
+      elements,
+    };
+  } catch {
+    return null;
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -141,16 +179,22 @@ function PublicElement({ el, eventSlug }: { el: V3Element; eventSlug?: string })
 
   const appType = el.type === "app" ? resolveAppType(el) : null;
 
+  // Sanitise numeric values so bad data can't produce invalid CSS
+  const safeNum = (v: unknown, fallback: number) =>
+    Number.isFinite(Number(v)) ? Number(v) : fallback;
+
   const boxStyle: React.CSSProperties = {
     position: "absolute",
-    left: el.x,
-    top: el.y,
-    width: el.width,
-    height: el.height ?? "auto",
-    zIndex: el.zIndex,
-    opacity: el.opacity ?? 1,
-    borderRadius: el.borderRadius,
-    border: el.border,
+    left: safeNum(el.x, 0),
+    top: safeNum(el.y, 0),
+    width: Math.max(1, safeNum(el.width, 100)),
+    height: el.height != null && Number.isFinite(Number(el.height))
+      ? Math.max(1, Number(el.height))
+      : "auto",
+    zIndex: safeNum(el.zIndex, 0),
+    opacity: Math.min(1, Math.max(0, safeNum(el.opacity, 1))),
+    borderRadius: el.borderRadius != null ? safeNum(el.borderRadius, 0) : undefined,
+    border: typeof el.border === "string" ? el.border : undefined,
     overflow: "hidden",
   };
 
@@ -362,6 +406,30 @@ function QrBlock({ el }: { el: V3Element }) {
 // Main public renderer
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ─────────────────────────────────────────────────────────────────────────────
+// SafeElement — silently swallows render errors for a single element
+// ─────────────────────────────────────────────────────────────────────────────
+
+class SafeElement extends React.Component<
+  { el: V3Element; eventSlug?: string },
+  { crashed: boolean }
+> {
+  constructor(props: { el: V3Element; eventSlug?: string }) {
+    super(props);
+    this.state = { crashed: false };
+  }
+  static getDerivedStateFromError() {
+    return { crashed: true };
+  }
+  componentDidCatch(err: unknown) {
+    console.warn("[preview-v3] element render error", err);
+  }
+  render() {
+    if (this.state.crashed) return null;
+    return <PublicElement el={this.props.el} eventSlug={this.props.eventSlug} />;
+  }
+}
+
 export interface CanvasV3PublicRendererProps {
   design: CanvasV3Design;
   eventTitle?: string;
@@ -382,18 +450,29 @@ export function CanvasV3PublicRenderer({
   // Scale canvas to fit container width
   useEffect(() => {
     const update = () => {
-      if (!wrapperRef.current) return;
-      const containerW = wrapperRef.current.clientWidth;
-      setScale(Math.min(1, containerW / CANVAS_W));
+      try {
+        if (!wrapperRef.current) return;
+        const containerW = wrapperRef.current.clientWidth;
+        if (containerW > 0) setScale(Math.min(1, containerW / CANVAS_W));
+      } catch { /* ignore */ }
     };
     update();
-    const ro = new ResizeObserver(update);
-    if (wrapperRef.current) ro.observe(wrapperRef.current);
-    return () => ro.disconnect();
+    try {
+      const ro = new ResizeObserver(update);
+      if (wrapperRef.current) ro.observe(wrapperRef.current);
+      return () => ro.disconnect();
+    } catch {
+      return undefined;
+    }
   }, []);
 
   const sortedElements = [...design.elements].sort((a, b) => a.zIndex - b.zIndex);
-  const documentHeight = design.height;
+  const documentHeight = Math.max(
+    1,
+    design.height > 0
+      ? design.height
+      : design.sections.reduce((max, s) => Math.max(max, s.y + s.height), 1)
+  );
 
   return (
     <div
@@ -424,7 +503,7 @@ export function CanvasV3PublicRenderer({
             textAlign: "center",
           }}
         >
-          VISTA PREVIA · {eventTitle ?? "Canvas V3"}
+          VISTA PREVIA \u00b7 {eventTitle ?? "Canvas V3"}
         </div>
       )}
 
@@ -467,7 +546,7 @@ export function CanvasV3PublicRenderer({
           }}
         >
           {sortedElements.map((el) => (
-            <PublicElement key={el.id} el={el} eventSlug={eventSlug} />
+            <SafeElement key={el.id} el={el} eventSlug={eventSlug} />
           ))}
         </div>
       </div>

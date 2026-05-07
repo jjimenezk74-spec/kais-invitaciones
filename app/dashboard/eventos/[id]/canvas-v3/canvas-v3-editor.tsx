@@ -1145,7 +1145,7 @@ export function CanvasEditorV3({ eventId, eventTitle, initialDesign = null }: Ca
     return () => { window.removeEventListener("mousemove", onMove); window.removeEventListener("mouseup", onUp); };
   }, [zoom]);
 
-  // ── Add elements ────────────────────────────────────────────────────────────
+  // ── Add elements ────────────────────────────────────────────────────────────────────────────
   const addText = (kind: "title" | "subtitle" | "paragraph") => {
     const id = `text-${Date.now()}`;
     const sectionY = activeSection?.y ?? 0;
@@ -1333,9 +1333,9 @@ export function CanvasEditorV3({ eventId, eventTitle, initialDesign = null }: Ca
   // On laptop and smaller screens inspector renders as overlay drawer
   const inspectorIsOverlay = vw < 1400;
 
-  // ─────────────────────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────────────────────
   // Render
-  // ─────────────────────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────────────────────
   return (
     <div style={{
       display: "flex", flexDirection: "column",

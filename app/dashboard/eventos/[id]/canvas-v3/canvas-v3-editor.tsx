@@ -1447,7 +1447,8 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
-  const ICON_SIDEBAR_W = 72;
+  const ICON_SIDEBAR_W = 84;
+  const STRUCTURE_PANEL_W = 168;
   const EXPANDED_PANEL_W = 260;
   // Inspector width: 320px on wide screens, 280px on laptop
   const INSPECTOR_W = vw >= 1600 ? 320 : 280;
@@ -1581,10 +1582,140 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
       <div style={{ flex: 1, display: "flex", overflow: "hidden", minWidth: 0, position: "relative" }}>
 
         {/* -- LEFT SIDEBAR -- */}
-        <div style={{ width: ICON_SIDEBAR_W, minWidth: ICON_SIDEBAR_W, flexShrink: 0, background: "#16161f", borderRight: "1px solid #2a2a3d", display: "flex", flexDirection: "column", alignItems: "center", padding: "10px 6px", gap: 10, zIndex: 40, overflowY: "auto" }}>
-          <div style={{ width: "100%" }}><p style={{ color: "#6f6b8f", fontSize: 8, fontWeight: 800, letterSpacing: "0.12em", textTransform: "uppercase", textAlign: "center", margin: "0 0 8px" }}>Biblioteca</p><div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "center" }}>{TOOLS.filter((tool) => tool.id !== "projects").map((tool) => { const active = activeTool === tool.id; return <button key={tool.id} type="button" onClick={() => setActiveTool(active ? null : tool.id)} title={tool.label} style={{ width: 56, minHeight: 54, borderRadius: 14, background: active ? "linear-gradient(135deg,rgba(124,58,237,0.28),rgba(200,169,106,0.12))" : "#1b1b28", border: active ? "1px solid #7c3aed" : "1px solid #2a2a3d", cursor: "pointer", color: active ? "#f4f1ff" : "#9b96bd", fontSize: 18, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 3, boxShadow: active ? "0 8px 20px rgba(124,58,237,0.22)" : "none", transition: "all 0.15s" }}><span style={{ lineHeight: 1 }}>{tool.icon}</span><span style={{ fontSize: 8, letterSpacing: "0.04em", lineHeight: 1.1 }}>{tool.label}</span></button>; })}</div></div>
-          <div style={{ width: "100%", height: 1, background: "#2a2a3d" }} />
-          <div style={{ width: "100%" }}><p style={{ color: "#6f6b8f", fontSize: 8, fontWeight: 800, letterSpacing: "0.12em", textTransform: "uppercase", textAlign: "center", margin: "0 0 8px" }}>Estructura</p><div style={{ display: "flex", flexDirection: "column", gap: 7, alignItems: "center" }}>{sections.map((section) => { const active = section.id === activeSectionId; const count = countSectionElements(section); return <button key={section.id} type="button" title={section.label + " ? " + count + " elementos"} onClick={() => { scrollToSection(section); setSelectedId(null); }} style={{ width: 60, minHeight: 64, borderRadius: 12, border: active ? "1px solid #c8a96a" : "1px solid #2a2a3d", background: active ? "rgba(200,169,106,0.14)" : "#1b1b28", color: active ? "#f4d28a" : "#9b96bd", cursor: "pointer", padding: 5, display: "flex", flexDirection: "column", alignItems: "center", gap: 4, boxShadow: active ? "0 8px 22px rgba(200,169,106,0.12)" : "none", fontFamily: "Inter, system-ui, sans-serif" }}><span style={{ width: 44, height: 22, borderRadius: 7, background: section.background, border: "1px solid rgba(255,255,255,0.10)", boxShadow: "inset 0 0 18px rgba(0,0,0,0.25)" }} /><span style={{ fontSize: 8, fontWeight: 800, lineHeight: 1.05, maxWidth: 50, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{section.label}</span><span style={{ fontSize: 8, color: active ? "#fff0c2" : "#6f6b8f" }}>{count} elem.</span></button>; })}<button type="button" title="Agregar secci?n" onClick={addDemoSection} style={{ width: 60, minHeight: 42, borderRadius: 12, border: "1px dashed rgba(124,58,237,0.65)", background: "rgba(124,58,237,0.12)", color: "#c4b5fd", cursor: "pointer", fontSize: 9, fontWeight: 800, letterSpacing: "0.04em", fontFamily: "Inter, system-ui, sans-serif", lineHeight: 1.2 }}>+ Agregar</button></div></div>
+        <div style={{
+          width: ICON_SIDEBAR_W,
+          minWidth: ICON_SIDEBAR_W,
+          flexShrink: 0,
+          background: "#16161f",
+          borderRight: "1px solid #2a2a3d",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          padding: "12px 8px",
+          gap: 10,
+          zIndex: 40,
+          overflowY: "auto",
+        }}>
+          <p style={{ color: "#6f6b8f", fontSize: 8, fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase", textAlign: "center", margin: "0 0 2px", width: "100%" }}>
+            Biblioteca
+          </p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 7, alignItems: "center", width: "100%" }}>
+            {TOOLS.filter((tool) => tool.id !== "projects").map((tool) => {
+              const active = activeTool === tool.id;
+              return (
+                <button
+                  key={tool.id}
+                  type="button"
+                  onClick={() => setActiveTool(active ? null : tool.id)}
+                  title={tool.label}
+                  style={{
+                    width: 64,
+                    minHeight: 56,
+                    borderRadius: 14,
+                    background: active ? "linear-gradient(135deg,rgba(124,58,237,0.28),rgba(200,169,106,0.12))" : "#1b1b28",
+                    border: active ? "1px solid #7c3aed" : "1px solid #2a2a3d",
+                    cursor: "pointer",
+                    color: active ? "#f4f1ff" : "#9b96bd",
+                    fontSize: 18,
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 3,
+                    boxShadow: active ? "0 8px 20px rgba(124,58,237,0.22)" : "none",
+                    transition: "all 0.15s",
+                  }}
+                >
+                  <span style={{ lineHeight: 1 }}>{tool.icon}</span>
+                  <span style={{ fontSize: 8, letterSpacing: "0.03em", lineHeight: 1.1 }}>{tool.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* -- STRUCTURE PANEL -- */}
+        <div style={{
+          width: STRUCTURE_PANEL_W,
+          minWidth: STRUCTURE_PANEL_W,
+          flexShrink: 0,
+          background: "#14141f",
+          borderRight: "1px solid #2a2a3d",
+          padding: "12px 10px",
+          overflowY: "auto",
+          zIndex: 39,
+        }}>
+          <p style={{ color: "#8c86ad", fontSize: 10, fontWeight: 850, letterSpacing: "0.12em", textTransform: "uppercase", margin: "0 0 12px" }}>
+            Estructura
+          </p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
+            {sections.map((section) => {
+              const active = section.id === activeSectionId;
+              const count = countSectionElements(section);
+              return (
+                <button
+                  key={section.id}
+                  type="button"
+                  title={section.label + " - " + count + " elementos"}
+                  onClick={() => { scrollToSection(section); setSelectedId(null); }}
+                  style={{
+                    width: "100%",
+                    minHeight: 76,
+                    borderRadius: 14,
+                    border: active ? "1px solid #c8a96a" : "1px solid #2a2a3d",
+                    background: active ? "rgba(200,169,106,0.14)" : "#1b1b28",
+                    color: active ? "#f4d28a" : "#b3aecf",
+                    cursor: "pointer",
+                    padding: 8,
+                    display: "grid",
+                    gridTemplateColumns: "52px 1fr",
+                    alignItems: "center",
+                    gap: 10,
+                    boxShadow: active ? "0 10px 24px rgba(200,169,106,0.12)" : "none",
+                    fontFamily: "Inter, system-ui, sans-serif",
+                    textAlign: "left",
+                  }}
+                >
+                  <span style={{
+                    width: 52,
+                    height: 52,
+                    borderRadius: 10,
+                    background: section.background,
+                    border: "1px solid rgba(255,255,255,0.10)",
+                    boxShadow: "inset 0 0 22px rgba(0,0,0,0.3)",
+                  }} />
+                  <span style={{ minWidth: 0 }}>
+                    <span style={{ display: "block", fontSize: 11, fontWeight: 800, lineHeight: 1.15, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {section.label}
+                    </span>
+                    <span style={{ display: "block", marginTop: 5, fontSize: 10, color: active ? "#fff0c2" : "#6f6b8f" }}>
+                      {count} elementos
+                    </span>
+                  </span>
+                </button>
+              );
+            })}
+            <button
+              type="button"
+              title="Agregar seccion"
+              onClick={addDemoSection}
+              style={{
+                width: "100%",
+                minHeight: 44,
+                borderRadius: 13,
+                border: "1px dashed rgba(124,58,237,0.65)",
+                background: "rgba(124,58,237,0.12)",
+                color: "#c4b5fd",
+                cursor: "pointer",
+                fontSize: 11,
+                fontWeight: 800,
+                letterSpacing: "0.04em",
+                fontFamily: "Inter, system-ui, sans-serif",
+              }}
+            >
+              + Agregar seccion
+            </button>
+          </div>
         </div>
 
         {/* ── EXPANDED PANEL ── */}

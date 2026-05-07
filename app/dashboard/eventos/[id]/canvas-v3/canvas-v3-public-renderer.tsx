@@ -480,18 +480,28 @@ class SafeElement extends React.Component<
 }
 
 export interface CanvasV3PublicRendererProps {
-  design: CanvasV3Design;
+  design: unknown; // acepta raw desde DB; normaliza internamente
   eventTitle?: string;
   eventSlug?: string;
   mode?: "preview" | "public";
 }
 
 export function CanvasV3PublicRenderer({
-  design,
+  design: rawProp,
   eventTitle,
   eventSlug,
   mode = "public",
 }: CanvasV3PublicRendererProps) {
+  // Normalizar siempre internamente — nunca bloqueado desde afuera
+  const design: CanvasV3Design = normalizePublicV3Design(rawProp) ?? {
+    version: 3,
+    viewport: "mobile",
+    width: 390,
+    height: 844,
+    themeId: "kais-luxury",
+    sections: [DEFAULT_SECTION],
+    elements: [],
+  };
   const CANVAS_W = 390;
   const wrapperRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);

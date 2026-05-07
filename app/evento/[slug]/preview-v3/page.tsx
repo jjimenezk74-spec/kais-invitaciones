@@ -1,16 +1,13 @@
 import { notFound } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
-import {
-  CanvasV3PublicRenderer,
-  normalizePublicV3Design,
-} from "@/app/dashboard/eventos/[id]/canvas-v3/canvas-v3-public-renderer";
+import { CanvasV3PublicRenderer } from "@/app/dashboard/eventos/[id]/canvas-v3/canvas-v3-public-renderer";
 
 type Props = { params: Promise<{ slug: string }> };
 
 export async function generateMetadata({ params }: Props) {
   try {
     const { slug } = await params;
-    return { title: `Preview V3 · ${slug}` };
+    return { title: `Preview V3 \xc2\xb7 ${slug}` };
   } catch {
     return { title: "Preview V3" };
   }
@@ -97,23 +94,24 @@ export default async function PreviewV3Page({ params }: Props) {
 
     if (!data) notFound();
 
-    // ── diagnostic log (temporary) ──────────────────────────────────────────
-    const rawDesign = data.canvas_design as Record<string, unknown> | null | undefined;
+    // ── Guard: solo rechazar si canvas_design no es un objeto ──────────────
+    const rawDesign = data.canvas_design;
     const rawType = rawDesign === null ? "null" : typeof rawDesign;
-    const sectionsCount = Array.isArray(rawDesign?.sections) ? rawDesign!.sections.length : -1;
-    const elementsCount = Array.isArray(rawDesign?.elements) ? rawDesign!.elements.length : -1;
+    const asObj =
+      rawDesign && typeof rawDesign === "object" && !Array.isArray(rawDesign)
+        ? (rawDesign as Record<string, unknown>)
+        : null;
+    const sectionsCount =
+      asObj && Array.isArray(asObj.sections)
+        ? (asObj.sections as unknown[]).length
+        : -1;
+    const elementsCount =
+      asObj && Array.isArray(asObj.elements)
+        ? (asObj.elements as unknown[]).length
+        : -1;
+    console.log("[preview-v3]", { slug, rawType, sectionsCount, elementsCount });
 
-    let design = null;
-    try {
-      design = normalizePublicV3Design(data.canvas_design);
-    } catch (normErr) {
-      console.error("[preview-v3] normalize error", normErr);
-    }
-
-    const normalizedSectionsCount = design?.sections.length ?? -1;
-    console.log("[preview-v3]", { slug, rawType, sectionsCount, elementsCount, normalizedSectionsCount, designNull: design === null });
-
-    if (!design) return noDesignUI(slug);
+    if (!asObj) return noDesignUI(slug);
 
     const eventTitle = data.hosts_names || data.title || "Evento";
 
@@ -169,10 +167,10 @@ export default async function PreviewV3Page({ params }: Props) {
           </span>
         </div>
 
-        {/* Canvas renderer */}
+        {/* Canvas renderer — el renderer normaliza internamente */}
         <div style={{ width: "100%", maxWidth: 480, padding: "0 16px" }}>
           <CanvasV3PublicRenderer
-            design={design}
+            design={asObj}
             eventTitle={eventTitle}
             eventSlug={data.slug ?? slug}
             mode="preview"

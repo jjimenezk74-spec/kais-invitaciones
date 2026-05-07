@@ -414,8 +414,11 @@ function RenderElement({
     if (el.blur) boxStyle.backdropFilter = `blur(${el.blur}px)`;
   }
 
+  const [isHovered, setIsHovered] = useState(false);
   const ringStyle: React.CSSProperties = selected
     ? { outline: "2px solid #7c3aed", outlineOffset: "1px" }
+    : isHovered
+    ? { outline: "1px dashed rgba(124,58,237,0.55)", outlineOffset: "1px" }
     : {};
 
   const handleSize = 8;
@@ -430,6 +433,8 @@ function RenderElement({
   return (
     <div
       style={{ ...boxStyle, ...ringStyle }}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
       onMouseDown={(e) => { e.stopPropagation(); onMouseDown(e); }}
       onClick={(e) => { e.stopPropagation(); onClick(e); }}
     >
@@ -1310,6 +1315,10 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
     }, 2000);
   };
 
+  // ── Viewport toggle: Móvil / Escritorio (solo visual, no afecta save) ────────
+  const [viewportMode, setViewportMode] = useState<"mobile" | "desktop">("mobile");
+  const canvasW = viewportMode === "desktop" ? 1000 : CANVAS_W;
+
   // ── Responsive: track viewport width to auto-manage inspector ──────────────
   const [vw, setVw] = useState(() => typeof window !== "undefined" ? window.innerWidth : 1440);
   const [inspectorOpen, setInspectorOpen] = useState(() =>
@@ -1385,6 +1394,28 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
           </span>
           <button type="button" onClick={() => setZoom(z => Math.min(2, +(z + 0.1).toFixed(1)))}
             style={{ ...topBtnStyle, padding: "4px 8px", fontSize: 15 }}>+</button>
+        </div>
+
+        {/* Viewport toggle */}
+        <div style={{ display: "flex", alignItems: "center", gap: 0, flexShrink: 0, border: "1px solid #2a2a3d", borderRadius: 8, overflow: "hidden" }}>
+          {(["mobile", "desktop"] as const).map((mode) => (
+            <button
+              key={mode}
+              type="button"
+              onClick={() => setViewportMode(mode)}
+              title={mode === "mobile" ? "Móvil 390px" : "Escritorio 1000px"}
+              style={{
+                padding: "5px 10px", fontSize: 13,
+                background: viewportMode === mode ? "#2a1f4d" : "#1e1e2d",
+                color: viewportMode === mode ? "#a78bfa" : "#8884a8",
+                border: "none", cursor: "pointer",
+                fontFamily: "Inter, system-ui, sans-serif",
+                transition: "all 0.15s",
+              }}
+            >
+              {mode === "mobile" ? "📱" : "🖥"}
+            </button>
+          ))}
         </div>
 
         {/* Actions */}
@@ -1607,7 +1638,7 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
               ref={canvasRef}
               style={{
                 position: "relative",
-                width: CANVAS_W,
+                width: canvasW,
                 height: documentHeight,
                 borderRadius: 12,
                 overflow: "hidden",
@@ -1621,7 +1652,7 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
                     position: "absolute",
                     left: 0,
                     top: section.y,
-                    width: CANVAS_W,
+                    width: canvasW,
                     height: section.height,
                     background: section.background,
                     zIndex: 0,
@@ -1679,7 +1710,7 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
               color: "#4a4a6a", fontSize: 10, letterSpacing: "0.08em",
               fontFamily: "Inter, system-ui, sans-serif",
             }}>
-              390 × {documentHeight} px · Mobile
+              {canvasW} × {documentHeight} px · {viewportMode === "desktop" ? "Desktop" : "Mobile"}
             </p>
           </div>
         </div>

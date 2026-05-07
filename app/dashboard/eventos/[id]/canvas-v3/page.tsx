@@ -6,6 +6,10 @@ import { CanvasEditorV3 } from "./canvas-v3-editor";
 
 type Props = { params: Promise<{ id: string }> };
 
+function isUuid(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+}
+
 export async function generateMetadata() {
   return { title: "Canvas V3 · Editor experimental" };
 }
@@ -19,7 +23,7 @@ export default async function CanvasV3Page({ params }: Props) {
   const { data } = await admin
     .from("events")
     .select("id, hosts_names, title, canvas_design")
-    .eq("id", id)
+    .eq(isUuid(id) ? "id" : "slug", id)
     .maybeSingle();
 
   if (!data) notFound();

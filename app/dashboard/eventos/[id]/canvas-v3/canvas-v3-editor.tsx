@@ -14,6 +14,7 @@ import {
 // ─────────────────────────────────────────────────────────────────────────────
 
 type ElType = "text" | "shape" | "app" | "decoration";
+type V3AppType = "rsvp" | "whatsapp" | "countdown" | "maps" | "live-album" | "live-screen" | "qr";
 
 interface V3Element {
   id: string;
@@ -43,7 +44,13 @@ interface V3Element {
   opacity?: number;
   blur?: number;
   // app
-  appKind?: "rsvp" | "countdown" | "whatsapp" | "album" | "live" | "maps" | "qr";
+  appKind?: V3AppType | "album" | "live";
+  appType?: V3AppType;
+  config?: {
+    url?: string;
+    primaryColor?: string;
+    textColor?: string;
+  };
 }
 
 type V3Section = {
@@ -322,6 +329,54 @@ const APP_LABELS: Record<string, { label: string; icon: string }> = {
   qr: { label: "Código QR", icon: "▦" },
 };
 
+const APP_DEMO_LABELS: Record<string, { label: string; icon: string }> = {
+  rsvp: { label: "Confirmar asistencia", icon: "✓" },
+  countdown: { label: "Cuenta regresiva", icon: "⏱" },
+  whatsapp: { label: "Enviar WhatsApp", icon: "✉" },
+  maps: { label: "Ver ubicacion", icon: "⌖" },
+  "live-album": { label: "Album en vivo", icon: "▧" },
+  "live-screen": { label: "Pantalla en vivo", icon: "▣" },
+  qr: { label: "QR", icon: "▦" },
+  album: { label: "Album en vivo", icon: "▧" },
+  live: { label: "Pantalla en vivo", icon: "▣" }
+};
+
+const APP_BLOCKS: { id: V3AppType; icon: string; label: string }[] = [
+  { id: "rsvp", icon: "✓", label: "Confirmar asistencia" },
+  { id: "whatsapp", icon: "✉", label: "WhatsApp" },
+  { id: "countdown", icon: "⏱", label: "Cuenta regresiva" },
+  { id: "maps", icon: "⌖", label: "Ver ubicacion" },
+  { id: "live-album", icon: "▧", label: "Album en vivo" },
+  { id: "live-screen", icon: "▣", label: "Pantalla en vivo" },
+  { id: "qr", icon: "▦", label: "QR" }
+];
+
+const APP_DEFAULTS: Record<V3AppType, {
+  content: string;
+  width: number;
+  height: number;
+  background: string;
+  color: string;
+  border?: string;
+  borderRadius: number;
+  url?: string;
+}> = {
+  rsvp: { content: "Confirmar asistencia", width: 320, height: 82, background: "linear-gradient(135deg,#c8a96a,#9b6f2a)", color: "#1a0a18", borderRadius: 18 },
+  whatsapp: { content: "Enviar WhatsApp", width: 320, height: 78, background: "linear-gradient(135deg,#1f7a4d,#c8a96a)", color: "#fffaf0", borderRadius: 18, url: "https://wa.me/" },
+  countdown: { content: "45 DIAS · 12 HRS · 08 MIN · 30 SEG", width: 340, height: 96, background: "rgba(124,58,237,0.18)", color: "#e8e6ff", border: "1px solid rgba(124,58,237,0.35)", borderRadius: 16 },
+  maps: { content: "Ver ubicacion", width: 320, height: 78, background: "rgba(200,169,106,0.16)", color: "#f4d28a", border: "1px solid rgba(200,169,106,0.36)", borderRadius: 16, url: "https://maps.google.com" },
+  "live-album": { content: "Album en vivo", width: 320, height: 88, background: "rgba(255,255,255,0.08)", color: "#fff7ef", border: "1px solid rgba(200,169,106,0.26)", borderRadius: 18 },
+  "live-screen": { content: "Pantalla en vivo", width: 320, height: 88, background: "linear-gradient(135deg,rgba(124,58,237,0.35),rgba(0,0,0,0.34))", color: "#e8e6ff", border: "1px solid rgba(167,139,250,0.38)", borderRadius: 18 },
+  qr: { content: "QR del evento", width: 170, height: 190, background: "#fffaf0", color: "#1a0a18", border: "1px solid rgba(200,169,106,0.45)", borderRadius: 18 }
+};
+
+function normalizeAppType(element: V3Element): V3AppType | null {
+  const raw = element.appType ?? element.appKind;
+  if (raw === "album") return "live-album";
+  if (raw === "live") return "live-screen";
+  return raw && raw in APP_DEFAULTS ? raw as V3AppType : null;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Render a single canvas element
 // ─────────────────────────────────────────────────────────────────────────────
@@ -391,12 +446,12 @@ function RenderElement({
       )}
 
       {/* Text content */}
-      {el.content && (
+      {el.content && el.type !== "app" && (
         <p
           style={{
             position: "relative",
             margin: 0,
-            padding: el.type === "decoration" || el.type === "app" ? "16px 20px" : 0,
+            padding: el.type === "decoration" ? "16px 20px" : 0,
             fontFamily: el.fontFamily ?? "Inter, system-ui, sans-serif",
             fontSize: el.fontSize ?? 14,
             fontWeight: el.fontWeight ?? "400",
@@ -416,7 +471,7 @@ function RenderElement({
       )}
 
       {/* App block content */}
-      {el.type === "app" && el.appKind && (
+      {el.type === "app" && normalizeAppType(el) && (
         <div
           style={{
             position: "absolute", inset: 0,
@@ -427,18 +482,44 @@ function RenderElement({
             alignItems: "center",
             justifyContent: "center",
             gap: 10,
+            padding: normalizeAppType(el) === "qr" ? 12 : 0,
+            flexDirection: normalizeAppType(el) === "qr" ? "column" : "row",
           }}
         >
-          <span style={{ fontSize: 18 }}>{APP_LABELS[el.appKind]?.icon}</span>
-          <span style={{
-            color: el.appKind === "rsvp" ? "#1a0a18" : "#e8e6ff",
-            fontFamily: "Inter, system-ui, sans-serif",
-            fontSize: el.appKind === "rsvp" ? 15 : 13,
-            fontWeight: el.appKind === "rsvp" ? "700" : "500",
-            letterSpacing: el.appKind === "rsvp" ? "0.12em" : "0.06em",
-          }}>
-            {APP_LABELS[el.appKind]?.label}
-          </span>
+          {normalizeAppType(el) === "countdown" ? (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8, width: "88%" }}>
+              {["45", "12", "08", "30"].map((value, index) => (
+                <div key={index} style={{ textAlign: "center" }}>
+                  <strong style={{ display: "block", color: el.color ?? "#e8e6ff", fontSize: 18 }}>{value}</strong>
+                  <span style={{ color: el.color ?? "#e8e6ff", opacity: 0.72, fontSize: 8, letterSpacing: "0.08em" }}>
+                    {["DIAS", "HRS", "MIN", "SEG"][index]}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : normalizeAppType(el) === "qr" ? (
+            <>
+              <div style={{ width: 104, height: 104, display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 4 }}>
+                {Array.from({ length: 25 }).map((_, index) => (
+                  <span key={index} style={{ background: index % 3 === 0 || index % 7 === 0 ? "#1a0a18" : "transparent", borderRadius: 2 }} />
+                ))}
+              </div>
+              <span style={{ color: el.color ?? "#1a0a18", fontSize: 11, fontWeight: 700 }}>{el.content ?? "QR del evento"}</span>
+            </>
+          ) : (
+            <>
+              <span style={{ fontSize: 18 }}>{APP_DEMO_LABELS[normalizeAppType(el)!]?.icon}</span>
+              <span style={{
+                color: el.color ?? APP_DEFAULTS[normalizeAppType(el)!].color,
+                fontFamily: "Inter, system-ui, sans-serif",
+                fontSize: normalizeAppType(el) === "rsvp" ? 15 : 13,
+                fontWeight: normalizeAppType(el) === "rsvp" ? "700" : "600",
+                letterSpacing: normalizeAppType(el) === "rsvp" ? "0.12em" : "0.04em",
+              }}>
+                {el.content || APP_DEMO_LABELS[normalizeAppType(el)!]?.label}
+              </span>
+            </>
+          )}
         </div>
       )}
 
@@ -570,7 +651,7 @@ function ExpandedPanel({
         <p style={{ color: "#8884a8", fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", margin: "0 0 10px" }}>
           Bloques interactivos
         </p>
-        {apps.map((app) => (
+        {APP_BLOCKS.map((app) => (
           <button
             key={app.id}
             type="button"
@@ -858,7 +939,7 @@ function RightPanel({
         )}
 
         {/* App config */}
-        {element.type === "app" && element.appKind && (
+        {element.type === "app" && normalizeAppType(element) && (
           <div>
             <span style={labelStyle}>Bloque</span>
             <div style={{
@@ -867,11 +948,59 @@ function RightPanel({
               borderRadius: 8,
             }}>
               <p style={{ color: "#c8c4f0", fontSize: 12, fontFamily: "Inter, system-ui, sans-serif", margin: 0 }}>
-                {APP_LABELS[element.appKind]?.icon} {APP_LABELS[element.appKind]?.label}
+                {APP_DEMO_LABELS[normalizeAppType(element)!]?.icon} {APP_DEMO_LABELS[normalizeAppType(element)!]?.label}
               </p>
               <p style={{ color: "#8884a8", fontSize: 10, fontFamily: "Inter, system-ui, sans-serif", margin: "4px 0 0" }}>
                 Conectado al evento · Solo demo
               </p>
+            </div>
+            <div style={{ marginTop: 14 }}>
+              <span style={labelStyle}>Texto</span>
+              <input
+                type="text"
+                value={element.content ?? APP_DEMO_LABELS[normalizeAppType(element)!]?.label ?? ""}
+                onChange={(e) => onChange(element.id, { content: e.target.value })}
+                style={inputStyle}
+              />
+            </div>
+            <div style={{ marginTop: 14 }}>
+              <span style={labelStyle}>Color principal</span>
+              <input
+                type="text"
+                value={element.config?.primaryColor ?? element.background ?? ""}
+                onChange={(e) => onChange(element.id, { background: e.target.value, config: { ...(element.config ?? {}), primaryColor: e.target.value } })}
+                style={inputStyle}
+              />
+            </div>
+            <div style={{ marginTop: 14 }}>
+              <span style={labelStyle}>Color texto</span>
+              <input
+                type="text"
+                value={element.color ?? element.config?.textColor ?? ""}
+                onChange={(e) => onChange(element.id, { color: e.target.value, config: { ...(element.config ?? {}), textColor: e.target.value } })}
+                style={inputStyle}
+              />
+            </div>
+            <div style={{ marginTop: 14 }}>
+              <span style={labelStyle}>Borde redondeado</span>
+              <input
+                type="range"
+                min={0}
+                max={40}
+                step={1}
+                value={element.borderRadius ?? 16}
+                onChange={(e) => onChange(element.id, { borderRadius: Number(e.target.value) })}
+                style={{ width: "100%", accentColor: "#7c3aed" }}
+              />
+            </div>
+            <div style={{ marginTop: 14 }}>
+              <span style={labelStyle}>URL demo</span>
+              <input
+                type="text"
+                value={element.config?.url ?? ""}
+                onChange={(e) => onChange(element.id, { config: { ...(element.config ?? {}), url: e.target.value } })}
+                style={inputStyle}
+              />
             </div>
           </div>
         )}
@@ -1062,18 +1191,26 @@ export function CanvasEditorV3({ eventId, eventTitle, initialDesign = null }: Ca
 
   const addApp = (kind: string) => {
     const id = `app-${Date.now()}`;
-    const isRsvp = kind === "rsvp";
+    const appType = kind in APP_DEFAULTS ? kind as V3AppType : "rsvp";
+    const defaults = APP_DEFAULTS[appType];
     const sectionY = activeSection?.y ?? 0;
     setElements((prev) => [...prev, {
       id, type: "app" as ElType,
-      x: cx(320), y: sectionY + 80, width: 320, height: isRsvp ? 90 : 60,
+      x: cx(defaults.width), y: sectionY + 80, width: defaults.width, height: defaults.height,
       locked: false, visible: true, zIndex: prev.length,
-      appKind: kind as V3Element["appKind"],
-      background: isRsvp
-        ? "linear-gradient(135deg,#c8a96a,#9b6f2a)"
-        : "rgba(124,58,237,0.18)",
-      border: isRsvp ? undefined : "1px solid rgba(124,58,237,0.35)",
-      borderRadius: isRsvp ? 16 : 14, opacity: 1,
+      appKind: appType,
+      appType,
+      content: defaults.content,
+      background: defaults.background,
+      color: defaults.color,
+      border: defaults.border,
+      borderRadius: defaults.borderRadius,
+      opacity: 1,
+      config: {
+        url: defaults.url ?? "",
+        primaryColor: defaults.background,
+        textColor: defaults.color
+      }
     }]);
     setSelectedId(id);
     setActiveTool(null);
@@ -1114,11 +1251,12 @@ export function CanvasEditorV3({ eventId, eventTitle, initialDesign = null }: Ca
     setElements((prev) =>
       prev.map((element) => {
         if (element.type === "app") {
+          const appType = normalizeAppType(element);
           return {
             ...element,
-            background: element.appKind === "rsvp" ? theme.buttonStyle.background : theme.colors.surface,
-            color: theme.buttonStyle.color,
-            border: element.appKind === "rsvp" ? theme.buttonStyle.border : `1px solid ${theme.colors.accent}55`,
+            background: appType === "rsvp" ? theme.buttonStyle.background : theme.colors.surface,
+            color: appType === "rsvp" ? theme.buttonStyle.color : theme.colors.text,
+            border: appType === "rsvp" ? theme.buttonStyle.border : `1px solid ${theme.colors.accent}55`,
             borderRadius: theme.buttonStyle.borderRadius,
             opacity: 1
           };

@@ -1054,7 +1054,7 @@ function RightPanel({
                 <div style={{ marginTop: 10 }}>
                   <span style={labelStyle}>Color de borde</span>
                   <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                    {isHexColor(element.borderColor ?? "") && (
+                    {isHexColor(element.borderColor ?? "#c8a96a") && (
                       <input
                         type="color"
                         value={(element.borderColor ?? "#c8a96a").trim()}

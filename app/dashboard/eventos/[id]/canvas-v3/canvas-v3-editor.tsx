@@ -1125,8 +1125,9 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
 
   const canvasRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const elementsRef = useRef<V3Element[]>(elements);
   const dragRef = useRef<{
-    id: string; startX: number; startY: number; elX: number; elY: number;
+    id: string; startX: number; startY: number; elX: number; elY: number; active: boolean;
   } | null>(null);
   const resizeRef = useRef<{
     id: string; handle: string;
@@ -1139,6 +1140,11 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
   const documentHeight = sections.at(-1) ? sections.at(-1)!.y + sections.at(-1)!.height : DEFAULT_DOCUMENT_H;
   const canvasW = viewportMode === "desktop" ? 1000 : CANVAS_W;
   const SNAP_TOLERANCE = 6;
+  const DRAG_START_THRESHOLD = 2;
+
+  useEffect(() => {
+    elementsRef.current = elements;
+  }, [elements]);
 
   const getSnappedPosition = useCallback((
     moving: V3Element,
@@ -1242,7 +1248,7 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
     const el = elements.find((el) => el.id === id);
     if (!el || el.locked) return;
     setSelectedId(id);
-    dragRef.current = { id, startX: e.clientX, startY: e.clientY, elX: el.x, elY: el.y };
+    dragRef.current = { id, startX: e.clientX, startY: e.clientY, elX: el.x, elY: el.y, active: false };
   }, [elements]);
 
   // ── Resize ──────────────────────────────────────────────────────────────────
@@ -1261,19 +1267,26 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
   useEffect(() => {
     const onMove = (e: MouseEvent) => {
       if (dragRef.current) {
-        const { id, startX, startY, elX, elY } = dragRef.current;
-        const dx = (e.clientX - startX) / zoom;
-        const dy = (e.clientY - startY) / zoom;
-        let nextSnapLines: SnapLine[] = [];
+        const drag = dragRef.current;
+        const { id, startX, startY, elX, elY } = drag;
+        const screenDx = e.clientX - startX;
+        const screenDy = e.clientY - startY;
+        if (!drag.active && Math.hypot(screenDx, screenDy) < DRAG_START_THRESHOLD) return;
+        drag.active = true;
+        const dx = screenDx / zoom;
+        const dy = screenDy / zoom;
+        const currentElements = elementsRef.current;
+        const movingElement = currentElements.find((el) => el.id === id);
+        if (!movingElement) return;
+        const snapped = getSnappedPosition(movingElement, elX + dx, elY + dy, currentElements);
+        setSnapLines(snapped.lines);
         setElements((prev) =>
-          prev.map((el) => {
-            if (el.id !== id) return el;
-            const snapped = getSnappedPosition(el, elX + dx, elY + dy, prev);
-            nextSnapLines = snapped.lines;
-            return { ...el, x: snapped.x, y: snapped.y };
-          })
+          prev.map((el) =>
+            el.id === id
+              ? { ...el, x: snapped.x, y: snapped.y }
+              : el
+          )
         );
-        setSnapLines(nextSnapLines);
       }
       if (resizeRef.current) {
         const { id, handle, startX, startY, origX, origY, origW, origH } = resizeRef.current;

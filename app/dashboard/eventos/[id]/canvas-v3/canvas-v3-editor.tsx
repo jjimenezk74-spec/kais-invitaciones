@@ -2021,11 +2021,17 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
       ];
     } else if (kind === "countdown") {
       next = [
-        card("card", cx(340), baseY, 340, 150, { background: "linear-gradient(135deg,rgba(124,58,237,0.22),rgba(200,169,106,0.08))" }),
-        text("title", "FALTA POCO", cx(240), baseY + 20, 240, 18, { fontSize: 10, fontWeight: "900", color: "#c8a96a", letterSpacing: 0.2 }),
-        text("numbers", "45    12    08", cx(292), baseY + 52, 292, 42, { fontSize: 34, fontWeight: "800", color: "#fff7ef", letterSpacing: 0.05 }),
-        text("labels", "DÍAS        HORAS        MIN", cx(292), baseY + 96, 292, 18, { fontSize: 9, fontWeight: "800", color: "#a78bfa", letterSpacing: 0.12 }),
-        text("caption", "para celebrar juntos", cx(260), baseY + 120, 260, 18, { fontSize: 13, fontFamily: "'Playfair Display', Georgia, serif", fontStyle: "italic", color: "#f4d28a" }),
+        card("card", cx(340), baseY, 340, 156, { background: "linear-gradient(135deg,rgba(124,58,237,0.22),rgba(200,169,106,0.08))" }),
+        text("title", "FALTA POCO", cx(240), baseY + 16, 240, 18, { fontSize: 10, fontWeight: "900", color: "#c8a96a", letterSpacing: 0.2 }),
+        // ↓ Real live countdown — numbers come from CountdownBlock in renderer
+        app("countdown", "countdown", "", cx(320), baseY + 42, 320, 62, {
+          background: "transparent",
+          color: "#e8e6ff",
+          borderRadius: 0,
+          opacity: 1,
+          config: { url: "", primaryColor: "transparent", textColor: "#e8e6ff", countdownMode: "event" },
+        }),
+        text("caption", "para celebrar juntos", cx(260), baseY + 118, 260, 18, { fontSize: 13, fontFamily: "'Playfair Display', Georgia, serif", fontStyle: "italic", color: "#f4d28a" }),
       ];
     } else if (kind === "location") {
       next = [

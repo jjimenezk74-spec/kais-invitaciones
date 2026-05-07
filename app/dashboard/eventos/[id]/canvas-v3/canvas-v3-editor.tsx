@@ -74,6 +74,9 @@ type CanvasV3Design = {
   elements: V3Element[];
 };
 
+type HistoryEntry = { elements: V3Element[]; sections: V3Section[] };
+const MAX_HISTORY = 50;
+
 type ToolId =
   | "templates"
   | "elements"
@@ -1141,11 +1144,13 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
   const elementsRef = useRef<V3Element[]>(elements);
   const dragRef = useRef<{
     id: string; startX: number; startY: number; elX: number; elY: number; active: boolean;
+    preSnapshot: HistoryEntry;
   } | null>(null);
   const resizeRef = useRef<{
     id: string; handle: string;
     startX: number; startY: number;
     origX: number; origY: number; origW: number; origH: number;
+    preSnapshot: HistoryEntry;
   } | null>(null);
 
   const selected = elements.find((e) => e.id === selectedId) ?? null;
@@ -1158,6 +1163,56 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
   useEffect(() => {
     elementsRef.current = elements;
   }, [elements]);
+
+  const sectionsRef = useRef<V3Section[]>(sections);
+  useEffect(() => { sectionsRef.current = sections; }, [sections]);
+
+  // ── History: undo / redo ─────────────────────────────────────────────────
+  const pastRef  = useRef<HistoryEntry[]>([]);
+  const futureRef = useRef<HistoryEntry[]>([]);
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
+  const lastPatchRef = useRef<{ id: string; time: number } | null>(null);
+
+  const snapshot = useCallback(
+    (): HistoryEntry => ({ elements: elementsRef.current, sections: sectionsRef.current }),
+    []
+  );
+
+  const pushHistory = useCallback((before: HistoryEntry) => {
+    pastRef.current = [...pastRef.current, before].slice(-MAX_HISTORY);
+    futureRef.current = [];
+    setCanUndo(true);
+    setCanRedo(false);
+  }, []);
+
+  const undo = useCallback(() => {
+    if (pastRef.current.length === 0) return;
+    const prev = pastRef.current[pastRef.current.length - 1];
+    pastRef.current = pastRef.current.slice(0, -1);
+    futureRef.current = [
+      { elements: elementsRef.current, sections: sectionsRef.current },
+      ...futureRef.current,
+    ].slice(0, MAX_HISTORY);
+    setElements(prev.elements);
+    setSections(prev.sections);
+    setCanUndo(pastRef.current.length > 0);
+    setCanRedo(true);
+  }, []);
+
+  const redo = useCallback(() => {
+    if (futureRef.current.length === 0) return;
+    const next = futureRef.current[0];
+    futureRef.current = futureRef.current.slice(1);
+    pastRef.current = [
+      ...pastRef.current,
+      { elements: elementsRef.current, sections: sectionsRef.current },
+    ].slice(-MAX_HISTORY);
+    setElements(next.elements);
+    setSections(next.sections);
+    setCanUndo(true);
+    setCanRedo(futureRef.current.length > 0);
+  }, []);
 
   const getSnappedPosition = useCallback((
     moving: V3Element,
@@ -1261,8 +1316,8 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
     const el = elements.find((el) => el.id === id);
     if (!el || el.locked) return;
     setSelectedId(id);
-    dragRef.current = { id, startX: e.clientX, startY: e.clientY, elX: el.x, elY: el.y, active: false };
-  }, [elements]);
+    dragRef.current = { id, startX: e.clientX, startY: e.clientY, elX: el.x, elY: el.y, active: false, preSnapshot: snapshot() };
+  }, [elements, snapshot]);
 
   // ── Resize ──────────────────────────────────────────────────────────────────
   const onResizeStart = useCallback((e: React.MouseEvent, id: string, handle: string) => {
@@ -1273,8 +1328,9 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
       startX: e.clientX, startY: e.clientY,
       origX: el.x, origY: el.y,
       origW: el.width, origH: el.height ?? 60,
+      preSnapshot: snapshot(),
     };
-  }, [elements]);
+  }, [elements, snapshot]);
 
   // ── Global pointer move & up ─────────────────────────────────────────────
   useEffect(() => {
@@ -1319,6 +1375,20 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
       }
     };
     const onUp = () => {
+      // Push history snapshot only when a real drag/resize completed
+      if (dragRef.current?.active) {
+        pushHistory(dragRef.current.preSnapshot);
+      }
+      if (resizeRef.current) {
+        const { origX, origY, origW, origH, preSnapshot, id } = resizeRef.current;
+        const movedEl = elementsRef.current.find((e) => e.id === id);
+        if (movedEl && (
+          movedEl.x !== origX || movedEl.y !== origY ||
+          movedEl.width !== origW || (movedEl.height ?? origH) !== origH
+        )) {
+          pushHistory(preSnapshot);
+        }
+      }
       dragRef.current = null;
       resizeRef.current = null;
       setSnapLines([]);
@@ -1326,10 +1396,11 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
     return () => { window.removeEventListener("mousemove", onMove); window.removeEventListener("mouseup", onUp); };
-  }, [getSnappedPosition, zoom]);
+  }, [getSnappedPosition, zoom, pushHistory]);
 
   // ── Add elements ────────────────────────────────────────────────────────────────────────────
   const addText = (kind: "title" | "subtitle" | "paragraph") => {
+    pushHistory(snapshot());
     const id = `text-${Date.now()}`;
     const sectionY = activeSection?.y ?? 0;
     const base: V3Element = {
@@ -1355,6 +1426,7 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
   };
 
   const addElement = (kind: string) => {
+    pushHistory(snapshot());
     const id = `shape-${Date.now()}`;
     const isLine = kind.toLowerCase().includes("línea") || kind.toLowerCase().includes("linea");
     const sectionY = activeSection?.y ?? 0;
@@ -1373,6 +1445,7 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
   };
 
   const addApp = (kind: string) => {
+    pushHistory(snapshot());
     const id = `app-${Date.now()}`;
     const appType = kind in APP_DEFAULTS ? kind as V3AppType : "rsvp";
     const defaults = APP_DEFAULTS[appType];
@@ -1400,11 +1473,16 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
   };
 
   const patchElement = (id: string, patch: Partial<V3Element>) => {
+    const now = Date.now();
+    const last = lastPatchRef.current;
+    if (!last || last.id !== id || now - last.time > 800) pushHistory(snapshot());
+    lastPatchRef.current = { id, time: now };
     setElements((prev) => prev.map((el) => el.id === id ? { ...el, ...patch } : el));
   };
 
   const deleteSelected = () => {
     if (!selectedId) return;
+    pushHistory(snapshot());
     setElements((prev) => prev.filter((el) => el.id !== selectedId));
     setSelectedId(null);
   };
@@ -1413,6 +1491,7 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
     if (!selectedId) return;
     const el = elements.find((e) => e.id === selectedId);
     if (!el) return;
+    pushHistory(snapshot());
     const newEl: V3Element = { ...el, id: `el-${Date.now()}`, x: el.x + 14, y: el.y + 14, zIndex: elements.length };
     setElements((prev) => [...prev, newEl]);
     setSelectedId(newEl.id);
@@ -1420,17 +1499,20 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
 
   const bringToFront = () => {
     if (!selectedId) return;
+    pushHistory(snapshot());
     const maxZ = Math.max(...elements.map((e) => e.zIndex));
     setElements((prev) => prev.map((e) => e.id === selectedId ? { ...e, zIndex: maxZ + 1 } : e));
   };
 
   const sendToBack = () => {
     if (!selectedId) return;
+    pushHistory(snapshot());
     const minZ = Math.min(...elements.map((e) => e.zIndex));
     setElements((prev) => prev.map((e) => e.id === selectedId ? { ...e, zIndex: minZ - 1 } : e));
   };
 
   const deleteSection = (sectionId: string) => {
+    pushHistory(snapshot());
     setSections((prev) => {
       if (prev.length <= 1) return prev; // never delete the last section
       return recalcSectionY(prev.filter((s) => s.id !== sectionId));
@@ -1445,6 +1527,7 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
   };
 
   const duplicateSection = (sectionId: string) => {
+    pushHistory(snapshot());
     setSections((prev) => {
       const idx = prev.findIndex((s) => s.id === sectionId);
       if (idx === -1) return prev;
@@ -1459,6 +1542,7 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
   };
 
   const moveSectionUp = (sectionId: string) => {
+    pushHistory(snapshot());
     setSections((prev) => {
       const idx = prev.findIndex((s) => s.id === sectionId);
       if (idx <= 0) return prev;
@@ -1469,6 +1553,7 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
   };
 
   const moveSectionDown = (sectionId: string) => {
+    pushHistory(snapshot());
     setSections((prev) => {
       const idx = prev.findIndex((s) => s.id === sectionId);
       if (idx >= prev.length - 1) return prev;
@@ -1479,6 +1564,7 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
   };
 
   const addDemoSection = () => {
+    pushHistory(snapshot());
     const last = sections.at(-1);
     const next: V3Section = {
       id: `custom-${Date.now()}`,
@@ -1493,6 +1579,7 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
   };
 
   const applyTheme = (theme: CanvasV3Theme) => {
+    pushHistory(snapshot());
     setThemeId(theme.id);
     setSections((prev) =>
       prev.map((section) => ({
@@ -1605,6 +1692,18 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
     setZoom((current) => Math.abs(current - nextZoom) > 0.03 ? nextZoom : current);
   }, [activeTool, canvasW, inspectorIsOverlay, inspectorOpen, vw]);
 
+  // ── Keyboard shortcuts ──────────────────────────────────────────────────────
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const ctrl = e.ctrlKey || e.metaKey;
+      if (!ctrl) return;
+      if (e.key === "z" && !e.shiftKey) { e.preventDefault(); undo(); }
+      if ((e.key === "z" && e.shiftKey) || e.key === "y") { e.preventDefault(); redo(); }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [undo, redo]);
+
   // ─────────────────────────────────────────────────────────────────────────────
   // Render
   // ─────────────────────────────────────────────────────────────────────────────
@@ -1681,6 +1780,24 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
               {mode === "mobile" ? "📱" : "🖥"}
             </button>
           ))}
+        </div>
+
+        {/* Undo / Redo */}
+        <div style={{ display: "flex", gap: 2, flexShrink: 0 }}>
+          <button
+            type="button"
+            onClick={undo}
+            disabled={!canUndo}
+            title="Deshacer (Ctrl+Z)"
+            style={{ ...topBtnStyle, padding: "5px 10px", fontSize: 16, opacity: canUndo ? 1 : 0.28, cursor: canUndo ? "pointer" : "default" }}
+          >↶</button>
+          <button
+            type="button"
+            onClick={redo}
+            disabled={!canRedo}
+            title="Rehacer (Ctrl+Shift+Z)"
+            style={{ ...topBtnStyle, padding: "5px 10px", fontSize: 16, opacity: canRedo ? 1 : 0.28, cursor: canRedo ? "pointer" : "default" }}
+          >↷</button>
         </div>
 
         {/* Actions */}

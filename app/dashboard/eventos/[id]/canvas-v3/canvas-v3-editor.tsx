@@ -93,7 +93,8 @@ type InspectorGroup =
   | "shadow"
   | "spacing"
   | "action"
-  | "visibility";
+  | "visibility"
+  | "layers";
 
 type SnapLine = {
   id: string;
@@ -872,6 +873,13 @@ function RightPanel({
   onDeleteSection,
   onMoveSectionUp,
   onMoveSectionDown,
+  sectionElements,
+  selectedId,
+  onSelectLayer,
+  onToggleVisible,
+  onToggleLocked,
+  onLayerMoveUp,
+  onLayerMoveDown,
 }: {
   element: V3Element | null;
   onChange: (id: string, patch: Partial<V3Element>) => void;
@@ -884,9 +892,18 @@ function RightPanel({
   onDeleteSection: () => void;
   onMoveSectionUp: () => void;
   onMoveSectionDown: () => void;
+  // layers panel
+  sectionElements: V3Element[];
+  selectedId: string | null;
+  onSelectLayer: (id: string) => void;
+  onToggleVisible: (id: string) => void;
+  onToggleLocked: (id: string) => void;
+  onLayerMoveUp: (id: string) => void;
+  onLayerMoveDown: (id: string) => void;
 }) {
   const [pendingDelete, setPendingDelete] = React.useState<"element" | "section" | null>(null);
   const [openGroup, setOpenGroup] = React.useState<InspectorGroup>("content");
+  const [layersOpen, setLayersOpen] = React.useState(true);
 
   const s: React.CSSProperties = {
     width: "100%",
@@ -947,6 +964,133 @@ function RightPanel({
     textTransform: "uppercase",
     fontFamily: "Inter, system-ui, sans-serif",
   };
+  // ── Layers helpers ────────────────────────────────────────────────────────
+  const getLayerIcon = (el: V3Element): string => {
+    if (el.type === "text") return "T";
+    if (el.type === "app") {
+      const k = el.appKind ?? el.appType ?? "";
+      if (k === "whatsapp") return "💬";
+      if (k === "rsvp") return "✉";
+      if (k === "countdown") return "⏱";
+      if (k === "maps") return "📍";
+      if (k === "live-album" || k === "album") return "📷";
+      if (k === "live-screen" || k === "live") return "📺";
+      if (k === "qr") return "◾";
+      return "⚙";
+    }
+    if (el.type === "decoration") return "✦";
+    return "▭"; // shape
+  };
+  const getLayerName = (el: V3Element): string => {
+    if (el.type === "text") {
+      const txt = (el.content ?? "").trim();
+      return txt.length > 22 ? txt.slice(0, 22) + "…" : txt || "Texto";
+    }
+    if (el.type === "app") {
+      const k = el.appKind ?? el.appType ?? "";
+      if (k === "whatsapp") return "WhatsApp";
+      if (k === "rsvp") return "RSVP";
+      if (k === "countdown") return "Cuenta regresiva";
+      if (k === "maps") return "Mapa";
+      if (k === "live-album" || k === "album") return "Álbum";
+      if (k === "live-screen" || k === "live") return "Pantalla en vivo";
+      if (k === "qr") return "Código QR";
+      return el.content || "App";
+    }
+    if (el.type === "decoration") return el.content || "Decoración";
+    return "Forma";
+  };
+
+  // ── Layers panel (always visible when sectionElements present) ─────────────
+  const sortedLayers = [...sectionElements].sort((a, b) => b.zIndex - a.zIndex);
+  const LayersPanel = sectionElements.length > 0 ? (
+    <div style={{ background: "#12121c", borderBottom: "1px solid #2a2a3d" }}>
+      {/* header */}
+      <button
+        type="button"
+        onClick={() => setLayersOpen((v) => !v)}
+        style={{
+          width: "100%", padding: "10px 14px", border: "none", background: "transparent",
+          cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between",
+          fontFamily: "Inter, system-ui, sans-serif",
+        }}
+      >
+        <span style={{ display: "flex", alignItems: "center", gap: 7 }}>
+          <span style={{ fontSize: 10, color: "#7c3aed" }}>⧉</span>
+          <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: "0.1em", textTransform: "uppercase", color: "#a8a3c8" }}>Capas</span>
+          <span style={{ fontSize: 9, color: "#6f6b8f", background: "#1e1e2d", border: "1px solid #2a2a3d", borderRadius: 99, padding: "1px 6px" }}>{sectionElements.length}</span>
+        </span>
+        <span style={{ fontSize: 9, color: "#6f6b8f" }}>{layersOpen ? "−" : "+"}</span>
+      </button>
+      {layersOpen && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 1, padding: "2px 8px 8px" }}>
+          {sortedLayers.map((el, idx) => {
+            const isSel = el.id === selectedId;
+            const isHid = el.visible === false;
+            const isLocked = el.locked === true;
+            const canUp = idx > 0;
+            const canDown = idx < sortedLayers.length - 1;
+            return (
+              <div
+                key={el.id}
+                style={{
+                  display: "flex", alignItems: "center", gap: 4,
+                  padding: "5px 6px",
+                  borderRadius: 7,
+                  background: isSel ? "rgba(124,58,237,0.18)" : "transparent",
+                  border: isSel ? "1px solid rgba(124,58,237,0.4)" : "1px solid transparent",
+                  opacity: isHid ? 0.42 : 1,
+                  cursor: "pointer",
+                  transition: "background 0.1s",
+                }}
+                onClick={() => onSelectLayer(el.id)}
+              >
+                {/* icon */}
+                <span style={{ fontSize: 10, width: 16, textAlign: "center", flexShrink: 0, color: isSel ? "#c4b5fd" : "#8884a8" }}>
+                  {getLayerIcon(el)}
+                </span>
+                {/* name */}
+                <span style={{
+                  flex: 1, fontSize: 11, fontFamily: "Inter, system-ui, sans-serif",
+                  color: isSel ? "#e8e6ff" : "#c8c4f0",
+                  whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                  minWidth: 0,
+                }}>
+                  {getLayerName(el)}
+                </span>
+                {/* controls */}
+                <div style={{ display: "flex", gap: 2, flexShrink: 0 }} onClick={(e) => e.stopPropagation()}>
+                  <button type="button" title={canUp ? "Subir capa" : "Ya es la capa más alta"}
+                    disabled={!canUp}
+                    onClick={() => onLayerMoveUp(el.id)}
+                    style={{ width: 18, height: 18, border: "none", background: "none", cursor: canUp ? "pointer" : "default", color: canUp ? "#9898b8" : "#3a3a5c", fontSize: 9, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 4, padding: 0 }}>
+                    ↑
+                  </button>
+                  <button type="button" title={canDown ? "Bajar capa" : "Ya es la capa más baja"}
+                    disabled={!canDown}
+                    onClick={() => onLayerMoveDown(el.id)}
+                    style={{ width: 18, height: 18, border: "none", background: "none", cursor: canDown ? "pointer" : "default", color: canDown ? "#9898b8" : "#3a3a5c", fontSize: 9, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 4, padding: 0 }}>
+                    ↓
+                  </button>
+                  <button type="button" title={isHid ? "Mostrar" : "Ocultar"}
+                    onClick={() => onToggleVisible(el.id)}
+                    style={{ width: 18, height: 18, border: "none", background: "none", cursor: "pointer", color: isHid ? "#4a4870" : "#9898b8", fontSize: 10, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 4, padding: 0 }}>
+                    {isHid ? "🙈" : "👁"}
+                  </button>
+                  <button type="button" title={isLocked ? "Desbloquear" : "Bloquear"}
+                    onClick={() => onToggleLocked(el.id)}
+                    style={{ width: 18, height: 18, border: "none", background: "none", cursor: "pointer", color: isLocked ? "#c8a96a" : "#6f6b8f", fontSize: 10, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 4, padding: 0 }}>
+                    {isLocked ? "🔒" : "🔓"}
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  ) : null;
+
   const renderGroup = (
     id: InspectorGroup,
     title: string,
@@ -999,6 +1143,7 @@ function RightPanel({
     if (section) {
       return (
         <div style={s}>
+          {LayersPanel}
           <div style={sectionHeaderStyle}>
             <span style={{ ...panelBadgeStyle, color: "#f4d28a", background: "rgba(200,169,106,0.12)", border: "1px solid rgba(200,169,106,0.24)" }}>
               ? Secci?n
@@ -1035,6 +1180,7 @@ function RightPanel({
     }
     return (
       <div style={s}>
+        {LayersPanel}
         <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 10, padding: "0 20px" }}>
           <span style={{ fontSize: 28, opacity: 0.25 }}>◻</span>
           <p style={{ color: "#8884a8", fontSize: 12, fontFamily: "Inter, system-ui, sans-serif", textAlign: "center", margin: 0, lineHeight: 1.6 }}>
@@ -1047,6 +1193,7 @@ function RightPanel({
 
   return (
     <div style={s}>
+      {LayersPanel}
       {/* Element header */}
       <div style={{ padding: "14px 16px", borderBottom: "1px solid #2a2a3d" }}>
         <p style={{ color: "#c8a96a", fontSize: 10, letterSpacing: "0.1em", fontFamily: "Inter, system-ui, sans-serif", margin: 0, textTransform: "uppercase", opacity: 0.75 }}>Elemento</p>
@@ -1509,6 +1656,65 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
     pushHistory(snapshot());
     const minZ = Math.min(...elements.map((e) => e.zIndex));
     setElements((prev) => prev.map((e) => e.id === selectedId ? { ...e, zIndex: minZ - 1 } : e));
+  };
+
+  // ── Layer panel helpers ────────────────────────────────────────────────────
+  const getSectionElements = (sId: string) => {
+    const sec = sections.find((s) => s.id === sId);
+    if (!sec) return [];
+    return elements.filter((el) => el.y >= sec.y && el.y < sec.y + sec.height);
+  };
+
+  const layerMoveUp = (id: string) => {
+    // Move up = increase zIndex (swap with next higher in section)
+    pushHistory(snapshot());
+    const sec = sections.find((s) => s.id === activeSectionId);
+    if (!sec) return;
+    const sEls = elements
+      .filter((el) => el.y >= sec.y && el.y < sec.y + sec.height)
+      .sort((a, b) => a.zIndex - b.zIndex);
+    const idx = sEls.findIndex((el) => el.id === id);
+    if (idx === -1 || idx === sEls.length - 1) return;
+    const myZ = sEls[idx].zIndex;
+    const otherId = sEls[idx + 1].id;
+    const otherZ = sEls[idx + 1].zIndex;
+    setElements((prev) =>
+      prev.map((el) => {
+        if (el.id === id) return { ...el, zIndex: otherZ };
+        if (el.id === otherId) return { ...el, zIndex: myZ };
+        return el;
+      })
+    );
+  };
+
+  const layerMoveDown = (id: string) => {
+    // Move down = decrease zIndex (swap with next lower in section)
+    pushHistory(snapshot());
+    const sec = sections.find((s) => s.id === activeSectionId);
+    if (!sec) return;
+    const sEls = elements
+      .filter((el) => el.y >= sec.y && el.y < sec.y + sec.height)
+      .sort((a, b) => a.zIndex - b.zIndex);
+    const idx = sEls.findIndex((el) => el.id === id);
+    if (idx <= 0) return;
+    const myZ = sEls[idx].zIndex;
+    const otherId = sEls[idx - 1].id;
+    const otherZ = sEls[idx - 1].zIndex;
+    setElements((prev) =>
+      prev.map((el) => {
+        if (el.id === id) return { ...el, zIndex: otherZ };
+        if (el.id === otherId) return { ...el, zIndex: myZ };
+        return el;
+      })
+    );
+  };
+
+  const toggleLayerVisible = (id: string) => {
+    patchElement(id, { visible: !(elements.find((el) => el.id === id)?.visible ?? true) });
+  };
+
+  const toggleLayerLocked = (id: string) => {
+    patchElement(id, { locked: !(elements.find((el) => el.id === id)?.locked ?? false) });
   };
 
   const deleteSection = (sectionId: string) => {
@@ -2216,6 +2422,13 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
               onDeleteSection={() => deleteSection(activeSectionId)}
               onMoveSectionUp={() => moveSectionUp(activeSectionId)}
               onMoveSectionDown={() => moveSectionDown(activeSectionId)}
+              sectionElements={preview ? [] : getSectionElements(activeSectionId)}
+              selectedId={selectedId}
+              onSelectLayer={(id) => setSelectedId(id)}
+              onToggleVisible={toggleLayerVisible}
+              onToggleLocked={toggleLayerLocked}
+              onLayerMoveUp={layerMoveUp}
+              onLayerMoveDown={layerMoveDown}
             />
           </div>
         )}

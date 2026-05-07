@@ -880,6 +880,7 @@ function RightPanel({
   onToggleLocked,
   onLayerMoveUp,
   onLayerMoveDown,
+  onReorderLayers,
 }: {
   element: V3Element | null;
   onChange: (id: string, patch: Partial<V3Element>) => void;
@@ -900,10 +901,56 @@ function RightPanel({
   onToggleLocked: (id: string) => void;
   onLayerMoveUp: (id: string) => void;
   onLayerMoveDown: (id: string) => void;
+  onReorderLayers: (orderedIds: string[]) => void;
 }) {
   const [pendingDelete, setPendingDelete] = React.useState<"element" | "section" | null>(null);
   const [openGroup, setOpenGroup] = React.useState<InspectorGroup>("content");
   const [layersOpen, setLayersOpen] = React.useState(true);
+
+  // ── Layer drag & drop state ───────────────────────────────────────────────
+  const layerDragRef = React.useRef<{ id: string; fromIdx: number } | null>(null);
+  const layerListRef = React.useRef<HTMLDivElement>(null);
+  const dropAtRef = React.useRef<number>(-1);
+  const [dropAt, setDropAt] = React.useState<number>(-1);
+  // Stable refs so effect closure is always current
+  const sortedLayersRef = React.useRef<V3Element[]>([]);
+  const onReorderLayersRef = React.useRef(onReorderLayers);
+  onReorderLayersRef.current = onReorderLayers;
+
+  React.useEffect(() => {
+    const ROW_H = 29; // row height + gap in px
+    const onMove = (e: PointerEvent) => {
+      if (!layerDragRef.current || !layerListRef.current) return;
+      const rect = layerListRef.current.getBoundingClientRect();
+      const relY = e.clientY - rect.top;
+      const layers = sortedLayersRef.current;
+      const idx = Math.max(0, Math.min(layers.length, Math.round(relY / ROW_H)));
+      dropAtRef.current = idx;
+      setDropAt(idx);
+    };
+    const onUp = () => {
+      if (!layerDragRef.current) return;
+      const { id, fromIdx } = layerDragRef.current;
+      layerDragRef.current = null;
+      const toIdx = dropAtRef.current;
+      setDropAt(-1);
+      dropAtRef.current = -1;
+      // No-op if dropped on itself or the slot right after it
+      if (toIdx < 0 || toIdx === fromIdx || toIdx === fromIdx + 1) return;
+      const layers = sortedLayersRef.current;
+      const newOrder = layers.map((el) => el.id);
+      newOrder.splice(fromIdx, 1);
+      const insertAt = toIdx > fromIdx ? toIdx - 1 : toIdx;
+      newOrder.splice(insertAt, 0, id);
+      onReorderLayersRef.current(newOrder);
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+    };
+  }, []); // stable — reads only refs
 
   const s: React.CSSProperties = {
     width: "100%",
@@ -1003,6 +1050,18 @@ function RightPanel({
 
   // ── Layers panel (always visible when sectionElements present) ─────────────
   const sortedLayers = [...sectionElements].sort((a, b) => b.zIndex - a.zIndex);
+  sortedLayersRef.current = sortedLayers; // keep ref current for drag handler
+  const isDragging = dropAt >= 0;
+
+  const DropLine = (
+    <div style={{
+      height: 2, background: "#7c3aed", borderRadius: 1,
+      margin: "1px 4px",
+      boxShadow: "0 0 6px rgba(124,58,237,0.7)",
+      pointerEvents: "none",
+    }} />
+  );
+
   const LayersPanel = sectionElements.length > 0 ? (
     <div style={{ background: "#12121c", borderBottom: "1px solid #2a2a3d" }}>
       {/* header */}
@@ -1023,69 +1082,85 @@ function RightPanel({
         <span style={{ fontSize: 9, color: "#6f6b8f" }}>{layersOpen ? "−" : "+"}</span>
       </button>
       {layersOpen && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 1, padding: "2px 8px 8px" }}>
+        <div ref={layerListRef} style={{ display: "flex", flexDirection: "column", padding: "2px 8px 8px" }}>
           {sortedLayers.map((el, idx) => {
             const isSel = el.id === selectedId;
             const isHid = el.visible === false;
             const isLocked = el.locked === true;
-            const canUp = idx > 0;
-            const canDown = idx < sortedLayers.length - 1;
+            const isDragSrc = isDragging && layerDragRef.current?.id === el.id;
             return (
-              <div
-                key={el.id}
-                style={{
-                  display: "flex", alignItems: "center", gap: 4,
-                  padding: "5px 6px",
-                  borderRadius: 7,
-                  background: isSel ? "rgba(124,58,237,0.18)" : "transparent",
-                  border: isSel ? "1px solid rgba(124,58,237,0.4)" : "1px solid transparent",
-                  opacity: isHid ? 0.42 : 1,
-                  cursor: "pointer",
-                  transition: "background 0.1s",
-                }}
-                onClick={() => onSelectLayer(el.id)}
-              >
-                {/* icon */}
-                <span style={{ fontSize: 10, width: 16, textAlign: "center", flexShrink: 0, color: isSel ? "#c4b5fd" : "#8884a8" }}>
-                  {getLayerIcon(el)}
-                </span>
-                {/* name */}
-                <span style={{
-                  flex: 1, fontSize: 11, fontFamily: "Inter, system-ui, sans-serif",
-                  color: isSel ? "#e8e6ff" : "#c8c4f0",
-                  whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-                  minWidth: 0,
-                }}>
-                  {getLayerName(el)}
-                </span>
-                {/* controls */}
-                <div style={{ display: "flex", gap: 2, flexShrink: 0 }} onClick={(e) => e.stopPropagation()}>
-                  <button type="button" title={canUp ? "Subir capa" : "Ya es la capa más alta"}
-                    disabled={!canUp}
-                    onClick={() => onLayerMoveUp(el.id)}
-                    style={{ width: 18, height: 18, border: "none", background: "none", cursor: canUp ? "pointer" : "default", color: canUp ? "#9898b8" : "#3a3a5c", fontSize: 9, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 4, padding: 0 }}>
-                    ↑
-                  </button>
-                  <button type="button" title={canDown ? "Bajar capa" : "Ya es la capa más baja"}
-                    disabled={!canDown}
-                    onClick={() => onLayerMoveDown(el.id)}
-                    style={{ width: 18, height: 18, border: "none", background: "none", cursor: canDown ? "pointer" : "default", color: canDown ? "#9898b8" : "#3a3a5c", fontSize: 9, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 4, padding: 0 }}>
-                    ↓
-                  </button>
-                  <button type="button" title={isHid ? "Mostrar" : "Ocultar"}
-                    onClick={() => onToggleVisible(el.id)}
-                    style={{ width: 18, height: 18, border: "none", background: "none", cursor: "pointer", color: isHid ? "#4a4870" : "#9898b8", fontSize: 10, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 4, padding: 0 }}>
-                    {isHid ? "🙈" : "👁"}
-                  </button>
-                  <button type="button" title={isLocked ? "Desbloquear" : "Bloquear"}
-                    onClick={() => onToggleLocked(el.id)}
-                    style={{ width: 18, height: 18, border: "none", background: "none", cursor: "pointer", color: isLocked ? "#c8a96a" : "#6f6b8f", fontSize: 10, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 4, padding: 0 }}>
-                    {isLocked ? "🔒" : "🔓"}
-                  </button>
+              <React.Fragment key={el.id}>
+                {/* drop indicator ABOVE this row */}
+                {isDragging && dropAt === idx && DropLine}
+                <div
+                  style={{
+                    display: "flex", alignItems: "center", gap: 4,
+                    padding: "5px 4px 5px 2px",
+                    borderRadius: 7,
+                    background: isDragSrc
+                      ? "rgba(124,58,237,0.08)"
+                      : isSel ? "rgba(124,58,237,0.18)" : "transparent",
+                    border: isSel ? "1px solid rgba(124,58,237,0.4)" : "1px solid transparent",
+                    opacity: isHid ? 0.42 : isDragSrc ? 0.55 : 1,
+                    cursor: isDragging ? "grabbing" : "pointer",
+                    transition: "background 0.1s, opacity 0.1s",
+                    userSelect: "none",
+                    marginBottom: 1,
+                  }}
+                  onClick={() => { if (!isDragging) onSelectLayer(el.id); }}
+                >
+                  {/* drag handle */}
+                  <span
+                    title="Arrastrar para reordenar"
+                    onPointerDown={(e) => {
+                      e.stopPropagation(); // isolate from canvas drag
+                      layerDragRef.current = { id: el.id, fromIdx: idx };
+                      dropAtRef.current = idx;
+                      setDropAt(idx);
+                    }}
+                    style={{
+                      fontSize: 11, width: 12, flexShrink: 0,
+                      cursor: "grab",
+                      color: "#3e3b60",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      userSelect: "none",
+                      lineHeight: 1,
+                    }}
+                  >
+                    ⠿
+                  </span>
+                  {/* type icon */}
+                  <span style={{ fontSize: 10, width: 14, textAlign: "center", flexShrink: 0, color: isSel ? "#c4b5fd" : "#8884a8" }}>
+                    {getLayerIcon(el)}
+                  </span>
+                  {/* name */}
+                  <span style={{
+                    flex: 1, fontSize: 11, fontFamily: "Inter, system-ui, sans-serif",
+                    color: isSel ? "#e8e6ff" : "#c8c4f0",
+                    whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                    minWidth: 0,
+                  }}>
+                    {getLayerName(el)}
+                  </span>
+                  {/* controls: eye + lock */}
+                  <div style={{ display: "flex", gap: 2, flexShrink: 0 }} onClick={(e) => e.stopPropagation()}>
+                    <button type="button" title={isHid ? "Mostrar" : "Ocultar"}
+                      onClick={() => onToggleVisible(el.id)}
+                      style={{ width: 18, height: 18, border: "none", background: "none", cursor: "pointer", color: isHid ? "#4a4870" : "#7878a8", fontSize: 10, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 4, padding: 0 }}>
+                      {isHid ? "🙈" : "👁"}
+                    </button>
+                    <button type="button" title={isLocked ? "Desbloquear" : "Bloquear"}
+                      onClick={() => onToggleLocked(el.id)}
+                      style={{ width: 18, height: 18, border: "none", background: "none", cursor: "pointer", color: isLocked ? "#c8a96a" : "#4a4870", fontSize: 10, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 4, padding: 0 }}>
+                      {isLocked ? "🔒" : "🔓"}
+                    </button>
+                  </div>
                 </div>
-              </div>
+              </React.Fragment>
             );
           })}
+          {/* drop indicator after last row */}
+          {isDragging && dropAt === sortedLayers.length && DropLine}
         </div>
       )}
     </div>
@@ -1715,6 +1790,24 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
 
   const toggleLayerLocked = (id: string) => {
     patchElement(id, { locked: !(elements.find((el) => el.id === id)?.locked ?? false) });
+  };
+
+  const reorderLayers = (orderedIds: string[]) => {
+    // orderedIds: new visual order top→bottom (highest zIndex first)
+    pushHistory(snapshot());
+    const sec = sections.find((s) => s.id === activeSectionId);
+    if (!sec) return;
+    const sEls = elements.filter((el) => el.y >= sec.y && el.y < sec.y + sec.height);
+    // Collect existing zIndex values for the section, sorted ascending
+    const zValues = [...sEls.map((el) => el.zIndex)].sort((a, b) => a - b);
+    // Assign: orderedIds[0] = top layer = highest zIndex = zValues[last]
+    const assignments: Record<string, number> = {};
+    orderedIds.forEach((id, i) => {
+      assignments[id] = zValues[zValues.length - 1 - i] ?? i;
+    });
+    setElements((prev) =>
+      prev.map((el) => (el.id in assignments ? { ...el, zIndex: assignments[el.id] } : el))
+    );
   };
 
   const deleteSection = (sectionId: string) => {
@@ -2429,6 +2522,7 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
               onToggleLocked={toggleLayerLocked}
               onLayerMoveUp={layerMoveUp}
               onLayerMoveDown={layerMoveDown}
+              onReorderLayers={reorderLayers}
             />
           </div>
         )}

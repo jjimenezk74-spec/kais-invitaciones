@@ -82,6 +82,16 @@ type ToolId =
   | "apps"
   | "projects";
 
+type InspectorGroup =
+  | "content"
+  | "typography"
+  | "fill"
+  | "stroke"
+  | "shadow"
+  | "spacing"
+  | "action"
+  | "visibility";
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants & initial design
 // ─────────────────────────────────────────────────────────────────────────────
@@ -451,7 +461,7 @@ function RenderElement({
     border: computeBorder(el),
     cursor: el.locked ? "default" : selected ? "grab" : "pointer",
     userSelect: "none",
-    overflow: "hidden",
+    overflow: selected ? "visible" : "hidden",
   };
 
   if (el.background && !el.content) {
@@ -467,13 +477,19 @@ function RenderElement({
     : {};
 
   const handleSize = 8;
-  const handles = ["tl", "tr", "bl", "br"];
+  const handles = ["tl", "t", "tr", "r", "br", "b", "bl", "l"];
   const handlePositions: Record<string, React.CSSProperties> = {
     tl: { top: -handleSize / 2, left: -handleSize / 2, cursor: "nwse-resize" },
+    t: { top: -handleSize / 2, left: "50%", marginLeft: -handleSize / 2, cursor: "ns-resize" },
     tr: { top: -handleSize / 2, right: -handleSize / 2, cursor: "nesw-resize" },
-    bl: { bottom: -handleSize / 2, left: -handleSize / 2, cursor: "nesw-resize" },
+    r: { top: "50%", right: -handleSize / 2, marginTop: -handleSize / 2, cursor: "ew-resize" },
     br: { bottom: -handleSize / 2, right: -handleSize / 2, cursor: "nwse-resize" },
+    b: { bottom: -handleSize / 2, left: "50%", marginLeft: -handleSize / 2, cursor: "ns-resize" },
+    bl: { bottom: -handleSize / 2, left: -handleSize / 2, cursor: "nesw-resize" },
+    l: { top: "50%", left: -handleSize / 2, marginTop: -handleSize / 2, cursor: "ew-resize" },
   };
+  const toolbarLabel = el.type === "text" ? "Texto" : el.type === "app" ? "Bloque" : el.type === "decoration" ? "Decoración" : "Forma";
+  const toolbarHint = el.type === "text" ? "Tipografía" : el.type === "app" ? "Acción" : "Forma";
 
   return (
     <div
@@ -588,6 +604,35 @@ function RenderElement({
           }}
         />
       ))}
+      {selected && (
+        <div
+          style={{
+            position: "absolute",
+            left: 0,
+            top: -38,
+            zIndex: 10000,
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            padding: "6px 9px",
+            borderRadius: 999,
+            background: "rgba(18,18,28,0.94)",
+            border: "1px solid rgba(124,58,237,0.65)",
+            boxShadow: "0 10px 26px rgba(0,0,0,0.38)",
+            color: "#e8e6ff",
+            fontFamily: "Inter, system-ui, sans-serif",
+            fontSize: 10,
+            fontWeight: 700,
+            letterSpacing: "0.04em",
+            pointerEvents: "none",
+            whiteSpace: "nowrap",
+          }}
+        >
+          <span style={{ color: "#c8a96a" }}>{toolbarLabel}</span>
+          <span style={{ color: "#6f6b8f" }}>•</span>
+          <span style={{ color: "#a78bfa" }}>{toolbarHint}</span>
+        </div>
+      )}
     </div>
   );
 }
@@ -816,6 +861,7 @@ function RightPanel({
   onMoveSectionDown: () => void;
 }) {
   const [pendingDelete, setPendingDelete] = React.useState<"element" | "section" | null>(null);
+  const [openGroup, setOpenGroup] = React.useState<InspectorGroup>("content");
 
   const s: React.CSSProperties = {
     width: "100%",
@@ -854,15 +900,85 @@ function RightPanel({
     transition: "all 0.12s",
     width: "100%",
   };
+  const sectionHeaderStyle: React.CSSProperties = {
+    padding: "16px",
+    borderBottom: "1px solid #2a2a3d",
+    background: "linear-gradient(135deg, rgba(200,169,106,0.10), rgba(22,22,31,0.96))",
+  };
+  const elementHeaderStyle: React.CSSProperties = {
+    padding: "16px",
+    borderBottom: "1px solid #2a2a3d",
+    background: "linear-gradient(135deg, rgba(124,58,237,0.16), rgba(22,22,31,0.96))",
+  };
+  const panelBadgeStyle: React.CSSProperties = {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 6,
+    padding: "4px 8px",
+    borderRadius: 999,
+    fontSize: 9,
+    fontWeight: 800,
+    letterSpacing: "0.12em",
+    textTransform: "uppercase",
+    fontFamily: "Inter, system-ui, sans-serif",
+  };
+  const renderGroup = (
+    id: InspectorGroup,
+    title: string,
+    children: React.ReactNode,
+    visible = true,
+    icon = "•"
+  ) => {
+    if (!visible) return null;
+    const isOpen = openGroup === id;
+    return (
+      <div style={{ background: "#14141f", border: "1px solid #2a2a3d", borderRadius: 12, overflow: "hidden" }}>
+        <button
+          type="button"
+          onClick={() => setOpenGroup(id)}
+          style={{
+            width: "100%",
+            padding: "10px 12px",
+            border: "none",
+            borderBottom: isOpen ? "1px solid #2a2a3d" : "none",
+            background: isOpen ? "#1e1e2d" : "transparent",
+            color: isOpen ? "#e8e6ff" : "#a8a3c8",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            fontFamily: "Inter, system-ui, sans-serif",
+            fontSize: 11,
+            fontWeight: 800,
+            letterSpacing: "0.08em",
+            textTransform: "uppercase",
+          }}
+        >
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+            <span style={{ color: isOpen ? "#c8a96a" : "#6f6b8f" }}>{icon}</span>
+            {title}
+          </span>
+          <span style={{ color: "#6f6b8f" }}>{isOpen ? "−" : "+"}</span>
+        </button>
+        {isOpen && (
+          <div style={{ padding: 12, display: "flex", flexDirection: "column", gap: 12 }}>
+            {children}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   // ── Section panel (no element selected) ──────────────────────────────────
   if (!element) {
     if (section) {
       return (
         <div style={s}>
-          <div style={{ padding: "14px 16px", borderBottom: "1px solid #2a2a3d" }}>
-            <p style={{ color: "#c8a96a", fontSize: 10, letterSpacing: "0.1em", fontFamily: "Inter, system-ui, sans-serif", margin: 0, textTransform: "uppercase", opacity: 0.75 }}>Sección</p>
-            <p style={{ color: "#e8e6ff", fontSize: 14, fontWeight: "600", fontFamily: "Inter, system-ui, sans-serif", margin: "4px 0 0" }}>
+          <div style={sectionHeaderStyle}>
+            <span style={{ ...panelBadgeStyle, color: "#f4d28a", background: "rgba(200,169,106,0.12)", border: "1px solid rgba(200,169,106,0.24)" }}>
+              ? Secci?n
+            </span>
+            <p style={{ color: "#fff7dc", fontSize: 19, fontWeight: "750", fontFamily: "Inter, system-ui, sans-serif", margin: "10px 0 0" }}>
               {section.label}
             </p>
           </div>
@@ -943,377 +1059,21 @@ function RightPanel({
         )}
       </div>
 
-      <div style={{ padding: "14px 16px", display: "flex", flexDirection: "column", gap: 16 }}>
-        {/* Position & size */}
-        <div>
-          <span style={labelStyle}>Posición y tamaño</span>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
-            {(["x", "y", "width", "height"] as const).map((k) => (
-              <div key={k}>
-                <span style={{ ...labelStyle, fontSize: 9 }}>{k.toUpperCase()}</span>
-                <input
-                  type="number"
-                  value={Math.round(element[k] as number) || 0}
-                  disabled={element.locked}
-                  onChange={(e) => onChange(element.id, { [k]: Number(e.target.value) })}
-                  style={{ ...inputStyle, opacity: element.locked ? 0.5 : 1 }}
-                />
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Opacity */}
-        <div>
-          <span style={labelStyle}>Opacidad</span>
-          <input
-            type="range" min={0} max={1} step={0.01}
-            value={element.opacity ?? 1}
-            onChange={(e) => onChange(element.id, { opacity: Number(e.target.value) })}
-            style={{ width: "100%", accentColor: "#7c3aed" }}
-          />
-          <span style={{ color: "#8884a8", fontSize: 10, fontFamily: "Inter, system-ui, sans-serif" }}>
-            {Math.round((element.opacity ?? 1) * 100)}%
-          </span>
-        </div>
-
-        {/* Text controls */}
-        {element.type === "text" && (
+      <div style={{ padding: "14px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
+        {renderGroup("content", "Contenido", (
           <>
-            <div>
-              <span style={labelStyle}>Contenido</span>
-              <textarea
-                value={element.content ?? ""}
-                rows={3}
-                onChange={(e) => onChange(element.id, { content: e.target.value })}
-                style={{ ...inputStyle, resize: "vertical" }}
-              />
-            </div>
-            <div>
-              <span style={labelStyle}>Color</span>
-              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                <input
-                  type="color"
-                  value={element.color ?? "#ffffff"}
-                  onChange={(e) => onChange(element.id, { color: e.target.value })}
-                  style={{ width: 36, height: 30, border: "none", borderRadius: 6, cursor: "pointer", background: "none" }}
-                />
-                <input
-                  type="text"
-                  value={element.color ?? "#ffffff"}
-                  onChange={(e) => onChange(element.id, { color: e.target.value })}
-                  style={{ ...inputStyle, flex: 1 }}
-                />
-              </div>
-            </div>
-            <div>
-              <span style={labelStyle}>Tamaño de fuente</span>
-              <input
-                type="number" min={8} max={120}
-                value={element.fontSize ?? 16}
-                onChange={(e) => onChange(element.id, { fontSize: Number(e.target.value) })}
-                style={inputStyle}
-              />
-            </div>
-            <div>
-              <span style={labelStyle}>Fuente</span>
-              <select
-                value={element.fontFamily ?? "Inter, system-ui, sans-serif"}
-                onChange={(e) => onChange(element.id, { fontFamily: e.target.value })}
-                style={{ ...inputStyle, cursor: "pointer" }}
-              >
-                <option value="Inter, system-ui, sans-serif">Inter</option>
-                <option value="'Playfair Display', Georgia, serif">Playfair Display</option>
-                <option value="Georgia, serif">Georgia</option>
-                <option value="'Dancing Script', cursive">Dancing Script</option>
-              </select>
-            </div>
-            <div>
-              <span style={labelStyle}>Alineación</span>
-              <div style={{ display: "flex", gap: 4 }}>
-                {(["left", "center", "right"] as const).map((a) => (
-                  <button
-                    key={a}
-                    type="button"
-                    onClick={() => onChange(element.id, { textAlign: a })}
-                    style={{
-                      flex: 1, padding: "6px 0",
-                      background: element.textAlign === a ? "#7c3aed" : "#1e1e2d",
-                      border: "1px solid #2a2a3d",
-                      borderRadius: 6, cursor: "pointer",
-                      color: element.textAlign === a ? "#fff" : "#9898b8",
-                      fontSize: 12,
-                    }}
-                  >
-                    {a === "left" ? "⬛" : a === "center" ? "▬" : "⬛"}
-                  </button>
-                ))}
-              </div>
-            </div>
+            {element.type === "text" && <div><span style={labelStyle}>Texto</span><textarea value={element.content ?? ""} rows={4} onChange={(e) => onChange(element.id, { content: e.target.value })} style={{ ...inputStyle, resize: "vertical" }} /></div>}
+            {element.type === "app" && normalizeAppType(element) && <><div style={{ padding: "10px 12px", background: "#1e1e2d", border: "1px solid #2a2a3d", borderRadius: 10 }}><p style={{ color: "#c8c4f0", fontSize: 12, fontFamily: "Inter, system-ui, sans-serif", margin: 0 }}>{APP_DEMO_LABELS[normalizeAppType(element)!]?.icon} {APP_DEMO_LABELS[normalizeAppType(element)!]?.label}</p><p style={{ color: "#8884a8", fontSize: 10, fontFamily: "Inter, system-ui, sans-serif", margin: "4px 0 0" }}>Bloque visual demo</p></div><div><span style={labelStyle}>Texto del bloque</span><input type="text" value={element.content ?? APP_DEMO_LABELS[normalizeAppType(element)!]?.label ?? ""} onChange={(e) => onChange(element.id, { content: e.target.value })} style={inputStyle} /></div></>}
+            {(element.type === "shape" || element.type === "decoration") && <p style={{ color: "#8884a8", fontSize: 12, lineHeight: 1.5, margin: 0 }}>Este bloque se edita desde relleno, contorno y sombra.</p>}
           </>
-        )}
-
-        {/* Shape / decoration */}
-        {(element.type === "shape" || element.type === "decoration") && (
-          <>
-            <div>
-              <span style={labelStyle}>Borde redondeado</span>
-              <input
-                type="range" min={0} max={999} step={1}
-                value={element.borderRadius ?? 0}
-                onChange={(e) => onChange(element.id, { borderRadius: Number(e.target.value) })}
-                style={{ width: "100%", accentColor: "#7c3aed" }}
-              />
-              <span style={{ color: "#8884a8", fontSize: 10, fontFamily: "Inter, system-ui, sans-serif" }}>
-                {element.borderRadius ?? 0}px
-              </span>
-            </div>
-            {element.blur !== undefined && (
-              <div>
-                <span style={labelStyle}>Blur (backdrop)</span>
-                <input
-                  type="range" min={0} max={40} step={1}
-                  value={element.blur ?? 0}
-                  onChange={(e) => onChange(element.id, { blur: Number(e.target.value) })}
-                  style={{ width: "100%", accentColor: "#7c3aed" }}
-                />
-                <span style={{ color: "#8884a8", fontSize: 10, fontFamily: "Inter, system-ui, sans-serif" }}>
-                  {element.blur ?? 0}px
-                </span>
-              </div>
-            )}
-          </>
-        )}
-
-        {/* App config */}
-        {element.type === "app" && normalizeAppType(element) && (
-          <div>
-            <span style={labelStyle}>Bloque</span>
-            <div style={{
-              padding: "10px 12px",
-              background: "#1e1e2d", border: "1px solid #2a2a3d",
-              borderRadius: 8,
-            }}>
-              <p style={{ color: "#c8c4f0", fontSize: 12, fontFamily: "Inter, system-ui, sans-serif", margin: 0 }}>
-                {APP_DEMO_LABELS[normalizeAppType(element)!]?.icon} {APP_DEMO_LABELS[normalizeAppType(element)!]?.label}
-              </p>
-              <p style={{ color: "#8884a8", fontSize: 10, fontFamily: "Inter, system-ui, sans-serif", margin: "4px 0 0" }}>
-                Conectado al evento · Solo demo
-              </p>
-            </div>
-            <div style={{ marginTop: 14 }}>
-              <span style={labelStyle}>Texto</span>
-              <input
-                type="text"
-                value={element.content ?? APP_DEMO_LABELS[normalizeAppType(element)!]?.label ?? ""}
-                onChange={(e) => onChange(element.id, { content: e.target.value })}
-                style={inputStyle}
-              />
-            </div>
-            {/* ── Relleno ── */}
-            <div style={{ marginTop: 14 }}>
-              <span style={labelStyle}>Relleno</span>
-              {/* Mode tabs */}
-              <div style={{ display: "flex", gap: 4, marginTop: 6 }}>
-                {(["color", "gradient", "none"] as const).map((mode) => {
-                  const active = detectFillMode(element) === mode;
-                  const labels: Record<string, string> = { color: "Color", gradient: "Gradiente", none: "Sin relleno" };
-                  return (
-                    <button
-                      key={mode}
-                      type="button"
-                      onClick={() => {
-                        if (mode === "none") {
-                          onChange(element.id, { background: "transparent", config: { ...(element.config ?? {}), primaryColor: "transparent" } });
-                        } else if (mode === "gradient") {
-                          const cur = element.config?.primaryColor ?? element.background ?? "";
-                          const val = cur.includes("gradient") ? cur : "linear-gradient(135deg,#7c3aed,#5b21b6)";
-                          onChange(element.id, { background: val, config: { ...(element.config ?? {}), primaryColor: val } });
-                        } else {
-                          const cur = element.config?.primaryColor ?? element.background ?? "";
-                          const val = (!cur || cur === "transparent" || cur.includes("gradient")) ? "#7c3aed" : cur;
-                          onChange(element.id, { background: val, config: { ...(element.config ?? {}), primaryColor: val } });
-                        }
-                      }}
-                      style={{
-                        flex: 1, padding: "5px 0", fontSize: 10,
-                        background: active ? "#2a1f4d" : "#1e1e2d",
-                        color: active ? "#a78bfa" : "#8884a8",
-                        border: `1px solid ${active ? "#7c3aed" : "#2a2a3d"}`,
-                        borderRadius: 6, cursor: "pointer",
-                        fontFamily: "Inter, system-ui, sans-serif",
-                      }}
-                    >{labels[mode]}</button>
-                  );
-                })}
-              </div>
-              {/* Color / Gradient input */}
-              {detectFillMode(element) !== "none" && (
-                <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 8 }}>
-                  {detectFillMode(element) === "color" && isHexColor(element.config?.primaryColor ?? element.background ?? "") && (
-                    <input
-                      type="color"
-                      value={(element.config?.primaryColor ?? element.background ?? "#7c3aed").trim()}
-                      onChange={(e) => onChange(element.id, { background: e.target.value, config: { ...(element.config ?? {}), primaryColor: e.target.value } })}
-                      style={{ width: 32, height: 28, padding: 2, borderRadius: 6, border: "1px solid #2a2a3d", background: "none", cursor: "pointer" }}
-                    />
-                  )}
-                  <input
-                    type="text"
-                    value={element.config?.primaryColor ?? element.background ?? ""}
-                    placeholder={detectFillMode(element) === "gradient" ? "linear-gradient(135deg,…)" : "#7c3aed"}
-                    onChange={(e) => onChange(element.id, { background: e.target.value, config: { ...(element.config ?? {}), primaryColor: e.target.value } })}
-                    style={{ ...inputStyle, flex: 1 }}
-                  />
-                </div>
-              )}
-            </div>
-            {/* ── Color texto ── */}
-            <div style={{ marginTop: 14 }}>
-              <span style={labelStyle}>Color texto</span>
-              <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                {isHexColor(element.color ?? element.config?.textColor ?? "") && (
-                  <input
-                    type="color"
-                    value={(element.color ?? element.config?.textColor ?? "#ffffff").trim()}
-                    onChange={(e) => onChange(element.id, { color: e.target.value, config: { ...(element.config ?? {}), textColor: e.target.value } })}
-                    style={{ width: 32, height: 28, padding: 2, borderRadius: 6, border: "1px solid #2a2a3d", background: "none", cursor: "pointer" }}
-                  />
-                )}
-                <input
-                  type="text"
-                  value={element.color ?? element.config?.textColor ?? ""}
-                  onChange={(e) => onChange(element.id, { color: e.target.value, config: { ...(element.config ?? {}), textColor: e.target.value } })}
-                  style={{ ...inputStyle, flex: 1 }}
-                />
-              </div>
-            </div>
-            {/* ── Esquinas redondeadas ── */}
-            <div style={{ marginTop: 14 }}>
-              <span style={labelStyle}>Esquinas redondeadas: {element.borderRadius ?? 16}px</span>
-              <input
-                type="range"
-                min={0}
-                max={40}
-                step={1}
-                value={element.borderRadius ?? 16}
-                onChange={(e) => onChange(element.id, { borderRadius: Number(e.target.value) })}
-                style={{ width: "100%", accentColor: "#7c3aed" }}
-              />
-            </div>
-            {/* ── Contorno ── */}
-            <div style={{ marginTop: 14 }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-                <span style={labelStyle}>Contorno</span>
-                {/* Toggle switch */}
-                <div
-                  onClick={() => {
-                    const on = hasBorder(element);
-                    if (on) {
-                      onChange(element.id, { borderWidth: 0, borderStyle: "none" });
-                    } else {
-                      onChange(element.id, { borderWidth: 1, borderStyle: "solid", borderColor: element.borderColor ?? "#c8a96a" });
-                    }
-                  }}
-                  style={{
-                    width: 36, height: 20, borderRadius: 10, cursor: "pointer", flexShrink: 0,
-                    background: hasBorder(element) ? "#7c3aed" : "#2a2a3d",
-                    position: "relative", transition: "background 0.15s",
-                  }}
-                >
-                  <span style={{
-                    position: "absolute", top: 3,
-                    left: hasBorder(element) ? 18 : 3,
-                    width: 14, height: 14, borderRadius: "50%",
-                    background: "#fff", transition: "left 0.15s",
-                    display: "block",
-                  }} />
-                </div>
-              </div>
-              {hasBorder(element) && (
-                <>
-                  {/* Color de contorno */}
-                  <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 8 }}>
-                    {isHexColor(element.borderColor ?? "#c8a96a") && (
-                      <input
-                        type="color"
-                        value={(element.borderColor ?? "#c8a96a").trim()}
-                        onChange={(e) => onChange(element.id, { borderColor: e.target.value })}
-                        style={{ width: 32, height: 28, padding: 2, borderRadius: 6, border: "1px solid #2a2a3d", background: "none", cursor: "pointer" }}
-                      />
-                    )}
-                    <input
-                      type="text"
-                      value={element.borderColor ?? ""}
-                      placeholder="rgba(200,169,106,0.35)"
-                      onChange={(e) => onChange(element.id, { borderColor: e.target.value })}
-                      style={{ ...inputStyle, flex: 1 }}
-                    />
-                  </div>
-                  {/* Grosor */}
-                  <div style={{ marginBottom: 8 }}>
-                    <span style={{ ...labelStyle, fontSize: 10, marginBottom: 4 }}>Grosor: {element.borderWidth ?? 1}px</span>
-                    <input
-                      type="range" min={1} max={12} step={1}
-                      value={element.borderWidth ?? 1}
-                      onChange={(e) => onChange(element.id, { borderWidth: Number(e.target.value) })}
-                      style={{ width: "100%", accentColor: "#7c3aed" }}
-                    />
-                  </div>
-                  {/* Estilo */}
-                  <div style={{ display: "flex", gap: 4 }}>
-                    {(["solid", "dashed"] as const).map((s) => (
-                      <button
-                        key={s}
-                        type="button"
-                        onClick={() => onChange(element.id, { borderStyle: s })}
-                        style={{
-                          flex: 1, padding: "5px 0", fontSize: 11,
-                          background: (element.borderStyle ?? "solid") === s ? "#2a1f4d" : "#1e1e2d",
-                          color: (element.borderStyle ?? "solid") === s ? "#a78bfa" : "#8884a8",
-                          border: "1px solid #2a2a3d", borderRadius: 6, cursor: "pointer",
-                          fontFamily: "Inter, system-ui, sans-serif",
-                        }}
-                      >{s === "solid" ? "Sólido" : "Punteado"}</button>
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
-            <div style={{ marginTop: 14 }}>
-              <span style={labelStyle}>URL demo</span>
-              <input
-                type="text"
-                value={element.config?.url ?? ""}
-                onChange={(e) => onChange(element.id, { config: { ...(element.config ?? {}), url: e.target.value } })}
-                style={inputStyle}
-              />
-            </div>
-          </div>
-        )}
-
-        {/* Visibility */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <span style={{ ...labelStyle, margin: 0 }}>Visible</span>
-          <button
-            type="button"
-            onClick={() => onChange(element.id, { visible: !element.visible })}
-            style={{
-              width: 36, height: 20, borderRadius: 10,
-              background: element.visible ? "#7c3aed" : "#2a2a3d",
-              border: "none", cursor: "pointer", position: "relative",
-              transition: "background 0.2s",
-            }}
-          >
-            <span style={{
-              position: "absolute", top: 2,
-              left: element.visible ? 18 : 2,
-              width: 16, height: 16,
-              background: "#fff", borderRadius: 8,
-              transition: "left 0.2s",
-            }} />
-          </button>
-        </div>
+        ), true, element.type === "text" ? "T" : element.type === "app" ? "?" : "?")}
+        {renderGroup("typography", "Tipograf?a", <><div><span style={labelStyle}>Color</span><div style={{ display: "flex", gap: 8, alignItems: "center" }}><input type="color" value={element.color ?? "#ffffff"} onChange={(e) => onChange(element.id, { color: e.target.value })} style={{ width: 36, height: 30, border: "none", borderRadius: 6, cursor: "pointer", background: "none" }} /><input type="text" value={element.color ?? "#ffffff"} onChange={(e) => onChange(element.id, { color: e.target.value })} style={{ ...inputStyle, flex: 1 }} /></div></div><div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}><div><span style={labelStyle}>Tama?o</span><input type="number" min={8} max={120} value={element.fontSize ?? 16} onChange={(e) => onChange(element.id, { fontSize: Number(e.target.value) })} style={inputStyle} /></div><div><span style={labelStyle}>Peso</span><input type="text" value={element.fontWeight ?? "400"} onChange={(e) => onChange(element.id, { fontWeight: e.target.value })} style={inputStyle} /></div></div><div><span style={labelStyle}>Fuente</span><select value={element.fontFamily ?? "Inter, system-ui, sans-serif"} onChange={(e) => onChange(element.id, { fontFamily: e.target.value })} style={{ ...inputStyle, cursor: "pointer" }}><option value="Inter, system-ui, sans-serif">Inter</option><option value="'Playfair Display', Georgia, serif">Playfair Display</option><option value="Georgia, serif">Georgia</option><option value="'Dancing Script', cursive">Dancing Script</option></select></div><div><span style={labelStyle}>Alineaci?n</span><div style={{ display: "flex", gap: 4 }}>{(["left", "center", "right"] as const).map((a) => <button key={a} type="button" onClick={() => onChange(element.id, { textAlign: a })} style={{ flex: 1, padding: "6px 0", background: element.textAlign === a ? "#7c3aed" : "#1e1e2d", border: "1px solid #2a2a3d", borderRadius: 6, cursor: "pointer", color: element.textAlign === a ? "#fff" : "#9898b8", fontSize: 11 }}>{a}</button>)}</div></div><div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}><div><span style={labelStyle}>L?nea</span><input type="number" min={0.8} max={3} step={0.05} value={element.lineHeight ?? 1.4} onChange={(e) => onChange(element.id, { lineHeight: Number(e.target.value) })} style={inputStyle} /></div><div><span style={labelStyle}>Tracking</span><input type="number" min={0} max={1} step={0.01} value={element.letterSpacing ?? 0} onChange={(e) => onChange(element.id, { letterSpacing: Number(e.target.value) })} style={inputStyle} /></div></div></>, element.type === "text", "Aa")}
+        {renderGroup("fill", "Relleno", <><div><span style={labelStyle}>Fondo</span><input type="text" value={element.config?.primaryColor ?? element.background ?? ""} placeholder="Color, rgba(...) o linear-gradient(...)" onChange={(e) => onChange(element.id, { background: e.target.value, config: element.type === "app" ? { ...(element.config ?? {}), primaryColor: e.target.value } : element.config })} style={inputStyle} /></div>{element.type === "app" && <div><span style={labelStyle}>Color texto</span><input type="text" value={element.color ?? element.config?.textColor ?? ""} onChange={(e) => onChange(element.id, { color: e.target.value, config: { ...(element.config ?? {}), textColor: e.target.value } })} style={inputStyle} /></div>}<div><span style={labelStyle}>Opacidad {Math.round((element.opacity ?? 1) * 100)}%</span><input type="range" min={0} max={1} step={0.01} value={element.opacity ?? 1} onChange={(e) => onChange(element.id, { opacity: Number(e.target.value) })} style={{ width: "100%", accentColor: "#7c3aed" }} /></div></>, element.type !== "text", "?")}
+        {renderGroup("stroke", "Contorno", <><div><span style={labelStyle}>Borde redondeado: {element.borderRadius ?? 0}px</span><input type="range" min={0} max={999} step={1} value={element.borderRadius ?? 0} onChange={(e) => onChange(element.id, { borderRadius: Number(e.target.value) })} style={{ width: "100%", accentColor: "#7c3aed" }} /></div><div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}><span style={{ ...labelStyle, margin: 0 }}>Activar contorno</span><button type="button" onClick={() => onChange(element.id, hasBorder(element) ? { borderWidth: 0, borderStyle: "none" } : { borderWidth: 1, borderStyle: "solid", borderColor: element.borderColor ?? "#c8a96a" })} style={{ ...actionBtnStyle, width: "auto", padding: "6px 10px" }}>{hasBorder(element) ? "Activo" : "Off"}</button></div>{hasBorder(element) && <><input type="text" value={element.borderColor ?? ""} placeholder="rgba(200,169,106,0.35)" onChange={(e) => onChange(element.id, { borderColor: e.target.value })} style={inputStyle} /><input type="range" min={1} max={12} step={1} value={element.borderWidth ?? 1} onChange={(e) => onChange(element.id, { borderWidth: Number(e.target.value) })} style={{ width: "100%", accentColor: "#7c3aed" }} /><div style={{ display: "flex", gap: 4 }}>{(["solid", "dashed"] as const).map((borderStyle) => <button key={borderStyle} type="button" onClick={() => onChange(element.id, { borderStyle })} style={{ ...actionBtnStyle, textAlign: "center", background: (element.borderStyle ?? "solid") === borderStyle ? "#2a1f4d" : "#1e1e2d" }}>{borderStyle}</button>)}</div></>}</>, element.type !== "text", "?")}
+        {renderGroup("shadow", "Sombra", <>{element.type === "text" && <div><span style={labelStyle}>Text shadow</span><input type="text" value={element.textShadow ?? ""} placeholder="0 2px 10px rgba(...)" onChange={(e) => onChange(element.id, { textShadow: e.target.value })} style={inputStyle} /></div>}{(element.type === "shape" || element.type === "decoration") && element.blur !== undefined && <div><span style={labelStyle}>Blur: {element.blur ?? 0}px</span><input type="range" min={0} max={40} step={1} value={element.blur ?? 0} onChange={(e) => onChange(element.id, { blur: Number(e.target.value) })} style={{ width: "100%", accentColor: "#7c3aed" }} /></div>}</>, element.type === "text" || element.type === "shape" || element.type === "decoration", "?")}
+        {renderGroup("spacing", "Espaciado", <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>{(["x", "y", "width", "height"] as const).map((k) => <div key={k}><span style={{ ...labelStyle, fontSize: 9 }}>{k.toUpperCase()}</span><input type="number" value={Math.round(element[k] as number) || 0} disabled={element.locked} onChange={(e) => onChange(element.id, { [k]: Number(e.target.value) })} style={{ ...inputStyle, opacity: element.locked ? 0.5 : 1 }} /></div>)}</div>, true, "?")}
+        {renderGroup("action", "Acci?n", <>{element.type === "app" && <div><span style={labelStyle}>URL demo</span><input type="text" value={element.config?.url ?? ""} onChange={(e) => onChange(element.id, { config: { ...(element.config ?? {}), url: e.target.value } })} style={inputStyle} /></div>}<div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}><button type="button" onClick={onDuplicate} style={{ ...actionBtnStyle, textAlign: "center" }}>Duplicar</button><button type="button" onClick={onBringToFront} style={{ ...actionBtnStyle, textAlign: "center" }}>Frente</button><button type="button" onClick={onSendToBack} style={{ ...actionBtnStyle, textAlign: "center" }}>Atr?s</button><button type="button" onClick={() => setPendingDelete("element")} style={{ ...actionBtnStyle, textAlign: "center", color: "#f87171" }}>Eliminar</button></div></>, true, "?")}
+        {renderGroup("visibility", "Visibilidad", <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}><span style={{ ...labelStyle, margin: 0 }}>Visible</span><button type="button" onClick={() => onChange(element.id, { visible: !element.visible })} style={{ width: 36, height: 20, borderRadius: 10, background: element.visible ? "#7c3aed" : "#2a2a3d", border: "none", cursor: "pointer", position: "relative", transition: "background 0.2s" }}><span style={{ position: "absolute", top: 2, left: element.visible ? 18 : 2, width: 16, height: 16, background: "#fff", borderRadius: 8, transition: "left 0.2s" }} /></button></div>, true, "?")}
       </div>
     </div>
   );
@@ -1697,6 +1457,9 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
   // ─────────────────────────────────────────────────────────────────────────────
   // Render
   // ─────────────────────────────────────────────────────────────────────────────
+  const countSectionElements = (section: V3Section) =>
+    elements.filter((el) => el.y >= section.y && el.y < section.y + section.height).length;
+
   return (
     <div style={{
       display: "flex", flexDirection: "column",
@@ -1817,100 +1580,11 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
       {/* ── BODY ── */}
       <div style={{ flex: 1, display: "flex", overflow: "hidden", minWidth: 0, position: "relative" }}>
 
-        {/* ── ICON SIDEBAR ── */}
-        <div style={{
-          width: ICON_SIDEBAR_W, minWidth: ICON_SIDEBAR_W, flexShrink: 0,
-          background: "#16161f",
-          borderRight: "1px solid #2a2a3d",
-          display: "flex", flexDirection: "column",
-          alignItems: "center", paddingTop: 8, gap: 2, zIndex: 40,
-        }}>
-          {TOOLS.map((tool) => {
-            const active = activeTool === tool.id;
-            return (
-              <button
-                key={tool.id}
-                type="button"
-                onClick={() => setActiveTool(active ? null : tool.id)}
-                title={tool.label}
-                style={{
-                  width: 52, height: 52, borderRadius: 10,
-                  background: active ? "#2a1f4d" : "transparent",
-                  border: active ? "1px solid #7c3aed" : "1px solid transparent",
-                  cursor: "pointer", color: active ? "#a78bfa" : "#8884a8",
-                  fontSize: 18, display: "flex", flexDirection: "column",
-                  alignItems: "center", justifyContent: "center", gap: 2,
-                  transition: "all 0.15s",
-                }}
-                onMouseEnter={(e) => { if (!active) e.currentTarget.style.color = "#c8c4f0"; }}
-                onMouseLeave={(e) => { if (!active) e.currentTarget.style.color = "#8884a8"; }}
-              >
-                <span style={{ lineHeight: 1 }}>{tool.icon}</span>
-                <span style={{ fontSize: 8, letterSpacing: "0.06em" }}>{tool.label}</span>
-              </button>
-            );
-          })}
-
-          <div style={{
-            width: "100%",
-            marginTop: 8,
-            paddingTop: 8,
-            borderTop: "1px solid #2a2a3d",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            gap: 4,
-            overflowY: "auto"
-          }}>
-            {sections.map((section) => {
-              const active = section.id === activeSectionId;
-              return (
-                <button
-                  key={section.id}
-                  type="button"
-                  title={section.label}
-                  onClick={() => { scrollToSection(section); setSelectedId(null); }}
-                  style={{
-                    width: 54,
-                    minHeight: 30,
-                    borderRadius: 8,
-                    border: active ? "1px solid #c8a96a" : "1px solid #2a2a3d",
-                    background: active ? "rgba(200,169,106,0.16)" : "#1e1e2d",
-                    color: active ? "#f4d28a" : "#8884a8",
-                    cursor: "pointer",
-                    fontSize: 8,
-                    fontWeight: 700,
-                    letterSpacing: "0.04em",
-                    lineHeight: 1.1,
-                    padding: "4px 3px"
-                  }}
-                >
-                  {section.label.slice(0, 7)}
-                </button>
-              );
-            })}
-            <button
-              type="button"
-              title="Agregar sección"
-              onClick={addDemoSection}
-              style={{
-                width: 60,
-                height: 32,
-                borderRadius: 8,
-                border: "1px solid rgba(124,58,237,0.55)",
-                background: "rgba(124,58,237,0.18)",
-                color: "#c4b5fd",
-                cursor: "pointer",
-                fontSize: 9,
-                fontWeight: 700,
-                letterSpacing: "0.04em",
-                fontFamily: "Inter, system-ui, sans-serif",
-                lineHeight: 1.2,
-              }}
-            >
-              + Sección
-            </button>
-          </div>
+        {/* -- LEFT SIDEBAR -- */}
+        <div style={{ width: ICON_SIDEBAR_W, minWidth: ICON_SIDEBAR_W, flexShrink: 0, background: "#16161f", borderRight: "1px solid #2a2a3d", display: "flex", flexDirection: "column", alignItems: "center", padding: "10px 6px", gap: 10, zIndex: 40, overflowY: "auto" }}>
+          <div style={{ width: "100%" }}><p style={{ color: "#6f6b8f", fontSize: 8, fontWeight: 800, letterSpacing: "0.12em", textTransform: "uppercase", textAlign: "center", margin: "0 0 8px" }}>Biblioteca</p><div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "center" }}>{TOOLS.filter((tool) => tool.id !== "projects").map((tool) => { const active = activeTool === tool.id; return <button key={tool.id} type="button" onClick={() => setActiveTool(active ? null : tool.id)} title={tool.label} style={{ width: 56, minHeight: 54, borderRadius: 14, background: active ? "linear-gradient(135deg,rgba(124,58,237,0.28),rgba(200,169,106,0.12))" : "#1b1b28", border: active ? "1px solid #7c3aed" : "1px solid #2a2a3d", cursor: "pointer", color: active ? "#f4f1ff" : "#9b96bd", fontSize: 18, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 3, boxShadow: active ? "0 8px 20px rgba(124,58,237,0.22)" : "none", transition: "all 0.15s" }}><span style={{ lineHeight: 1 }}>{tool.icon}</span><span style={{ fontSize: 8, letterSpacing: "0.04em", lineHeight: 1.1 }}>{tool.label}</span></button>; })}</div></div>
+          <div style={{ width: "100%", height: 1, background: "#2a2a3d" }} />
+          <div style={{ width: "100%" }}><p style={{ color: "#6f6b8f", fontSize: 8, fontWeight: 800, letterSpacing: "0.12em", textTransform: "uppercase", textAlign: "center", margin: "0 0 8px" }}>Estructura</p><div style={{ display: "flex", flexDirection: "column", gap: 7, alignItems: "center" }}>{sections.map((section) => { const active = section.id === activeSectionId; const count = countSectionElements(section); return <button key={section.id} type="button" title={section.label + " ? " + count + " elementos"} onClick={() => { scrollToSection(section); setSelectedId(null); }} style={{ width: 60, minHeight: 64, borderRadius: 12, border: active ? "1px solid #c8a96a" : "1px solid #2a2a3d", background: active ? "rgba(200,169,106,0.14)" : "#1b1b28", color: active ? "#f4d28a" : "#9b96bd", cursor: "pointer", padding: 5, display: "flex", flexDirection: "column", alignItems: "center", gap: 4, boxShadow: active ? "0 8px 22px rgba(200,169,106,0.12)" : "none", fontFamily: "Inter, system-ui, sans-serif" }}><span style={{ width: 44, height: 22, borderRadius: 7, background: section.background, border: "1px solid rgba(255,255,255,0.10)", boxShadow: "inset 0 0 18px rgba(0,0,0,0.25)" }} /><span style={{ fontSize: 8, fontWeight: 800, lineHeight: 1.05, maxWidth: 50, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{section.label}</span><span style={{ fontSize: 8, color: active ? "#fff0c2" : "#6f6b8f" }}>{count} elem.</span></button>; })}<button type="button" title="Agregar secci?n" onClick={addDemoSection} style={{ width: 60, minHeight: 42, borderRadius: 12, border: "1px dashed rgba(124,58,237,0.65)", background: "rgba(124,58,237,0.12)", color: "#c4b5fd", cursor: "pointer", fontSize: 9, fontWeight: 800, letterSpacing: "0.04em", fontFamily: "Inter, system-ui, sans-serif", lineHeight: 1.2 }}>+ Agregar</button></div></div>
         </div>
 
         {/* ── EXPANDED PANEL ── */}

@@ -1846,6 +1846,46 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
   };
 
   // ── Layer panel helpers ────────────────────────────────────────────────────
+  const distributeSelectedGroup = (axis: "horizontal" | "vertical") => {
+    if (selectedIds.length < 3) return;
+    const selectedElements = elements
+      .filter((el) => selectedIds.includes(el.id) && el.visible && !el.locked)
+      .sort((a, b) => axis === "horizontal" ? a.x - b.x : a.y - b.y);
+    if (selectedElements.length < 3) return;
+
+    pushHistory(snapshot());
+
+    if (axis === "horizontal") {
+      const first = selectedElements[0];
+      const last = selectedElements[selectedElements.length - 1];
+      const availableSpace = (last.x + last.width) - first.x;
+      const totalWidth = selectedElements.reduce((sum, el) => sum + el.width, 0);
+      const gap = (availableSpace - totalWidth) / (selectedElements.length - 1);
+      let nextX = first.x;
+      const positions: Record<string, number> = {};
+      selectedElements.forEach((el, index) => {
+        positions[el.id] = index === selectedElements.length - 1 ? last.x : Math.round(nextX);
+        nextX += el.width + gap;
+      });
+      setElements((prev) => prev.map((el) => el.id in positions ? { ...el, x: positions[el.id] } : el));
+      return;
+    }
+
+    const first = selectedElements[0];
+    const last = selectedElements[selectedElements.length - 1];
+    const lastHeight = last.height ?? 60;
+    const availableSpace = (last.y + lastHeight) - first.y;
+    const totalHeight = selectedElements.reduce((sum, el) => sum + (el.height ?? 60), 0);
+    const gap = (availableSpace - totalHeight) / (selectedElements.length - 1);
+    let nextY = first.y;
+    const positions: Record<string, number> = {};
+    selectedElements.forEach((el, index) => {
+      positions[el.id] = index === selectedElements.length - 1 ? last.y : Math.round(nextY);
+      nextY += (el.height ?? 60) + gap;
+    });
+    setElements((prev) => prev.map((el) => el.id in positions ? { ...el, y: positions[el.id] } : el));
+  };
+
   const getSectionElements = (sId: string) => {
     const sec = sections.find((s) => s.id === sId);
     if (!sec) return [];
@@ -2460,7 +2500,7 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
                   const maxX = Math.max(...selEls.map((el) => el.x + el.width)) + PAD;
                   const maxY = Math.max(...selEls.map((el) => el.y + (el.height ?? 60))) + PAD;
                   const groupToolbarButton: React.CSSProperties = {
-                    minWidth: 28,
+                    minWidth: 74,
                     height: 26,
                     border: "1px solid rgba(167,139,250,0.38)",
                     borderRadius: 8,
@@ -2470,6 +2510,16 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
                     fontSize: 10,
                     fontWeight: 800,
                     fontFamily: "Inter, system-ui, sans-serif",
+                    padding: "0 8px",
+                    whiteSpace: "nowrap",
+                  };
+                  const canDistribute = selEls.filter((el) => !el.locked).length >= 3;
+                  const distributeButtonStyle: React.CSSProperties = {
+                    ...groupToolbarButton,
+                    minWidth: 112,
+                    padding: "0 9px",
+                    opacity: canDistribute ? 1 : 0.45,
+                    cursor: canDistribute ? "pointer" : "not-allowed",
                   };
                   return (
                     <React.Fragment key="group-bbox">
@@ -2509,6 +2559,7 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
                           zIndex: 10002,
                           display: "flex",
                           alignItems: "center",
+                          flexWrap: "wrap",
                           gap: 5,
                           padding: 6,
                           borderRadius: 12,
@@ -2518,15 +2569,18 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
                           pointerEvents: "auto",
                         }}
                       >
-                        <button type="button" title="Alinear izquierda" onClick={() => alignSelectedGroup("left")} style={groupToolbarButton}>L</button>
-                        <button type="button" title="Alinear centro horizontal" onClick={() => alignSelectedGroup("centerX")} style={groupToolbarButton}>CH</button>
-                        <button type="button" title="Alinear derecha" onClick={() => alignSelectedGroup("right")} style={groupToolbarButton}>R</button>
-                        <button type="button" title="Alinear arriba" onClick={() => alignSelectedGroup("top")} style={groupToolbarButton}>T</button>
-                        <button type="button" title="Alinear centro vertical" onClick={() => alignSelectedGroup("centerY")} style={groupToolbarButton}>CV</button>
-                        <button type="button" title="Alinear abajo" onClick={() => alignSelectedGroup("bottom")} style={groupToolbarButton}>B</button>
+                        <button type="button" title="Alinear izquierda" onClick={() => alignSelectedGroup("left")} style={groupToolbarButton}>Izquierda</button>
+                        <button type="button" title="Alinear centro horizontal" onClick={() => alignSelectedGroup("centerX")} style={{ ...groupToolbarButton, minWidth: 128 }}>Centro horizontal</button>
+                        <button type="button" title="Alinear derecha" onClick={() => alignSelectedGroup("right")} style={groupToolbarButton}>Derecha</button>
+                        <button type="button" title="Alinear arriba" onClick={() => alignSelectedGroup("top")} style={groupToolbarButton}>Arriba</button>
+                        <button type="button" title="Alinear centro vertical" onClick={() => alignSelectedGroup("centerY")} style={{ ...groupToolbarButton, minWidth: 112 }}>Centro vertical</button>
+                        <button type="button" title="Alinear abajo" onClick={() => alignSelectedGroup("bottom")} style={groupToolbarButton}>Abajo</button>
                         <span style={{ width: 1, alignSelf: "stretch", background: "rgba(167,139,250,0.25)" }} />
-                        <button type="button" title="Duplicar grupo" onClick={duplicateSelectedGroup} style={{ ...groupToolbarButton, color: "#f4d28a" }}>Dup</button>
-                        <button type="button" title="Eliminar grupo" onClick={deleteSelectedGroup} style={{ ...groupToolbarButton, color: "#f87171" }}>Del</button>
+                        <button type="button" title="Distribuir horizontalmente" disabled={!canDistribute} onClick={() => distributeSelectedGroup("horizontal")} style={distributeButtonStyle}>Distribuir horizontal</button>
+                        <button type="button" title="Distribuir verticalmente" disabled={!canDistribute} onClick={() => distributeSelectedGroup("vertical")} style={distributeButtonStyle}>Distribuir vertical</button>
+                        <span style={{ width: 1, alignSelf: "stretch", background: "rgba(167,139,250,0.25)" }} />
+                        <button type="button" title="Duplicar grupo" onClick={duplicateSelectedGroup} style={{ ...groupToolbarButton, color: "#f4d28a" }}>Duplicar</button>
+                        <button type="button" title="Eliminar grupo" onClick={deleteSelectedGroup} style={{ ...groupToolbarButton, color: "#f87171" }}>Eliminar</button>
                       </div>
                     </React.Fragment>
                   );

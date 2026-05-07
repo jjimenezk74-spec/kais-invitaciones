@@ -15,6 +15,7 @@ function isCanvasV3Design(value: unknown) {
   if (!isRecord(value)) return false;
   if (value.version !== 3) return false;
   if (value.width !== 390 || typeof value.height !== "number" || value.height < 844) return false;
+  if (typeof value.themeId !== "string") return false;
   if (!Array.isArray(value.elements)) return false;
   if (!Array.isArray(value.sections)) return false;
 

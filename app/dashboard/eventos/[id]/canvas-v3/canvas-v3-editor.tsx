@@ -2,6 +2,12 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { saveCanvasDesignV3 } from "./actions";
+import {
+  CANVAS_V3_THEMES,
+  DEFAULT_CANVAS_V3_THEME_ID,
+  getCanvasV3Theme,
+  type CanvasV3Theme
+} from "./themes-v3";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -53,6 +59,7 @@ type CanvasV3Design = {
   viewport: "mobile";
   width: number;
   height: number;
+  themeId: CanvasV3Theme["id"];
   sections: V3Section[];
   elements: V3Element[];
 };
@@ -254,21 +261,38 @@ function normalizeInitialV3Design(value: unknown): CanvasV3Design | null {
     viewport: "mobile",
     width: CANVAS_W,
     height,
+    themeId: getCanvasV3Theme(typeof value.themeId === "string" ? value.themeId : null).id,
     sections,
     elements
   };
 }
 
-function createV3Design(elements: V3Element[], sections: V3Section[]): CanvasV3Design {
+function createV3Design(elements: V3Element[], sections: V3Section[], themeId: CanvasV3Theme["id"]): CanvasV3Design {
   const height = sections.at(-1) ? sections.at(-1)!.y + sections.at(-1)!.height : DEFAULT_DOCUMENT_H;
   return {
     version: 3,
     viewport: "mobile",
     width: CANVAS_W,
     height,
+    themeId,
     sections,
     elements
   };
+}
+
+function getTextStyleForElement(element: V3Element, theme: CanvasV3Theme) {
+  const content = (element.content ?? "").toLowerCase();
+  const isTitle =
+    element.id === "title" ||
+    (element.fontSize ?? 0) >= 42 ||
+    element.fontFamily?.toLowerCase().includes("playfair");
+  const isSubtitle =
+    element.id === "badge" ||
+    element.id === "date" ||
+    content.includes("subtitulo") ||
+    ((element.fontSize ?? 0) >= 20 && (element.fontSize ?? 0) < 42);
+
+  return isTitle ? theme.textStyles.title : isSubtitle ? theme.textStyles.subtitle : theme.textStyles.body;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -447,11 +471,15 @@ function ExpandedPanel({
   onAddText,
   onAddElement,
   onAddApp,
+  onApplyTheme,
+  activeThemeId,
 }: {
   tool: ToolId;
   onAddText: (kind: "title" | "subtitle" | "paragraph") => void;
   onAddElement: (kind: string) => void;
   onAddApp: (kind: string) => void;
+  onApplyTheme: (theme: CanvasV3Theme) => void;
+  activeThemeId: string;
 }) {
   if (tool === "text") {
     return (
@@ -569,27 +597,53 @@ function ExpandedPanel({
   }
 
   if (tool === "templates") {
-    const templates = ["Quinceañera Rose", "Boda Luxury", "XV KPop", "Bautizo Clásico", "Cumpleaños Infantil"];
     return (
       <div style={{ padding: "12px 14px" }}>
         <p style={{ color: "#8884a8", fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", margin: "0 0 10px" }}>
           Plantillas
         </p>
-        {templates.map((t) => (
-          <button
-            key={t}
-            type="button"
+        {CANVAS_V3_THEMES.map((theme) => (
+          <div
+            key={theme.id}
             style={{
-              display: "block", width: "100%", marginBottom: 8,
-              padding: "10px 14px",
-              background: "#1e1e2d", border: "1px solid #2a2a3d",
-              borderRadius: 10, cursor: "pointer", textAlign: "left",
-              color: "#c8c4f0", fontSize: 12,
-              fontFamily: "Inter, system-ui, sans-serif",
+              marginBottom: 10,
+              padding: 10,
+              background: activeThemeId === theme.id ? "rgba(124,58,237,0.18)" : "#1e1e2d",
+              border: activeThemeId === theme.id ? "1px solid #7c3aed" : "1px solid #2a2a3d",
+              borderRadius: 12
             }}
           >
-            {t}
-          </button>
+            <div style={{
+              height: 48,
+              borderRadius: 10,
+              marginBottom: 9,
+              background: theme.sectionBackgrounds.hero,
+              boxShadow: `inset 0 0 0 1px ${theme.colors.accent}44`
+            }} />
+            <p style={{ color: "#e8e6ff", fontSize: 12, fontWeight: 700, margin: "0 0 4px", fontFamily: "Inter, system-ui, sans-serif" }}>
+              {theme.name}
+            </p>
+            <p style={{ color: "#8884a8", fontSize: 10, lineHeight: 1.35, margin: "0 0 9px", fontFamily: "Inter, system-ui, sans-serif" }}>
+              {theme.description}
+            </p>
+            <button
+              type="button"
+              onClick={() => onApplyTheme(theme)}
+              style={{
+                width: "100%",
+                padding: "8px 10px",
+                borderRadius: 9,
+                border: "1px solid rgba(200,169,106,0.36)",
+                background: activeThemeId === theme.id ? "rgba(200,169,106,0.22)" : "rgba(200,169,106,0.10)",
+                color: activeThemeId === theme.id ? "#f4d28a" : "#c8c4f0",
+                cursor: "pointer",
+                fontSize: 11,
+                fontWeight: 700
+              }}
+            >
+              {activeThemeId === theme.id ? "Aplicado" : "Aplicar"}
+            </button>
+          </div>
         ))}
       </div>
     );
@@ -867,6 +921,9 @@ export function CanvasEditorV3({ eventId, eventTitle, initialDesign = null }: Ca
   const [sections, setSections] = useState<V3Section[]>(
     () => parsedInitialDesign?.sections ?? DEFAULT_SECTIONS
   );
+  const [themeId, setThemeId] = useState<CanvasV3Theme["id"]>(
+    () => parsedInitialDesign?.themeId ?? DEFAULT_CANVAS_V3_THEME_ID
+  );
   const [activeSectionId, setActiveSectionId] = useState<string>(
     () => (parsedInitialDesign?.sections ?? DEFAULT_SECTIONS)[0]?.id ?? "hero"
   );
@@ -1046,11 +1103,59 @@ export function CanvasEditorV3({ eventId, eventTitle, initialDesign = null }: Ca
     window.setTimeout(() => scrollToSection(next), 0);
   };
 
+  const applyTheme = (theme: CanvasV3Theme) => {
+    setThemeId(theme.id);
+    setSections((prev) =>
+      prev.map((section) => ({
+        ...section,
+        background: theme.sectionBackgrounds[section.id] ?? section.background
+      }))
+    );
+    setElements((prev) =>
+      prev.map((element) => {
+        if (element.type === "app") {
+          return {
+            ...element,
+            background: element.appKind === "rsvp" ? theme.buttonStyle.background : theme.colors.surface,
+            color: theme.buttonStyle.color,
+            border: element.appKind === "rsvp" ? theme.buttonStyle.border : `1px solid ${theme.colors.accent}55`,
+            borderRadius: theme.buttonStyle.borderRadius,
+            opacity: 1
+          };
+        }
+
+        if (element.type === "decoration" || (element.type === "shape" && element.id !== "bg")) {
+          return {
+            ...element,
+            background: element.height === 1 || element.height === 2
+              ? `linear-gradient(90deg,transparent,${theme.colors.accent},transparent)`
+              : theme.decorationStyle.background,
+            border: theme.decorationStyle.border,
+            borderRadius: theme.decorationStyle.borderRadius,
+            opacity: theme.decorationStyle.opacity
+          };
+        }
+
+        if (element.type === "text" || element.content) {
+          return {
+            ...element,
+            ...getTextStyleForElement(element, theme)
+          };
+        }
+
+        return element;
+      })
+    );
+    setSaveStatus("idle");
+    setSaved(false);
+    setActiveTool(null);
+  };
+
   const handleSave = async () => {
     setSaveStatus("saving");
     setSaveError(null);
 
-    const result = await saveCanvasDesignV3(eventId, createV3Design(elements, sections));
+    const result = await saveCanvasDesignV3(eventId, createV3Design(elements, sections, themeId));
 
     if (!result.ok) {
       setSaveStatus("error");
@@ -1328,6 +1433,8 @@ export function CanvasEditorV3({ eventId, eventTitle, initialDesign = null }: Ca
                 onAddText={addText}
                 onAddElement={addElement}
                 onAddApp={addApp}
+                onApplyTheme={applyTheme}
+                activeThemeId={themeId}
               />
             </div>
           </div>

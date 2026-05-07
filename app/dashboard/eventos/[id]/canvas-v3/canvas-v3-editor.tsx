@@ -1447,6 +1447,17 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
+  useEffect(() => {
+    const previousBodyOverflow = document.body.style.overflow;
+    const previousHtmlOverflow = document.documentElement.style.overflow;
+    document.body.style.overflow = "hidden";
+    document.documentElement.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousBodyOverflow;
+      document.documentElement.style.overflow = previousHtmlOverflow;
+    };
+  }, []);
+
   const ICON_SIDEBAR_W = 84;
   const EXPANDED_PANEL_W = 260;
   // Inspector width: 320px on wide screens, 280px on laptop
@@ -1471,7 +1482,7 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
   return (
     <div style={{
       display: "flex", flexDirection: "column",
-      height: "100vh", width: "100%", maxWidth: "100vw", minWidth: 0,
+      height: "100dvh", width: "100vw", maxWidth: "100vw", minWidth: 0,
       background: "#0f0f17", overflow: "hidden",
       fontFamily: "Inter, system-ui, sans-serif",
     }}>

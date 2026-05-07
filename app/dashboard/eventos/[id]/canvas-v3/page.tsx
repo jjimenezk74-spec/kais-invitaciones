@@ -29,11 +29,13 @@ export default async function CanvasV3Page({ params }: Props) {
   if (!data) notFound();
 
   return (
-    <CanvasEditorV3
-      eventId={data.id}
-      eventSlug={data.slug ?? id}
-      eventTitle={data.hosts_names || data.title || "Evento"}
-      initialDesign={data.canvas_design ?? null}
-    />
+    <div className="fixed inset-0 z-[9999] h-dvh w-screen overflow-hidden bg-[#0f0f17]">
+      <CanvasEditorV3
+        eventId={data.id}
+        eventSlug={data.slug ?? id}
+        eventTitle={data.hosts_names || data.title || "Evento"}
+        initialDesign={data.canvas_design ?? null}
+      />
+    </div>
   );
 }

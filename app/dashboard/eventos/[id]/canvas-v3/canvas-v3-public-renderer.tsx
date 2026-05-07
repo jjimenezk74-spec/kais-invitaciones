@@ -60,83 +60,132 @@ export interface CanvasV3Design {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// normalizePublicV3Design
-// Light validation — only called server-side; here only for client-side guard.
+// normalizePublicV3Design — tolerant normalizer
+// Only returns null if value is not an object at all.
+// Every field has a fallback; no element can cause the whole design to fail.
 // ─────────────────────────────────────────────────────────────────────────────
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return Boolean(v) && typeof v === "object" && !Array.isArray(v);
 }
 
+function safeNum(value: unknown, fallback: number): number {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function safeString(value: unknown, fallback: string): string {
+  return typeof value === "string" && value.length > 0 ? value : fallback;
+}
+
+function safeBool(value: unknown, fallback: boolean): boolean {
+  return typeof value === "boolean" ? value : fallback;
+}
+
+function safeBackground(value: unknown, fallback: string): string {
+  if (typeof value !== "string") return fallback;
+  const trimmed = value.trim();
+  if (!trimmed || trimmed === "0") return fallback;
+  return trimmed;
+}
+
+const DEFAULT_SECTION: V3Section = {
+  id: "hero",
+  label: "Hero",
+  y: 0,
+  height: 844,
+  background: "#050506",
+};
+
 export function normalizePublicV3Design(value: unknown): CanvasV3Design | null {
   try {
+    // Only hard-reject if not an object at all
     if (!isRecord(value)) return null;
-    if (value.version !== 3) return null;
-    // Width must be 390, but be lenient about the exact check in case of minor rounding
-    const w = Number(value.width);
-    if (!Number.isFinite(w) || w < 380 || w > 400) return null;
-    const h = Number(value.height);
-    if (!Number.isFinite(h) || h <= 0) return null;
-    if (!Array.isArray(value.elements)) return null;
-    if (!Array.isArray(value.sections)) return null;
 
-    const elements = (value.elements as unknown[]).reduce<V3Element[]>((acc, e) => {
-      try {
-        if (
-          isRecord(e) &&
-          typeof e.id === "string" &&
-          Number.isFinite(Number(e.x)) &&
-          Number.isFinite(Number(e.y)) &&
-          Number.isFinite(Number(e.width))
-        ) {
+    // ── Sections ──────────────────────────────────────────────────────────────
+    let sections: V3Section[];
+    if (!Array.isArray(value.sections) || value.sections.length === 0) {
+      sections = [DEFAULT_SECTION];
+    } else {
+      sections = (value.sections as unknown[]).reduce<V3Section[]>((acc, s, i) => {
+        try {
+          if (!isRecord(s)) return acc;
           acc.push({
-            ...(e as unknown as V3Element),
-            id: String(e.id),
-            type: (["text", "shape", "app", "decoration"].includes(e.type as string)
+            id: safeString(s.id, `section-${i}`),
+            label: safeString(s.label, `Sección ${i + 1}`),
+            y: safeNum(s.y, 0),
+            height: Math.max(1, safeNum(s.height, 844)),
+            background: safeBackground(s.background, "#050506"),
+          });
+        } catch { /* skip malformed section */ }
+        return acc;
+      }, []);
+      if (sections.length === 0) sections = [DEFAULT_SECTION];
+    }
+
+    // ── Elements ──────────────────────────────────────────────────────────────
+    const elements: V3Element[] = !Array.isArray(value.elements)
+      ? []
+      : (value.elements as unknown[]).reduce<V3Element[]>((acc, e, i) => {
+          try {
+            if (!isRecord(e)) return acc;
+
+            const type = (["text", "shape", "app", "decoration"].includes(e.type as string)
               ? e.type
-              : "shape") as V3Element["type"],
-            x: Number(e.x),
-            y: Number(e.y),
-            width: Math.max(1, Number(e.width)),
-            height: e.height != null && Number.isFinite(Number(e.height)) ? Number(e.height) : null,
-            locked: Boolean(e.locked),
-            visible: e.visible !== false,
-            zIndex: Number.isFinite(Number(e.zIndex)) ? Number(e.zIndex) : 0,
-          });
-        }
-      } catch { /* skip malformed element */ }
-      return acc;
-    }, []);
+              : "text") as V3Element["type"];
 
-    const sections = (value.sections as unknown[]).reduce<V3Section[]>((acc, s) => {
-      try {
-        if (
-          isRecord(s) &&
-          typeof s.id === "string" &&
-          Number.isFinite(Number(s.y)) &&
-          Number.isFinite(Number(s.height))
-        ) {
-          acc.push({
-            id: String(s.id),
-            label: typeof s.label === "string" ? s.label : String(s.id),
-            y: Number(s.y),
-            height: Math.max(1, Number(s.height)),
-            background: typeof s.background === "string" ? s.background : "#0f0f17",
-          });
-        }
-      } catch { /* skip malformed section */ }
-      return acc;
-    }, []);
+            // height: null/undefined → sensible fallback per type; otherwise coerce
+            let height: number | null;
+            if (e.height == null) {
+              height = type === "text" || type === "decoration" ? 80 : 40;
+            } else if (Number.isFinite(Number(e.height))) {
+              height = Number(e.height);
+            } else {
+              height = 40;
+            }
 
-    // Need at least one section to render anything meaningful
-    if (!sections.length) return null;
+            // appKind / appType — normalize both aliases
+            const appKind = (e.appKind || e.appType || undefined) as V3Element["appKind"] | undefined;
+            const appType = (e.appType || e.appKind || undefined) as V3Element["appType"] | undefined;
+
+            acc.push({
+              ...(e as unknown as V3Element),
+              id: safeString(e.id, `element-${i}`),
+              type,
+              x: safeNum(e.x, 0),
+              y: safeNum(e.y, 0),
+              width: Math.max(1, safeNum(e.width, 100)),
+              height,
+              locked: safeBool(e.locked, false),
+              visible: safeBool(e.visible, true),
+              zIndex: safeNum(e.zIndex, i + 1),
+              opacity: Math.min(1, Math.max(0, safeNum(e.opacity, 1))),
+              background: safeBackground(e.background, "transparent"),
+              color: safeString(e.color, "#ffffff"),
+              content: typeof e.content === "string" ? e.content : "",
+              appKind,
+              appType,
+            });
+          } catch { /* skip malformed element */ }
+          return acc;
+        }, []);
+
+    // ── Document height ───────────────────────────────────────────────────────
+    // Use the stored height if valid; otherwise derive from content bounds; floor at 844.
+    const designH = safeNum(value.height, 0);
+    const sectionMaxH = sections.reduce((max, s) => Math.max(max, s.y + s.height), 0);
+    const elementMaxH = elements.reduce((max, el) => {
+      const elH = el.height != null ? el.height : 40;
+      return Math.max(max, el.y + elH);
+    }, 0);
+    const documentHeight = Math.max(designH, sectionMaxH, elementMaxH, 844);
 
     return {
       version: 3,
       viewport: "mobile",
       width: 390,
-      height: h,
-      themeId: typeof value.themeId === "string" ? value.themeId : "kais-luxury",
+      height: documentHeight,
+      themeId: safeString(value.themeId as unknown, "kais-luxury"),
       sections,
       elements,
     };
@@ -467,12 +516,12 @@ export function CanvasV3PublicRenderer({
   }, []);
 
   const sortedElements = [...design.elements].sort((a, b) => a.zIndex - b.zIndex);
-  const documentHeight = Math.max(
-    1,
-    design.height > 0
-      ? design.height
-      : design.sections.reduce((max, s) => Math.max(max, s.y + s.height), 1)
-  );
+  const sectionMaxH = design.sections.reduce((max, s) => Math.max(max, s.y + s.height), 0);
+  const elementMaxH = design.elements.reduce((max, el) => {
+    const elH = el.height != null ? el.height : 40;
+    return Math.max(max, el.y + elH);
+  }, 0);
+  const documentHeight = Math.max(design.height, sectionMaxH, elementMaxH, 844);
 
   return (
     <div
@@ -503,7 +552,7 @@ export function CanvasV3PublicRenderer({
             textAlign: "center",
           }}
         >
-          VISTA PREVIA \u00b7 {eventTitle ?? "Canvas V3"}
+          VISTA PREVIA � {eventTitle ?? "Canvas V3"}
         </div>
       )}
 

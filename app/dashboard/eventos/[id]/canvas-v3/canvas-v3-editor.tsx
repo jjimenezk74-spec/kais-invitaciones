@@ -40,11 +40,20 @@ interface V3Element {
   appKind?: "rsvp" | "countdown" | "whatsapp" | "album" | "live" | "maps" | "qr";
 }
 
+type V3Section = {
+  id: string;
+  label: string;
+  y: number;
+  height: number;
+  background: string;
+};
+
 type CanvasV3Design = {
   version: 3;
   viewport: "mobile";
   width: number;
   height: number;
+  sections: V3Section[];
   elements: V3Element[];
 };
 
@@ -61,16 +70,40 @@ type ToolId =
 // ─────────────────────────────────────────────────────────────────────────────
 
 const CANVAS_W = 390;
-const CANVAS_H = 844;
+const HERO_H = 844;
 
 const cx = (w: number) => Math.round((CANVAS_W - w) / 2);
+
+const DEFAULT_SECTION_TEMPLATES: Omit<V3Section, "y">[] = [
+  { id: "hero", label: "Hero", height: 844, background: "linear-gradient(180deg,#1a0a18 0%,#3d1535 45%,#180a14 100%)" },
+  { id: "countdown", label: "Cuenta regresiva", height: 420, background: "linear-gradient(180deg,#180a14,#211129)" },
+  { id: "presentation", label: "Presentacion", height: 560, background: "linear-gradient(180deg,#211129,#160f1f)" },
+  { id: "messages", label: "Mensajes", height: 640, background: "linear-gradient(180deg,#160f1f,#241125)" },
+  { id: "details", label: "Detalles", height: 620, background: "linear-gradient(180deg,#241125,#18121f)" },
+  { id: "church", label: "Iglesia", height: 520, background: "linear-gradient(180deg,#18121f,#20101c)" },
+  { id: "dresscode", label: "Vestimenta", height: 460, background: "linear-gradient(180deg,#20101c,#17111c)" },
+  { id: "rsvp", label: "RSVP", height: 560, background: "linear-gradient(180deg,#17111c,#241225)" },
+  { id: "footer", label: "Footer", height: 280, background: "linear-gradient(180deg,#241225,#0f0f17)" }
+];
+
+function buildSections(templates = DEFAULT_SECTION_TEMPLATES): V3Section[] {
+  let y = 0;
+  return templates.map((section) => {
+    const next = { ...section, y };
+    y += section.height;
+    return next;
+  });
+}
+
+const DEFAULT_SECTIONS = buildSections();
+const DEFAULT_DOCUMENT_H = DEFAULT_SECTIONS.at(-1)!.y + DEFAULT_SECTIONS.at(-1)!.height;
 
 const INITIAL_ELEMENTS: V3Element[] = [
   // Background gradient overlay
   {
     id: "bg",
     type: "shape",
-    x: 0, y: 0, width: CANVAS_W, height: CANVAS_H,
+    x: 0, y: 0, width: CANVAS_W, height: HERO_H,
     locked: true, visible: true, zIndex: 0,
     background: "linear-gradient(180deg,#1a0a18 0%,#3d1535 45%,#180a14 100%)",
     borderRadius: 0, opacity: 1,
@@ -193,30 +226,47 @@ function isV3Element(value: unknown): value is V3Element {
   );
 }
 
+function isV3Section(value: unknown): value is V3Section {
+  if (!isRecord(value)) return false;
+  return (
+    typeof value.id === "string" &&
+    typeof value.label === "string" &&
+    typeof value.y === "number" &&
+    typeof value.height === "number" &&
+    typeof value.background === "string"
+  );
+}
+
 function normalizeInitialV3Design(value: unknown): CanvasV3Design | null {
   if (!isRecord(value)) return null;
   if (value.version !== 3) return null;
-  if (value.width !== CANVAS_W || value.height !== CANVAS_H) return null;
+  if (value.width !== CANVAS_W || typeof value.height !== "number") return null;
   if (!Array.isArray(value.elements)) return null;
 
   const elements = value.elements.filter(isV3Element);
   if (elements.length !== value.elements.length) return null;
+  const rawSections = Array.isArray(value.sections) ? value.sections.filter(isV3Section) : [];
+  const sections = rawSections.length ? rawSections : DEFAULT_SECTIONS;
+  const height = sections.at(-1) ? sections.at(-1)!.y + sections.at(-1)!.height : DEFAULT_DOCUMENT_H;
 
   return {
     version: 3,
     viewport: "mobile",
     width: CANVAS_W,
-    height: CANVAS_H,
+    height,
+    sections,
     elements
   };
 }
 
-function createV3Design(elements: V3Element[]): CanvasV3Design {
+function createV3Design(elements: V3Element[], sections: V3Section[]): CanvasV3Design {
+  const height = sections.at(-1) ? sections.at(-1)!.y + sections.at(-1)!.height : DEFAULT_DOCUMENT_H;
   return {
     version: 3,
     viewport: "mobile",
     width: CANVAS_W,
-    height: CANVAS_H,
+    height,
+    sections,
     elements
   };
 }
@@ -814,6 +864,12 @@ export function CanvasEditorV3({ eventId, eventTitle, initialDesign = null }: Ca
   const [elements, setElements] = useState<V3Element[]>(
     () => parsedInitialDesign?.elements ?? INITIAL_ELEMENTS
   );
+  const [sections, setSections] = useState<V3Section[]>(
+    () => parsedInitialDesign?.sections ?? DEFAULT_SECTIONS
+  );
+  const [activeSectionId, setActiveSectionId] = useState<string>(
+    () => (parsedInitialDesign?.sections ?? DEFAULT_SECTIONS)[0]?.id ?? "hero"
+  );
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [activeTool, setActiveTool] = useState<ToolId | null>(null);
   const [zoom, setZoom] = useState(0.75);
@@ -823,6 +879,7 @@ export function CanvasEditorV3({ eventId, eventTitle, initialDesign = null }: Ca
   const [preview, setPreview] = useState(false);
 
   const canvasRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{
     id: string; startX: number; startY: number; elX: number; elY: number;
   } | null>(null);
@@ -833,6 +890,16 @@ export function CanvasEditorV3({ eventId, eventTitle, initialDesign = null }: Ca
   } | null>(null);
 
   const selected = elements.find((e) => e.id === selectedId) ?? null;
+  const activeSection = sections.find((section) => section.id === activeSectionId) ?? sections[0] ?? DEFAULT_SECTIONS[0];
+  const documentHeight = sections.at(-1) ? sections.at(-1)!.y + sections.at(-1)!.height : DEFAULT_DOCUMENT_H;
+
+  const scrollToSection = (section: V3Section) => {
+    setActiveSectionId(section.id);
+    scrollRef.current?.scrollTo({
+      top: Math.max(0, section.y * zoom - 20),
+      behavior: "smooth"
+    });
+  };
 
   // ── Drag to move ────────────────────────────────────────────────────────────
   const onMoveStart = useCallback((e: React.MouseEvent, id: string) => {
@@ -895,9 +962,10 @@ export function CanvasEditorV3({ eventId, eventTitle, initialDesign = null }: Ca
   // ── Add elements ────────────────────────────────────────────────────────────
   const addText = (kind: "title" | "subtitle" | "paragraph") => {
     const id = `text-${Date.now()}`;
+    const sectionY = activeSection?.y ?? 0;
     const base: V3Element = {
       id, type: "text",
-      x: cx(300), y: 400, width: 300, height: null,
+      x: cx(300), y: sectionY + 80, width: 300, height: null,
       locked: false, visible: true, zIndex: elements.length,
       textAlign: "center", lineHeight: 1.3,
       fontWeight: "400", fontStyle: "normal",
@@ -920,9 +988,10 @@ export function CanvasEditorV3({ eventId, eventTitle, initialDesign = null }: Ca
   const addElement = (kind: string) => {
     const id = `shape-${Date.now()}`;
     const isLine = kind.toLowerCase().includes("línea") || kind.toLowerCase().includes("linea");
+    const sectionY = activeSection?.y ?? 0;
     setElements((prev) => [...prev, {
       id, type: "decoration" as ElType,
-      x: cx(200), y: 400, width: 200, height: isLine ? 2 : 80,
+      x: cx(200), y: sectionY + 80, width: 200, height: isLine ? 2 : 80,
       locked: false, visible: true, zIndex: prev.length,
       background: isLine
         ? "linear-gradient(90deg,transparent,#c8a96a,transparent)"
@@ -937,9 +1006,10 @@ export function CanvasEditorV3({ eventId, eventTitle, initialDesign = null }: Ca
   const addApp = (kind: string) => {
     const id = `app-${Date.now()}`;
     const isRsvp = kind === "rsvp";
+    const sectionY = activeSection?.y ?? 0;
     setElements((prev) => [...prev, {
       id, type: "app" as ElType,
-      x: cx(320), y: 400, width: 320, height: isRsvp ? 90 : 60,
+      x: cx(320), y: sectionY + 80, width: 320, height: isRsvp ? 90 : 60,
       locked: false, visible: true, zIndex: prev.length,
       appKind: kind as V3Element["appKind"],
       background: isRsvp
@@ -962,11 +1032,25 @@ export function CanvasEditorV3({ eventId, eventTitle, initialDesign = null }: Ca
     setSelectedId(null);
   };
 
+  const addDemoSection = () => {
+    const last = sections.at(-1);
+    const next: V3Section = {
+      id: `custom-${Date.now()}`,
+      label: `Seccion ${sections.length + 1}`,
+      y: last ? last.y + last.height : 0,
+      height: 420,
+      background: "linear-gradient(180deg,#17111c,#23122a)"
+    };
+    setSections((prev) => [...prev, next]);
+    setActiveSectionId(next.id);
+    window.setTimeout(() => scrollToSection(next), 0);
+  };
+
   const handleSave = async () => {
     setSaveStatus("saving");
     setSaveError(null);
 
-    const result = await saveCanvasDesignV3(eventId, createV3Design(elements));
+    const result = await saveCanvasDesignV3(eventId, createV3Design(elements, sections));
 
     if (!result.ok) {
       setSaveStatus("error");
@@ -1135,6 +1219,64 @@ export function CanvasEditorV3({ eventId, eventTitle, initialDesign = null }: Ca
             );
           })}
 
+          <div style={{
+            width: "100%",
+            marginTop: 8,
+            paddingTop: 8,
+            borderTop: "1px solid #2a2a3d",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 4,
+            overflowY: "auto"
+          }}>
+            {sections.map((section) => {
+              const active = section.id === activeSectionId;
+              return (
+                <button
+                  key={section.id}
+                  type="button"
+                  title={section.label}
+                  onClick={() => scrollToSection(section)}
+                  style={{
+                    width: 54,
+                    minHeight: 30,
+                    borderRadius: 8,
+                    border: active ? "1px solid #c8a96a" : "1px solid #2a2a3d",
+                    background: active ? "rgba(200,169,106,0.16)" : "#1e1e2d",
+                    color: active ? "#f4d28a" : "#8884a8",
+                    cursor: "pointer",
+                    fontSize: 8,
+                    fontWeight: 700,
+                    letterSpacing: "0.04em",
+                    lineHeight: 1.1,
+                    padding: "4px 3px"
+                  }}
+                >
+                  {section.label.slice(0, 7)}
+                </button>
+              );
+            })}
+            <button
+              type="button"
+              title="Agregar seccion"
+              onClick={addDemoSection}
+              style={{
+                width: 36,
+                height: 28,
+                borderRadius: 8,
+                border: "1px solid rgba(124,58,237,0.55)",
+                background: "rgba(124,58,237,0.18)",
+                color: "#c4b5fd",
+                cursor: "pointer",
+                fontSize: 16,
+                lineHeight: 1
+              }}
+            >
+              +
+            </button>
+          </div>
+
           {/* Delete selected */}
           {selectedId && (
             <button
@@ -1199,6 +1341,7 @@ export function CanvasEditorV3({ eventId, eventTitle, initialDesign = null }: Ca
             padding: vw < 1400 ? "24px 12px" : "36px 24px",
             background: "#111118",
           }}
+          ref={scrollRef}
           onClick={() => setSelectedId(null)}
         >
           {/* Wrapper preserves natural canvas size before scaling */}
@@ -1213,12 +1356,47 @@ export function CanvasEditorV3({ eventId, eventTitle, initialDesign = null }: Ca
               style={{
                 position: "relative",
                 width: CANVAS_W,
-                height: CANVAS_H,
+                height: documentHeight,
                 borderRadius: 12,
                 overflow: "hidden",
                 boxShadow: "0 32px 80px rgba(0,0,0,0.6), 0 0 0 1px #2a2a3d",
               }}
             >
+              {sections.map((section) => (
+                <div
+                  key={section.id}
+                  style={{
+                    position: "absolute",
+                    left: 0,
+                    top: section.y,
+                    width: CANVAS_W,
+                    height: section.height,
+                    background: section.background,
+                    zIndex: 0,
+                    pointerEvents: "none",
+                    borderTop: section.y === 0 ? undefined : "1px solid rgba(200,169,106,0.14)"
+                  }}
+                >
+                  {!preview && (
+                    <span style={{
+                      position: "absolute",
+                      top: 12,
+                      left: 12,
+                      padding: "4px 8px",
+                      borderRadius: 999,
+                      background: "rgba(0,0,0,0.38)",
+                      border: "1px solid rgba(200,169,106,0.22)",
+                      color: "#c8a96a",
+                      fontSize: 9,
+                      fontWeight: 700,
+                      letterSpacing: "0.08em",
+                      textTransform: "uppercase"
+                    }}>
+                      {section.label}
+                    </span>
+                  )}
+                </div>
+              ))}
               {[...elements]
                 .filter((el) => el.visible)
                 .sort((a, b) => a.zIndex - b.zIndex)
@@ -1249,7 +1427,7 @@ export function CanvasEditorV3({ eventId, eventTitle, initialDesign = null }: Ca
               color: "#4a4a6a", fontSize: 10, letterSpacing: "0.08em",
               fontFamily: "Inter, system-ui, sans-serif",
             }}>
-              390 × 844 px · Mobile
+              390 × {documentHeight} px · Mobile
             </p>
           </div>
         </div>

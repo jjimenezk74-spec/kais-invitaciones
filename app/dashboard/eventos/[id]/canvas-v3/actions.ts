@@ -14,8 +14,22 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function isCanvasV3Design(value: unknown) {
   if (!isRecord(value)) return false;
   if (value.version !== 3) return false;
-  if (value.width !== 390 || value.height !== 844) return false;
+  if (value.width !== 390 || typeof value.height !== "number" || value.height < 844) return false;
   if (!Array.isArray(value.elements)) return false;
+  if (!Array.isArray(value.sections)) return false;
+
+  const sectionsAreValid = value.sections.every((section) => {
+    if (!isRecord(section)) return false;
+    return (
+      typeof section.id === "string" &&
+      typeof section.label === "string" &&
+      typeof section.y === "number" &&
+      typeof section.height === "number" &&
+      typeof section.background === "string"
+    );
+  });
+
+  if (!sectionsAreValid) return false;
 
   return value.elements.every((element) => {
     if (!isRecord(element)) return false;

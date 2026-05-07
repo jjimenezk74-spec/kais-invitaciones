@@ -1448,12 +1448,19 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
   }, []);
 
   const ICON_SIDEBAR_W = 84;
-  const STRUCTURE_PANEL_W = 168;
   const EXPANDED_PANEL_W = 260;
   // Inspector width: 320px on wide screens, 280px on laptop
   const INSPECTOR_W = vw >= 1600 ? 320 : 280;
   // On laptop and smaller screens inspector renders as overlay drawer
   const inspectorIsOverlay = vw < 1400;
+
+  useEffect(() => {
+    const inlineInspectorWidth = !inspectorIsOverlay && inspectorOpen ? INSPECTOR_W : 0;
+    const activePanelWidth = activeTool ? EXPANDED_PANEL_W : 0;
+    const availableWidth = vw - ICON_SIDEBAR_W - activePanelWidth - inlineInspectorWidth - 96;
+    const nextZoom = Math.max(0.3, Math.min(1, Math.floor((availableWidth / canvasW) * 100) / 100));
+    setZoom((current) => Math.abs(current - nextZoom) > 0.03 ? nextZoom : current);
+  }, [activeTool, canvasW, inspectorIsOverlay, inspectorOpen, vw]);
 
   // ─────────────────────────────────────────────────────────────────────────────
   // Render
@@ -1596,7 +1603,7 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
           zIndex: 40,
           overflowY: "auto",
         }}>
-          <p style={{ color: "#6f6b8f", fontSize: 8, fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase", textAlign: "center", margin: "0 0 2px", width: "100%" }}>
+          <p style={{ color: "#8c86ad", fontSize: 8, fontWeight: 850, letterSpacing: "0.06em", textTransform: "uppercase", textAlign: "center", margin: "0 0 4px", width: "100%" }}>
             Biblioteca
           </p>
           <div style={{ display: "flex", flexDirection: "column", gap: 7, alignItems: "center", width: "100%" }}>
@@ -1631,90 +1638,6 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
                 </button>
               );
             })}
-          </div>
-        </div>
-
-        {/* -- STRUCTURE PANEL -- */}
-        <div style={{
-          width: STRUCTURE_PANEL_W,
-          minWidth: STRUCTURE_PANEL_W,
-          flexShrink: 0,
-          background: "#14141f",
-          borderRight: "1px solid #2a2a3d",
-          padding: "12px 10px",
-          overflowY: "auto",
-          zIndex: 39,
-        }}>
-          <p style={{ color: "#8c86ad", fontSize: 10, fontWeight: 850, letterSpacing: "0.12em", textTransform: "uppercase", margin: "0 0 12px" }}>
-            Estructura
-          </p>
-          <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
-            {sections.map((section) => {
-              const active = section.id === activeSectionId;
-              const count = countSectionElements(section);
-              return (
-                <button
-                  key={section.id}
-                  type="button"
-                  title={section.label + " - " + count + " elementos"}
-                  onClick={() => { scrollToSection(section); setSelectedId(null); }}
-                  style={{
-                    width: "100%",
-                    minHeight: 76,
-                    borderRadius: 14,
-                    border: active ? "1px solid #c8a96a" : "1px solid #2a2a3d",
-                    background: active ? "rgba(200,169,106,0.14)" : "#1b1b28",
-                    color: active ? "#f4d28a" : "#b3aecf",
-                    cursor: "pointer",
-                    padding: 8,
-                    display: "grid",
-                    gridTemplateColumns: "52px 1fr",
-                    alignItems: "center",
-                    gap: 10,
-                    boxShadow: active ? "0 10px 24px rgba(200,169,106,0.12)" : "none",
-                    fontFamily: "Inter, system-ui, sans-serif",
-                    textAlign: "left",
-                  }}
-                >
-                  <span style={{
-                    width: 52,
-                    height: 52,
-                    borderRadius: 10,
-                    background: section.background,
-                    border: "1px solid rgba(255,255,255,0.10)",
-                    boxShadow: "inset 0 0 22px rgba(0,0,0,0.3)",
-                  }} />
-                  <span style={{ minWidth: 0 }}>
-                    <span style={{ display: "block", fontSize: 11, fontWeight: 800, lineHeight: 1.15, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {section.label}
-                    </span>
-                    <span style={{ display: "block", marginTop: 5, fontSize: 10, color: active ? "#fff0c2" : "#6f6b8f" }}>
-                      {count} elementos
-                    </span>
-                  </span>
-                </button>
-              );
-            })}
-            <button
-              type="button"
-              title="Agregar seccion"
-              onClick={addDemoSection}
-              style={{
-                width: "100%",
-                minHeight: 44,
-                borderRadius: 13,
-                border: "1px dashed rgba(124,58,237,0.65)",
-                background: "rgba(124,58,237,0.12)",
-                color: "#c4b5fd",
-                cursor: "pointer",
-                fontSize: 11,
-                fontWeight: 800,
-                letterSpacing: "0.04em",
-                fontFamily: "Inter, system-ui, sans-serif",
-              }}
-            >
-              + Agregar seccion
-            </button>
           </div>
         </div>
 
@@ -1756,102 +1679,204 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
           </div>
         )}
 
-        {/* ── CANVAS AREA ── */}
-        <div
-          style={{
-            flex: 1, minWidth: 0, overflow: "auto",
-            display: "flex", alignItems: "flex-start", justifyContent: "center",
-            padding: vw < 1400 ? "24px 12px" : "36px 24px",
-            background: "#111118",
-          }}
-          ref={scrollRef}
-          onClick={() => setSelectedId(null)}
-        >
-          {/* Wrapper preserves natural canvas size before scaling */}
-          <div style={{
-            flexShrink: 0,
-            transform: `scale(${zoom})`,
-            transformOrigin: "top center",
-          }}>
-            {/* Canvas container */}
-            <div
-              ref={canvasRef}
-              style={{
-                position: "relative",
-                width: canvasW,
-                height: documentHeight,
-                borderRadius: 12,
-                overflow: "hidden",
-                boxShadow: "0 32px 80px rgba(0,0,0,0.6), 0 0 0 1px #2a2a3d",
-              }}
-            >
-              {sections.map((section) => (
-                <div
-                  key={section.id}
-                  style={{
+        {/* -- CANVAS WORKSPACE -- */}
+        <div style={{
+          flex: 1,
+          minWidth: 0,
+          display: "flex",
+          flexDirection: "column",
+          background: "#111118",
+          overflow: "hidden",
+        }}>
+          <div
+            style={{
+              flex: 1,
+              minWidth: 0,
+              overflow: "auto",
+              display: "flex",
+              alignItems: "flex-start",
+              justifyContent: "center",
+              padding: vw < 1400 ? "24px 12px" : "36px 24px",
+            }}
+            ref={scrollRef}
+            onClick={() => setSelectedId(null)}
+          >
+            <div style={{
+              flexShrink: 0,
+              transform: "scale(" + zoom + ")",
+              transformOrigin: "top center",
+            }}>
+              <div
+                ref={canvasRef}
+                style={{
+                  position: "relative",
+                  width: canvasW,
+                  height: documentHeight,
+                  borderRadius: 12,
+                  overflow: "hidden",
+                  boxShadow: "0 32px 80px rgba(0,0,0,0.6), 0 0 0 1px #2a2a3d",
+                }}
+              >
+                {sections.map((section) => (
+                  <div
+                    key={section.id}
+                    style={{
+                      position: "absolute",
+                      left: 0,
+                      top: section.y,
+                      width: canvasW,
+                      height: section.height,
+                      background: section.background,
+                      zIndex: 0,
+                      pointerEvents: "none",
+                      borderTop: section.y === 0 ? undefined : "1px solid rgba(200,169,106,0.14)",
+                    }}
+                  >
+                    {!preview && (
+                      <span style={{
+                        position: "absolute",
+                        top: 12,
+                        left: 12,
+                        padding: "4px 8px",
+                        borderRadius: 999,
+                        background: "rgba(0,0,0,0.38)",
+                        border: "1px solid rgba(200,169,106,0.22)",
+                        color: "#c8a96a",
+                        fontSize: 9,
+                        fontWeight: 700,
+                        letterSpacing: "0.08em",
+                        textTransform: "uppercase",
+                      }}>
+                        {section.label}
+                      </span>
+                    )}
+                  </div>
+                ))}
+                {[...elements]
+                  .filter((el) => el.visible)
+                  .sort((a, b) => a.zIndex - b.zIndex)
+                  .map((el) => (
+                    <RenderElement
+                      key={el.id}
+                      el={el}
+                      selected={el.id === selectedId && !preview}
+                      onMouseDown={(e) => !preview && onMoveStart(e, el.id)}
+                      onClick={(e) => !preview && (e.stopPropagation(), setSelectedId(el.id))}
+                      onResizeMouseDown={(e, h) => !preview && onResizeStart(e, el.id, h)}
+                    />
+                  ))}
+
+                {preview && (
+                  <div style={{
                     position: "absolute",
-                    left: 0,
-                    top: section.y,
-                    width: canvasW,
-                    height: section.height,
-                    background: section.background,
-                    zIndex: 0,
+                    bottom: 12,
+                    left: "50%",
+                    transform: "translateX(-50%)",
+                    background: "rgba(0,0,0,0.72)",
+                    borderRadius: 20,
+                    padding: "4px 14px",
+                    color: "#c8a96a",
+                    fontSize: 10,
+                    letterSpacing: "0.12em",
                     pointerEvents: "none",
-                    borderTop: section.y === 0 ? undefined : "1px solid rgba(200,169,106,0.14)"
+                  }}>
+                    MODO PREVIEW
+                  </div>
+                )}
+              </div>
+
+              <p style={{
+                textAlign: "center",
+                marginTop: 10,
+                color: "#4a4a6a",
+                fontSize: 10,
+                letterSpacing: "0.08em",
+                fontFamily: "Inter, system-ui, sans-serif",
+              }}>
+                {canvasW} ? {documentHeight} px ? {viewportMode === "desktop" ? "Desktop" : "Mobile"}
+              </p>
+            </div>
+          </div>
+
+          <div style={{
+            minHeight: 112,
+            flexShrink: 0,
+            background: "#16161f",
+            borderTop: "1px solid #2a2a3d",
+            padding: "12px 16px",
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            overflowX: "auto",
+          }}>
+            {sections.map((section) => {
+              const active = section.id === activeSectionId;
+              const count = countSectionElements(section);
+              return (
+                <button
+                  key={section.id}
+                  type="button"
+                  title={section.label + " - " + count + " elementos"}
+                  onClick={() => { scrollToSection(section); setSelectedId(null); }}
+                  style={{
+                    width: 136,
+                    minWidth: 136,
+                    height: 82,
+                    borderRadius: 14,
+                    border: active ? "1px solid #c8a96a" : "1px solid #2a2a3d",
+                    background: active ? "rgba(200,169,106,0.14)" : "#1b1b28",
+                    color: active ? "#f4d28a" : "#b3aecf",
+                    cursor: "pointer",
+                    padding: 8,
+                    display: "grid",
+                    gridTemplateColumns: "44px 1fr",
+                    alignItems: "center",
+                    gap: 8,
+                    boxShadow: active ? "0 10px 24px rgba(200,169,106,0.12)" : "none",
+                    fontFamily: "Inter, system-ui, sans-serif",
+                    textAlign: "left",
                   }}
                 >
-                  {!preview && (
-                    <span style={{
-                      position: "absolute",
-                      top: 12,
-                      left: 12,
-                      padding: "4px 8px",
-                      borderRadius: 999,
-                      background: "rgba(0,0,0,0.38)",
-                      border: "1px solid rgba(200,169,106,0.22)",
-                      color: "#c8a96a",
-                      fontSize: 9,
-                      fontWeight: 700,
-                      letterSpacing: "0.08em",
-                      textTransform: "uppercase"
-                    }}>
+                  <span style={{
+                    width: 44,
+                    height: 58,
+                    borderRadius: 8,
+                    background: section.background,
+                    border: "1px solid rgba(255,255,255,0.10)",
+                    boxShadow: "inset 0 0 22px rgba(0,0,0,0.3)",
+                  }} />
+                  <span style={{ minWidth: 0 }}>
+                    <span style={{ display: "block", fontSize: 11, fontWeight: 850, lineHeight: 1.15, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                       {section.label}
                     </span>
-                  )}
-                </div>
-              ))}
-              {[...elements]
-                .filter((el) => el.visible)
-                .sort((a, b) => a.zIndex - b.zIndex)
-                .map((el) => (
-                  <RenderElement
-                    key={el.id}
-                    el={el}
-                    selected={el.id === selectedId && !preview}
-                    onMouseDown={(e) => !preview && onMoveStart(e, el.id)}
-                    onClick={(e) => !preview && (e.stopPropagation(), setSelectedId(el.id))}
-                    onResizeMouseDown={(e, h) => !preview && onResizeStart(e, el.id, h)}
-                  />
-                ))}
-
-              {preview && (
-                <div style={{
-                  position: "absolute", bottom: 12, left: "50%", transform: "translateX(-50%)",
-                  background: "rgba(0,0,0,0.72)", borderRadius: 20, padding: "4px 14px",
-                  color: "#c8a96a", fontSize: 10, letterSpacing: "0.12em", pointerEvents: "none",
-                }}>
-                  MODO PREVIEW
-                </div>
-              )}
-            </div>
-
-            <p style={{
-              textAlign: "center", marginTop: 10,
-              color: "#4a4a6a", fontSize: 10, letterSpacing: "0.08em",
-              fontFamily: "Inter, system-ui, sans-serif",
-            }}>
-              {canvasW} × {documentHeight} px · {viewportMode === "desktop" ? "Desktop" : "Mobile"}
-            </p>
+                    <span style={{ display: "block", marginTop: 6, fontSize: 10, color: active ? "#fff0c2" : "#6f6b8f" }}>
+                      {count} elementos
+                    </span>
+                  </span>
+                </button>
+              );
+            })}
+            <button
+              type="button"
+              title="Agregar seccion"
+              onClick={addDemoSection}
+              style={{
+                width: 112,
+                minWidth: 112,
+                height: 82,
+                borderRadius: 14,
+                border: "1px dashed rgba(124,58,237,0.65)",
+                background: "rgba(124,58,237,0.12)",
+                color: "#c4b5fd",
+                cursor: "pointer",
+                fontSize: 12,
+                fontWeight: 850,
+                letterSpacing: "0.04em",
+                fontFamily: "Inter, system-ui, sans-serif",
+              }}
+            >
+              + Seccion
+            </button>
           </div>
         </div>
 

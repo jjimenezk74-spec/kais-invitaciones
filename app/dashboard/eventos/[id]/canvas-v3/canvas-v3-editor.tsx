@@ -1038,11 +1038,12 @@ function RightPanel({
 
 type CanvasEditorV3Props = {
   eventId: string;
+  eventSlug?: string;
   eventTitle: string;
   initialDesign?: unknown;
 };
 
-export function CanvasEditorV3({ eventId, eventTitle, initialDesign = null }: CanvasEditorV3Props) {
+export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign = null }: CanvasEditorV3Props) {
   const parsedInitialDesign = normalizeInitialV3Design(initialDesign);
   const [elements, setElements] = useState<V3Element[]>(
     () => parsedInitialDesign?.elements ?? INITIAL_ELEMENTS
@@ -1396,15 +1397,21 @@ export function CanvasEditorV3({ eventId, eventTitle, initialDesign = null }: Ca
           {saveStatus === "saving" ? "Guardando..." : saved ? "✓ Guardado" : saveStatus === "error" ? "Error" : "Guardar"}
         </button>
         {saveError && (
-          <span style={{ color: "#fca5a5", fontSize: 11, maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-            {saveError}
+          <span
+            title={saveError}
+            style={{ color: "#fca5a5", fontSize: 11, maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flexShrink: 0 }}
+          >
+            ⚠ {saveError}
           </span>
         )}
         <button
           type="button"
-          style={{ ...topBtnStyle, flexShrink: 0, background: "linear-gradient(135deg,#7c3aed,#5b21b6)", color: "#fff", borderColor: "transparent" }}
+          disabled={!eventSlug}
+          onClick={() => eventSlug && window.open(`/evento/${eventSlug}/preview-v3`, "_blank")}
+          title={eventSlug ? `Abrir /evento/${eventSlug}/preview-v3` : "Guardá el diseño primero"}
+          style={{ ...topBtnStyle, flexShrink: 0, background: "linear-gradient(135deg,#7c3aed,#5b21b6)", color: "#fff", borderColor: "transparent", opacity: eventSlug ? 1 : 0.5 }}
         >
-          Publicar
+          Publicar ↗
         </button>
 
         {/* Inspector toggle (always visible in top bar for small screens) */}
@@ -1731,6 +1738,9 @@ export function CanvasEditorV3({ eventId, eventTitle, initialDesign = null }: Ca
     </div>
   );
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Shared button style
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Shared button style

@@ -158,6 +158,30 @@ export async function saveCanvasDesignV3(
     return { ok: false, error: `No se pudo guardar: ${dbError.message}` };
   }
 
+  // ── Verify the write actually landed ──────────────────────────────────────
+  const { data: verify, error: verifyError } = await admin
+    .from("events")
+    .select("canvas_design")
+    .eq("id", eventId)
+    .single();
+
+  if (verifyError) {
+    console.error("[save-v3] verify read failed", verifyError.message);
+    return { ok: false, error: `Guardado pero no se pudo verificar: ${verifyError.message}` };
+  }
+
+  if (!verify?.canvas_design) {
+    console.error("[save-v3] canvas_design was not persisted (verify returned null)");
+    return { ok: false, error: "canvas_design no quedo guardado en la base de datos." };
+  }
+
+  const persisted = verify.canvas_design as Record<string, unknown>;
+  console.log("[save-v3] verified OK", {
+    version: persisted.version,
+    elementCount: Array.isArray(persisted.elements) ? persisted.elements.length : "?",
+    sectionCount: Array.isArray(persisted.sections) ? persisted.sections.length : "?",
+  });
+
   console.log("[save-v3] saved OK", { eventId });
 
   revalidatePath(`/dashboard/eventos/${eventId}`);

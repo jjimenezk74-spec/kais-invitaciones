@@ -22,7 +22,7 @@ export default async function CanvasV3Page({ params }: Props) {
   const admin = createAdminClient();
   const { data } = await admin
     .from("events")
-    .select("id, hosts_names, title, canvas_design")
+    .select("id, slug, hosts_names, title, canvas_design")
     .eq(isUuid(id) ? "id" : "slug", id)
     .maybeSingle();
 
@@ -31,6 +31,7 @@ export default async function CanvasV3Page({ params }: Props) {
   return (
     <CanvasEditorV3
       eventId={data.id}
+      eventSlug={data.slug ?? id}
       eventTitle={data.hosts_names || data.title || "Evento"}
       initialDesign={data.canvas_design ?? null}
     />

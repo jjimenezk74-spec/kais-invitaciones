@@ -452,12 +452,14 @@ function hasBorder(el: Pick<V3Element, "border" | "borderWidth" | "borderStyle">
 function RenderElement({
   el,
   selected,
+  highlighted,
   onMouseDown,
   onClick,
   onResizeMouseDown,
 }: {
   el: V3Element;
   selected: boolean;
+  highlighted?: boolean; // true when part of a multi-selection (no handles, just outline)
   onMouseDown: (e: React.MouseEvent) => void;
   onClick: (e: React.MouseEvent) => void;
   onResizeMouseDown: (e: React.MouseEvent, handle: string) => void;
@@ -472,9 +474,10 @@ function RenderElement({
     opacity: el.opacity ?? 1,
     borderRadius: el.borderRadius,
     border: computeBorder(el),
-    cursor: el.locked ? "default" : selected ? "grab" : "pointer",
+    cursor: el.locked ? "default" : (selected || highlighted) ? "grab" : "pointer",
     userSelect: "none",
-    overflow: selected ? "visible" : "hidden",
+    overflow: (selected || highlighted) ? "visible" : "hidden",
+    boxShadow: highlighted && !selected ? "inset 0 0 0 2px rgba(124,58,237,0.65)" : undefined,
   };
 
   if (el.background && !el.content) {
@@ -874,7 +877,7 @@ function RightPanel({
   onMoveSectionUp,
   onMoveSectionDown,
   sectionElements,
-  selectedId,
+  selectedIds,
   onSelectLayer,
   onToggleVisible,
   onToggleLocked,
@@ -895,8 +898,8 @@ function RightPanel({
   onMoveSectionDown: () => void;
   // layers panel
   sectionElements: V3Element[];
-  selectedId: string | null;
-  onSelectLayer: (id: string) => void;
+  selectedIds: string[];
+  onSelectLayer: (id: string, shift?: boolean) => void;
   onToggleVisible: (id: string) => void;
   onToggleLocked: (id: string) => void;
   onLayerMoveUp: (id: string) => void;
@@ -1084,7 +1087,7 @@ function RightPanel({
       {layersOpen && (
         <div ref={layerListRef} style={{ display: "flex", flexDirection: "column", padding: "2px 8px 8px" }}>
           {sortedLayers.map((el, idx) => {
-            const isSel = el.id === selectedId;
+            const isSel = selectedIds.includes(el.id);
             const isHid = el.visible === false;
             const isLocked = el.locked === true;
             const isDragSrc = isDragging && layerDragRef.current?.id === el.id;
@@ -1107,7 +1110,7 @@ function RightPanel({
                     userSelect: "none",
                     marginBottom: 1,
                   }}
-                  onClick={() => { if (!isDragging) onSelectLayer(el.id); }}
+                  onClick={(e) => { if (!isDragging) onSelectLayer(el.id, e.shiftKey); }}
                 >
                   {/* drag handle */}
                   <span
@@ -1351,7 +1354,8 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
   const [activeSectionId, setActiveSectionId] = useState<string>(
     () => (parsedInitialDesign?.sections ?? DEFAULT_SECTIONS)[0]?.id ?? "hero"
   );
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const selectedId = selectedIds.length === 1 ? selectedIds[0] : null;
   const [activeTool, setActiveTool] = useState<ToolId | null>(null);
   const [zoom, setZoom] = useState(0.75);
   const [viewportMode, setViewportMode] = useState<"mobile" | "desktop">("mobile");
@@ -1366,6 +1370,7 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
   const elementsRef = useRef<V3Element[]>(elements);
   const dragRef = useRef<{
     id: string; startX: number; startY: number; elX: number; elY: number; active: boolean;
+    offsets: Array<{ id: string; dx: number; dy: number }>;
     preSnapshot: HistoryEntry;
   } | null>(null);
   const resizeRef = useRef<{
@@ -1537,9 +1542,18 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
   const onMoveStart = useCallback((e: React.MouseEvent, id: string) => {
     const el = elements.find((el) => el.id === id);
     if (!el || el.locked) return;
-    setSelectedId(id);
-    dragRef.current = { id, startX: e.clientX, startY: e.clientY, elX: el.x, elY: el.y, active: false, preSnapshot: snapshot() };
-  }, [elements, snapshot]);
+    // Keep multi-selection if element is already part of it; else single-select
+    const multiIds = selectedIds.includes(id) ? selectedIds : [id];
+    if (!selectedIds.includes(id)) setSelectedIds([id]);
+    // Compute start-relative offsets for all other unlocked selected elements
+    const offsets = multiIds
+      .filter((sid) => sid !== id)
+      .flatMap((sid) => {
+        const sEl = elements.find((e) => e.id === sid);
+        return sEl && !sEl.locked ? [{ id: sid, dx: sEl.x - el.x, dy: sEl.y - el.y }] : [];
+      });
+    dragRef.current = { id, startX: e.clientX, startY: e.clientY, elX: el.x, elY: el.y, offsets, active: false, preSnapshot: snapshot() };
+  }, [elements, selectedIds, snapshot]);
 
   // ── Resize ──────────────────────────────────────────────────────────────────
   const onResizeStart = useCallback((e: React.MouseEvent, id: string, handle: string) => {
@@ -1559,7 +1573,7 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
     const onMove = (e: MouseEvent) => {
       if (dragRef.current) {
         const drag = dragRef.current;
-        const { id, startX, startY, elX, elY } = drag;
+        const { id, startX, startY, elX, elY, offsets } = drag;
         const screenDx = e.clientX - startX;
         const screenDy = e.clientY - startY;
         if (!drag.active && Math.hypot(screenDx, screenDy) < DRAG_START_THRESHOLD) return;
@@ -1571,12 +1585,16 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
         if (!movingElement) return;
         const snapped = getSnappedPosition(movingElement, elX + dx, elY + dy, currentElements);
         setSnapLines(snapped.lines);
+        // snapDx/Dy = actual delta after snap (for group translation)
+        const snapDx = snapped.x - elX;
+        const snapDy = snapped.y - elY;
         setElements((prev) =>
-          prev.map((el) =>
-            el.id === id
-              ? { ...el, x: snapped.x, y: snapped.y }
-              : el
-          )
+          prev.map((el) => {
+            if (el.id === id) return { ...el, x: snapped.x, y: snapped.y };
+            const off = offsets.find((o) => o.id === el.id);
+            if (off) return { ...el, x: Math.round(elX + snapDx + off.dx), y: Math.round(elY + snapDy + off.dy) };
+            return el;
+          })
         );
       }
       if (resizeRef.current) {
@@ -1643,7 +1661,7 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
       Object.assign(base, { content: "Escribe aquí tu mensaje...", fontSize: 15, color: "#e8e0cc", height: null });
     }
     setElements((prev) => [...prev, base]);
-    setSelectedId(id);
+    setSelectedIds([id]);
     setActiveTool(null);
   };
 
@@ -1662,7 +1680,7 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
       border: isLine ? undefined : "1px solid rgba(200,169,106,0.2)",
       borderRadius: isLine ? 0 : 16, opacity: 1,
     }]);
-    setSelectedId(id);
+    setSelectedIds([id]);
     setActiveTool(null);
   };
 
@@ -1690,7 +1708,7 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
         textColor: defaults.color
       }
     }]);
-    setSelectedId(id);
+    setSelectedIds([id]);
     setActiveTool(null);
   };
 
@@ -1706,7 +1724,7 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
     if (!selectedId) return;
     pushHistory(snapshot());
     setElements((prev) => prev.filter((el) => el.id !== selectedId));
-    setSelectedId(null);
+    setSelectedIds([]);
   };
 
   const duplicateElement = () => {
@@ -1716,7 +1734,7 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
     pushHistory(snapshot());
     const newEl: V3Element = { ...el, id: `el-${Date.now()}`, x: el.x + 14, y: el.y + 14, zIndex: elements.length };
     setElements((prev) => [...prev, newEl]);
-    setSelectedId(newEl.id);
+    setSelectedIds([newEl.id]);
   };
 
   const bringToFront = () => {
@@ -1822,7 +1840,7 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
       }
       return prev;
     });
-    setSelectedId(null);
+    setSelectedIds([]);
   };
 
   const duplicateSection = (sectionId: string) => {
@@ -1837,7 +1855,7 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
       setActiveSectionId(copy.id);
       return recalcSectionY(next);
     });
-    setSelectedId(null);
+    setSelectedIds([]);
   };
 
   const moveSectionUp = (sectionId: string) => {
@@ -2258,7 +2276,7 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
               padding: vw < 1400 ? "24px 12px" : "36px 24px",
             }}
             ref={scrollRef}
-            onClick={() => setSelectedId(null)}
+            onClick={() => setSelectedIds([])}
           >
             <div style={{
               flexShrink: 0,
@@ -2319,11 +2337,62 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
                       key={el.id}
                       el={el}
                       selected={el.id === selectedId && !preview}
+                      highlighted={selectedIds.length > 1 && selectedIds.includes(el.id) && !preview}
                       onMouseDown={(e) => !preview && onMoveStart(e, el.id)}
-                      onClick={(e) => !preview && (e.stopPropagation(), setSelectedId(el.id))}
+                      onClick={(e) => {
+                        if (preview) return;
+                        e.stopPropagation();
+                        if (e.shiftKey) {
+                          setSelectedIds((prev) =>
+                            prev.includes(el.id) ? prev.filter((sid) => sid !== el.id) : [...prev, el.id]
+                          );
+                        } else {
+                          setSelectedIds([el.id]);
+                        }
+                      }}
                       onResizeMouseDown={(e, h) => !preview && onResizeStart(e, el.id, h)}
                     />
                   ))}
+
+                {/* Group selection bounding box */}
+                {!preview && selectedIds.length > 1 && (() => {
+                  const selEls = elements.filter((el) => selectedIds.includes(el.id) && el.visible);
+                  if (selEls.length === 0) return null;
+                  const PAD = 6;
+                  const minX = Math.min(...selEls.map((el) => el.x)) - PAD;
+                  const minY = Math.min(...selEls.map((el) => el.y)) - PAD;
+                  const maxX = Math.max(...selEls.map((el) => el.x + el.width)) + PAD;
+                  const maxY = Math.max(...selEls.map((el) => el.y + (el.height ?? 60))) + PAD;
+                  return (
+                    <div
+                      key="group-bbox"
+                      style={{
+                        position: "absolute",
+                        left: minX, top: minY,
+                        width: maxX - minX, height: maxY - minY,
+                        border: "2px dashed rgba(124,58,237,0.75)",
+                        borderRadius: 6,
+                        pointerEvents: "none",
+                        zIndex: 9997,
+                        boxShadow: "0 0 0 1px rgba(124,58,237,0.12)",
+                      }}
+                    >
+                      <div style={{
+                        position: "absolute",
+                        top: -26, left: 0,
+                        background: "rgba(124,58,237,0.92)",
+                        color: "#fff",
+                        fontSize: 10, fontWeight: 700,
+                        padding: "2px 8px", borderRadius: 999,
+                        fontFamily: "Inter, system-ui, sans-serif",
+                        whiteSpace: "nowrap",
+                        letterSpacing: "0.04em",
+                      }}>
+                        {selectedIds.length} elementos
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {!preview && snapLines.map((line) => (
                   <div
@@ -2415,7 +2484,7 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
                   key={section.id}
                   type="button"
                   title={section.label + " - " + count + " elementos"}
-                  onClick={() => { scrollToSection(section); setSelectedId(null); }}
+                  onClick={() => { scrollToSection(section); setSelectedIds([]); }}
                   style={{
                     width: 136,
                     minWidth: 136,
@@ -2516,8 +2585,16 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
               onMoveSectionUp={() => moveSectionUp(activeSectionId)}
               onMoveSectionDown={() => moveSectionDown(activeSectionId)}
               sectionElements={preview ? [] : getSectionElements(activeSectionId)}
-              selectedId={selectedId}
-              onSelectLayer={(id) => setSelectedId(id)}
+              selectedIds={selectedIds}
+              onSelectLayer={(id, shift) => {
+                if (shift) {
+                  setSelectedIds((prev) =>
+                    prev.includes(id) ? prev.filter((sid) => sid !== id) : [...prev, id]
+                  );
+                } else {
+                  setSelectedIds([id]);
+                }
+              }}
               onToggleVisible={toggleLayerVisible}
               onToggleLocked={toggleLayerLocked}
               onLayerMoveUp={layerMoveUp}

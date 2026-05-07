@@ -26,6 +26,7 @@ interface V3Element {
   locked: boolean;
   visible: boolean;
   zIndex: number;
+  groupId?: string;
   // text
   content?: string;
   fontSize?: number;
@@ -105,6 +106,13 @@ type SnapLine = {
   start: number;
   end: number;
   label?: string;
+};
+
+type SelectionBox = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1423,6 +1431,7 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
   const [saveError, setSaveError] = useState<string | null>(null);
   const [preview, setPreview] = useState(false);
   const [snapLines, setSnapLines] = useState<SnapLine[]>([]);
+  const [selectionBox, setSelectionBox] = useState<SelectionBox | null>(null);
 
   const canvasRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -1439,6 +1448,14 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
     origX: number; origY: number; origW: number; origH: number;
     preSnapshot: HistoryEntry;
   } | null>(null);
+  const selectionBoxRef = useRef<{
+    startX: number;
+    startY: number;
+    currentX: number;
+    currentY: number;
+    shiftKey: boolean;
+    active: boolean;
+  } | null>(null);
 
   const wasMovedRef = useRef(false); // true during the tick after a real drag completes
   const selected = elements.find((e) => e.id === selectedId) ?? null;
@@ -1454,6 +1471,47 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
 
   const sectionsRef = useRef<V3Section[]>(sections);
   useEffect(() => { sectionsRef.current = sections; }, [sections]);
+
+  const expandSelectionWithGroups = useCallback((ids: string[], source = elementsRef.current) => {
+    const wanted = new Set(ids);
+    const groupIds = new Set(
+      source
+        .filter((element) => wanted.has(element.id) && element.groupId)
+        .map((element) => element.groupId as string)
+    );
+
+    source.forEach((element) => {
+      if (element.groupId && groupIds.has(element.groupId)) wanted.add(element.id);
+    });
+
+    return Array.from(wanted);
+  }, []);
+
+  const getCanvasPoint = useCallback((event: MouseEvent | React.MouseEvent) => {
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!rect) return null;
+    return {
+      x: Math.max(0, Math.min(canvasW, (event.clientX - rect.left) / zoom)),
+      y: Math.max(0, Math.min(documentHeight, (event.clientY - rect.top) / zoom)),
+    };
+  }, [canvasW, documentHeight, zoom]);
+
+  const normalizeBox = useCallback((startX: number, startY: number, currentX: number, currentY: number): SelectionBox => ({
+    x: Math.min(startX, currentX),
+    y: Math.min(startY, currentY),
+    width: Math.abs(currentX - startX),
+    height: Math.abs(currentY - startY),
+  }), []);
+
+  const intersectsBox = (element: V3Element, box: SelectionBox) => {
+    const elementHeight = element.height ?? 60;
+    return (
+      element.x < box.x + box.width &&
+      element.x + element.width > box.x &&
+      element.y < box.y + box.height &&
+      element.y + elementHeight > box.y
+    );
+  };
 
   // ── History: undo / redo ─────────────────────────────────────────────────
   const pastRef  = useRef<HistoryEntry[]>([]);
@@ -1609,7 +1667,7 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
       // DO NOT touch selectedIds here. onClick will handle the toggle.
       // Prepare offsets so a potential Shift+drag moves the right group.
       // Include `id` in the group even though it may not be in selectedIds yet.
-      const multiIds = selectedIds.includes(id) ? selectedIds : [...selectedIds, id];
+      const multiIds = selectedIds.includes(id) ? selectedIds : expandSelectionWithGroups([...selectedIds, id]);
       const offsets = multiIds
         .filter((sid) => sid !== id)
         .flatMap((sid) => {
@@ -1622,8 +1680,8 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
 
     // ── Normal mousedown ─────────────────────────────────────────────────────
     // Keep multi-selection if element is already part of it; else single-select.
-    const multiIds = selectedIds.includes(id) ? selectedIds : [id];
-    if (!selectedIds.includes(id)) setSelectedIds([id]);
+    const multiIds = selectedIds.includes(id) ? selectedIds : expandSelectionWithGroups([id]);
+    if (!selectedIds.includes(id)) setSelectedIds(multiIds);
     const offsets = multiIds
       .filter((sid) => sid !== id)
       .flatMap((sid) => {
@@ -1631,7 +1689,7 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
         return sEl && !sEl.locked ? [{ id: sid, dx: sEl.x - el.x, dy: sEl.y - el.y }] : [];
       });
     dragRef.current = { id, startX: e.clientX, startY: e.clientY, elX: el.x, elY: el.y, shiftKey: false, offsets, active: false, preSnapshot: snapshot() };
-  }, [elements, selectedIds, snapshot]);
+  }, [elements, expandSelectionWithGroups, selectedIds, snapshot]);
 
   // ── Resize ──────────────────────────────────────────────────────────────────
   const onResizeStart = useCallback((e: React.MouseEvent, id: string, handle: string) => {
@@ -1646,9 +1704,40 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
     };
   }, [elements, snapshot]);
 
+  const onCanvasMouseDown = useCallback((e: React.MouseEvent) => {
+    if (preview || e.button !== 0) return;
+    const target = e.target as HTMLElement;
+    if (target.closest("[data-element-id]") || target.closest("[data-canvas-control='true']")) return;
+    const point = getCanvasPoint(e);
+    if (!point) return;
+    selectionBoxRef.current = {
+      startX: point.x,
+      startY: point.y,
+      currentX: point.x,
+      currentY: point.y,
+      shiftKey: e.shiftKey,
+      active: false,
+    };
+    setSelectionBox(null);
+  }, [getCanvasPoint, preview]);
+
   // ── Global pointer move & up ─────────────────────────────────────────────
   useEffect(() => {
     const onMove = (e: MouseEvent) => {
+      if (selectionBoxRef.current) {
+        const point = getCanvasPoint(e);
+        const selection = selectionBoxRef.current;
+        if (point) {
+          selection.currentX = point.x;
+          selection.currentY = point.y;
+          if (!selection.active && Math.hypot(point.x - selection.startX, point.y - selection.startY) >= DRAG_START_THRESHOLD) {
+            selection.active = true;
+          }
+          if (selection.active) {
+            setSelectionBox(normalizeBox(selection.startX, selection.startY, point.x, point.y));
+          }
+        }
+      }
       if (dragRef.current) {
         const drag = dragRef.current;
         const { id, startX, startY, elX, elY, offsets } = drag;
@@ -1660,7 +1749,7 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
           wasMovedRef.current = true;
           // If this started with Shift held, add the dragged element to selection now
           if (drag.shiftKey) {
-            setSelectedIds((prev) => prev.includes(drag.id) ? prev : [...prev, drag.id]);
+            setSelectedIds((prev) => Array.from(new Set([...prev, ...expandSelectionWithGroups([drag.id])])));
           }
         }
         drag.active = true;
@@ -1701,6 +1790,24 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
       }
     };
     const onUp = () => {
+      if (selectionBoxRef.current) {
+        const selection = selectionBoxRef.current;
+        const box = normalizeBox(selection.startX, selection.startY, selection.currentX, selection.currentY);
+        if (selection.active && box.width >= DRAG_START_THRESHOLD && box.height >= DRAG_START_THRESHOLD) {
+          const ids = elementsRef.current
+            .filter((element) => element.visible && !element.locked && intersectsBox(element, box))
+            .map((element) => element.id);
+          if (selection.shiftKey) {
+            setSelectedIds((current) => Array.from(new Set([...current, ...expandSelectionWithGroups(ids)])));
+          } else {
+            setSelectedIds(expandSelectionWithGroups(ids));
+          }
+        } else if (!selection.shiftKey) {
+          setSelectedIds([]);
+        }
+        selectionBoxRef.current = null;
+        setSelectionBox(null);
+      }
       // Push history snapshot only when a real drag/resize completed
       if (dragRef.current?.active) {
         pushHistory(dragRef.current.preSnapshot);
@@ -1724,7 +1831,7 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
     return () => { window.removeEventListener("mousemove", onMove); window.removeEventListener("mouseup", onUp); };
-  }, [getSnappedPosition, zoom, pushHistory]);
+  }, [expandSelectionWithGroups, getCanvasPoint, getSnappedPosition, normalizeBox, zoom, pushHistory]);
 
   // ── Add elements ────────────────────────────────────────────────────────────────────────────
   const addText = (kind: "title" | "subtitle" | "paragraph") => {
@@ -2035,13 +2142,24 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
     pushHistory(snapshot());
     const maxZ = Math.max(...elements.map((el) => el.zIndex), 0);
     const stamp = Date.now();
-    const copies: V3Element[] = groupElements.map((el, index) => ({
-      ...el,
-      id: `el-${stamp}-${index}`,
-      x: el.x + 24,
-      y: el.y + 24,
-      zIndex: maxZ + index + 1
-    }));
+    const groupIdMap = new Map<string, string>();
+    const copies: V3Element[] = groupElements.map((el, index) => {
+      let nextGroupId = el.groupId;
+      if (el.groupId) {
+        if (!groupIdMap.has(el.groupId)) {
+          groupIdMap.set(el.groupId, `group-${stamp}-${groupIdMap.size}`);
+        }
+        nextGroupId = groupIdMap.get(el.groupId);
+      }
+      return {
+        ...el,
+        id: `el-${stamp}-${index}`,
+        x: el.x + 24,
+        y: el.y + 24,
+        zIndex: maxZ + index + 1,
+        groupId: nextGroupId,
+      };
+    });
     setElements((prev) => [...prev, ...copies]);
     setSelectedIds(copies.map((el) => el.id));
   };
@@ -2054,6 +2172,29 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
   };
 
   // ── Layer panel helpers ────────────────────────────────────────────────────
+  const selectedGroupIds = Array.from(new Set(
+    elements
+      .filter((el) => selectedIds.includes(el.id) && el.groupId)
+      .map((el) => el.groupId as string)
+  ));
+  const canUngroupSelection = selectedGroupIds.length > 0;
+
+  const groupSelected = () => {
+    if (selectedIds.length <= 1) return;
+    pushHistory(snapshot());
+    const groupId = `group-${Date.now()}`;
+    setElements((prev) => prev.map((el) => selectedIds.includes(el.id) ? { ...el, groupId } : el));
+  };
+
+  const ungroupSelected = () => {
+    if (!canUngroupSelection) return;
+    pushHistory(snapshot());
+    const groupSet = new Set(selectedGroupIds);
+    setElements((prev) => prev.map((el) => (
+      el.groupId && groupSet.has(el.groupId) ? { ...el, groupId: undefined } : el
+    )));
+  };
+
   const distributeSelectedGroup = (axis: "horizontal" | "vertical") => {
     if (selectedIds.length < 3) return;
     const selectedElements = elements
@@ -2619,7 +2760,6 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
               padding: vw < 1400 ? "24px 12px" : "36px 24px",
             }}
             ref={scrollRef}
-            onClick={() => setSelectedIds([])}
           >
             <div style={{
               flexShrink: 0,
@@ -2628,6 +2768,7 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
             }}>
               <div
                 ref={canvasRef}
+                onMouseDown={onCanvasMouseDown}
                 style={{
                   position: "relative",
                   width: canvasW,
@@ -2687,17 +2828,40 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
                         e.stopPropagation();
                         // Ignore click events that follow a real drag (wasMovedRef still true)
                         if (wasMovedRef.current) return;
+                        const expanded = expandSelectionWithGroups([el.id]);
                         if (e.shiftKey) {
-                          setSelectedIds((prev) =>
-                            prev.includes(el.id) ? prev.filter((sid) => sid !== el.id) : [...prev, el.id]
-                          );
+                          setSelectedIds((prev) => {
+                            const expandedSet = new Set(expanded);
+                            const allSelected = expanded.every((id) => prev.includes(id));
+                            return allSelected
+                              ? prev.filter((sid) => !expandedSet.has(sid))
+                              : Array.from(new Set([...prev, ...expanded]));
+                          });
                         } else {
-                          setSelectedIds([el.id]);
+                          setSelectedIds(expanded);
                         }
                       }}
                       onResizeMouseDown={(e, h) => !preview && onResizeStart(e, el.id, h)}
                     />
                   ))}
+
+                {!preview && selectionBox && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      left: selectionBox.x,
+                      top: selectionBox.y,
+                      width: selectionBox.width,
+                      height: selectionBox.height,
+                      border: "1px solid rgba(167,139,250,0.95)",
+                      background: "rgba(124,58,237,0.16)",
+                      borderRadius: 6,
+                      boxShadow: "0 0 0 1px rgba(124,58,237,0.16)",
+                      pointerEvents: "none",
+                      zIndex: 10001,
+                    }}
+                  />
+                )}
 
                 {/* Group selection bounding box */}
                 {!preview && selectedIds.length > 1 && (() => {
@@ -2729,6 +2893,12 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
                     padding: "0 9px",
                     opacity: canDistribute ? 1 : 0.45,
                     cursor: canDistribute ? "pointer" : "not-allowed",
+                  };
+                  const ungroupButtonStyle: React.CSSProperties = {
+                    ...groupToolbarButton,
+                    minWidth: 92,
+                    opacity: canUngroupSelection ? 1 : 0.45,
+                    cursor: canUngroupSelection ? "pointer" : "not-allowed",
                   };
                   return (
                     <React.Fragment key="group-bbox">
@@ -2787,6 +2957,9 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
                         <span style={{ width: 1, alignSelf: "stretch", background: "rgba(167,139,250,0.25)" }} />
                         <button type="button" title="Distribuir horizontalmente" disabled={!canDistribute} onClick={() => distributeSelectedGroup("horizontal")} style={distributeButtonStyle}>Distribuir horizontal</button>
                         <button type="button" title="Distribuir verticalmente" disabled={!canDistribute} onClick={() => distributeSelectedGroup("vertical")} style={distributeButtonStyle}>Distribuir vertical</button>
+                        <span style={{ width: 1, alignSelf: "stretch", background: "rgba(167,139,250,0.25)" }} />
+                        <button type="button" title="Agrupar elementos seleccionados" onClick={groupSelected} style={groupToolbarButton}>Agrupar</button>
+                        <button type="button" title="Desagrupar selección" disabled={!canUngroupSelection} onClick={ungroupSelected} style={ungroupButtonStyle}>Desagrupar</button>
                         <span style={{ width: 1, alignSelf: "stretch", background: "rgba(167,139,250,0.25)" }} />
                         <button type="button" title="Duplicar grupo" onClick={duplicateSelectedGroup} style={{ ...groupToolbarButton, color: "#f4d28a" }}>Duplicar</button>
                         <button type="button" title="Eliminar grupo" onClick={deleteSelectedGroup} style={{ ...groupToolbarButton, color: "#f87171" }}>Eliminar</button>
@@ -2988,12 +3161,17 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
               sectionElements={preview ? [] : getSectionElements(activeSectionId)}
               selectedIds={selectedIds}
               onSelectLayer={(id, shift) => {
+                const expanded = expandSelectionWithGroups([id]);
                 if (shift) {
-                  setSelectedIds((prev) =>
-                    prev.includes(id) ? prev.filter((sid) => sid !== id) : [...prev, id]
-                  );
+                  setSelectedIds((prev) => {
+                    const expandedSet = new Set(expanded);
+                    const allSelected = expanded.every((expandedId) => prev.includes(expandedId));
+                    return allSelected
+                      ? prev.filter((sid) => !expandedSet.has(sid))
+                      : Array.from(new Set([...prev, ...expanded]));
+                  });
                 } else {
-                  setSelectedIds([id]);
+                  setSelectedIds(expanded);
                 }
               }}
               onToggleVisible={toggleLayerVisible}

@@ -115,15 +115,15 @@ const HERO_H = 844;
 const cx = (w: number) => Math.round((CANVAS_W - w) / 2);
 
 const DEFAULT_SECTION_TEMPLATES: Omit<V3Section, "y">[] = [
-  { id: "hero", label: "Hero", height: 844, background: "linear-gradient(180deg,#1a0a18 0%,#3d1535 45%,#180a14 100%)" },
+  { id: "hero", label: "Portada", height: 844, background: "linear-gradient(180deg,#1a0a18 0%,#3d1535 45%,#180a14 100%)" },
   { id: "countdown", label: "Cuenta regresiva", height: 420, background: "linear-gradient(180deg,#180a14,#211129)" },
-  { id: "presentation", label: "Presentacion", height: 560, background: "linear-gradient(180deg,#211129,#160f1f)" },
+  { id: "presentation", label: "Presentación", height: 560, background: "linear-gradient(180deg,#211129,#160f1f)" },
   { id: "messages", label: "Mensajes", height: 640, background: "linear-gradient(180deg,#160f1f,#241125)" },
   { id: "details", label: "Detalles", height: 620, background: "linear-gradient(180deg,#241125,#18121f)" },
   { id: "church", label: "Iglesia", height: 520, background: "linear-gradient(180deg,#18121f,#20101c)" },
   { id: "dresscode", label: "Vestimenta", height: 460, background: "linear-gradient(180deg,#20101c,#17111c)" },
-  { id: "rsvp", label: "RSVP", height: 560, background: "linear-gradient(180deg,#17111c,#241225)" },
-  { id: "footer", label: "Footer", height: 280, background: "linear-gradient(180deg,#241225,#0f0f17)" }
+  { id: "rsvp", label: "Confirmación", height: 560, background: "linear-gradient(180deg,#17111c,#241225)" },
+  { id: "footer", label: "Cierre", height: 280, background: "linear-gradient(180deg,#241225,#0f0f17)" }
 ];
 
 function buildSections(templates = DEFAULT_SECTION_TEMPLATES): V3Section[] {
@@ -194,7 +194,7 @@ const INITIAL_ELEMENTS: V3Element[] = [
     type: "text",
     x: cx(360), y: 340, width: 360, height: 28,
     locked: false, visible: true, zIndex: 4,
-    content: "Sábado · 14 de Junio, 2025 · 20:00 hs",
+    content: "Sábado · 14 de junio, 2025 · 20:00 hs",
     fontSize: 14, fontFamily: "'Playfair Display', Georgia, serif",
     fontStyle: "italic", color: "#f8d9a0",
     textAlign: "center", textShadow: "0 2px 10px rgba(0,0,0,0.6)",
@@ -342,9 +342,9 @@ function getTextStyleForElement(element: V3Element, theme: CanvasV3Theme) {
 const TOOLS: { id: ToolId; icon: string; label: string }[] = [
   { id: "templates", icon: "⊞", label: "Plantillas" },
   { id: "elements", icon: "◈", label: "Elementos" },
-  { id: "text", icon: "T", label: "Texto" },
+  { id: "text", icon: "Tx", label: "Texto" },
   { id: "uploaded", icon: "↑", label: "Subidos" },
-  { id: "apps", icon: "⚡", label: "Apps" },
+  { id: "apps", icon: "⚡", label: "Aplicaciones" },
   { id: "projects", icon: "◻", label: "Proyectos" },
 ];
 
@@ -353,11 +353,11 @@ const TOOLS: { id: ToolId; icon: string; label: string }[] = [
 // ─────────────────────────────────────────────────────────────────────────────
 
 const APP_LABELS: Record<string, { label: string; icon: string }> = {
-  rsvp: { label: "Confirmar Asistencia", icon: "✓" },
-  countdown: { label: "Cuenta Regresiva: 45 DÍAS  12 HRS  08 MIN", icon: "⏱" },
+  rsvp: { label: "Confirmar asistencia", icon: "✓" },
+  countdown: { label: "Cuenta regresiva: 45 DÍAS  12 HRS  08 MIN", icon: "⏱" },
   whatsapp: { label: "Mensaje por WhatsApp", icon: "💬" },
-  album: { label: "Álbum en Vivo", icon: "📸" },
-  live: { label: "Pantalla en Vivo", icon: "🖥" },
+  album: { label: "Álbum en vivo", icon: "📸" },
+  live: { label: "Pantalla en vivo", icon: "🖥" },
   maps: { label: "Ver en Google Maps", icon: "📍" },
   qr: { label: "Código QR", icon: "▦" },
 };
@@ -366,11 +366,11 @@ const APP_DEMO_LABELS: Record<string, { label: string; icon: string }> = {
   rsvp: { label: "Confirmar asistencia", icon: "✓" },
   countdown: { label: "Cuenta regresiva", icon: "⏱" },
   whatsapp: { label: "Enviar WhatsApp", icon: "✉" },
-  maps: { label: "Ver ubicacion", icon: "⌖" },
-  "live-album": { label: "Album en vivo", icon: "▧" },
+  maps: { label: "Ver ubicación", icon: "⌖" },
+  "live-album": { label: "Álbum en vivo", icon: "▧" },
   "live-screen": { label: "Pantalla en vivo", icon: "▣" },
   qr: { label: "QR", icon: "▦" },
-  album: { label: "Album en vivo", icon: "▧" },
+  album: { label: "Álbum en vivo", icon: "▧" },
   live: { label: "Pantalla en vivo", icon: "▣" }
 };
 
@@ -378,8 +378,8 @@ const APP_BLOCKS: { id: V3AppType; icon: string; label: string }[] = [
   { id: "rsvp", icon: "✓", label: "Confirmar asistencia" },
   { id: "whatsapp", icon: "✉", label: "WhatsApp" },
   { id: "countdown", icon: "⏱", label: "Cuenta regresiva" },
-  { id: "maps", icon: "⌖", label: "Ver ubicacion" },
-  { id: "live-album", icon: "▧", label: "Album en vivo" },
+  { id: "maps", icon: "⌖", label: "Ver ubicación" },
+  { id: "live-album", icon: "▧", label: "Álbum en vivo" },
   { id: "live-screen", icon: "▣", label: "Pantalla en vivo" },
   { id: "qr", icon: "▦", label: "QR" }
 ];
@@ -396,9 +396,9 @@ const APP_DEFAULTS: Record<V3AppType, {
 }> = {
   rsvp: { content: "Confirmar asistencia", width: 320, height: 82, background: "linear-gradient(135deg,#c8a96a,#9b6f2a)", color: "#1a0a18", borderRadius: 18 },
   whatsapp: { content: "Enviar WhatsApp", width: 320, height: 78, background: "linear-gradient(135deg,#1f7a4d,#c8a96a)", color: "#fffaf0", borderRadius: 18, url: "https://wa.me/" },
-  countdown: { content: "45 DIAS · 12 HRS · 08 MIN · 30 SEG", width: 340, height: 96, background: "rgba(124,58,237,0.18)", color: "#e8e6ff", border: "1px solid rgba(124,58,237,0.35)", borderRadius: 16 },
-  maps: { content: "Ver ubicacion", width: 320, height: 78, background: "rgba(200,169,106,0.16)", color: "#f4d28a", border: "1px solid rgba(200,169,106,0.36)", borderRadius: 16, url: "https://maps.google.com" },
-  "live-album": { content: "Album en vivo", width: 320, height: 88, background: "rgba(255,255,255,0.08)", color: "#fff7ef", border: "1px solid rgba(200,169,106,0.26)", borderRadius: 18 },
+  countdown: { content: "45 DÍAS · 12 HRS · 08 MIN · 30 SEG", width: 340, height: 96, background: "rgba(124,58,237,0.18)", color: "#e8e6ff", border: "1px solid rgba(124,58,237,0.35)", borderRadius: 16 },
+  maps: { content: "Ver ubicación", width: 320, height: 78, background: "rgba(200,169,106,0.16)", color: "#f4d28a", border: "1px solid rgba(200,169,106,0.36)", borderRadius: 16, url: "https://maps.google.com" },
+  "live-album": { content: "Álbum en vivo", width: 320, height: 88, background: "rgba(255,255,255,0.08)", color: "#fff7ef", border: "1px solid rgba(200,169,106,0.26)", borderRadius: 18 },
   "live-screen": { content: "Pantalla en vivo", width: 320, height: 88, background: "linear-gradient(135deg,rgba(124,58,237,0.35),rgba(0,0,0,0.34))", color: "#e8e6ff", border: "1px solid rgba(167,139,250,0.38)", borderRadius: 18 },
   qr: { content: "QR del evento", width: 170, height: 190, background: "#fffaf0", color: "#1a0a18", border: "1px solid rgba(200,169,106,0.45)", borderRadius: 18 }
 };
@@ -721,9 +721,9 @@ function ExpandedPanel({
     const cats = [
       { label: "Formas", items: ["Rectángulo", "Círculo", "Línea"] },
       { label: "Flores", items: ["Rosa", "Flor 1", "Flor 2"] },
-      { label: "Brillos", items: ["Destello", "Glow", "Polvo"] },
+      { label: "Brillos", items: ["Destello", "Resplandor", "Polvo"] },
       { label: "Separadores", items: ["Línea dorada", "Ola", "Puntos"] },
-      { label: "Botones", items: ["Primario", "Outline", "Ghost"] },
+      { label: "Botones", items: ["Primario", "Contorno", "Sutil"] },
     ];
     return (
       <div style={{ padding: "12px 14px", overflowY: "auto", maxHeight: "calc(100vh - 56px)" }}>
@@ -1016,7 +1016,7 @@ function RightPanel({
   };
   // ── Layers helpers ────────────────────────────────────────────────────────
   const getLayerIcon = (el: V3Element): string => {
-    if (el.type === "text") return "T";
+    if (el.type === "text") return "Tx";
     if (el.type === "app") {
       const k = el.appKind ?? el.appType ?? "";
       if (k === "whatsapp") return "💬";
@@ -1045,7 +1045,7 @@ function RightPanel({
       if (k === "live-album" || k === "album") return "Álbum";
       if (k === "live-screen" || k === "live") return "Pantalla en vivo";
       if (k === "qr") return "Código QR";
-      return el.content || "App";
+      return el.content || "Aplicación";
     }
     if (el.type === "decoration") return el.content || "Decoración";
     return "Forma";
@@ -1224,7 +1224,7 @@ function RightPanel({
           {LayersPanel}
           <div style={sectionHeaderStyle}>
             <span style={{ ...panelBadgeStyle, color: "#f4d28a", background: "rgba(200,169,106,0.12)", border: "1px solid rgba(200,169,106,0.24)" }}>
-              ? Secci?n
+              Sección
             </span>
             <p style={{ color: "#fff7dc", fontSize: 19, fontWeight: "750", fontFamily: "Inter, system-ui, sans-serif", margin: "10px 0 0" }}>
               {section.label}
@@ -1276,7 +1276,7 @@ function RightPanel({
       <div style={{ padding: "14px 16px", borderBottom: "1px solid #2a2a3d" }}>
         <p style={{ color: "#c8a96a", fontSize: 10, letterSpacing: "0.1em", fontFamily: "Inter, system-ui, sans-serif", margin: 0, textTransform: "uppercase", opacity: 0.75 }}>Elemento</p>
         <p style={{ color: "#e8e6ff", fontSize: 14, fontWeight: "600", fontFamily: "Inter, system-ui, sans-serif", margin: "4px 0 0" }}>
-          {element.type === "text" ? "Texto" : element.type === "app" ? "Bloque App" : element.type === "decoration" ? "Decoración" : "Forma"}
+          {element.type === "text" ? "Texto" : element.type === "app" ? "Bloque de aplicación" : element.type === "decoration" ? "Decoración" : "Forma"}
           {element.locked && <span style={{ marginLeft: 8, color: "#c8a96a", fontSize: 10 }}>🔒</span>}
         </p>
       </div>
@@ -1286,7 +1286,7 @@ function RightPanel({
           <button type="button" onClick={onDuplicate}
             style={{ ...actionBtnStyle, flex: 1, textAlign: "center" }}>⧉ Duplicar</button>
           <button type="button" onClick={onBringToFront}
-            style={{ ...actionBtnStyle, flex: 1, textAlign: "center" }}>↑ Al frente</button>
+            style={{ ...actionBtnStyle, flex: 1, textAlign: "center" }}>↑ Traer al frente</button>
           <button type="button" onClick={onSendToBack}
             style={{ ...actionBtnStyle, flex: 1, textAlign: "center" }}>↓ Atrás</button>
         </div>
@@ -1313,17 +1313,17 @@ function RightPanel({
         {renderGroup("content", "Contenido", (
           <>
             {element.type === "text" && <div><span style={labelStyle}>Texto</span><textarea value={element.content ?? ""} rows={4} onChange={(e) => onChange(element.id, { content: e.target.value })} style={{ ...inputStyle, resize: "vertical" }} /></div>}
-            {element.type === "app" && normalizeAppType(element) && <><div style={{ padding: "10px 12px", background: "#1e1e2d", border: "1px solid #2a2a3d", borderRadius: 10 }}><p style={{ color: "#c8c4f0", fontSize: 12, fontFamily: "Inter, system-ui, sans-serif", margin: 0 }}>{APP_DEMO_LABELS[normalizeAppType(element)!]?.icon} {APP_DEMO_LABELS[normalizeAppType(element)!]?.label}</p><p style={{ color: "#8884a8", fontSize: 10, fontFamily: "Inter, system-ui, sans-serif", margin: "4px 0 0" }}>Bloque visual demo</p></div><div><span style={labelStyle}>Texto del bloque</span><input type="text" value={element.content ?? APP_DEMO_LABELS[normalizeAppType(element)!]?.label ?? ""} onChange={(e) => onChange(element.id, { content: e.target.value })} style={inputStyle} /></div></>}
+            {element.type === "app" && normalizeAppType(element) && <><div style={{ padding: "10px 12px", background: "#1e1e2d", border: "1px solid #2a2a3d", borderRadius: 10 }}><p style={{ color: "#c8c4f0", fontSize: 12, fontFamily: "Inter, system-ui, sans-serif", margin: 0 }}>{APP_DEMO_LABELS[normalizeAppType(element)!]?.icon} {APP_DEMO_LABELS[normalizeAppType(element)!]?.label}</p><p style={{ color: "#8884a8", fontSize: 10, fontFamily: "Inter, system-ui, sans-serif", margin: "4px 0 0" }}>Bloque visual de muestra</p></div><div><span style={labelStyle}>Texto del bloque</span><input type="text" value={element.content ?? APP_DEMO_LABELS[normalizeAppType(element)!]?.label ?? ""} onChange={(e) => onChange(element.id, { content: e.target.value })} style={inputStyle} /></div></>}
             {(element.type === "shape" || element.type === "decoration") && <p style={{ color: "#8884a8", fontSize: 12, lineHeight: 1.5, margin: 0 }}>Este bloque se edita desde relleno, contorno y sombra.</p>}
           </>
-        ), true, element.type === "text" ? "T" : element.type === "app" ? "?" : "?")}
-        {renderGroup("typography", "Tipograf?a", <><div><span style={labelStyle}>Color</span><div style={{ display: "flex", gap: 8, alignItems: "center" }}><input type="color" value={element.color ?? "#ffffff"} onChange={(e) => onChange(element.id, { color: e.target.value })} style={{ width: 36, height: 30, border: "none", borderRadius: 6, cursor: "pointer", background: "none" }} /><input type="text" value={element.color ?? "#ffffff"} onChange={(e) => onChange(element.id, { color: e.target.value })} style={{ ...inputStyle, flex: 1 }} /></div></div><div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}><div><span style={labelStyle}>Tama?o</span><input type="number" min={8} max={120} value={element.fontSize ?? 16} onChange={(e) => onChange(element.id, { fontSize: Number(e.target.value) })} style={inputStyle} /></div><div><span style={labelStyle}>Peso</span><input type="text" value={element.fontWeight ?? "400"} onChange={(e) => onChange(element.id, { fontWeight: e.target.value })} style={inputStyle} /></div></div><div><span style={labelStyle}>Fuente</span><select value={element.fontFamily ?? "Inter, system-ui, sans-serif"} onChange={(e) => onChange(element.id, { fontFamily: e.target.value })} style={{ ...inputStyle, cursor: "pointer" }}><option value="Inter, system-ui, sans-serif">Inter</option><option value="'Playfair Display', Georgia, serif">Playfair Display</option><option value="Georgia, serif">Georgia</option><option value="'Dancing Script', cursive">Dancing Script</option></select></div><div><span style={labelStyle}>Alineaci?n</span><div style={{ display: "flex", gap: 4 }}>{(["left", "center", "right"] as const).map((a) => <button key={a} type="button" onClick={() => onChange(element.id, { textAlign: a })} style={{ flex: 1, padding: "6px 0", background: element.textAlign === a ? "#7c3aed" : "#1e1e2d", border: "1px solid #2a2a3d", borderRadius: 6, cursor: "pointer", color: element.textAlign === a ? "#fff" : "#9898b8", fontSize: 11 }}>{a}</button>)}</div></div><div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}><div><span style={labelStyle}>L?nea</span><input type="number" min={0.8} max={3} step={0.05} value={element.lineHeight ?? 1.4} onChange={(e) => onChange(element.id, { lineHeight: Number(e.target.value) })} style={inputStyle} /></div><div><span style={labelStyle}>Tracking</span><input type="number" min={0} max={1} step={0.01} value={element.letterSpacing ?? 0} onChange={(e) => onChange(element.id, { letterSpacing: Number(e.target.value) })} style={inputStyle} /></div></div></>, element.type === "text", "Aa")}
-        {renderGroup("fill", "Relleno", <><div><span style={labelStyle}>Fondo</span><input type="text" value={element.config?.primaryColor ?? element.background ?? ""} placeholder="Color, rgba(...) o linear-gradient(...)" onChange={(e) => onChange(element.id, { background: e.target.value, config: element.type === "app" ? { ...(element.config ?? {}), primaryColor: e.target.value } : element.config })} style={inputStyle} /></div>{element.type === "app" && <div><span style={labelStyle}>Color texto</span><input type="text" value={element.color ?? element.config?.textColor ?? ""} onChange={(e) => onChange(element.id, { color: e.target.value, config: { ...(element.config ?? {}), textColor: e.target.value } })} style={inputStyle} /></div>}<div><span style={labelStyle}>Opacidad {Math.round((element.opacity ?? 1) * 100)}%</span><input type="range" min={0} max={1} step={0.01} value={element.opacity ?? 1} onChange={(e) => onChange(element.id, { opacity: Number(e.target.value) })} style={{ width: "100%", accentColor: "#7c3aed" }} /></div></>, element.type !== "text", "?")}
-        {renderGroup("stroke", "Contorno", <><div><span style={labelStyle}>Borde redondeado: {element.borderRadius ?? 0}px</span><input type="range" min={0} max={999} step={1} value={element.borderRadius ?? 0} onChange={(e) => onChange(element.id, { borderRadius: Number(e.target.value) })} style={{ width: "100%", accentColor: "#7c3aed" }} /></div><div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}><span style={{ ...labelStyle, margin: 0 }}>Activar contorno</span><button type="button" onClick={() => onChange(element.id, hasBorder(element) ? { borderWidth: 0, borderStyle: "none" } : { borderWidth: 1, borderStyle: "solid", borderColor: element.borderColor ?? "#c8a96a" })} style={{ ...actionBtnStyle, width: "auto", padding: "6px 10px" }}>{hasBorder(element) ? "Activo" : "Off"}</button></div>{hasBorder(element) && <><input type="text" value={element.borderColor ?? ""} placeholder="rgba(200,169,106,0.35)" onChange={(e) => onChange(element.id, { borderColor: e.target.value })} style={inputStyle} /><input type="range" min={1} max={12} step={1} value={element.borderWidth ?? 1} onChange={(e) => onChange(element.id, { borderWidth: Number(e.target.value) })} style={{ width: "100%", accentColor: "#7c3aed" }} /><div style={{ display: "flex", gap: 4 }}>{(["solid", "dashed"] as const).map((borderStyle) => <button key={borderStyle} type="button" onClick={() => onChange(element.id, { borderStyle })} style={{ ...actionBtnStyle, textAlign: "center", background: (element.borderStyle ?? "solid") === borderStyle ? "#2a1f4d" : "#1e1e2d" }}>{borderStyle}</button>)}</div></>}</>, element.type !== "text", "?")}
-        {renderGroup("shadow", "Sombra", <>{element.type === "text" && <div><span style={labelStyle}>Text shadow</span><input type="text" value={element.textShadow ?? ""} placeholder="0 2px 10px rgba(...)" onChange={(e) => onChange(element.id, { textShadow: e.target.value })} style={inputStyle} /></div>}{(element.type === "shape" || element.type === "decoration") && element.blur !== undefined && <div><span style={labelStyle}>Blur: {element.blur ?? 0}px</span><input type="range" min={0} max={40} step={1} value={element.blur ?? 0} onChange={(e) => onChange(element.id, { blur: Number(e.target.value) })} style={{ width: "100%", accentColor: "#7c3aed" }} /></div>}</>, element.type === "text" || element.type === "shape" || element.type === "decoration", "?")}
-        {renderGroup("spacing", "Espaciado", <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>{(["x", "y", "width", "height"] as const).map((k) => <div key={k}><span style={{ ...labelStyle, fontSize: 9 }}>{k.toUpperCase()}</span><input type="number" value={Math.round(element[k] as number) || 0} disabled={element.locked} onChange={(e) => onChange(element.id, { [k]: Number(e.target.value) })} style={{ ...inputStyle, opacity: element.locked ? 0.5 : 1 }} /></div>)}</div>, true, "?")}
-        {renderGroup("action", "Acci?n", <>{element.type === "app" && <div><span style={labelStyle}>URL demo</span><input type="text" value={element.config?.url ?? ""} onChange={(e) => onChange(element.id, { config: { ...(element.config ?? {}), url: e.target.value } })} style={inputStyle} /></div>}<div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}><button type="button" onClick={onDuplicate} style={{ ...actionBtnStyle, textAlign: "center" }}>Duplicar</button><button type="button" onClick={onBringToFront} style={{ ...actionBtnStyle, textAlign: "center" }}>Frente</button><button type="button" onClick={onSendToBack} style={{ ...actionBtnStyle, textAlign: "center" }}>Atr?s</button><button type="button" onClick={() => setPendingDelete("element")} style={{ ...actionBtnStyle, textAlign: "center", color: "#f87171" }}>Eliminar</button></div></>, true, "?")}
-        {renderGroup("visibility", "Visibilidad", <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}><span style={{ ...labelStyle, margin: 0 }}>Visible</span><button type="button" onClick={() => onChange(element.id, { visible: !element.visible })} style={{ width: 36, height: 20, borderRadius: 10, background: element.visible ? "#7c3aed" : "#2a2a3d", border: "none", cursor: "pointer", position: "relative", transition: "background 0.2s" }}><span style={{ position: "absolute", top: 2, left: element.visible ? 18 : 2, width: 16, height: 16, background: "#fff", borderRadius: 8, transition: "left 0.2s" }} /></button></div>, true, "?")}
+        ), true, element.type === "text" ? "Texto" : element.type === "app" ? "Bloque" : "Forma")}
+        {renderGroup("typography", "Tipografía", <><div><span style={labelStyle}>Color</span><div style={{ display: "flex", gap: 8, alignItems: "center" }}><input type="color" value={element.color ?? "#ffffff"} onChange={(e) => onChange(element.id, { color: e.target.value })} style={{ width: 36, height: 30, border: "none", borderRadius: 6, cursor: "pointer", background: "none" }} /><input type="text" value={element.color ?? "#ffffff"} onChange={(e) => onChange(element.id, { color: e.target.value })} style={{ ...inputStyle, flex: 1 }} /></div></div><div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}><div><span style={labelStyle}>Tamaño</span><input type="number" min={8} max={120} value={element.fontSize ?? 16} onChange={(e) => onChange(element.id, { fontSize: Number(e.target.value) })} style={inputStyle} /></div><div><span style={labelStyle}>Peso</span><input type="text" value={element.fontWeight ?? "400"} onChange={(e) => onChange(element.id, { fontWeight: e.target.value })} style={inputStyle} /></div></div><div><span style={labelStyle}>Fuente</span><select value={element.fontFamily ?? "Inter, system-ui, sans-serif"} onChange={(e) => onChange(element.id, { fontFamily: e.target.value })} style={{ ...inputStyle, cursor: "pointer" }}><option value="Inter, system-ui, sans-serif">Inter</option><option value="'Playfair Display', Georgia, serif">Playfair Display</option><option value="Georgia, serif">Georgia</option><option value="'Dancing Script', cursive">Dancing Script</option></select></div><div><span style={labelStyle}>Alineación</span><div style={{ display: "flex", gap: 4 }}>{(["left", "center", "right"] as const).map((a) => <button key={a} type="button" onClick={() => onChange(element.id, { textAlign: a })} style={{ flex: 1, padding: "6px 0", background: element.textAlign === a ? "#7c3aed" : "#1e1e2d", border: "1px solid #2a2a3d", borderRadius: 6, cursor: "pointer", color: element.textAlign === a ? "#fff" : "#9898b8", fontSize: 11 }}>{a === "left" ? "Izquierda" : a === "center" ? "Centro" : "Derecha"}</button>)}</div></div><div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}><div><span style={labelStyle}>Interlineado</span><input type="number" min={0.8} max={3} step={0.05} value={element.lineHeight ?? 1.4} onChange={(e) => onChange(element.id, { lineHeight: Number(e.target.value) })} style={inputStyle} /></div><div><span style={labelStyle}>Espaciado de letras</span><input type="number" min={0} max={1} step={0.01} value={element.letterSpacing ?? 0} onChange={(e) => onChange(element.id, { letterSpacing: Number(e.target.value) })} style={inputStyle} /></div></div></>, element.type === "text", "Aa")}
+        {renderGroup("fill", "Relleno", <><div><span style={labelStyle}>Fondo</span><input type="text" value={element.config?.primaryColor ?? element.background ?? ""} placeholder="Color, rgba(...) o linear-gradient(...)" onChange={(e) => onChange(element.id, { background: e.target.value, config: element.type === "app" ? { ...(element.config ?? {}), primaryColor: e.target.value } : element.config })} style={inputStyle} /></div>{element.type === "app" && <div><span style={labelStyle}>Color de texto</span><input type="text" value={element.color ?? element.config?.textColor ?? ""} onChange={(e) => onChange(element.id, { color: e.target.value, config: { ...(element.config ?? {}), textColor: e.target.value } })} style={inputStyle} /></div>}<div><span style={labelStyle}>Transparencia {Math.round((1 - (element.opacity ?? 1)) * 100)}%</span><input type="range" min={0} max={1} step={0.01} value={element.opacity ?? 1} onChange={(e) => onChange(element.id, { opacity: Number(e.target.value) })} style={{ width: "100%", accentColor: "#7c3aed" }} /></div></>, element.type !== "text", "Relleno")}
+        {renderGroup("stroke", "Contorno", <><div><span style={labelStyle}>Borde redondeado: {element.borderRadius ?? 0}px</span><input type="range" min={0} max={999} step={1} value={element.borderRadius ?? 0} onChange={(e) => onChange(element.id, { borderRadius: Number(e.target.value) })} style={{ width: "100%", accentColor: "#7c3aed" }} /></div><div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}><span style={{ ...labelStyle, margin: 0 }}>Activar contorno</span><button type="button" onClick={() => onChange(element.id, hasBorder(element) ? { borderWidth: 0, borderStyle: "none" } : { borderWidth: 1, borderStyle: "solid", borderColor: element.borderColor ?? "#c8a96a" })} style={{ ...actionBtnStyle, width: "auto", padding: "6px 10px" }}>{hasBorder(element) ? "Activo" : "Inactivo"}</button></div>{hasBorder(element) && <><input type="text" value={element.borderColor ?? ""} placeholder="rgba(200,169,106,0.35)" onChange={(e) => onChange(element.id, { borderColor: e.target.value })} style={inputStyle} /><input type="range" min={1} max={12} step={1} value={element.borderWidth ?? 1} onChange={(e) => onChange(element.id, { borderWidth: Number(e.target.value) })} style={{ width: "100%", accentColor: "#7c3aed" }} /><div style={{ display: "flex", gap: 4 }}>{(["solid", "dashed"] as const).map((borderStyle) => <button key={borderStyle} type="button" onClick={() => onChange(element.id, { borderStyle })} style={{ ...actionBtnStyle, textAlign: "center", background: (element.borderStyle ?? "solid") === borderStyle ? "#2a1f4d" : "#1e1e2d" }}>{borderStyle === "solid" ? "Sólido" : "Discontinuo"}</button>)}</div></>}</>, element.type !== "text", "Contorno")}
+        {renderGroup("shadow", "Sombra", <>{element.type === "text" && <div><span style={labelStyle}>Sombra de texto</span><input type="text" value={element.textShadow ?? ""} placeholder="0 2px 10px rgba(...)" onChange={(e) => onChange(element.id, { textShadow: e.target.value })} style={inputStyle} /></div>}{(element.type === "shape" || element.type === "decoration") && element.blur !== undefined && <div><span style={labelStyle}>Desenfoque: {element.blur ?? 0}px</span><input type="range" min={0} max={40} step={1} value={element.blur ?? 0} onChange={(e) => onChange(element.id, { blur: Number(e.target.value) })} style={{ width: "100%", accentColor: "#7c3aed" }} /></div>}</>, element.type === "text" || element.type === "shape" || element.type === "decoration", "Sombra")}
+        {renderGroup("spacing", "Espaciado interno", <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>{(["x", "y", "width", "height"] as const).map((k) => <div key={k}><span style={{ ...labelStyle, fontSize: 9 }}>{k === "x" ? "Posición X" : k === "y" ? "Posición Y" : k === "width" ? "Ancho" : "Alto"}</span><input type="number" value={Math.round(element[k] as number) || 0} disabled={element.locked} onChange={(e) => onChange(element.id, { [k]: Number(e.target.value) })} style={{ ...inputStyle, opacity: element.locked ? 0.5 : 1 }} /></div>)}</div>, true, "Ajustes")}
+        {renderGroup("action", "Acción", <>{element.type === "app" && <div><span style={labelStyle}>URL de muestra</span><input type="text" value={element.config?.url ?? ""} onChange={(e) => onChange(element.id, { config: { ...(element.config ?? {}), url: e.target.value } })} style={inputStyle} /></div>}<div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}><button type="button" onClick={onDuplicate} style={{ ...actionBtnStyle, textAlign: "center" }}>Duplicar</button><button type="button" onClick={onBringToFront} style={{ ...actionBtnStyle, textAlign: "center" }}>Traer al frente</button><button type="button" onClick={onSendToBack} style={{ ...actionBtnStyle, textAlign: "center" }}>Enviar atrás</button><button type="button" onClick={() => setPendingDelete("element")} style={{ ...actionBtnStyle, textAlign: "center", color: "#f87171" }}>Eliminar</button></div></>, true, "Acción")}
+        {renderGroup("visibility", "Visibilidad", <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}><span style={{ ...labelStyle, margin: 0 }}>Visible</span><button type="button" onClick={() => onChange(element.id, { visible: !element.visible })} style={{ width: 36, height: 20, borderRadius: 10, background: element.visible ? "#7c3aed" : "#2a2a3d", border: "none", cursor: "pointer", position: "relative", transition: "background 0.2s" }}><span style={{ position: "absolute", top: 2, left: element.visible ? 18 : 2, width: 16, height: 16, background: "#fff", borderRadius: 8, transition: "left 0.2s" }} /></button></div>, true, "Vista")}
       </div>
     </div>
   );
@@ -2019,7 +2019,7 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
     const last = sections.at(-1);
     const next: V3Section = {
       id: `custom-${Date.now()}`,
-      label: `Seccion ${sections.length + 1}`,
+      label: `Sección ${sections.length + 1}`,
       y: last ? last.y + last.height : 0,
       height: 420,
       background: "linear-gradient(180deg,#17111c,#23122a)"
@@ -2253,7 +2253,7 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
 
         {/* Actions */}
         <button type="button" onClick={() => setPreview(!preview)} style={{ ...topBtnStyle, flexShrink: 0 }}>
-          {preview ? "✎ Editar" : "👁 Preview"}
+          {preview ? "✎ Editar" : "👁 Vista previa"}
         </button>
         <button type="button" onClick={handleSave}
           disabled={saveStatus === "saving"}
@@ -2639,7 +2639,7 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
                     letterSpacing: "0.12em",
                     pointerEvents: "none",
                   }}>
-                    MODO PREVIEW
+                    MODO VISTA PREVIA
                   </div>
                 )}
               </div>
@@ -2652,7 +2652,7 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
                 letterSpacing: "0.08em",
                 fontFamily: "Inter, system-ui, sans-serif",
               }}>
-                {canvasW} ? {documentHeight} px ? {viewportMode === "desktop" ? "Desktop" : "Mobile"}
+                {canvasW} × {documentHeight} px · {viewportMode === "desktop" ? "Escritorio" : "Móvil"}
               </p>
             </div>
           </div>
@@ -2717,7 +2717,7 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
             })}
             <button
               type="button"
-              title="Agregar seccion"
+              title="Agregar sección"
               onClick={addDemoSection}
               style={{
                 width: 112,
@@ -2734,7 +2734,7 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
                 fontFamily: "Inter, system-ui, sans-serif",
               }}
             >
-              + Seccion
+              + Sección
             </button>
           </div>
         </div>
@@ -2814,7 +2814,7 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
             onMouseEnter={(e) => { e.currentTarget.style.color = "#a78bfa"; e.currentTarget.style.borderColor = "#7c3aed"; }}
             onMouseLeave={(e) => { e.currentTarget.style.color = "#8884a8"; e.currentTarget.style.borderColor = "#2a2a3d"; }}
           >
-            Props
+            Propiedades
           </button>
         )}
       </div>

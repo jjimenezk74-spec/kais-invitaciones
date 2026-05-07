@@ -1370,6 +1370,7 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
   const elementsRef = useRef<V3Element[]>(elements);
   const dragRef = useRef<{
     id: string; startX: number; startY: number; elX: number; elY: number; active: boolean;
+    shiftKey: boolean; // true = started with Shift held, selection deferred to onClick
     offsets: Array<{ id: string; dx: number; dy: number }>;
     preSnapshot: HistoryEntry;
   } | null>(null);
@@ -1380,6 +1381,7 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
     preSnapshot: HistoryEntry;
   } | null>(null);
 
+  const wasMovedRef = useRef(false); // true during the tick after a real drag completes
   const selected = elements.find((e) => e.id === selectedId) ?? null;
   const activeSection = sections.find((section) => section.id === activeSectionId) ?? sections[0] ?? DEFAULT_SECTIONS[0];
   const documentHeight = sections.at(-1) ? sections.at(-1)!.y + sections.at(-1)!.height : DEFAULT_DOCUMENT_H;
@@ -1542,17 +1544,34 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
   const onMoveStart = useCallback((e: React.MouseEvent, id: string) => {
     const el = elements.find((el) => el.id === id);
     if (!el || el.locked) return;
-    // Keep multi-selection if element is already part of it; else single-select
+
+    if (e.shiftKey) {
+      // ── Shift+mousedown ──────────────────────────────────────────────────
+      // DO NOT touch selectedIds here. onClick will handle the toggle.
+      // Prepare offsets so a potential Shift+drag moves the right group.
+      // Include `id` in the group even though it may not be in selectedIds yet.
+      const multiIds = selectedIds.includes(id) ? selectedIds : [...selectedIds, id];
+      const offsets = multiIds
+        .filter((sid) => sid !== id)
+        .flatMap((sid) => {
+          const sEl = elements.find((e) => e.id === sid);
+          return sEl && !sEl.locked ? [{ id: sid, dx: sEl.x - el.x, dy: sEl.y - el.y }] : [];
+        });
+      dragRef.current = { id, startX: e.clientX, startY: e.clientY, elX: el.x, elY: el.y, shiftKey: true, offsets, active: false, preSnapshot: snapshot() };
+      return;
+    }
+
+    // ── Normal mousedown ─────────────────────────────────────────────────────
+    // Keep multi-selection if element is already part of it; else single-select.
     const multiIds = selectedIds.includes(id) ? selectedIds : [id];
     if (!selectedIds.includes(id)) setSelectedIds([id]);
-    // Compute start-relative offsets for all other unlocked selected elements
     const offsets = multiIds
       .filter((sid) => sid !== id)
       .flatMap((sid) => {
         const sEl = elements.find((e) => e.id === sid);
         return sEl && !sEl.locked ? [{ id: sid, dx: sEl.x - el.x, dy: sEl.y - el.y }] : [];
       });
-    dragRef.current = { id, startX: e.clientX, startY: e.clientY, elX: el.x, elY: el.y, offsets, active: false, preSnapshot: snapshot() };
+    dragRef.current = { id, startX: e.clientX, startY: e.clientY, elX: el.x, elY: el.y, shiftKey: false, offsets, active: false, preSnapshot: snapshot() };
   }, [elements, selectedIds, snapshot]);
 
   // ── Resize ──────────────────────────────────────────────────────────────────
@@ -1577,6 +1596,14 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
         const screenDx = e.clientX - startX;
         const screenDy = e.clientY - startY;
         if (!drag.active && Math.hypot(screenDx, screenDy) < DRAG_START_THRESHOLD) return;
+        if (!drag.active) {
+          // First movement past threshold — commit drag state
+          wasMovedRef.current = true;
+          // If this started with Shift held, add the dragged element to selection now
+          if (drag.shiftKey) {
+            setSelectedIds((prev) => prev.includes(drag.id) ? prev : [...prev, drag.id]);
+          }
+        }
         drag.active = true;
         const dx = screenDx / zoom;
         const dy = screenDy / zoom;
@@ -1632,6 +1659,8 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
       dragRef.current = null;
       resizeRef.current = null;
       setSnapLines([]);
+      // Reset after onClick fires (click fires before setTimeout in browser event order)
+      setTimeout(() => { wasMovedRef.current = false; }, 0);
     };
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
@@ -1749,6 +1778,71 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
     pushHistory(snapshot());
     const minZ = Math.min(...elements.map((e) => e.zIndex));
     setElements((prev) => prev.map((e) => e.id === selectedId ? { ...e, zIndex: minZ - 1 } : e));
+  };
+
+  const getSelectedGroupBounds = useCallback((ids: string[], source = elementsRef.current) => {
+    const selectedElements = source.filter((el) => ids.includes(el.id) && el.visible);
+    if (selectedElements.length <= 1) return null;
+    const minX = Math.min(...selectedElements.map((el) => el.x));
+    const minY = Math.min(...selectedElements.map((el) => el.y));
+    const maxX = Math.max(...selectedElements.map((el) => el.x + el.width));
+    const maxY = Math.max(...selectedElements.map((el) => el.y + (el.height ?? 60)));
+    return {
+      minX,
+      minY,
+      maxX,
+      maxY,
+      width: maxX - minX,
+      height: maxY - minY,
+      elements: selectedElements
+    };
+  }, []);
+
+  const alignSelectedGroup = (mode: "left" | "centerX" | "right" | "top" | "centerY" | "bottom") => {
+    if (selectedIds.length <= 1) return;
+    const bounds = getSelectedGroupBounds(selectedIds);
+    if (!bounds) return;
+    pushHistory(snapshot());
+    setElements((prev) =>
+      prev.map((el) => {
+        if (!selectedIds.includes(el.id) || el.locked) return el;
+        const height = el.height ?? 60;
+        if (mode === "left") return { ...el, x: Math.round(bounds.minX) };
+        if (mode === "centerX") return { ...el, x: Math.round(bounds.minX + (bounds.width - el.width) / 2) };
+        if (mode === "right") return { ...el, x: Math.round(bounds.maxX - el.width) };
+        if (mode === "top") return { ...el, y: Math.round(bounds.minY) };
+        if (mode === "centerY") return { ...el, y: Math.round(bounds.minY + (bounds.height - height) / 2) };
+        if (mode === "bottom") return { ...el, y: Math.round(bounds.maxY - height) };
+        return el;
+      })
+    );
+  };
+
+  const duplicateSelectedGroup = () => {
+    if (selectedIds.length <= 1) return;
+    const groupElements = elements
+      .filter((el) => selectedIds.includes(el.id))
+      .sort((a, b) => a.zIndex - b.zIndex);
+    if (groupElements.length <= 1) return;
+    pushHistory(snapshot());
+    const maxZ = Math.max(...elements.map((el) => el.zIndex), 0);
+    const stamp = Date.now();
+    const copies: V3Element[] = groupElements.map((el, index) => ({
+      ...el,
+      id: `el-${stamp}-${index}`,
+      x: el.x + 24,
+      y: el.y + 24,
+      zIndex: maxZ + index + 1
+    }));
+    setElements((prev) => [...prev, ...copies]);
+    setSelectedIds(copies.map((el) => el.id));
+  };
+
+  const deleteSelectedGroup = () => {
+    if (selectedIds.length <= 1) return;
+    pushHistory(snapshot());
+    setElements((prev) => prev.filter((el) => !selectedIds.includes(el.id)));
+    setSelectedIds([]);
   };
 
   // ── Layer panel helpers ────────────────────────────────────────────────────
@@ -2342,6 +2436,8 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
                       onClick={(e) => {
                         if (preview) return;
                         e.stopPropagation();
+                        // Ignore click events that follow a real drag (wasMovedRef still true)
+                        if (wasMovedRef.current) return;
                         if (e.shiftKey) {
                           setSelectedIds((prev) =>
                             prev.includes(el.id) ? prev.filter((sid) => sid !== el.id) : [...prev, el.id]
@@ -2363,34 +2459,76 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
                   const minY = Math.min(...selEls.map((el) => el.y)) - PAD;
                   const maxX = Math.max(...selEls.map((el) => el.x + el.width)) + PAD;
                   const maxY = Math.max(...selEls.map((el) => el.y + (el.height ?? 60))) + PAD;
+                  const groupToolbarButton: React.CSSProperties = {
+                    minWidth: 28,
+                    height: 26,
+                    border: "1px solid rgba(167,139,250,0.38)",
+                    borderRadius: 8,
+                    background: "rgba(24,24,36,0.94)",
+                    color: "#e8e6ff",
+                    cursor: "pointer",
+                    fontSize: 10,
+                    fontWeight: 800,
+                    fontFamily: "Inter, system-ui, sans-serif",
+                  };
                   return (
-                    <div
-                      key="group-bbox"
-                      style={{
-                        position: "absolute",
-                        left: minX, top: minY,
-                        width: maxX - minX, height: maxY - minY,
-                        border: "2px dashed rgba(124,58,237,0.75)",
-                        borderRadius: 6,
-                        pointerEvents: "none",
-                        zIndex: 9997,
-                        boxShadow: "0 0 0 1px rgba(124,58,237,0.12)",
-                      }}
-                    >
-                      <div style={{
-                        position: "absolute",
-                        top: -26, left: 0,
-                        background: "rgba(124,58,237,0.92)",
-                        color: "#fff",
-                        fontSize: 10, fontWeight: 700,
-                        padding: "2px 8px", borderRadius: 999,
-                        fontFamily: "Inter, system-ui, sans-serif",
-                        whiteSpace: "nowrap",
-                        letterSpacing: "0.04em",
-                      }}>
-                        {selectedIds.length} elementos
+                    <React.Fragment key="group-bbox">
+                      <div
+                        style={{
+                          position: "absolute",
+                          left: minX, top: minY,
+                          width: maxX - minX, height: maxY - minY,
+                          border: "2px dashed rgba(124,58,237,0.75)",
+                          borderRadius: 6,
+                          pointerEvents: "none",
+                          zIndex: 9997,
+                          boxShadow: "0 0 0 1px rgba(124,58,237,0.12)",
+                        }}
+                      >
+                        <div style={{
+                          position: "absolute",
+                          top: -26, left: 0,
+                          background: "rgba(124,58,237,0.92)",
+                          color: "#fff",
+                          fontSize: 10, fontWeight: 700,
+                          padding: "2px 8px", borderRadius: 999,
+                          fontFamily: "Inter, system-ui, sans-serif",
+                          whiteSpace: "nowrap",
+                          letterSpacing: "0.04em",
+                        }}>
+                          {selectedIds.length} elementos
+                        </div>
                       </div>
-                    </div>
+                      <div
+                        onMouseDown={(event) => event.stopPropagation()}
+                        onClick={(event) => event.stopPropagation()}
+                        style={{
+                          position: "absolute",
+                          left: Math.max(8, minX),
+                          top: Math.max(8, minY - 62),
+                          zIndex: 10002,
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 5,
+                          padding: 6,
+                          borderRadius: 12,
+                          background: "rgba(14,14,22,0.96)",
+                          border: "1px solid rgba(124,58,237,0.55)",
+                          boxShadow: "0 16px 42px rgba(0,0,0,0.42)",
+                          pointerEvents: "auto",
+                        }}
+                      >
+                        <button type="button" title="Alinear izquierda" onClick={() => alignSelectedGroup("left")} style={groupToolbarButton}>L</button>
+                        <button type="button" title="Alinear centro horizontal" onClick={() => alignSelectedGroup("centerX")} style={groupToolbarButton}>CH</button>
+                        <button type="button" title="Alinear derecha" onClick={() => alignSelectedGroup("right")} style={groupToolbarButton}>R</button>
+                        <button type="button" title="Alinear arriba" onClick={() => alignSelectedGroup("top")} style={groupToolbarButton}>T</button>
+                        <button type="button" title="Alinear centro vertical" onClick={() => alignSelectedGroup("centerY")} style={groupToolbarButton}>CV</button>
+                        <button type="button" title="Alinear abajo" onClick={() => alignSelectedGroup("bottom")} style={groupToolbarButton}>B</button>
+                        <span style={{ width: 1, alignSelf: "stretch", background: "rgba(167,139,250,0.25)" }} />
+                        <button type="button" title="Duplicar grupo" onClick={duplicateSelectedGroup} style={{ ...groupToolbarButton, color: "#f4d28a" }}>Dup</button>
+                        <button type="button" title="Eliminar grupo" onClick={deleteSelectedGroup} style={{ ...groupToolbarButton, color: "#f87171" }}>Del</button>
+                      </div>
+                    </React.Fragment>
                   );
                 })()}
 

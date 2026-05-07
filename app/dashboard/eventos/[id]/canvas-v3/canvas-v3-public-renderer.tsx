@@ -552,7 +552,7 @@ export function CanvasV3PublicRenderer({
             textAlign: "center",
           }}
         >
-          VISTA PREVIA · {eventTitle ?? "Canvas V3"}
+          VISTA PREVIA Â· {eventTitle ?? "Canvas V3"}
         </div>
       )}
 

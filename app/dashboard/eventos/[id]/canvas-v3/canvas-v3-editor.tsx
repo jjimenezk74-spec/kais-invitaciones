@@ -1924,7 +1924,41 @@ function RightPanel({
         </>, true, "FX")}
         {showAdvanced && renderGroup("stroke", "Contorno", <><div><span style={labelStyle}>Borde redondeado: {element.borderRadius ?? 0}px</span><input type="range" min={0} max={999} step={1} value={element.borderRadius ?? 0} onChange={(e) => onChange(element.id, { borderRadius: Number(e.target.value) })} style={{ width: "100%", accentColor: "#b8925a" }} /></div><div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}><span style={{ ...labelStyle, margin: 0 }}>Contorno</span><button type="button" onClick={() => onChange(element.id, hasBorder(element) ? { borderWidth: 0, borderStyle: "none" } : { borderWidth: 1, borderStyle: "solid", borderColor: element.borderColor ?? "#c8a96a" })} style={{ ...actionBtnStyle, width: "auto", padding: "6px 12px" }}>{hasBorder(element) ? "Activo" : "Inactivo"}</button></div>{hasBorder(element) && <><div><span style={labelStyle}>Color de contorno</span>{renderSwatches(element.borderColor ?? "#c8a96a", (next) => onChange(element.id, { borderColor: next }))}</div>{showHexEditors && <input type="text" value={element.borderColor ?? ""} placeholder="#c8a96a" onChange={(e) => onChange(element.id, { borderColor: e.target.value })} style={inputStyle} />}<input type="range" min={1} max={12} step={1} value={element.borderWidth ?? 1} onChange={(e) => onChange(element.id, { borderWidth: Number(e.target.value) })} style={{ width: "100%", accentColor: "#b8925a" }} /><div style={{ display: "flex", gap: 6 }}>{(["solid", "dashed"] as const).map((borderStyle) => <button key={borderStyle} type="button" onClick={() => onChange(element.id, { borderStyle })} style={{ ...actionBtnStyle, background: (element.borderStyle ?? "solid") === borderStyle ? "rgba(184,146,90,0.22)" : "rgba(255,255,255,0.78)" }}>{borderStyle === "solid" ? "Sólido" : "Discontinuo"}</button>)}</div></>}</>, element.type !== "text", "Contorno")}
         {showAdvanced && renderGroup("action", "Acciones", <>
-          {element.type === "app" && normalizeAppType(element) !== "countdown" && <div><span style={labelStyle}>URL de muestra</span><input type="text" value={element.config?.url ?? ""} onChange={(e) => onChange(element.id, { config: { ...(element.config ?? {}), url: e.target.value } })} style={inputStyle} /></div>}
+          {element.type === "app" && normalizeAppType(element) !== "countdown" && (() => {
+            const appKind = normalizeAppType(element);
+            const url = element.config?.url ?? "";
+            const isWhatsappUnconfigured = appKind === "whatsapp" && (url === "" || url === "https://wa.me/");
+            const isMapsUnconfigured = appKind === "maps" && (url === "" || url === "https://maps.google.com");
+            const showWarning = isWhatsappUnconfigured || isMapsUnconfigured;
+            const warningText = isWhatsappUnconfigured
+              ? "⚠ Configura el WhatsApp del evento en Ajustes para que este botón funcione."
+              : "⚠ Configura la ubicación del evento en Ajustes para que este botón funcione.";
+            return (
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <span style={labelStyle}>URL de muestra</span>
+                <input
+                  type="text"
+                  value={url}
+                  onChange={(e) => onChange(element.id, { config: { ...(element.config ?? {}), url: e.target.value } })}
+                  style={inputStyle}
+                />
+                {showWarning && (
+                  <div style={{
+                    padding: "7px 10px",
+                    borderRadius: 8,
+                    background: "rgba(200,169,106,0.13)",
+                    border: "1px solid rgba(200,169,106,0.32)",
+                    color: "#b8925a",
+                    fontSize: 11,
+                    lineHeight: 1.45,
+                    fontWeight: 500,
+                  }}>
+                    {warningText}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
           {element.type === "app" && normalizeAppType(element) === "countdown" && (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               <span style={{ ...labelStyle, fontWeight: 700, color: "#7a5a4f" }}>⏱ Cuenta Regresiva</span>
@@ -2003,9 +2037,9 @@ type CanvasEditorV3Props = {
 export function CanvasEditorV3({
   eventId, eventSlug, eventTitle, initialDesign = null, eventDate,
   packageKey, enabledFeatures, disabledFeatures,
-  // Stored for Sprint 2 auto-configuration of app blocks
-  whatsappPhone: _whatsappPhone,
-  googleMapsLink: _googleMapsLink,
+  // Sprint 2: used for auto-configuring WhatsApp and Maps blocks on insert
+  whatsappPhone,
+  googleMapsLink,
   musicUrl: _musicUrl,
 }: CanvasEditorV3Props) {
   // Feature source passed to eventHasFeature — null = legacy luxury fallback (all enabled)
@@ -2746,7 +2780,12 @@ export function CanvasEditorV3({
       borderRadius: 16,
       opacity: 1,
       config: {
-        url: appType === "maps" ? "https://maps.google.com" : "",
+        // Sprint 2: use event data when available; fall back to generic placeholders
+        url: appType === "maps"
+          ? (googleMapsLink ?? "https://maps.google.com")
+          : appType === "whatsapp"
+          ? (whatsappPhone ? `https://wa.me/${whatsappPhone.replace(/\D/g, "")}` : "")
+          : "",
         primaryColor: "linear-gradient(135deg,#c8a96a,#8f6a2d)",
         textColor: "#1a0a18",
       },
@@ -2821,6 +2860,13 @@ export function CanvasEditorV3({
     const appType = kind in APP_DEFAULTS ? kind as V3AppType : "rsvp";
     const defaults = APP_DEFAULTS[appType];
     const sectionY = activeSection?.y ?? 0;
+    // Sprint 2: auto-inject event data into config.url when available
+    const autoUrl =
+      appType === "whatsapp" && whatsappPhone
+        ? `https://wa.me/${whatsappPhone.replace(/\D/g, "")}`
+        : appType === "maps" && googleMapsLink
+        ? googleMapsLink
+        : defaults.url ?? "";
     setElements((prev) => [...prev, {
       id, type: "app" as ElType,
       x: cx(defaults.width), y: sectionY + 80, width: defaults.width, height: defaults.height,
@@ -2834,7 +2880,7 @@ export function CanvasEditorV3({
       borderRadius: defaults.borderRadius,
       opacity: 1,
       config: {
-        url: defaults.url ?? "",
+        url: autoUrl,
         primaryColor: defaults.background,
         textColor: defaults.color
       }

@@ -3052,7 +3052,7 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
           minWidth: 0,
           display: "flex",
           flexDirection: "column",
-          background: "linear-gradient(180deg,#f7f3eb 0%,#ece7df 100%)",
+          background: "linear-gradient(180deg,#e7e2da 0%,#d8d2ca 100%)",
           overflow: "hidden",
         }}>
           <div
@@ -3064,6 +3064,7 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
               alignItems: "flex-start",
               justifyContent: "center",
               padding: vw < 1400 ? "14px 8px" : "22px 16px",
+              background: "radial-gradient(120% 60% at 50% 0%, rgba(255,255,255,0.14) 0%, rgba(216,210,202,0) 68%)",
             }}
             ref={scrollRef}
           >
@@ -3081,7 +3082,7 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
                   height: documentHeight,
                   borderRadius: 12,
                   overflow: "hidden",
-                  boxShadow: "0 22px 52px rgba(92,64,51,0.16), 0 0 0 1px rgba(184,146,90,0.16)",
+                  boxShadow: "0 14px 34px rgba(94,82,71,0.14), 0 2px 8px rgba(94,82,71,0.08), 0 0 0 1px rgba(150,128,112,0.20)",
                 }}
               >
                 {sections.map((section) => (
@@ -3349,8 +3350,8 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
           <div style={{
             minHeight: 78,
             flexShrink: 0,
-            background: "rgba(255,252,247,0.94)",
-            borderTop: "1px solid rgba(184,146,90,0.18)",
+            background: "linear-gradient(180deg, rgba(221,215,207,0.96), rgba(214,208,200,0.98))",
+            borderTop: "1px solid rgba(150,128,112,0.20)",
             padding: "8px 12px",
             display: "flex",
             alignItems: "center",

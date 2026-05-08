@@ -1697,6 +1697,7 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
   const [preview, setPreview] = useState(false);
   const [snapLines, setSnapLines] = useState<SnapLine[]>([]);
   const [selectionBox, setSelectionBox] = useState<SelectionBox | null>(null);
+  const [multiToolbarMenuOpen, setMultiToolbarMenuOpen] = useState(false);
 
   const canvasRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -1734,6 +1735,10 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
   useEffect(() => {
     elementsRef.current = elements;
   }, [elements]);
+
+  useEffect(() => {
+    if (selectedIds.length <= 1 || preview) setMultiToolbarMenuOpen(false);
+  }, [selectedIds.length, preview]);
 
   const sectionsRef = useRef<V3Section[]>(sections);
   useEffect(() => { sectionsRef.current = sections; }, [sections]);
@@ -3208,36 +3213,40 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
                   const selEls = elements.filter((el) => selectedIds.includes(el.id) && el.visible);
                   if (selEls.length === 0) return null;
                   const PAD = 6;
+                  const TOOLBAR_W = 310;
+                  const TOOLBAR_H = 30;
+                  const GAP = 10;
                   const minX = Math.min(...selEls.map((el) => el.x)) - PAD;
                   const minY = Math.min(...selEls.map((el) => el.y)) - PAD;
                   const maxX = Math.max(...selEls.map((el) => el.x + el.width)) + PAD;
                   const maxY = Math.max(...selEls.map((el) => el.y + (el.height ?? 60))) + PAD;
+                  const canPlaceTop = minY - TOOLBAR_H - GAP >= 8;
+                  const canPlaceBottom = maxY + GAP + TOOLBAR_H <= documentHeight - 8;
+                  const toolbarTop = canPlaceTop
+                    ? minY - TOOLBAR_H - GAP
+                    : canPlaceBottom
+                      ? maxY + GAP
+                      : Math.max(8, Math.min(documentHeight - TOOLBAR_H - 8, minY + 4));
+                  const toolbarLeft = Math.max(8, Math.min(canvasW - TOOLBAR_W - 8, minX));
                   const groupToolbarButton: React.CSSProperties = {
-                    minWidth: 58,
-                    height: 24,
+                    minWidth: 44,
+                    height: 22,
                     border: "1px solid rgba(184,146,90,0.30)",
                     borderRadius: 999,
-                    background: "rgba(255,252,247,0.96)",
+                    background: "rgba(255,252,247,0.86)",
                     color: "#4b2735",
                     cursor: "pointer",
                     fontSize: 9,
-                    fontWeight: 800,
+                    fontWeight: 700,
                     fontFamily: "Inter, system-ui, sans-serif",
                     padding: "0 7px",
                     whiteSpace: "nowrap",
-                    boxShadow: "0 6px 16px rgba(70,50,35,0.10)",
+                    boxShadow: "0 4px 12px rgba(70,50,35,0.08)",
                   };
                   const canDistribute = selEls.filter((el) => !el.locked).length >= 3;
-                  const distributeButtonStyle: React.CSSProperties = {
-                    ...groupToolbarButton,
-                    minWidth: 98,
-                    padding: "0 8px",
-                    opacity: canDistribute ? 1 : 0.45,
-                    cursor: canDistribute ? "pointer" : "not-allowed",
-                  };
                   const ungroupButtonStyle: React.CSSProperties = {
                     ...groupToolbarButton,
-                    minWidth: 82,
+                    minWidth: 74,
                     opacity: canUngroupSelection ? 1 : 0.45,
                     cursor: canUngroupSelection ? "pointer" : "not-allowed",
                   };
@@ -3258,10 +3267,10 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
                         <div style={{
                           position: "absolute",
                           top: -26, left: 0,
-                          background: "rgba(255,252,247,0.96)",
+                          background: "rgba(255,252,247,0.84)",
                           color: "#4b2735",
-                          fontSize: 10, fontWeight: 700,
-                          padding: "2px 8px", borderRadius: 999,
+                          fontSize: 9, fontWeight: 700,
+                          padding: "2px 7px", borderRadius: 999,
                           fontFamily: "Inter, system-ui, sans-serif",
                           whiteSpace: "nowrap",
                           letterSpacing: "0.04em",
@@ -3274,36 +3283,65 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
                         onClick={(event) => event.stopPropagation()}
                         style={{
                           position: "absolute",
-                          left: Math.max(8, minX),
-                          top: Math.max(8, minY - 46),
+                          left: toolbarLeft,
+                          top: toolbarTop,
                           zIndex: 10002,
                           display: "flex",
                           alignItems: "center",
-                          flexWrap: "wrap",
                           gap: 4,
-                          padding: 4,
+                          padding: "4px 5px",
                           borderRadius: 999,
-                          background: "rgba(255,252,247,0.97)",
+                          background: "rgba(255,252,247,0.82)",
+                          backdropFilter: "blur(6px)",
                           border: "1px solid rgba(184,146,90,0.34)",
-                          boxShadow: "0 16px 34px rgba(70,50,35,0.16)",
+                          boxShadow: "0 8px 22px rgba(70,50,35,0.14)",
                           pointerEvents: "auto",
+                          maxWidth: TOOLBAR_W,
                         }}
                       >
-                        <button type="button" title="Alinear izquierda" onClick={() => alignSelectedGroup("left")} style={groupToolbarButton}>Izquierda</button>
-                        <button type="button" title="Alinear centro horizontal" onClick={() => alignSelectedGroup("centerX")} style={{ ...groupToolbarButton, minWidth: 112 }}>Centro horizontal</button>
-                        <button type="button" title="Alinear derecha" onClick={() => alignSelectedGroup("right")} style={groupToolbarButton}>Derecha</button>
-                        <button type="button" title="Alinear arriba" onClick={() => alignSelectedGroup("top")} style={groupToolbarButton}>Arriba</button>
-                        <button type="button" title="Alinear centro vertical" onClick={() => alignSelectedGroup("centerY")} style={{ ...groupToolbarButton, minWidth: 98 }}>Centro vertical</button>
-                        <button type="button" title="Alinear abajo" onClick={() => alignSelectedGroup("bottom")} style={groupToolbarButton}>Abajo</button>
-                        <span style={{ width: 1, alignSelf: "stretch", background: "rgba(184,146,90,0.24)" }} />
-                        <button type="button" title="Distribuir horizontalmente" disabled={!canDistribute} onClick={() => distributeSelectedGroup("horizontal")} style={distributeButtonStyle}>Distribuir horizontal</button>
-                        <button type="button" title="Distribuir verticalmente" disabled={!canDistribute} onClick={() => distributeSelectedGroup("vertical")} style={distributeButtonStyle}>Distribuir vertical</button>
-                        <span style={{ width: 1, alignSelf: "stretch", background: "rgba(184,146,90,0.24)" }} />
-                        <button type="button" title="Agrupar elementos seleccionados" onClick={groupSelected} style={groupToolbarButton}>Agrupar</button>
+                        <button type="button" title="Alinear" onClick={() => alignSelectedGroup("centerX")} style={{ ...groupToolbarButton, minWidth: 54 }}>Alinear</button>
+                        <button type="button" title="Agrupar elementos seleccionados" onClick={groupSelected} style={{ ...groupToolbarButton, minWidth: 52 }}>Agrupar</button>
                         <button type="button" title="Desagrupar selección" disabled={!canUngroupSelection} onClick={ungroupSelected} style={ungroupButtonStyle}>Desagrupar</button>
                         <span style={{ width: 1, alignSelf: "stretch", background: "rgba(184,146,90,0.24)" }} />
-                        <button type="button" title="Duplicar grupo" onClick={duplicateSelectedGroup} style={{ ...groupToolbarButton, color: "#8a5d22" }}>Duplicar</button>
-                        <button type="button" title="Eliminar grupo" onClick={deleteSelectedGroup} style={{ ...groupToolbarButton, color: "#b42336" }}>Eliminar</button>
+                        <button type="button" title="Duplicar grupo" onClick={duplicateSelectedGroup} style={{ ...groupToolbarButton, minWidth: 50, color: "#8a5d22" }}>Duplicar</button>
+                        <button type="button" title="Eliminar grupo" onClick={deleteSelectedGroup} style={{ ...groupToolbarButton, minWidth: 46, color: "#b42336" }}>Eliminar</button>
+                        <div style={{ position: "relative" }}>
+                          <button
+                            type="button"
+                            title="Más acciones"
+                            onClick={() => setMultiToolbarMenuOpen((v) => !v)}
+                            style={{ ...groupToolbarButton, minWidth: 42 }}
+                          >
+                            Mas
+                          </button>
+                          {multiToolbarMenuOpen && (
+                            <div
+                              style={{
+                                position: "absolute",
+                                top: 26,
+                                right: 0,
+                                minWidth: 170,
+                                padding: 6,
+                                borderRadius: 12,
+                                background: "rgba(255,252,247,0.95)",
+                                border: "1px solid rgba(184,146,90,0.30)",
+                                boxShadow: "0 10px 22px rgba(70,50,35,0.14)",
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: 4,
+                                zIndex: 10003,
+                              }}
+                            >
+                              <button type="button" onClick={() => { alignSelectedGroup("left"); setMultiToolbarMenuOpen(false); }} style={groupToolbarButton}>Alinear izquierda</button>
+                              <button type="button" onClick={() => { alignSelectedGroup("right"); setMultiToolbarMenuOpen(false); }} style={groupToolbarButton}>Alinear derecha</button>
+                              <button type="button" onClick={() => { alignSelectedGroup("top"); setMultiToolbarMenuOpen(false); }} style={groupToolbarButton}>Alinear arriba</button>
+                              <button type="button" onClick={() => { alignSelectedGroup("centerY"); setMultiToolbarMenuOpen(false); }} style={groupToolbarButton}>Centro vertical</button>
+                              <button type="button" onClick={() => { alignSelectedGroup("bottom"); setMultiToolbarMenuOpen(false); }} style={groupToolbarButton}>Alinear abajo</button>
+                              <button type="button" onClick={() => { distributeSelectedGroup("horizontal"); setMultiToolbarMenuOpen(false); }} disabled={!canDistribute} style={{ ...groupToolbarButton, opacity: canDistribute ? 1 : 0.45, cursor: canDistribute ? "pointer" : "not-allowed" }}>Distribuir horizontal</button>
+                              <button type="button" onClick={() => { distributeSelectedGroup("vertical"); setMultiToolbarMenuOpen(false); }} disabled={!canDistribute} style={{ ...groupToolbarButton, opacity: canDistribute ? 1 : 0.45, cursor: canDistribute ? "pointer" : "not-allowed" }}>Distribuir vertical</button>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </React.Fragment>
                   );

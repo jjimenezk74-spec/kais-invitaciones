@@ -1364,6 +1364,69 @@ function RightPanel({
       ))}
     </div>
   );
+  const hasEffectControls = element ? (element.type !== "app" || Boolean(normalizeAppType(element))) : false;
+  const effectPresetBtnStyle: React.CSSProperties = {
+    ...actionBtnStyle,
+    textAlign: "center",
+    fontSize: 10,
+    padding: "6px 8px",
+    borderRadius: 10,
+  };
+  const applyEffectPreset = (preset:
+    | "soft-shadow"
+    | "editorial-shadow"
+    | "glow-gold"
+    | "glow-rose"
+    | "glow-white"
+    | "deep-shadow"
+    | "glass"
+    | "gold"
+    | "fade-bottom"
+    | "fade-top"
+    | "vignette"
+  ) => {
+    if (!element) return;
+    if (element.type === "text") {
+      if (preset === "soft-shadow") return onChange(element.id, { textShadow: "0 3px 12px rgba(26,19,18,0.22)" });
+      if (preset === "editorial-shadow") return onChange(element.id, { textShadow: "0 6px 20px rgba(30,20,18,0.34)" });
+      if (preset === "glow-gold") return onChange(element.id, { textShadow: "0 0 16px rgba(200,169,106,0.62), 0 0 30px rgba(200,169,106,0.28)" });
+      if (preset === "glow-rose") return onChange(element.id, { textShadow: "0 0 14px rgba(200,117,131,0.58), 0 0 26px rgba(200,117,131,0.28)" });
+      if (preset === "glow-white") return onChange(element.id, { textShadow: "0 0 16px rgba(255,255,255,0.62), 0 0 30px rgba(255,255,255,0.28)" });
+      if (preset === "deep-shadow") return onChange(element.id, { textShadow: "0 10px 26px rgba(15,10,10,0.52)" });
+      if (preset === "fade-bottom") return onChange(element.id, { color: "rgba(75,39,53,0.78)" });
+      if (preset === "fade-top") return onChange(element.id, { color: "rgba(75,39,53,0.88)" });
+      if (preset === "vignette") return onChange(element.id, { textShadow: "0 0 2px rgba(0,0,0,0.25), 0 0 24px rgba(0,0,0,0.34)" });
+      return;
+    }
+
+    const currentPrimary = element.config?.primaryColor ?? element.background ?? "rgba(255,255,255,0.1)";
+    if (preset === "soft-shadow") return onChange(element.id, { blur: 6 });
+    if (preset === "editorial-shadow") return onChange(element.id, { blur: 10, opacity: Math.min(1, (element.opacity ?? 1) * 0.95) });
+    if (preset === "glow-gold") return onChange(element.id, { background: "linear-gradient(135deg,rgba(244,210,138,0.34),rgba(184,146,90,0.14))", blur: 8 });
+    if (preset === "glow-rose") return onChange(element.id, { background: "linear-gradient(135deg,rgba(233,185,193,0.34),rgba(200,117,131,0.12))", blur: 8 });
+    if (preset === "glow-white") return onChange(element.id, { background: "linear-gradient(135deg,rgba(255,255,255,0.45),rgba(255,255,255,0.10))", blur: 6 });
+    if (preset === "deep-shadow") return onChange(element.id, { blur: 14, opacity: Math.max(0.55, (element.opacity ?? 1) * 0.88) });
+    if (preset === "glass") return onChange(element.id, { background: "linear-gradient(160deg,rgba(255,255,255,0.46),rgba(255,255,255,0.16))", blur: 12, borderColor: "rgba(255,255,255,0.42)", borderWidth: 1, borderStyle: "solid" });
+    if (preset === "gold") return onChange(element.id, { background: "linear-gradient(135deg,rgba(244,210,138,0.34),rgba(184,146,90,0.22),rgba(138,106,60,0.24))", config: element.type === "app" ? { ...(element.config ?? {}), primaryColor: "linear-gradient(135deg,rgba(244,210,138,0.34),rgba(184,146,90,0.22),rgba(138,106,60,0.24))" } : element.config });
+    if (preset === "fade-bottom") return onChange(element.id, { background: `linear-gradient(180deg,${currentPrimary},rgba(255,255,255,0))` });
+    if (preset === "fade-top") return onChange(element.id, { background: `linear-gradient(0deg,${currentPrimary},rgba(255,255,255,0))` });
+    if (preset === "vignette") return onChange(element.id, { background: "radial-gradient(circle at 50% 50%, rgba(255,255,255,0) 28%, rgba(26,22,24,0.26) 100%)" });
+  };
+  const applyFadeDirection = (direction: "up" | "down" | "left" | "right" | "center" | "diag") => {
+    if (!element) return;
+    const base = element.config?.primaryColor ?? element.background ?? "rgba(184,146,90,0.26)";
+    if (element.type === "text") {
+      const nextOpacity = direction === "center" ? 0.9 : 0.72;
+      onChange(element.id, { color: element.color ?? "#4b2735", opacity: nextOpacity });
+      return;
+    }
+    if (direction === "up") return onChange(element.id, { background: `linear-gradient(0deg,${base},rgba(255,255,255,0))` });
+    if (direction === "down") return onChange(element.id, { background: `linear-gradient(180deg,${base},rgba(255,255,255,0))` });
+    if (direction === "left") return onChange(element.id, { background: `linear-gradient(270deg,${base},rgba(255,255,255,0))` });
+    if (direction === "right") return onChange(element.id, { background: `linear-gradient(90deg,${base},rgba(255,255,255,0))` });
+    if (direction === "diag") return onChange(element.id, { background: `linear-gradient(135deg,${base},rgba(255,255,255,0))` });
+    return onChange(element.id, { background: `radial-gradient(circle at 50% 50%,${base},rgba(255,255,255,0))` });
+  };
   // ── Layers helpers ────────────────────────────────────────────────────────
   const getLayerIcon = (el: V3Element): string => {
     if (el.type === "text") return "Tx";
@@ -1663,7 +1726,74 @@ function RightPanel({
         >
           {showAdvanced ? "Ocultar más opciones" : "Más opciones"}
         </button>
-        {showAdvanced && renderGroup("shadow", "Detalle visual", <>{element.type === "text" && <div><span style={labelStyle}>Sombra de texto</span><input type="text" value={element.textShadow ?? ""} placeholder="0 2px 10px rgba(...)" onChange={(e) => onChange(element.id, { textShadow: e.target.value })} style={inputStyle} /></div>}{(element.type === "shape" || element.type === "decoration") && element.blur !== undefined && <div><span style={labelStyle}>Desenfoque: {element.blur ?? 0}px</span><input type="range" min={0} max={40} step={1} value={element.blur ?? 0} onChange={(e) => onChange(element.id, { blur: Number(e.target.value) })} style={{ width: "100%", accentColor: "#b8925a" }} /></div>}</>, element.type === "text" || element.type === "shape" || element.type === "decoration", "Sombra")}
+        {showAdvanced && renderGroup("shadow", "Efectos visuales", <>
+          {!hasEffectControls ? (
+            <p style={{ margin: 0, color: "#9a8a80", fontSize: 12, lineHeight: 1.45 }}>
+              Este elemento no tiene efectos visuales disponibles en el renderer actual.
+            </p>
+          ) : (
+            <>
+              <div>
+                <span style={labelStyle}>Presets premium</span>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 6 }}>
+                  <button type="button" onClick={() => applyEffectPreset("soft-shadow")} style={effectPresetBtnStyle}>Suave</button>
+                  <button type="button" onClick={() => applyEffectPreset("glow-gold")} style={effectPresetBtnStyle}>Glow oro</button>
+                  <button type="button" onClick={() => applyEffectPreset("glass")} style={effectPresetBtnStyle}>Cristal</button>
+                  <button type="button" onClick={() => applyEffectPreset("gold")} style={effectPresetBtnStyle}>Dorado</button>
+                  <button type="button" onClick={() => applyEffectPreset("fade-bottom")} style={effectPresetBtnStyle}>Fade abajo</button>
+                  <button type="button" onClick={() => applyEffectPreset("fade-top")} style={effectPresetBtnStyle}>Fade arriba</button>
+                  <button type="button" onClick={() => applyEffectPreset("glow-rose")} style={effectPresetBtnStyle}>Glow rosa</button>
+                  <button type="button" onClick={() => applyEffectPreset("glow-white")} style={effectPresetBtnStyle}>Glow blanco</button>
+                  <button type="button" onClick={() => applyEffectPreset("vignette")} style={effectPresetBtnStyle}>Viñeta</button>
+                </div>
+              </div>
+              <div>
+                <span style={labelStyle}>Dirección de transparencia</span>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 6 }}>
+                  <button type="button" onClick={() => applyFadeDirection("up")} style={effectPresetBtnStyle}>Arriba</button>
+                  <button type="button" onClick={() => applyFadeDirection("down")} style={effectPresetBtnStyle}>Abajo</button>
+                  <button type="button" onClick={() => applyFadeDirection("left")} style={effectPresetBtnStyle}>Izquierda</button>
+                  <button type="button" onClick={() => applyFadeDirection("right")} style={effectPresetBtnStyle}>Derecha</button>
+                  <button type="button" onClick={() => applyFadeDirection("center")} style={effectPresetBtnStyle}>Centro</button>
+                  <button type="button" onClick={() => applyFadeDirection("diag")} style={effectPresetBtnStyle}>Diagonal</button>
+                </div>
+              </div>
+              {element.type === "text" && (
+                <div>
+                  <span style={labelStyle}>Sombra / glow (avanzado)</span>
+                  <input
+                    type="text"
+                    value={element.textShadow ?? ""}
+                    placeholder="0 2px 10px rgba(...)"
+                    onChange={(e) => onChange(element.id, { textShadow: e.target.value })}
+                    style={inputStyle}
+                  />
+                </div>
+              )}
+              {(element.type === "shape" || element.type === "decoration" || element.type === "app") && (
+                <div>
+                  <span style={labelStyle}>Desenfoque: {element.blur ?? 0}px</span>
+                  <input
+                    type="range"
+                    min={0}
+                    max={40}
+                    step={1}
+                    value={element.blur ?? 0}
+                    onChange={(e) => onChange(element.id, { blur: Number(e.target.value) })}
+                    style={{ width: "100%", accentColor: "#b8925a" }}
+                  />
+                </div>
+              )}
+              <div style={{ border: "1px dashed rgba(184,146,90,0.34)", borderRadius: 10, padding: "8px 10px", background: "rgba(255,255,255,0.56)" }}>
+                <span style={{ ...labelStyle, marginBottom: 4 }}>Reflejo</span>
+                <p style={{ margin: 0, color: "#8a6f61", fontSize: 11, lineHeight: 1.45 }}>
+                  Reflejo real (espejo arriba/abajo con degradado) requiere soporte de transform/mask en renderer.
+                  Alternativa actual: usa presets Fade + Glow para simular profundidad.
+                </p>
+              </div>
+            </>
+          )}
+        </>, true, "FX")}
         {showAdvanced && renderGroup("stroke", "Contorno", <><div><span style={labelStyle}>Borde redondeado: {element.borderRadius ?? 0}px</span><input type="range" min={0} max={999} step={1} value={element.borderRadius ?? 0} onChange={(e) => onChange(element.id, { borderRadius: Number(e.target.value) })} style={{ width: "100%", accentColor: "#b8925a" }} /></div><div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}><span style={{ ...labelStyle, margin: 0 }}>Contorno</span><button type="button" onClick={() => onChange(element.id, hasBorder(element) ? { borderWidth: 0, borderStyle: "none" } : { borderWidth: 1, borderStyle: "solid", borderColor: element.borderColor ?? "#c8a96a" })} style={{ ...actionBtnStyle, width: "auto", padding: "6px 12px" }}>{hasBorder(element) ? "Activo" : "Inactivo"}</button></div>{hasBorder(element) && <><div><span style={labelStyle}>Color de contorno</span>{renderSwatches(element.borderColor ?? "#c8a96a", (next) => onChange(element.id, { borderColor: next }))}</div>{showHexEditors && <input type="text" value={element.borderColor ?? ""} placeholder="#c8a96a" onChange={(e) => onChange(element.id, { borderColor: e.target.value })} style={inputStyle} />}<input type="range" min={1} max={12} step={1} value={element.borderWidth ?? 1} onChange={(e) => onChange(element.id, { borderWidth: Number(e.target.value) })} style={{ width: "100%", accentColor: "#b8925a" }} /><div style={{ display: "flex", gap: 6 }}>{(["solid", "dashed"] as const).map((borderStyle) => <button key={borderStyle} type="button" onClick={() => onChange(element.id, { borderStyle })} style={{ ...actionBtnStyle, background: (element.borderStyle ?? "solid") === borderStyle ? "rgba(184,146,90,0.22)" : "rgba(255,255,255,0.78)" }}>{borderStyle === "solid" ? "Sólido" : "Discontinuo"}</button>)}</div></>}</>, element.type !== "text", "Contorno")}
         {showAdvanced && renderGroup("action", "Acciones", <>
           {element.type === "app" && normalizeAppType(element) !== "countdown" && <div><span style={labelStyle}>URL de muestra</span><input type="text" value={element.config?.url ?? ""} onChange={(e) => onChange(element.id, { config: { ...(element.config ?? {}), url: e.target.value } })} style={inputStyle} /></div>}

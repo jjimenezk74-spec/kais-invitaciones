@@ -156,7 +156,7 @@ export async function createEvent(formData: FormData) {
   });
 
   revalidatePath("/dashboard");
-  redirect(`/dashboard/eventos/${data.id}/canvas`);
+  redirect(`/dashboard/eventos/${data.id}/canvas-v3`);
 }
 
 async function initializeEventCanvasDesign({
@@ -1234,4 +1234,5 @@ function csvCell(value: unknown): string {
     return `"${str.replace(/"/g, '""')}"`;
   }
   return str;
+}
 }

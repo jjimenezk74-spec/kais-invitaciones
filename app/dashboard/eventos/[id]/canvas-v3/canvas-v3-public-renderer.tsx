@@ -243,7 +243,21 @@ function resolveAppType(el: V3Element): V3AppType | null {
 // Single element renderer (no editing chrome)
 // ─────────────────────────────────────────────────────────────────────────────
 
-function PublicElement({ el, eventSlug, eventDate }: { el: V3Element; eventSlug?: string; eventDate?: string }) {
+function PublicElement({
+  el,
+  eventSlug,
+  eventDate,
+  clipTop = 0,
+  clipBottom = 0,
+}: {
+  el: V3Element;
+  eventSlug?: string;
+  eventDate?: string;
+  /** px the element overflows above its section top — clip that much from the top */
+  clipTop?: number;
+  /** px the element overflows below its section bottom — clip that much from the bottom */
+  clipBottom?: number;
+}) {
   if (!el.visible) return null;
 
   const appType = el.type === "app" ? resolveAppType(el) : null;
@@ -251,6 +265,8 @@ function PublicElement({ el, eventSlug, eventDate }: { el: V3Element; eventSlug?
   // Sanitise numeric values so bad data can't produce invalid CSS
   const safeNum = (v: unknown, fallback: number) =>
     Number.isFinite(Number(v)) ? Number(v) : fallback;
+
+  const hasClip = clipTop > 0 || clipBottom > 0;
 
   const boxStyle: React.CSSProperties = {
     position: "absolute",
@@ -265,6 +281,8 @@ function PublicElement({ el, eventSlug, eventDate }: { el: V3Element; eventSlug?
     borderRadius: el.borderRadius != null ? safeNum(el.borderRadius, 0) : undefined,
     border: computeBorder(el),
     overflow: "hidden",
+    // Section clip — same logic as the editor's inner content wrapper
+    clipPath: hasClip ? `inset(${clipTop}px 0px ${clipBottom}px 0px)` : undefined,
   };
 
   // App blocks —— rendered as interactive visual elements
@@ -519,11 +537,16 @@ function QrBlock({ el }: { el: V3Element }) {
 // SafeElement — silently swallows render errors for a single element
 // ─────────────────────────────────────────────────────────────────────────────
 
-class SafeElement extends React.Component<
-  { el: V3Element; eventSlug?: string; eventDate?: string },
-  { crashed: boolean }
-> {
-  constructor(props: { el: V3Element; eventSlug?: string; eventDate?: string }) {
+type SafeElementProps = {
+  el: V3Element;
+  eventSlug?: string;
+  eventDate?: string;
+  clipTop?: number;
+  clipBottom?: number;
+};
+
+class SafeElement extends React.Component<SafeElementProps, { crashed: boolean }> {
+  constructor(props: SafeElementProps) {
     super(props);
     this.state = { crashed: false };
   }
@@ -535,7 +558,15 @@ class SafeElement extends React.Component<
   }
   render() {
     if (this.state.crashed) return null;
-    return <PublicElement el={this.props.el} eventSlug={this.props.eventSlug} eventDate={this.props.eventDate} />;
+    return (
+      <PublicElement
+        el={this.props.el}
+        eventSlug={this.props.eventSlug}
+        eventDate={this.props.eventDate}
+        clipTop={this.props.clipTop}
+        clipBottom={this.props.clipBottom}
+      />
+    );
   }
 }
 
@@ -675,9 +706,26 @@ export function CanvasV3PublicRenderer({
             transform: `scale(${scale})`,
           }}
         >
-          {sortedElements.map((el) => (
-            <SafeElement key={el.id} el={el} eventSlug={eventSlug} eventDate={eventDate} />
-          ))}
+          {sortedElements.map((el) => {
+            const elH = el.height ?? 60;
+            const sec =
+              design.sections.find((s) => el.y >= s.y && el.y < s.y + s.height) ??
+              (el.y < (design.sections[0]?.y ?? 0)
+                ? design.sections[0]
+                : design.sections[design.sections.length - 1]);
+            const clipTop = sec ? Math.max(0, sec.y - el.y) : 0;
+            const clipBottom = sec ? Math.max(0, el.y + elH - (sec.y + sec.height)) : 0;
+            return (
+              <SafeElement
+                key={el.id}
+                el={el}
+                eventSlug={eventSlug}
+                eventDate={eventDate}
+                clipTop={clipTop}
+                clipBottom={clipBottom}
+              />
+            );
+          })}
         </div>
       </div>
     </div>

@@ -1210,6 +1210,7 @@ function RightPanel({
   const [pendingDelete, setPendingDelete] = React.useState<"element" | "section" | null>(null);
   const [openGroup, setOpenGroup] = React.useState<InspectorGroup>("content");
   const [showAdvanced, setShowAdvanced] = React.useState(false);
+  const [showHexEditors, setShowHexEditors] = React.useState(false);
   const [layersOpen, setLayersOpen] = React.useState(true);
 
   // ── Layer drag & drop state ───────────────────────────────────────────────
@@ -1308,6 +1309,61 @@ function RightPanel({
     textTransform: "uppercase",
     fontFamily: "Inter, system-ui, sans-serif",
   };
+  const colorPalettes = [
+    { label: "Rosados", colors: ["#f2d8dc", "#e9b9c1", "#d39aa6", "#c87583", "#8a4f63"] },
+    { label: "Dorados", colors: ["#f4d28a", "#d7b77e", "#c8a96a", "#b8925a", "#8a6a3c"] },
+    { label: "Neutros", colors: ["#fff8f0", "#f4ece2", "#e8ddcf", "#d1c0ae", "#9e8675"] },
+    { label: "Verdes", colors: ["#dce8dd", "#c2d6c2", "#9fb99f", "#7e9e86", "#3f5e46"] },
+    { label: "Azules", colors: ["#d8e2ee", "#b8c8dd", "#8ea7c8", "#5d7ea7", "#243753"] },
+    { label: "Morados", colors: ["#e3daf0", "#cbb7e4", "#ad8fce", "#7e63a6", "#4d365f"] },
+    { label: "Rojos", colors: ["#f2d9d5", "#d99a90", "#ba6f63", "#9a4b43", "#6f2a2e"] },
+    { label: "Oscuros", colors: ["#473b35", "#3d3230", "#2f2626", "#252126", "#16161f"] },
+  ] as const;
+  const swatchShellStyle: React.CSSProperties = {
+    border: "1px solid rgba(184,146,90,0.18)",
+    borderRadius: 12,
+    padding: "10px 10px 8px",
+    background: "rgba(255,255,255,0.62)",
+    display: "flex",
+    flexDirection: "column",
+    gap: 8,
+  };
+  const renderSwatches = (value: string | undefined, onPick: (next: string) => void) => (
+    <div style={swatchShellStyle}>
+      {colorPalettes.map((group) => (
+        <div key={group.label} style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+          <span style={{ ...labelStyle, marginBottom: 0, fontSize: 9 }}>{group.label}</span>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {group.colors.map((color) => {
+              const active = (value ?? "").toLowerCase() === color.toLowerCase();
+              return (
+                <button
+                  key={color}
+                  type="button"
+                  onClick={() => onPick(color)}
+                  title={color}
+                  style={{
+                    width: 18,
+                    height: 18,
+                    borderRadius: 999,
+                    border: active ? "1px solid rgba(75,39,53,0.85)" : "1px solid rgba(75,39,53,0.22)",
+                    boxShadow: active ? "0 0 0 2px rgba(184,146,90,0.24)" : "none",
+                    background: color,
+                    cursor: "pointer",
+                    display: "grid",
+                    placeItems: "center",
+                    padding: 0,
+                  }}
+                >
+                  {active ? <span style={{ fontSize: 9, color: "#fff" }}>✓</span> : null}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
   // ── Layers helpers ────────────────────────────────────────────────────────
   const getLayerIcon = (el: V3Element): string => {
     if (el.type === "text") return "Tx";
@@ -1585,8 +1641,8 @@ function RightPanel({
             {(element.type === "shape" || element.type === "decoration") && <p style={{ color: "#9a8a80", fontSize: 12, lineHeight: 1.5, margin: 0 }}>Edita primero color, opacidad y bordes para definir el tono visual.</p>}
           </>
         ), true, element.type === "text" ? "Texto" : element.type === "app" ? "Bloque" : "Forma")}
-        {renderGroup("typography", "Tipografía", <><div><span style={labelStyle}>Color</span><div style={{ display: "flex", gap: 8, alignItems: "center" }}><input type="color" value={element.color ?? "#ffffff"} onChange={(e) => onChange(element.id, { color: e.target.value })} style={{ width: 36, height: 30, border: "1px solid rgba(184,146,90,0.22)", borderRadius: 8, cursor: "pointer", background: "#fffaf2" }} /><input type="text" value={element.color ?? "#ffffff"} onChange={(e) => onChange(element.id, { color: e.target.value })} style={{ ...inputStyle, flex: 1 }} /></div></div><div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}><div><span style={labelStyle}>Tamaño</span><input type="number" min={8} max={120} value={element.fontSize ?? 16} onChange={(e) => onChange(element.id, { fontSize: Number(e.target.value) })} style={inputStyle} /></div><div><span style={labelStyle}>Peso</span><input type="text" value={element.fontWeight ?? "400"} onChange={(e) => onChange(element.id, { fontWeight: e.target.value })} style={inputStyle} /></div></div><div><span style={labelStyle}>Fuente</span><select value={element.fontFamily ?? "Inter, system-ui, sans-serif"} onChange={(e) => onChange(element.id, { fontFamily: e.target.value })} style={{ ...inputStyle, cursor: "pointer" }}><option value="Inter, system-ui, sans-serif">Inter</option><option value="'Playfair Display', Georgia, serif">Playfair Display</option><option value="Georgia, serif">Georgia</option><option value="'Dancing Script', cursive">Dancing Script</option></select></div></>, element.type === "text", "Aa")}
-        {renderGroup("fill", "Color", <><div><span style={labelStyle}>Fondo</span><input type="text" value={element.config?.primaryColor ?? element.background ?? ""} placeholder="Color, rgba(...) o linear-gradient(...)" onChange={(e) => onChange(element.id, { background: e.target.value, config: element.type === "app" ? { ...(element.config ?? {}), primaryColor: e.target.value } : element.config })} style={inputStyle} /></div>{element.type === "app" && <div><span style={labelStyle}>Color de texto</span><input type="text" value={element.color ?? element.config?.textColor ?? ""} onChange={(e) => onChange(element.id, { color: e.target.value, config: { ...(element.config ?? {}), textColor: e.target.value } })} style={inputStyle} /></div>}<div><span style={labelStyle}>Opacidad {Math.round((element.opacity ?? 1) * 100)}%</span><input type="range" min={0} max={1} step={0.01} value={element.opacity ?? 1} onChange={(e) => onChange(element.id, { opacity: Number(e.target.value) })} style={{ width: "100%", accentColor: "#b8925a" }} /></div></>, element.type !== "text", "Color")}
+        {renderGroup("typography", "Tipografía", <><div><span style={labelStyle}>Color de texto</span>{renderSwatches(element.color ?? "#4b2735", (next) => onChange(element.id, { color: next }))}</div><button type="button" onClick={() => setShowHexEditors((v) => !v)} style={{ ...actionBtnStyle, width: "auto", padding: "6px 10px", alignSelf: "flex-start" }}>{showHexEditors ? "Ocultar HEX" : "Editar HEX"}</button>{showHexEditors && <input type="text" value={element.color ?? "#ffffff"} onChange={(e) => onChange(element.id, { color: e.target.value })} style={{ ...inputStyle, flex: 1 }} />}<div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}><div><span style={labelStyle}>Tamaño</span><input type="number" min={8} max={120} value={element.fontSize ?? 16} onChange={(e) => onChange(element.id, { fontSize: Number(e.target.value) })} style={inputStyle} /></div><div><span style={labelStyle}>Peso</span><input type="text" value={element.fontWeight ?? "400"} onChange={(e) => onChange(element.id, { fontWeight: e.target.value })} style={inputStyle} /></div></div><div><span style={labelStyle}>Fuente</span><select value={element.fontFamily ?? "Inter, system-ui, sans-serif"} onChange={(e) => onChange(element.id, { fontFamily: e.target.value })} style={{ ...inputStyle, cursor: "pointer" }}><option value="Inter, system-ui, sans-serif">Inter</option><option value="'Playfair Display', Georgia, serif">Playfair Display</option><option value="Georgia, serif">Georgia</option><option value="'Dancing Script', cursive">Dancing Script</option></select></div></>, element.type === "text", "Aa")}
+        {renderGroup("fill", "Color", <><div><span style={labelStyle}>Relleno</span>{renderSwatches(element.config?.primaryColor ?? element.background ?? "#fff8f0", (next) => onChange(element.id, { background: next, config: element.type === "app" ? { ...(element.config ?? {}), primaryColor: next } : element.config }))}</div>{element.type === "app" && <div><span style={labelStyle}>Color de texto</span>{renderSwatches(element.color ?? element.config?.textColor ?? "#4b2735", (next) => onChange(element.id, { color: next, config: { ...(element.config ?? {}), textColor: next } }))}</div>}<button type="button" onClick={() => setShowHexEditors((v) => !v)} style={{ ...actionBtnStyle, width: "auto", padding: "6px 10px", alignSelf: "flex-start" }}>{showHexEditors ? "Ocultar HEX" : "Editar HEX"}</button>{showHexEditors && <><div><span style={labelStyle}>Fondo (HEX/valor)</span><input type="text" value={element.config?.primaryColor ?? element.background ?? ""} placeholder="Color, rgba(...) o linear-gradient(...)" onChange={(e) => onChange(element.id, { background: e.target.value, config: element.type === "app" ? { ...(element.config ?? {}), primaryColor: e.target.value } : element.config })} style={inputStyle} /></div>{element.type === "app" && <div><span style={labelStyle}>Texto (HEX)</span><input type="text" value={element.color ?? element.config?.textColor ?? ""} onChange={(e) => onChange(element.id, { color: e.target.value, config: { ...(element.config ?? {}), textColor: e.target.value } })} style={inputStyle} /></div>}</>}<div><span style={labelStyle}>Opacidad {Math.round((element.opacity ?? 1) * 100)}%</span><input type="range" min={0} max={1} step={0.01} value={element.opacity ?? 1} onChange={(e) => onChange(element.id, { opacity: Number(e.target.value) })} style={{ width: "100%", accentColor: "#b8925a" }} /></div></>, element.type !== "text", "Color")}
         {renderGroup("spacing", "Espaciado básico", <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>{(["x", "y", "width", "height"] as const).map((k) => <div key={k}><span style={{ ...labelStyle, fontSize: 9 }}>{k === "x" ? "Posición X" : k === "y" ? "Posición Y" : k === "width" ? "Ancho" : "Alto"}</span><input type="number" value={Math.round(element[k] as number) || 0} disabled={element.locked} onChange={(e) => onChange(element.id, { [k]: Number(e.target.value) })} style={{ ...inputStyle, opacity: element.locked ? 0.5 : 1 }} /></div>)}</div>, true, "Ajustes")}
         <button
           type="button"
@@ -1608,7 +1664,7 @@ function RightPanel({
           {showAdvanced ? "Ocultar más opciones" : "Más opciones"}
         </button>
         {showAdvanced && renderGroup("shadow", "Detalle visual", <>{element.type === "text" && <div><span style={labelStyle}>Sombra de texto</span><input type="text" value={element.textShadow ?? ""} placeholder="0 2px 10px rgba(...)" onChange={(e) => onChange(element.id, { textShadow: e.target.value })} style={inputStyle} /></div>}{(element.type === "shape" || element.type === "decoration") && element.blur !== undefined && <div><span style={labelStyle}>Desenfoque: {element.blur ?? 0}px</span><input type="range" min={0} max={40} step={1} value={element.blur ?? 0} onChange={(e) => onChange(element.id, { blur: Number(e.target.value) })} style={{ width: "100%", accentColor: "#b8925a" }} /></div>}</>, element.type === "text" || element.type === "shape" || element.type === "decoration", "Sombra")}
-        {showAdvanced && renderGroup("stroke", "Contorno", <><div><span style={labelStyle}>Borde redondeado: {element.borderRadius ?? 0}px</span><input type="range" min={0} max={999} step={1} value={element.borderRadius ?? 0} onChange={(e) => onChange(element.id, { borderRadius: Number(e.target.value) })} style={{ width: "100%", accentColor: "#b8925a" }} /></div><div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}><span style={{ ...labelStyle, margin: 0 }}>Contorno</span><button type="button" onClick={() => onChange(element.id, hasBorder(element) ? { borderWidth: 0, borderStyle: "none" } : { borderWidth: 1, borderStyle: "solid", borderColor: element.borderColor ?? "#c8a96a" })} style={{ ...actionBtnStyle, width: "auto", padding: "6px 12px" }}>{hasBorder(element) ? "Activo" : "Inactivo"}</button></div>{hasBorder(element) && <><input type="text" value={element.borderColor ?? ""} placeholder="rgba(200,169,106,0.35)" onChange={(e) => onChange(element.id, { borderColor: e.target.value })} style={inputStyle} /><input type="range" min={1} max={12} step={1} value={element.borderWidth ?? 1} onChange={(e) => onChange(element.id, { borderWidth: Number(e.target.value) })} style={{ width: "100%", accentColor: "#b8925a" }} /><div style={{ display: "flex", gap: 6 }}>{(["solid", "dashed"] as const).map((borderStyle) => <button key={borderStyle} type="button" onClick={() => onChange(element.id, { borderStyle })} style={{ ...actionBtnStyle, background: (element.borderStyle ?? "solid") === borderStyle ? "rgba(184,146,90,0.22)" : "rgba(255,255,255,0.78)" }}>{borderStyle === "solid" ? "Sólido" : "Discontinuo"}</button>)}</div></>}</>, element.type !== "text", "Contorno")}
+        {showAdvanced && renderGroup("stroke", "Contorno", <><div><span style={labelStyle}>Borde redondeado: {element.borderRadius ?? 0}px</span><input type="range" min={0} max={999} step={1} value={element.borderRadius ?? 0} onChange={(e) => onChange(element.id, { borderRadius: Number(e.target.value) })} style={{ width: "100%", accentColor: "#b8925a" }} /></div><div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}><span style={{ ...labelStyle, margin: 0 }}>Contorno</span><button type="button" onClick={() => onChange(element.id, hasBorder(element) ? { borderWidth: 0, borderStyle: "none" } : { borderWidth: 1, borderStyle: "solid", borderColor: element.borderColor ?? "#c8a96a" })} style={{ ...actionBtnStyle, width: "auto", padding: "6px 12px" }}>{hasBorder(element) ? "Activo" : "Inactivo"}</button></div>{hasBorder(element) && <><div><span style={labelStyle}>Color de contorno</span>{renderSwatches(element.borderColor ?? "#c8a96a", (next) => onChange(element.id, { borderColor: next }))}</div>{showHexEditors && <input type="text" value={element.borderColor ?? ""} placeholder="#c8a96a" onChange={(e) => onChange(element.id, { borderColor: e.target.value })} style={inputStyle} />}<input type="range" min={1} max={12} step={1} value={element.borderWidth ?? 1} onChange={(e) => onChange(element.id, { borderWidth: Number(e.target.value) })} style={{ width: "100%", accentColor: "#b8925a" }} /><div style={{ display: "flex", gap: 6 }}>{(["solid", "dashed"] as const).map((borderStyle) => <button key={borderStyle} type="button" onClick={() => onChange(element.id, { borderStyle })} style={{ ...actionBtnStyle, background: (element.borderStyle ?? "solid") === borderStyle ? "rgba(184,146,90,0.22)" : "rgba(255,255,255,0.78)" }}>{borderStyle === "solid" ? "Sólido" : "Discontinuo"}</button>)}</div></>}</>, element.type !== "text", "Contorno")}
         {showAdvanced && renderGroup("action", "Acciones", <>
           {element.type === "app" && normalizeAppType(element) !== "countdown" && <div><span style={labelStyle}>URL de muestra</span><input type="text" value={element.config?.url ?? ""} onChange={(e) => onChange(element.id, { config: { ...(element.config ?? {}), url: e.target.value } })} style={inputStyle} /></div>}
           {element.type === "app" && normalizeAppType(element) === "countdown" && (

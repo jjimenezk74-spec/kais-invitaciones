@@ -2813,11 +2813,11 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
     }}>
       {/* ── TOP BAR ── */}
       <div style={{
-        height: 52, flexShrink: 0,
-        background: "#16161f",
-        borderBottom: "1px solid #2a2a3d",
+        height: 46, flexShrink: 0,
+        background: "linear-gradient(180deg,#1c1b22 0%,#1a1820 100%)",
+        borderBottom: "1px solid rgba(149,129,112,0.24)",
         display: "flex", alignItems: "center",
-        padding: "0 16px", gap: 10, zIndex: 50,
+        padding: "0 14px", gap: 8, zIndex: 50,
         minWidth: 0,
       }}>
         {/* Back */}
@@ -2825,9 +2825,10 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
           href="../"
           style={{
             display: "flex", alignItems: "center", gap: 5,
-            color: "#9898b8", fontSize: 12, textDecoration: "none",
-            padding: "5px 10px", borderRadius: 8, flexShrink: 0,
-            border: "1px solid #2a2a3d", background: "#1e1e2d",
+            color: "#b7a89a", fontSize: 11, textDecoration: "none",
+            padding: "4px 9px", borderRadius: 999, flexShrink: 0,
+            border: "1px solid rgba(149,129,112,0.26)", background: "rgba(255,255,255,0.04)",
+            letterSpacing: "0.02em",
           }}
         >
           ← Volver
@@ -2836,9 +2837,10 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
         {/* Event name */}
         <div style={{
           flex: 1, textAlign: "center", minWidth: 0,
-          color: "#c8c4f0", fontSize: 13, fontWeight: "600",
+          color: "#d9cec2", fontSize: 12, fontWeight: "550",
           letterSpacing: "0.02em", overflow: "hidden", textOverflow: "ellipsis",
           whiteSpace: "nowrap",
+          opacity: 0.9,
         }}>
           {eventTitle} · Editor V3
         </div>
@@ -2847,7 +2849,7 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
         <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
           <button type="button" onClick={() => setZoom(z => Math.max(0.3, +(z - 0.1).toFixed(1)))}
             style={{ ...topBtnStyle, padding: "4px 8px", fontSize: 15 }}>−</button>
-          <span style={{ color: "#8884a8", fontSize: 11, minWidth: 32, textAlign: "center" }}>
+          <span style={{ color: "#9f9287", fontSize: 10, minWidth: 32, textAlign: "center" }}>
             {Math.round(zoom * 100)}%
           </span>
           <button type="button" onClick={() => setZoom(z => Math.min(2, +(z + 0.1).toFixed(1)))}
@@ -2855,7 +2857,8 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
         </div>
 
         {/* Viewport toggle */}
-        <div style={{ display: "flex", alignItems: "center", gap: 0, flexShrink: 0, border: "1px solid #2a2a3d", borderRadius: 8, overflow: "hidden" }}>
+        <div style={{ width: 1, height: 18, background: "rgba(149,129,112,0.28)", flexShrink: 0 }} />
+        <div style={{ display: "flex", alignItems: "center", gap: 0, flexShrink: 0, border: "1px solid rgba(149,129,112,0.22)", borderRadius: 999, overflow: "hidden", background: "rgba(255,255,255,0.03)" }}>
           {(["mobile", "desktop"] as const).map((mode) => (
             <button
               key={mode}
@@ -2863,9 +2866,9 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
               onClick={() => setViewportMode(mode)}
               title={mode === "mobile" ? "Móvil 390px" : "Escritorio 1000px"}
               style={{
-                padding: "5px 10px", fontSize: 13,
-                background: viewportMode === mode ? "#2a1f4d" : "#1e1e2d",
-                color: viewportMode === mode ? "#a78bfa" : "#8884a8",
+                padding: "4px 9px", fontSize: 12,
+                background: viewportMode === mode ? "rgba(149,129,112,0.30)" : "transparent",
+                color: viewportMode === mode ? "#f0e5db" : "#a19388",
                 border: "none", cursor: "pointer",
                 fontFamily: "Inter, system-ui, sans-serif",
                 transition: "all 0.15s",
@@ -2877,6 +2880,7 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
         </div>
 
         {/* Undo / Redo */}
+        <div style={{ width: 1, height: 18, background: "rgba(149,129,112,0.28)", flexShrink: 0 }} />
         <div style={{ display: "flex", gap: 2, flexShrink: 0 }}>
           <button
             type="button"
@@ -2895,18 +2899,19 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
         </div>
 
         {/* Actions */}
+        <div style={{ width: 1, height: 18, background: "rgba(149,129,112,0.28)", flexShrink: 0 }} />
         <button type="button" onClick={() => setPreview(!preview)} style={{ ...topBtnStyle, flexShrink: 0 }}>
           {preview ? "✎ Editar" : "👁 Vista previa"}
         </button>
         <button type="button" onClick={handleSave}
           disabled={saveStatus === "saving"}
-          style={{ ...topBtnStyle, flexShrink: 0, background: saved ? "#1a3a1a" : saveStatus === "error" ? "#3a1a1a" : "#1e1e2d", color: saved ? "#4ade80" : saveStatus === "error" ? "#f87171" : "#c8c4f0", borderColor: saved ? "#4ade80" : saveStatus === "error" ? "#f87171" : "#2a2a3d", opacity: saveStatus === "saving" ? 0.75 : 1 }}>
+          style={{ ...topBtnStyle, flexShrink: 0, background: saved ? "rgba(86,165,118,0.24)" : saveStatus === "error" ? "rgba(190,76,88,0.22)" : "rgba(255,255,255,0.06)", color: saved ? "#b4f0c7" : saveStatus === "error" ? "#f7b2bb" : "#d5c7bc", borderColor: saved ? "rgba(86,165,118,0.50)" : saveStatus === "error" ? "rgba(190,76,88,0.50)" : "rgba(149,129,112,0.26)", opacity: saveStatus === "saving" ? 0.75 : 1 }}>
           {saveStatus === "saving" ? "Guardando..." : saved ? "✓ Guardado" : saveStatus === "error" ? "Error" : "Guardar"}
         </button>
         {saveError && (
           <span
             title={saveError}
-            style={{ color: "#fca5a5", fontSize: 11, maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flexShrink: 0 }}
+            style={{ color: "#f2b4bb", fontSize: 10, maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flexShrink: 0 }}
           >
             ⚠ {saveError}
           </span>
@@ -2916,7 +2921,7 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
           disabled={!eventSlug}
           onClick={() => eventSlug && window.open(`/evento/${eventSlug}/preview-v3`, "_blank")}
           title={eventSlug ? `Abrir /evento/${eventSlug}/preview-v3` : "Guardá el diseño primero"}
-          style={{ ...topBtnStyle, flexShrink: 0, background: "linear-gradient(135deg,#7c3aed,#5b21b6)", color: "#fff", borderColor: "transparent", opacity: eventSlug ? 1 : 0.5 }}
+          style={{ ...topBtnStyle, flexShrink: 0, background: "linear-gradient(135deg,#b8925a,#8f6f52)", color: "#fffaf2", borderColor: "rgba(230,205,176,0.34)", boxShadow: "0 6px 14px rgba(26,19,14,0.18)", opacity: eventSlug ? 1 : 0.5 }}
         >
           Publicar ↗
         </button>
@@ -2929,9 +2934,9 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
             onClick={() => setInspectorOpen(o => !o)}
             style={{
               ...topBtnStyle, flexShrink: 0,
-              background: inspectorOpen ? "#2a1f4d" : "#1e1e2d",
-              color: inspectorOpen ? "#a78bfa" : "#8884a8",
-              borderColor: inspectorOpen ? "#7c3aed" : "#2a2a3d",
+              background: inspectorOpen ? "rgba(149,129,112,0.24)" : "rgba(255,255,255,0.05)",
+              color: inspectorOpen ? "#f0e5db" : "#a19388",
+              borderColor: inspectorOpen ? "rgba(149,129,112,0.40)" : "rgba(149,129,112,0.24)",
             }}
           >
             Propiedades
@@ -3526,13 +3531,14 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
 // ────────────────────────────────────────────────────────────────────────────────
 
 const topBtnStyle: React.CSSProperties = {
-  padding: "5px 12px",
-  background: "#1e1e2d",
-  border: "1px solid #2a2a3d",
-  borderRadius: 8,
+  padding: "4px 10px",
+  background: "rgba(255,255,255,0.05)",
+  border: "1px solid rgba(149,129,112,0.24)",
+  borderRadius: 999,
   cursor: "pointer",
-  color: "#c8c4f0",
-  fontSize: 12,
+  color: "#c8baaf",
+  fontSize: 11,
+  fontWeight: 550,
   fontFamily: "Inter, system-ui, sans-serif",
   whiteSpace: "nowrap",
   transition: "all 0.15s",

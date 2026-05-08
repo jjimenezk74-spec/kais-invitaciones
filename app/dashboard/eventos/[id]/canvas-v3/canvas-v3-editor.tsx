@@ -2338,20 +2338,170 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
 
   const addElement = (kind: string) => {
     pushHistory(snapshot());
-    const id = `shape-${Date.now()}`;
-    const isLine = kind.toLowerCase().includes("línea") || kind.toLowerCase().includes("linea");
     const sectionY = activeSection?.y ?? 0;
-    setElements((prev) => [...prev, {
-      id, type: "decoration" as ElType,
-      x: cx(200), y: sectionY + 80, width: 200, height: isLine ? 2 : 80,
-      locked: false, visible: true, zIndex: prev.length,
-      background: isLine
-        ? "linear-gradient(90deg,transparent,#c8a96a,transparent)"
-        : "rgba(255,255,255,0.08)",
-      border: isLine ? undefined : "1px solid rgba(200,169,106,0.2)",
-      borderRadius: isLine ? 0 : 16, opacity: 1,
-    }]);
-    setSelectedIds([id]);
+    const stamp = Date.now();
+
+    // ── Premium preset library ──────────────────────────────────────────────
+    // Each entry is a list of V3Elements with zIndex=0 (remapped on insertion).
+    const PRESETS: Record<string, V3Element[]> = {
+
+      // ── FORMAS ─────────────────────────────────────────────────────────────
+      "Rectángulo": [{
+        id: `deco-rect-${stamp}`, type: "decoration",
+        x: cx(300), y: sectionY + 80, width: 300, height: 90,
+        locked: false, visible: true, zIndex: 0,
+        background: "rgba(255,252,248,0.92)",
+        border: "1px solid rgba(184,146,90,0.30)",
+        borderRadius: 16, opacity: 1,
+      }],
+      "Círculo": [{
+        id: `deco-circ-${stamp}`, type: "decoration",
+        x: cx(100), y: sectionY + 80, width: 100, height: 100,
+        locked: false, visible: true, zIndex: 0,
+        background: "radial-gradient(ellipse at 42% 38%,rgba(255,252,248,0.95),rgba(242,200,206,0.60))",
+        border: "1px solid rgba(184,146,90,0.32)",
+        borderRadius: 999, opacity: 1,
+      }],
+      "Línea": [{
+        id: `deco-line-${stamp}`, type: "decoration",
+        x: cx(240), y: sectionY + 80, width: 240, height: 2,
+        locked: false, visible: true, zIndex: 0,
+        background: "linear-gradient(90deg,transparent,#b8925a,transparent)",
+        borderRadius: 0, opacity: 1,
+      }],
+
+      // ── FLORES ─────────────────────────────────────────────────────────────
+      "Rosa": [{
+        id: `deco-rosa-${stamp}`, type: "decoration",
+        x: cx(120), y: sectionY + 70, width: 120, height: 120,
+        locked: false, visible: true, zIndex: 0,
+        background: "radial-gradient(ellipse at 48% 46%,rgba(242,200,206,0.92) 0%,rgba(212,132,142,0.55) 44%,rgba(200,160,180,0.22) 70%,transparent 100%)",
+        border: "1px solid rgba(212,132,142,0.28)",
+        borderRadius: 999, opacity: 0.88,
+      }],
+      "Flor 1": [{
+        id: `deco-flor1-${stamp}`, type: "decoration",
+        x: cx(88), y: sectionY + 70, width: 88, height: 88,
+        locked: false, visible: true, zIndex: 0,
+        background: "radial-gradient(ellipse at 50% 50%,rgba(255,252,248,0.95) 0%,rgba(242,200,206,0.68) 40%,rgba(201,176,212,0.42) 72%,transparent 100%)",
+        border: "1px solid rgba(201,176,212,0.42)",
+        borderRadius: 999, opacity: 0.90,
+      }],
+      "Flor 2": [{
+        id: `deco-flor2-${stamp}`, type: "decoration",
+        x: cx(110), y: sectionY + 72, width: 110, height: 64,
+        locked: false, visible: true, zIndex: 0,
+        background: "radial-gradient(ellipse at 50% 50%,rgba(201,176,212,0.62) 0%,rgba(242,200,206,0.38) 55%,transparent 100%)",
+        border: "1px solid rgba(201,176,212,0.26)",
+        borderRadius: 999, opacity: 0.82,
+      }],
+
+      // ── BRILLOS ────────────────────────────────────────────────────────────
+      "Destello": [{
+        id: `deco-spark-${stamp}`, type: "decoration",
+        x: cx(64), y: sectionY + 72, width: 64, height: 64,
+        locked: false, visible: true, zIndex: 0,
+        background: "radial-gradient(ellipse at 50% 50%,rgba(212,170,114,0.82) 0%,rgba(212,170,114,0.35) 42%,transparent 72%)",
+        borderRadius: 999, opacity: 0.90,
+      }],
+      "Resplandor": [{
+        id: `deco-glow-${stamp}`, type: "decoration",
+        x: cx(300), y: sectionY + 50, width: 300, height: 200,
+        locked: false, visible: true, zIndex: 0,
+        background: "radial-gradient(ellipse at 50% 50%,rgba(212,132,142,0.22) 0%,rgba(201,176,212,0.13) 55%,transparent 100%)",
+        borderRadius: 999, opacity: 1,
+      }],
+      "Polvo": [
+        { id: `deco-dust-a-${stamp}`,   type: "decoration", x: 38,  y: sectionY + 74, width: 42, height: 42, locked: false, visible: true, zIndex: 0, background: "radial-gradient(ellipse at 50% 50%,rgba(212,170,114,0.72) 0%,transparent 70%)", borderRadius: 999, opacity: 0.75 },
+        { id: `deco-dust-b-${stamp+1}`, type: "decoration", x: 172, y: sectionY + 54, width: 30, height: 30, locked: false, visible: true, zIndex: 1, background: "radial-gradient(ellipse at 50% 50%,rgba(242,200,206,0.82) 0%,transparent 70%)", borderRadius: 999, opacity: 0.72 },
+        { id: `deco-dust-c-${stamp+2}`, type: "decoration", x: 318, y: sectionY + 82, width: 36, height: 36, locked: false, visible: true, zIndex: 2, background: "radial-gradient(ellipse at 50% 50%,rgba(201,176,212,0.72) 0%,transparent 70%)", borderRadius: 999, opacity: 0.74 },
+      ],
+
+      // ── SEPARADORES ────────────────────────────────────────────────────────
+      "Línea dorada": [{
+        id: `sep-gold-${stamp}`, type: "decoration",
+        x: cx(240), y: sectionY + 80, width: 240, height: 1,
+        locked: false, visible: true, zIndex: 0,
+        background: "linear-gradient(90deg,transparent,#b8925a,transparent)",
+        borderRadius: 0, opacity: 1,
+      }],
+      "Ola": [{
+        id: `sep-wave-${stamp}`, type: "decoration",
+        x: cx(290), y: sectionY + 80, width: 290, height: 10,
+        locked: false, visible: true, zIndex: 0,
+        background: "linear-gradient(90deg,transparent,rgba(184,146,90,0.55) 30%,rgba(242,200,206,0.52) 50%,rgba(184,146,90,0.55) 70%,transparent)",
+        borderRadius: 999, opacity: 0.85,
+      }],
+      "Puntos": [
+        { id: `sep-dot-a-${stamp}`,   type: "decoration", x: cx(96) - 36, y: sectionY + 82, width: 8, height: 8, locked: false, visible: true, zIndex: 0, background: "#b8925a", borderRadius: 999, opacity: 0.58 },
+        { id: `sep-dot-b-${stamp+1}`, type: "decoration", x: cx(96) - 12, y: sectionY + 82, width: 8, height: 8, locked: false, visible: true, zIndex: 1, background: "#d4aa72", borderRadius: 999, opacity: 0.78 },
+        { id: `sep-dot-c-${stamp+2}`, type: "decoration", x: cx(96) + 12, y: sectionY + 82, width: 8, height: 8, locked: false, visible: true, zIndex: 2, background: "#d4aa72", borderRadius: 999, opacity: 0.78 },
+        { id: `sep-dot-d-${stamp+3}`, type: "decoration", x: cx(96) + 36, y: sectionY + 82, width: 8, height: 8, locked: false, visible: true, zIndex: 3, background: "#b8925a", borderRadius: 999, opacity: 0.58 },
+      ],
+
+      // ── BOTONES ────────────────────────────────────────────────────────────
+      "Primario": [{
+        id: `btn-pri-${stamp}`, type: "text",
+        x: cx(240), y: sectionY + 80, width: 240, height: 52,
+        locked: false, visible: true, zIndex: 0,
+        content: "CONFIRMAR ASISTENCIA",
+        fontSize: 13, fontWeight: "700",
+        fontFamily: "Inter, system-ui, sans-serif",
+        color: "#fdf8f2", textAlign: "center",
+        letterSpacing: 0.10, lineHeight: 1,
+        background: "linear-gradient(135deg,#d4848e,#a0526a)",
+        borderRadius: 18, opacity: 1,
+      }],
+      "Contorno": [{
+        id: `btn-out-${stamp}`, type: "text",
+        x: cx(220), y: sectionY + 80, width: 220, height: 50,
+        locked: false, visible: true, zIndex: 0,
+        content: "VER MÁS",
+        fontSize: 12, fontWeight: "600",
+        fontFamily: "Inter, system-ui, sans-serif",
+        color: "#b8925a", textAlign: "center",
+        letterSpacing: 0.12, lineHeight: 1,
+        background: "transparent",
+        border: "1.5px solid rgba(184,146,90,0.72)",
+        borderRadius: 16, opacity: 1,
+      }],
+      "Sutil": [{
+        id: `btn-sub-${stamp}`, type: "text",
+        x: cx(200), y: sectionY + 80, width: 200, height: 48,
+        locked: false, visible: true, zIndex: 0,
+        content: "Ver detalles",
+        fontSize: 12, fontWeight: "500",
+        fontFamily: "'Playfair Display', Georgia, serif",
+        fontStyle: "italic",
+        color: "#7a5060", textAlign: "center",
+        letterSpacing: 0.04, lineHeight: 1,
+        background: "rgba(255,252,248,0.90)",
+        border: "1px solid rgba(184,146,90,0.28)",
+        borderRadius: 14, opacity: 1,
+      }],
+    };
+
+    const templates = PRESETS[kind];
+
+    if (templates) {
+      setElements((prev) => {
+        const baseZ = prev.length;
+        return [...prev, ...templates.map((t, i) => ({ ...t, zIndex: baseZ + i }))];
+      });
+      setSelectedIds(templates.map((t) => t.id));
+    } else {
+      // fallback for unknown kinds
+      const id = `deco-${stamp}`;
+      setElements((prev) => [...prev, {
+        id, type: "decoration" as ElType,
+        x: cx(200), y: sectionY + 80, width: 200, height: 80,
+        locked: false, visible: true, zIndex: prev.length,
+        background: "rgba(255,255,255,0.08)",
+        border: "1px solid rgba(200,169,106,0.2)",
+        borderRadius: 16, opacity: 1,
+      }]);
+      setSelectedIds([id]);
+    }
     setActiveTool(null);
   };
 

@@ -8,6 +8,7 @@ import {
   getCanvasV3Theme,
   type CanvasV3Theme
 } from "./themes-v3";
+import { eventHasFeature, type EventFeatureKey } from "@/lib/event-features";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -909,6 +910,17 @@ const PREMIUM_TEMPLATES: PremiumTemplate[] = [
 // Expanded panel content per tool
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ── Plan gate metadata for each app block ─────────────────────────────────────
+// featureKey: EventFeatureKey that gates this block. Absent = always available.
+// minPlanLabel: human-readable minimum plan name shown in the lock badge.
+const APP_GATE: Partial<Record<string, { featureKey: EventFeatureKey; minPlanLabel: string }>> = {
+  rsvp:         { featureKey: "rsvp",       minPlanLabel: "Premium"    },
+  album:        { featureKey: "live_album",  minPlanLabel: "Experience" },
+  live:         { featureKey: "live_album",  minPlanLabel: "Experience" },
+  "live-album": { featureKey: "live_album",  minPlanLabel: "Experience" },
+  "live-screen":{ featureKey: "live_album",  minPlanLabel: "Experience" },
+};
+
 function ExpandedPanel({
   tool,
   onAddText,
@@ -918,6 +930,7 @@ function ExpandedPanel({
   onApplyTheme,
   activeThemeId,
   onApplyPremiumTemplate,
+  eventFeatureSource = null,
 }: {
   tool: ToolId;
   onAddText: (kind: "title" | "subtitle" | "paragraph") => void;
@@ -927,6 +940,7 @@ function ExpandedPanel({
   onApplyTheme: (theme: CanvasV3Theme) => void;
   activeThemeId: string;
   onApplyPremiumTemplate: (id: string) => void;
+  eventFeatureSource?: V3FeatureSource | null;
 }) {
   if (tool === "text") {
     return (
@@ -1058,42 +1072,132 @@ function ExpandedPanel({
   }
 
   if (tool === "apps") {
-    const apps = [
-      { id: "rsvp", icon: "✓", label: "Confirmar asistencia" },
+    const appList: Array<{ id: string; icon: string; label: string }> = [
+      { id: "rsvp",   icon: "✓",  label: "Confirmar asistencia" },
       { id: "countdown", icon: "⏱", label: "Cuenta regresiva" },
-      { id: "whatsapp", icon: "💬", label: "WhatsApp" },
-      { id: "album", icon: "📸", label: "Álbum en vivo" },
-      { id: "live", icon: "🖥", label: "Pantalla en vivo" },
-      { id: "maps", icon: "📍", label: "Google Maps" },
-      { id: "qr", icon: "▦", label: "Código QR" },
+      { id: "whatsapp",  icon: "💬", label: "WhatsApp" },
+      { id: "album",  icon: "📸", label: "Álbum en vivo" },
+      { id: "live",   icon: "🖥",  label: "Pantalla en vivo" },
+      { id: "maps",   icon: "📍", label: "Google Maps" },
+      { id: "qr",     icon: "▦",  label: "Código QR" },
     ];
+
     return (
       <div style={{ padding: "12px 14px" }}>
-        <p style={{ color: "#8884a8", fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", margin: "0 0 10px" }}>
+        <p style={{
+          color: "#8a6f61", fontSize: 10, letterSpacing: "0.1em",
+          textTransform: "uppercase", margin: "0 0 10px", fontWeight: 800,
+        }}>
           Bloques interactivos
         </p>
-        {APP_BLOCKS.map((app) => (
-          <button
-            key={app.id}
-            type="button"
-            onClick={() => onAddApp(app.id)}
-            style={{
-              display: "flex", alignItems: "center", gap: 10,
-              width: "100%", marginBottom: 6,
-              padding: "10px 14px",
-              background: "#1e1e2d", border: "1px solid #2a2a3d",
-              borderRadius: 10, cursor: "pointer", textAlign: "left",
-              transition: "border-color 0.15s",
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.borderColor = "#7c3aed")}
-            onMouseLeave={(e) => (e.currentTarget.style.borderColor = "#2a2a3d")}
-          >
-            <span style={{ fontSize: 16, width: 24, textAlign: "center" }}>{app.icon}</span>
-            <span style={{ color: "#c8c4f0", fontSize: 12, fontFamily: "Inter, system-ui, sans-serif" }}>
-              {app.label}
-            </span>
-          </button>
-        ))}
+        {appList.map((app) => {
+          const gate = APP_GATE[app.id];
+          const isLocked = gate
+            ? !eventHasFeature(eventFeatureSource, gate.featureKey)
+            : false;
+
+          if (isLocked && gate) {
+            // ── Locked block — premium elegante ────────────────────────────────
+            return (
+              <div
+                key={app.id}
+                style={{
+                  display: "flex", alignItems: "center", gap: 10,
+                  width: "100%", marginBottom: 6,
+                  padding: "10px 14px",
+                  background: "rgba(248,245,240,0.55)",
+                  border: "1px solid rgba(184,146,90,0.14)",
+                  borderRadius: 10,
+                  cursor: "default",
+                  boxSizing: "border-box",
+                  position: "relative",
+                }}
+              >
+                {/* Icon + label — muted */}
+                <span style={{ fontSize: 16, width: 24, textAlign: "center", opacity: 0.28 }}>
+                  {app.icon}
+                </span>
+                <span style={{ color: "#8a6f61", fontSize: 12, fontFamily: "Inter, system-ui, sans-serif", opacity: 0.5, flex: 1 }}>
+                  {app.label}
+                </span>
+                {/* Right side: lock + plan badge */}
+                <span style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
+                  <span style={{ fontSize: 11, opacity: 0.4, color: "#b8925a" }}>🔒</span>
+                  <span style={{
+                    fontSize: 8.5, fontWeight: 700, letterSpacing: "0.07em",
+                    color: "#b8925a",
+                    background: "rgba(184,146,90,0.10)",
+                    border: "1px solid rgba(184,146,90,0.26)",
+                    borderRadius: 6,
+                    padding: "2px 6px",
+                    whiteSpace: "nowrap",
+                    fontFamily: "Inter, system-ui, sans-serif",
+                  }}>
+                    {gate.minPlanLabel}
+                  </span>
+                </span>
+              </div>
+            );
+          }
+
+          // ── Available block ─────────────────────────────────────────────────
+          return (
+            <button
+              key={app.id}
+              type="button"
+              onClick={() => onAddApp(app.id)}
+              style={{
+                display: "flex", alignItems: "center", gap: 10,
+                width: "100%", marginBottom: 6,
+                padding: "10px 14px",
+                background: "rgba(255,252,247,0.78)",
+                border: "1px solid rgba(184,146,90,0.22)",
+                borderRadius: 10, cursor: "pointer", textAlign: "left",
+                transition: "border-color 0.15s, background 0.15s",
+                boxSizing: "border-box",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = "rgba(184,146,90,0.55)";
+                e.currentTarget.style.background = "rgba(255,252,247,1)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = "rgba(184,146,90,0.22)";
+                e.currentTarget.style.background = "rgba(255,252,247,0.78)";
+              }}
+            >
+              <span style={{
+                width: 28, height: 28, borderRadius: 8, flexShrink: 0,
+                display: "grid", placeItems: "center",
+                background: "rgba(184,146,90,0.10)",
+                fontSize: 14,
+              }}>
+                {app.icon}
+              </span>
+              <span style={{ color: "#4b2735", fontSize: 12, fontFamily: "Inter, system-ui, sans-serif", fontWeight: 600 }}>
+                {app.label}
+              </span>
+            </button>
+          );
+        })}
+
+        {/* ── Plan info footer ─────────────────────────────────────────────── */}
+        {eventFeatureSource && (
+          <p style={{
+            marginTop: 14,
+            fontSize: 9.5, color: "#b8925a", lineHeight: 1.5,
+            fontFamily: "Inter, system-ui, sans-serif",
+            padding: "8px 10px",
+            background: "rgba(184,146,90,0.06)",
+            border: "1px solid rgba(184,146,90,0.14)",
+            borderRadius: 8,
+          }}>
+            Plan <strong style={{ color: "#a06840" }}>
+              {(eventFeatureSource.package_key ?? "essential").charAt(0).toUpperCase() +
+               (eventFeatureSource.package_key ?? "essential").slice(1)}
+            </strong>.
+            {" "}Los bloques bloqueados están disponibles en planes superiores.
+          </p>
+        )}
       </div>
     );
   }
@@ -1873,15 +1977,42 @@ function RightPanel({
 // Main editor
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ── EventFeatureSource — minimal shape needed by eventHasFeature ──────────────
+type V3FeatureSource = {
+  package_key?: string | null;
+  enabled_features?: readonly string[] | null;
+  disabled_features?: readonly string[] | null;
+};
+
 type CanvasEditorV3Props = {
   eventId: string;
   eventSlug?: string;
   eventTitle: string;
   initialDesign?: unknown;
   eventDate?: string; // "YYYY-MM-DDTHH:mm:ss"
+  // Plan & feature gates
+  packageKey?: string | null;
+  enabledFeatures?: string[] | null;
+  disabledFeatures?: string[] | null;
+  // Event data available for future auto-configuration (Sprint 2)
+  whatsappPhone?: string | null;
+  googleMapsLink?: string | null;
+  musicUrl?: string | null;
 };
 
-export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign = null, eventDate }: CanvasEditorV3Props) {
+export function CanvasEditorV3({
+  eventId, eventSlug, eventTitle, initialDesign = null, eventDate,
+  packageKey, enabledFeatures, disabledFeatures,
+  // Stored for Sprint 2 auto-configuration of app blocks
+  whatsappPhone: _whatsappPhone,
+  googleMapsLink: _googleMapsLink,
+  musicUrl: _musicUrl,
+}: CanvasEditorV3Props) {
+  // Feature source passed to eventHasFeature — null = legacy luxury fallback (all enabled)
+  const featureSource: V3FeatureSource | null =
+    packageKey != null || enabledFeatures != null || disabledFeatures != null
+      ? { package_key: packageKey, enabled_features: enabledFeatures, disabled_features: disabledFeatures }
+      : null;
   const parsedInitialDesign = normalizeInitialV3Design(initialDesign);
   const [elements, setElements] = useState<V3Element[]>(
     () => parsedInitialDesign?.elements ?? INITIAL_ELEMENTS
@@ -3437,6 +3568,7 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
                 onApplyTheme={applyTheme}
                 activeThemeId={themeId}
                 onApplyPremiumTemplate={applyPremiumTemplate}
+                eventFeatureSource={featureSource}
               />
             </div>
           </div>

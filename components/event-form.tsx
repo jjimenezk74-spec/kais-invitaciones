@@ -221,12 +221,12 @@ export function EventForm({
         </div>
       ) : null}
 
-      {/* Preserve legacy fields unchanged so form saves don't accidentally clear them */}
-      <input type="hidden" name="template_id"        value={event?.template_id ?? ""} />
-      <input type="hidden" name="theme_color"        value={event?.theme_color ?? "#111827"} />
-      <input type="hidden" name="category_id"        value={event?.category_id ?? ""} />
-      <input type="hidden" name="theme_id"           value={event?.theme_id ?? ""} />
-      <input type="hidden" name="visual_decorations" value={JSON.stringify(event?.visual_decorations ?? [])} readOnly />
+      {/* Preserve small functional fields so saves don't accidentally clear them */}
+      <input type="hidden" name="template_id"  value={event?.template_id ?? ""} />
+      <input type="hidden" name="theme_color"  value={event?.theme_color ?? "#111827"} />
+      <input type="hidden" name="category_id"  value={event?.category_id ?? ""} />
+      <input type="hidden" name="theme_id"     value={event?.theme_id ?? ""} />
+      {/* visual_decorations intentionally excluded — managed by V3 canvas, not this wizard */}
 
       <div id="event-form-wizard" className="rounded-3xl border border-[#eadfd2] bg-[#fffaf3] p-3 shadow-[0_22px_60px_rgba(74,23,36,0.07)]">
         <WizardStepNav activeStep={activeStep} onSelect={goToStep} />

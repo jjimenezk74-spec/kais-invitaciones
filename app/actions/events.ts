@@ -105,8 +105,8 @@ export async function createEvent(formData: FormData) {
     cover_image_url: manualCoverUrl,
     mobile_cover_image_url: nullable(formData.get("mobile_cover_image_url")),
     music_url: musicUrl,
-    visual_decorations: getVisualDecorationsFromForm(formData),
-    design_config: getDesignConfigFromForm(formData),
+    // visual_decorations and design_config start as null — the V3 canvas initializer
+    // (initializeEventCanvasDesign) sets canvas_design immediately after insert.
     theme_color: String(formData.get("theme_color") || "#111827"),
     status: getEventStatus(formData.get("status")),
     guest_mode: getGuestMode(formData.get("guest_mode")),
@@ -252,8 +252,8 @@ export async function updateEvent(eventId: string, formData: FormData) {
     cover_image_url: coverImageUrl,
     mobile_cover_image_url: mobileCoverImageUrl,
     music_url: musicUrl,
-    visual_decorations: getVisualDecorationsFromForm(formData),
-    design_config: getDesignConfigFromForm(formData),
+    // visual_decorations and design_config are V3-only — not sent by the basic wizard,
+    // and must NOT be overwritten here (would erase existing canvas decorations).
     theme_color: String(formData.get("theme_color") || "#111827"),
     status: getEventStatus(formData.get("status")),
     guest_mode: getGuestMode(formData.get("guest_mode")),

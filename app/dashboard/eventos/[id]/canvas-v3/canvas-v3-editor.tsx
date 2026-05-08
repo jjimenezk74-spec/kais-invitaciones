@@ -90,6 +90,17 @@ type ToolId =
 
 type InvitationBlockKind = "date" | "countdown" | "location" | "dresscode" | "message";
 
+type PremiumTemplate = {
+  id: string;
+  label: string;
+  emoji: string;
+  category: string;
+  description: string;
+  themeId: CanvasV3Theme["id"];
+  previewGradient: string;
+  create: () => { sections: V3Section[]; elements: V3Element[] };
+};
+
 type InspectorGroup =
   | "content"
   | "typography"
@@ -679,6 +690,196 @@ function RenderElement({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Premium templates
+// ─────────────────────────────────────────────────────────────────────────────
+
+const PREMIUM_TEMPLATES: PremiumTemplate[] = [
+  {
+    id: "glam-rosa",
+    label: "Glam Rosa",
+    emoji: "🌸",
+    category: "Quinceaños",
+    description: "Elegante, femenino y moderno. Paleta rosa, lavanda y champagne dorado.",
+    themeId: "floral-rose",
+    previewGradient: "linear-gradient(135deg,#2d0a2e 0%,#1a0518 50%,#200a1e 100%)",
+    create: () => {
+      const stamp = Date.now();
+      let zCounter = 1;
+      const z = () => zCounter++;
+      const mkId = (name: string) => `gr-${name}-${stamp}`;
+      const W = 390;
+      const cx = (w: number) => Math.round((W - w) / 2);
+
+      // Palette
+      const PINK = "#f472b6";
+      const LAVENDER = "#c084fc";
+      const GOLD = "#f4d28a";
+      const ROSE = "#fda4af";
+      const WHITE = "#fff7ef";
+      const GLASS_PINK = "rgba(244,114,182,0.09)";
+
+      const mkShape = (name: string, x: number, y: number, w: number, h: number, bg: string, extra: Partial<V3Element> = {}): V3Element => ({
+        id: mkId(name), type: "shape" as ElType,
+        x, y, width: w, height: h,
+        locked: false, visible: true, zIndex: z(),
+        background: bg, opacity: 1, borderRadius: 0, ...extra,
+      });
+      const mkText = (name: string, content: string, x: number, y: number, w: number, h: number | null, extra: Partial<V3Element> = {}): V3Element => ({
+        id: mkId(name), type: "text" as ElType,
+        x, y, width: w, height: h,
+        locked: false, visible: true, zIndex: z(),
+        content, fontSize: 14, fontFamily: "Inter, system-ui, sans-serif",
+        fontWeight: "500", color: WHITE, textAlign: "center",
+        lineHeight: 1.35, letterSpacing: 0,
+        textShadow: "0 2px 16px rgba(0,0,0,0.55)", ...extra,
+      });
+      const mkApp = (name: string, appType: V3AppType, content: string, x: number, y: number, w: number, h: number, extra: Partial<V3Element> = {}): V3Element => ({
+        id: mkId(name), type: "app" as ElType,
+        x, y, width: w, height: h,
+        locked: false, visible: true, zIndex: z(),
+        appKind: appType, appType, content,
+        background: `linear-gradient(135deg,${PINK},#c026d3)`,
+        color: "#fff", borderRadius: 20, opacity: 1,
+        config: { url: "", primaryColor: PINK, textColor: "#fff", countdownMode: "event" as const },
+        ...extra,
+      });
+
+      // ── SECTIONS ──────────────────────────────────────────────────────────
+      const sections: V3Section[] = [
+        { id: mkId("s1"), label: "Portada",            y: 0,    height: 780, background: "linear-gradient(180deg,#1a0518 0%,#2d0a2e 55%,#12060f 100%)" },
+        { id: mkId("s2"), label: "Cuenta regresiva",   y: 780,  height: 400, background: "linear-gradient(180deg,#12060f,#1a0518)" },
+        { id: mkId("s3"), label: "Presentación",        y: 1180, height: 540, background: "linear-gradient(180deg,#1a0518,#200a1e,#1a0518)" },
+        { id: mkId("s4"), label: "Mensaje especial",   y: 1720, height: 480, background: "linear-gradient(180deg,#12060f,#1a0518)" },
+        { id: mkId("s5"), label: "Dress code",         y: 2200, height: 440, background: "linear-gradient(180deg,#1a0518,#2d0a2e 50%,#1a0518)" },
+        { id: mkId("s6"), label: "Ubicación",          y: 2640, height: 480, background: "linear-gradient(180deg,#12060f,#200a1e,#12060f)" },
+        { id: mkId("s7"), label: "RSVP",               y: 3120, height: 400, background: "linear-gradient(180deg,#1a0518,#2d0a2e)" },
+        { id: mkId("s8"), label: "Cierre",             y: 3520, height: 440, background: "linear-gradient(180deg,#2d0a2e 0%,#12060f 60%,#1a0518 100%)" },
+      ];
+
+      const els: V3Element[] = [];
+
+      // ── S1 — PORTADA (y=0, h=780) ─────────────────────────────────────────
+      els.push(mkShape("s1-glow-t",  0, 0,   390, 320, "radial-gradient(ellipse at 50% 0%,rgba(244,114,182,0.30) 0%,transparent 70%)"));
+      els.push(mkShape("s1-glow-b",  0, 480, 390, 300, "radial-gradient(ellipse at 50% 100%,rgba(192,132,252,0.26) 0%,transparent 70%)"));
+      els.push(mkText("s1-mis",   "MIS",      cx(60),  96,  60,  20,  { fontSize: 13, fontWeight: "900", letterSpacing: 0.38, color: GOLD, textShadow: "none" }));
+      els.push(mkText("s1-15",    "15",       cx(130), 108, 130, 104, { fontSize: 90, fontFamily: "'Playfair Display',Georgia,serif", fontStyle: "italic", fontWeight: "700", color: PINK, lineHeight: 1, textShadow: `0 0 60px ${PINK}77,0 4px 24px rgba(0,0,0,0.7)` }));
+      els.push(mkShape("s1-div1", cx(200), 224, 200, 1, `linear-gradient(90deg,transparent,${GOLD},transparent)`));
+      els.push(mkText("s1-name",  "VALENTINA",  cx(280), 238, 280, 46, { fontSize: 34, fontFamily: "'Playfair Display',Georgia,serif", fontStyle: "italic", color: WHITE, letterSpacing: 0.02, lineHeight: 1.1 }));
+      els.push(mkText("s1-last",  "MARÍA GARCÍA", cx(240), 286, 240, 20, { fontSize: 11, fontWeight: "900", letterSpacing: 0.25, color: ROSE, textShadow: "none" }));
+      els.push(mkShape("s1-div2", cx(100), 318, 100, 1, `linear-gradient(90deg,transparent,${GOLD}88,transparent)`));
+      els.push(mkText("s1-date",  "14 · JUNIO · 2026", cx(220), 332, 220, 20, { fontSize: 11, fontWeight: "800", letterSpacing: 0.18, color: GOLD, textShadow: "none" }));
+      els.push(mkText("s1-q15",   "Quinceaños",  cx(160), 362, 160, 22, { fontSize: 13, fontStyle: "italic", fontFamily: "'Playfair Display',Georgia,serif", color: LAVENDER, textShadow: "none" }));
+      els.push(mkText("s1-spkL",  "✦", 22,  196, 20, 20, { fontSize: 11, color: GOLD, opacity: 0.55, textShadow: "none" }));
+      els.push(mkText("s1-spkR",  "✦", 348, 238, 20, 20, { fontSize: 9,  color: ROSE, opacity: 0.45, textShadow: "none" }));
+      els.push(mkShape("s1-card", cx(320), 452, 320, 86, GLASS_PINK, { borderRadius: 20, border: `1px solid rgba(244,114,182,0.22)` }));
+      els.push(mkText("s1-inv1",  "Te invito a celebrar", cx(240), 468, 240, 18, { fontSize: 11, color: ROSE, fontStyle: "italic", fontFamily: "'Playfair Display',Georgia,serif", textShadow: "none" }));
+      els.push(mkText("s1-inv2",  "mis quince años", cx(200), 490, 200, 22, { fontSize: 15, fontFamily: "'Playfair Display',Georgia,serif", fontStyle: "italic", color: WHITE, letterSpacing: 0.04 }));
+      els.push(mkText("s1-scroll","↓", cx(24), 718, 24, 24, { fontSize: 16, color: "rgba(253,164,175,0.35)", textShadow: "none" }));
+
+      // ── S2 — COUNTDOWN (y=780, h=400) ─────────────────────────────────────
+      const s2 = 780;
+      els.push(mkShape("s2-glow",  0, s2+80,  390, 240, "radial-gradient(ellipse at 50% 50%,rgba(192,132,252,0.24) 0%,transparent 70%)"));
+      els.push(mkText("s2-lbl",   "FALTA POCO", cx(200), s2+38, 200, 18, { fontSize: 10, fontWeight: "900", letterSpacing: 0.28, color: GOLD, textShadow: "none" }));
+      els.push(mkShape("s2-card", cx(332), s2+66, 332, 148, "linear-gradient(135deg,rgba(192,132,252,0.13),rgba(244,114,182,0.09))", { borderRadius: 22, border: `1px solid rgba(192,132,252,0.28)` }));
+      els.push(mkApp("s2-cnt",   "countdown", "", cx(300), s2+94, 300, 64, { background: "transparent", color: WHITE, borderRadius: 0, config: { url: "", primaryColor: "transparent", textColor: WHITE, countdownMode: "event" as const } }));
+      els.push(mkText("s2-cap",   "para celebrar juntos", cx(240), s2+228, 240, 18, { fontSize: 13, fontStyle: "italic", fontFamily: "'Playfair Display',Georgia,serif", color: ROSE, textShadow: "none" }));
+      els.push(mkText("s2-spk",   "✦  ·  ✦  ·  ✦", cx(140), s2+256, 140, 16, { fontSize: 10, color: GOLD, opacity: 0.45, letterSpacing: 0.1, textShadow: "none" }));
+      els.push(mkText("s2-dconf", "14 de Junio · 2026 · 20:00 hs", cx(290), s2+284, 290, 20, { fontSize: 11, color: "rgba(253,164,175,0.65)", letterSpacing: 0.11, textShadow: "none" }));
+
+      // ── S3 — PRESENTACIÓN (y=1180, h=540) ─────────────────────────────────
+      const s3 = 1180;
+      els.push(mkShape("s3-glow",  0, s3,   390, 540, "radial-gradient(ellipse at 50% 35%,rgba(244,114,182,0.17) 0%,transparent 62%)"));
+      els.push(mkText("s3-eye",   "LA FESTEJADA", cx(180), s3+38, 180, 18, { fontSize: 9, fontWeight: "900", letterSpacing: 0.32, color: GOLD, textShadow: "none" }));
+      els.push(mkShape("s3-div1", cx(200), s3+63, 200, 1, `linear-gradient(90deg,transparent,${GOLD}66,transparent)`));
+      els.push(mkText("s3-nm1",   "Valentina María", cx(300), s3+78, 300, 52, { fontSize: 42, fontFamily: "'Playfair Display',Georgia,serif", fontStyle: "italic", color: WHITE, lineHeight: 1.1, textShadow: `0 2px 24px rgba(244,114,182,0.38)` }));
+      els.push(mkText("s3-nm2",   "García", cx(180), s3+133, 180, 36, { fontSize: 30, fontFamily: "'Playfair Display',Georgia,serif", fontStyle: "italic", color: ROSE, lineHeight: 1 }));
+      els.push(mkShape("s3-div2", cx(160), s3+180, 160, 1, `linear-gradient(90deg,transparent,${GOLD}66,transparent)`));
+      els.push(mkText("s3-hija",  "Hija de", cx(100), s3+198, 100, 18, { fontSize: 11, fontStyle: "italic", fontFamily: "'Playfair Display',Georgia,serif", color: "rgba(253,164,175,0.7)", textShadow: "none" }));
+      els.push(mkText("s3-prnt",  "Patricia & Roberto García", cx(280), s3+224, 280, 22, { fontSize: 14, fontFamily: "'Playfair Display',Georgia,serif", fontStyle: "italic", color: GOLD, textShadow: "none" }));
+      els.push(mkShape("s3-card", cx(320), s3+264, 320, 86, GLASS_PINK, { borderRadius: 18, border: `1px solid rgba(244,114,182,0.18)` }));
+      els.push(mkText("s3-verse", "Hoy cumplo quince años\ny quiero compartirlos contigo", cx(280), s3+278, 280, null, { fontSize: 13, fontFamily: "'Playfair Display',Georgia,serif", fontStyle: "italic", color: WHITE, lineHeight: 1.55, textShadow: "none" }));
+      els.push(mkText("s3-big15", "15", cx(110), s3+394, 110, 88, { fontSize: 80, fontFamily: "'Playfair Display',Georgia,serif", fontStyle: "italic", color: "rgba(244,114,182,0.10)", lineHeight: 1, textShadow: "none" }));
+
+      // ── S4 — MENSAJE ESPECIAL (y=1720, h=480) ─────────────────────────────
+      const s4 = 1720;
+      els.push(mkShape("s4-glow",  60, s4+80, 270, 300, "radial-gradient(ellipse at 50% 50%,rgba(192,132,252,0.20) 0%,transparent 70%)"));
+      els.push(mkText("s4-eye",   "MENSAJE ESPECIAL", cx(200), s4+38, 200, 16, { fontSize: 9, fontWeight: "900", letterSpacing: 0.30, color: GOLD, textShadow: "none" }));
+      els.push(mkShape("s4-card", cx(332), s4+62, 332, 246, "linear-gradient(135deg,rgba(244,114,182,0.08),rgba(192,132,252,0.07))", { borderRadius: 22, border: `1px solid rgba(244,114,182,0.18)` }));
+      els.push(mkText("s4-qq",    "“", 50, s4+70, 40, 50, { fontSize: 54, fontFamily: "'Playfair Display',Georgia,serif", color: PINK, opacity: 0.65, lineHeight: 0.9, textShadow: "none" }));
+      els.push(mkText("s4-msg",   "Este momento es mágico\ny único. Gracias por acompañarme\nen el inicio de esta nueva etapa.", cx(280), s4+118, 280, null, { fontSize: 15, fontFamily: "'Playfair Display',Georgia,serif", fontStyle: "italic", color: WHITE, lineHeight: 1.58, textShadow: "none" }));
+      els.push(mkText("s4-sig",   "Con amor, Valentina ♡", cx(220), s4+282, 220, 20, { fontSize: 11, fontWeight: "800", color: GOLD, letterSpacing: 0.14, textShadow: "none" }));
+      els.push(mkText("s4-spk",   "✦  ·  ✦  ·  ✦", cx(140), s4+328, 140, 16, { fontSize: 10, color: LAVENDER, opacity: 0.42, textShadow: "none" }));
+
+      // ── S5 — DRESS CODE (y=2200, h=440) ───────────────────────────────────
+      const s5 = 2200;
+      els.push(mkShape("s5-glow",  0, s5,   390, 440, "radial-gradient(ellipse at 50% 30%,rgba(244,114,182,0.19) 0%,transparent 60%)"));
+      els.push(mkText("s5-eye",   "CÓDIGO DE VESTIMENTA", cx(260), s5+38, 260, 16, { fontSize: 9, fontWeight: "900", letterSpacing: 0.26, color: GOLD, textShadow: "none" }));
+      els.push(mkShape("s5-div",  cx(200), s5+62, 200, 1, `linear-gradient(90deg,transparent,${GOLD}66,transparent)`));
+      els.push(mkText("s5-sty",   "Formal Elegante", cx(280), s5+78, 280, 40, { fontSize: 33, fontFamily: "'Playfair Display',Georgia,serif", fontStyle: "italic", color: WHITE, lineHeight: 1.1 }));
+      els.push(mkText("s5-hint",  "Paleta sugerida: rosa, lavanda y champagne.\nEvitar blanco y negro total.", cx(290), s5+126, 290, null, { fontSize: 12, color: "rgba(253,164,175,0.78)", fontStyle: "italic", fontFamily: "'Playfair Display',Georgia,serif", lineHeight: 1.5, textShadow: "none" }));
+      const sw = s5+194; const sX = cx(144);
+      els.push(mkShape("s5-sw1",  sX,    sw, 40, 40, "#f9a8d4", { borderRadius: 999, border: "2px solid rgba(255,255,255,0.28)" }));
+      els.push(mkShape("s5-sw2",  sX+52, sw, 40, 40, "#c084fc", { borderRadius: 999, border: "2px solid rgba(255,255,255,0.20)" }));
+      els.push(mkShape("s5-sw3",  sX+104,sw, 40, 40, "#f4d28a", { borderRadius: 999, border: "2px solid rgba(255,255,255,0.20)" }));
+      els.push(mkText("s5-swlbl", "Rosa · Lavanda · Champagne", cx(270), sw+50, 270, 16, { fontSize: 10, color: "rgba(253,164,175,0.60)", letterSpacing: 0.08, textShadow: "none" }));
+
+      // ── S6 — UBICACIÓN (y=2640, h=480) ────────────────────────────────────
+      const s6 = 2640;
+      els.push(mkShape("s6-glow",  0, s6+100, 390, 280, "radial-gradient(ellipse at 50% 50%,rgba(244,114,182,0.19) 0%,transparent 65%)"));
+      els.push(mkText("s6-eye",   "¿DÓNDE NOS ENCONTRAMOS?", cx(300), s6+38, 300, 16, { fontSize: 9, fontWeight: "900", letterSpacing: 0.20, color: GOLD, textShadow: "none" }));
+      els.push(mkShape("s6-div1", cx(180), s6+62, 180, 1, `linear-gradient(90deg,transparent,${GOLD}66,transparent)`));
+      els.push(mkText("s6-ico",   "⌖", cx(36), s6+76, 36, 40, { fontSize: 26, color: PINK, textShadow: "none" }));
+      els.push(mkText("s6-ven",   "Salón de Eventos", cx(290), s6+118, 290, 34, { fontSize: 28, fontFamily: "'Playfair Display',Georgia,serif", fontStyle: "italic", color: WHITE, lineHeight: 1.1 }));
+      els.push(mkText("s6-adr",   "Av. Principal 123 · Ciudad", cx(280), s6+158, 280, 22, { fontSize: 12, color: ROSE, lineHeight: 1.4, textShadow: "none" }));
+      els.push(mkText("s6-dt",    "Viernes 14 de Junio 2026 · 20:00 hs", cx(310), s6+188, 310, 20, { fontSize: 11, fontWeight: "700", color: GOLD, letterSpacing: 0.09, textShadow: "none" }));
+      els.push(mkShape("s6-div2", cx(160), s6+218, 160, 1, `linear-gradient(90deg,transparent,${GOLD}44,transparent)`));
+      els.push(mkApp("s6-map",   "maps", "Ver en el mapa", cx(240), s6+240, 240, 52, {
+        background: "linear-gradient(135deg,rgba(244,114,182,0.20),rgba(192,132,252,0.20))",
+        color: WHITE, borderRadius: 18,
+        border: `1px solid rgba(244,114,182,0.44)`,
+        config: { url: "https://maps.google.com", primaryColor: "#f472b6", textColor: WHITE, countdownMode: "event" as const },
+      }));
+      els.push(mkText("s6-note",  "Te esperamos puntual ♡", cx(220), s6+312, 220, 18, { fontSize: 11, fontStyle: "italic", fontFamily: "'Playfair Display',Georgia,serif", color: "rgba(253,164,175,0.55)", textShadow: "none" }));
+
+      // ── S7 — RSVP (y=3120, h=400) ─────────────────────────────────────────
+      const s7 = 3120;
+      els.push(mkShape("s7-glow",  0, s7,   390, 400, "radial-gradient(ellipse at 50% 55%,rgba(192,132,252,0.27) 0%,transparent 65%)"));
+      els.push(mkText("s7-eye",   "CONFIRMÁ TU ASISTENCIA", cx(280), s7+38, 280, 16, { fontSize: 9, fontWeight: "900", letterSpacing: 0.22, color: GOLD, textShadow: "none" }));
+      els.push(mkShape("s7-div",  cx(180), s7+62, 180, 1, `linear-gradient(90deg,transparent,${GOLD}66,transparent)`));
+      els.push(mkText("s7-dl",    "Antes del 1 de Junio", cx(240), s7+78, 240, 20, { fontSize: 13, fontStyle: "italic", fontFamily: "'Playfair Display',Georgia,serif", color: WHITE, textShadow: "none" }));
+      els.push(mkApp("s7-rsvp",  "rsvp", "CONFIRMAR ASISTENCIA", cx(300), s7+114, 300, 58, {
+        background: `linear-gradient(135deg,${PINK},#db2777)`,
+        color: "#fff", borderRadius: 20,
+        config: { url: "", primaryColor: PINK, textColor: "#fff", countdownMode: "event" as const },
+      }));
+      els.push(mkText("s7-or",    "— o escribinos por —", cx(220), s7+192, 220, 18, { fontSize: 11, color: "rgba(253,164,175,0.48)", fontStyle: "italic", fontFamily: "'Playfair Display',Georgia,serif", textShadow: "none" }));
+      els.push(mkApp("s7-wa",    "whatsapp", "WhatsApp", cx(200), s7+220, 200, 48, {
+        background: "rgba(37,211,102,0.16)",
+        color: "#4ade80", borderRadius: 18,
+        border: "1px solid rgba(37,211,102,0.34)",
+        config: { url: "https://wa.me/", primaryColor: "#25d366", textColor: "#4ade80", countdownMode: "event" as const },
+      }));
+      els.push(mkText("s7-seats", "¡Los lugares son limitados!", cx(260), s7+292, 260, 18, { fontSize: 11, color: LAVENDER, fontStyle: "italic", fontFamily: "'Playfair Display',Georgia,serif", textShadow: "none" }));
+
+      // ── S8 — CIERRE (y=3520, h=440) ───────────────────────────────────────
+      const s8 = 3520;
+      els.push(mkShape("s8-glT",  0, s8,     390, 200, "radial-gradient(ellipse at 50% 0%,rgba(244,114,182,0.27) 0%,transparent 65%)"));
+      els.push(mkShape("s8-glB",  0, s8+260, 390, 180, "radial-gradient(ellipse at 50% 100%,rgba(192,132,252,0.22) 0%,transparent 65%)"));
+      els.push(mkShape("s8-divT", cx(280), s8+38, 280, 1, `linear-gradient(90deg,transparent,${GOLD}44,transparent)`));
+      els.push(mkText("s8-spkB",  "✦", cx(28), s8+52, 28, 32, { fontSize: 22, color: PINK, opacity: 0.65, textShadow: `0 0 18px ${PINK}55`, fontFamily: "'Playfair Display',Georgia,serif" }));
+      els.push(mkText("s8-ty",    "¡Nos vemos pronto!", cx(280), s8+98,  280, 36, { fontSize: 30, fontFamily: "'Playfair Display',Georgia,serif", fontStyle: "italic", color: WHITE }));
+      els.push(mkText("s8-nm",    "Valentina ♡", cx(200), s8+146, 200, 28, { fontSize: 22, fontFamily: "'Playfair Display',Georgia,serif", fontStyle: "italic", color: ROSE }));
+      els.push(mkShape("s8-divM", cx(200), s8+188, 200, 1, `linear-gradient(90deg,transparent,${GOLD}66,transparent)`));
+      els.push(mkText("s8-big15", "15", cx(110), s8+208, 110, 92, { fontSize: 82, fontFamily: "'Playfair Display',Georgia,serif", fontStyle: "italic", color: "rgba(244,114,182,0.10)", lineHeight: 1, textShadow: "none" }));
+      els.push(mkText("s8-spkR",  "✦  ·  ✦  ·  ✦", cx(140), s8+328, 140, 16, { fontSize: 10, color: GOLD, opacity: 0.38, textShadow: "none" }));
+      els.push(mkText("s8-foot",  "Creado con KAIS Invitaciones", cx(240), s8+358, 240, 16, { fontSize: 9, color: "rgba(253,164,175,0.22)", letterSpacing: 0.08, textShadow: "none" }));
+
+      return { sections, elements: els };
+    },
+  },
+];
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Expanded panel content per tool
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -690,6 +891,7 @@ function ExpandedPanel({
   onAddInvitationBlock,
   onApplyTheme,
   activeThemeId,
+  onApplyPremiumTemplate,
 }: {
   tool: ToolId;
   onAddText: (kind: "title" | "subtitle" | "paragraph") => void;
@@ -698,6 +900,7 @@ function ExpandedPanel({
   onAddInvitationBlock: (kind: InvitationBlockKind) => void;
   onApplyTheme: (theme: CanvasV3Theme) => void;
   activeThemeId: string;
+  onApplyPremiumTemplate: (id: string) => void;
 }) {
   if (tool === "text") {
     return (
@@ -872,49 +1075,74 @@ function ExpandedPanel({
   if (tool === "templates") {
     return (
       <div style={{ padding: "12px 14px" }}>
-        <p style={{ color: "#8884a8", fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", margin: "0 0 10px" }}>
-          Plantillas
+        {/* ── Premium templates ── */}
+        <p style={{ color: "#f472b6", fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", margin: "0 0 10px", fontWeight: 800 }}>
+          ✦ Plantillas premium
+        </p>
+        {PREMIUM_TEMPLATES.map((tpl) => (
+          <div key={tpl.id} style={{ marginBottom: 12, borderRadius: 14, overflow: "hidden", border: "1px solid rgba(244,114,182,0.32)" }}>
+            {/* Preview swatch */}
+            <div style={{ height: 56, background: tpl.previewGradient, position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <span style={{ fontSize: 22 }}>{tpl.emoji}</span>
+              <span style={{ position: "absolute", top: 6, right: 8, fontSize: 8, fontWeight: 800, letterSpacing: "0.1em", color: "rgba(244,114,182,0.8)", textTransform: "uppercase" }}>
+                {tpl.category}
+              </span>
+            </div>
+            <div style={{ padding: "10px 11px 11px", background: "rgba(244,114,182,0.06)" }}>
+              <p style={{ color: "#fff7ef", fontSize: 13, fontWeight: 700, margin: "0 0 4px", fontFamily: "Inter, system-ui, sans-serif" }}>
+                {tpl.label}
+              </p>
+              <p style={{ color: "#c084fc", fontSize: 10, lineHeight: 1.4, margin: "0 0 10px", fontFamily: "Inter, system-ui, sans-serif" }}>
+                {tpl.description}
+              </p>
+              <button
+                type="button"
+                onClick={() => onApplyPremiumTemplate(tpl.id)}
+                style={{
+                  width: "100%", padding: "9px 10px", borderRadius: 10,
+                  border: "none",
+                  background: "linear-gradient(135deg,#f472b6,#c026d3)",
+                  color: "#fff", cursor: "pointer",
+                  fontSize: 11, fontWeight: 800, letterSpacing: "0.04em",
+                  boxShadow: "0 4px 16px rgba(244,114,182,0.38)",
+                  fontFamily: "Inter, system-ui, sans-serif",
+                }}
+              >
+                Generar invitación completa →
+              </button>
+            </div>
+          </div>
+        ))}
+
+        {/* ── Theme palettes ── */}
+        <p style={{ color: "#8884a8", fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", margin: "18px 0 10px" }}>
+          Paletas de color
         </p>
         {CANVAS_V3_THEMES.map((theme) => (
           <div
             key={theme.id}
             style={{
-              marginBottom: 10,
-              padding: 10,
+              marginBottom: 10, padding: 10,
               background: activeThemeId === theme.id ? "rgba(124,58,237,0.18)" : "#1e1e2d",
               border: activeThemeId === theme.id ? "1px solid #7c3aed" : "1px solid #2a2a3d",
               borderRadius: 12
             }}
           >
-            <div style={{
-              height: 48,
-              borderRadius: 10,
-              marginBottom: 9,
-              background: theme.sectionBackgrounds.hero,
-              boxShadow: `inset 0 0 0 1px ${theme.colors.accent}44`
-            }} />
-            <p style={{ color: "#e8e6ff", fontSize: 12, fontWeight: 700, margin: "0 0 4px", fontFamily: "Inter, system-ui, sans-serif" }}>
-              {theme.name}
-            </p>
-            <p style={{ color: "#8884a8", fontSize: 10, lineHeight: 1.35, margin: "0 0 9px", fontFamily: "Inter, system-ui, sans-serif" }}>
-              {theme.description}
-            </p>
+            <div style={{ height: 48, borderRadius: 10, marginBottom: 9, background: theme.sectionBackgrounds.hero, boxShadow: `inset 0 0 0 1px ${theme.colors.accent}44` }} />
+            <p style={{ color: "#e8e6ff", fontSize: 12, fontWeight: 700, margin: "0 0 4px", fontFamily: "Inter, system-ui, sans-serif" }}>{theme.name}</p>
+            <p style={{ color: "#8884a8", fontSize: 10, lineHeight: 1.35, margin: "0 0 9px", fontFamily: "Inter, system-ui, sans-serif" }}>{theme.description}</p>
             <button
               type="button"
               onClick={() => onApplyTheme(theme)}
               style={{
-                width: "100%",
-                padding: "8px 10px",
-                borderRadius: 9,
+                width: "100%", padding: "8px 10px", borderRadius: 9,
                 border: "1px solid rgba(200,169,106,0.36)",
                 background: activeThemeId === theme.id ? "rgba(200,169,106,0.22)" : "rgba(200,169,106,0.10)",
                 color: activeThemeId === theme.id ? "#f4d28a" : "#c8c4f0",
-                cursor: "pointer",
-                fontSize: 11,
-                fontWeight: 700
+                cursor: "pointer", fontSize: 11, fontWeight: 700
               }}
             >
-              {activeThemeId === theme.id ? "Aplicado" : "Aplicar"}
+              {activeThemeId === theme.id ? "Aplicado" : "Aplicar paleta"}
             </button>
           </div>
         ))}
@@ -2470,6 +2698,25 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
     setActiveTool(null);
   };
 
+  const applyPremiumTemplate = (id: string) => {
+    const tpl = PREMIUM_TEMPLATES.find((t) => t.id === id);
+    if (!tpl) return;
+    pushHistory(snapshot());
+    const { sections: newSections, elements: newElements } = tpl.create();
+    setSections(newSections);
+    setElements(newElements);
+    setThemeId(tpl.themeId);
+    setActiveSectionId(newSections[0]?.id ?? "");
+    setSelectedIds([]);
+    setSaved(false);
+    setSaveStatus("idle");
+    setActiveTool(null);
+    // Scroll to top after a tick so new content renders first
+    window.setTimeout(() => {
+      if (scrollRef.current) scrollRef.current.scrollTo({ top: 0, behavior: "smooth" });
+    }, 50);
+  };
+
   const handleSave = async () => {
     setSaveStatus("saving");
     setSaveError(null);
@@ -2777,6 +3024,7 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
                 onAddInvitationBlock={addInvitationBlock}
                 onApplyTheme={applyTheme}
                 activeThemeId={themeId}
+                onApplyPremiumTemplate={applyPremiumTemplate}
               />
             </div>
           </div>

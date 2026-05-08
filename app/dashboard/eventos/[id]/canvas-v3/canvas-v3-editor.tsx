@@ -3581,7 +3581,8 @@ export function CanvasEditorV3({
           minWidth: 0,
           display: "flex",
           flexDirection: "column",
-          background: "linear-gradient(180deg,#e7e2da 0%,#d8d2ca 100%)",
+          // Slightly cooler, lighter neutral — reduces the beige tint bleed onto the canvas
+          background: "linear-gradient(180deg,#e2ddd8 0%,#d5d0cb 100%)",
           overflow: "hidden",
         }}>
           <div
@@ -3593,7 +3594,8 @@ export function CanvasEditorV3({
               alignItems: "flex-start",
               justifyContent: "center",
               padding: vw < 1400 ? "14px 8px" : "22px 16px",
-              background: "radial-gradient(120% 60% at 50% 0%, rgba(255,255,255,0.14) 0%, rgba(216,210,202,0) 68%)",
+              // Haze dialed from 0.14 → 0.05 — no more warm-white wash over the canvas
+              background: "radial-gradient(120% 60% at 50% 0%, rgba(255,255,255,0.05) 0%, rgba(210,205,200,0) 68%)",
             }}
             ref={scrollRef}
             onMouseDown={onWorkspaceMouseDown}
@@ -3612,7 +3614,9 @@ export function CanvasEditorV3({
                   height: documentHeight,
                   borderRadius: 12,
                   overflow: "hidden",
-                  boxShadow: "0 14px 34px rgba(94,82,71,0.14), 0 2px 8px rgba(94,82,71,0.08), 0 0 0 1px rgba(150,128,112,0.20)",
+                  // Sharper, colder shadow — precise drop, no diffuse warm haze
+                  // Ring thinned from 0.20 → 0.12 so canvas edge is crisp, not smoky
+                  boxShadow: "0 12px 28px rgba(60,55,50,0.18), 0 2px 6px rgba(60,55,50,0.10), 0 0 0 1px rgba(110,105,100,0.12)",
                 }}
               >
                 {sections.map((section) => (

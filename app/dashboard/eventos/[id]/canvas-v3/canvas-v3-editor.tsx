@@ -389,7 +389,7 @@ const APP_LABELS: Record<string, { label: string; icon: string }> = {
 const APP_DEMO_LABELS: Record<string, { label: string; icon: string }> = {
   rsvp: { label: "Confirmar asistencia", icon: "✓" },
   countdown: { label: "Cuenta regresiva", icon: "⏱" },
-  whatsapp: { label: "Enviar WhatsApp", icon: "✉" },
+  whatsapp: { label: "Enviar WhatsApp", icon: "💬" },
   maps: { label: "Ver ubicación", icon: "⌖" },
   "live-album": { label: "Álbum en vivo", icon: "▧" },
   "live-screen": { label: "Pantalla en vivo", icon: "▣" },
@@ -419,7 +419,7 @@ const APP_DEFAULTS: Record<V3AppType, {
   url?: string;
 }> = {
   rsvp: { content: "Confirmar asistencia", width: 320, height: 82, background: "linear-gradient(135deg,#c8a96a,#9b6f2a)", color: "#1a0a18", borderRadius: 18 },
-  whatsapp: { content: "Enviar WhatsApp", width: 320, height: 78, background: "linear-gradient(135deg,#1f7a4d,#c8a96a)", color: "#fffaf0", borderRadius: 18, url: "https://wa.me/" },
+  whatsapp: { content: "Enviar WhatsApp", width: 320, height: 86, background: "linear-gradient(160deg,#0d3d21 0%,#1a6b3a 100%)", color: "#e8f5ee", borderRadius: 20, url: "https://wa.me/" },
   countdown: { content: "45 DÍAS · 12 HRS · 08 MIN · 30 SEG", width: 340, height: 96, background: "rgba(124,58,237,0.18)", color: "#e8e6ff", border: "1px solid rgba(124,58,237,0.35)", borderRadius: 16 },
   maps: { content: "Ver ubicación", width: 320, height: 78, background: "rgba(200,169,106,0.16)", color: "#f4d28a", border: "1px solid rgba(200,169,106,0.36)", borderRadius: 16, url: "https://maps.google.com" },
   "live-album": { content: "Álbum en vivo", width: 320, height: 88, background: "rgba(255,255,255,0.08)", color: "#fff7ef", border: "1px solid rgba(200,169,106,0.26)", borderRadius: 18 },
@@ -632,6 +632,30 @@ function RenderElement({
                 </div>
                 <span style={{ color: el.color ?? "#1a0a18", fontSize: 11, fontWeight: 700 }}>{el.content ?? "QR del evento"}</span>
               </>
+            ) : normalizeAppType(el) === "whatsapp" ? (
+              /* ── WhatsApp premium render ──────────────────────────────────── */
+              <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "0 20px", width: "100%", justifyContent: "center", boxSizing: "border-box" }}>
+                <span style={{ fontSize: 22, lineHeight: 1, filter: "drop-shadow(0 1px 4px rgba(0,0,0,0.28))", flexShrink: 0 }}>💬</span>
+                <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                  <span style={{
+                    color: el.color ?? "#e8f5ee",
+                    fontFamily: "Inter, system-ui, sans-serif",
+                    fontSize: 14,
+                    fontWeight: "600",
+                    letterSpacing: "0.03em",
+                    lineHeight: 1.2,
+                  }}>{el.content || "Enviar WhatsApp"}</span>
+                  <span style={{
+                    color: el.color ?? "#e8f5ee",
+                    fontFamily: "Inter, system-ui, sans-serif",
+                    fontSize: 10,
+                    fontWeight: "400",
+                    opacity: 0.60,
+                    letterSpacing: "0.07em",
+                    textTransform: "uppercase",
+                  }}>Abrir en WhatsApp →</span>
+                </div>
+              </div>
             ) : (
               <>
                 <span style={{ fontSize: 18 }}>{APP_DEMO_LABELS[normalizeAppType(el)!]?.icon}</span>
@@ -1828,7 +1852,41 @@ function RightPanel({
         {renderGroup("content", "Contenido", (
           <>
             {element.type === "text" && <div><span style={labelStyle}>Texto</span><textarea value={element.content ?? ""} rows={4} onChange={(e) => onChange(element.id, { content: e.target.value })} style={{ ...inputStyle, resize: "vertical" }} /></div>}
-            {element.type === "app" && normalizeAppType(element) && <><div style={{ padding: "10px 12px", background: "rgba(255,255,255,0.68)", border: "1px solid rgba(184,146,90,0.18)", borderRadius: 12 }}><p style={{ color: "#6f625c", fontSize: 12, fontFamily: "Inter, system-ui, sans-serif", margin: 0 }}>{APP_DEMO_LABELS[normalizeAppType(element)!]?.icon} {APP_DEMO_LABELS[normalizeAppType(element)!]?.label}</p><p style={{ color: "#a08e84", fontSize: 10, fontFamily: "Inter, system-ui, sans-serif", margin: "4px 0 0" }}>Bloque visual de muestra</p></div><div><span style={labelStyle}>Texto del bloque</span><input type="text" value={element.content ?? APP_DEMO_LABELS[normalizeAppType(element)!]?.label ?? ""} onChange={(e) => onChange(element.id, { content: e.target.value })} style={inputStyle} /></div></>}
+            {element.type === "app" && normalizeAppType(element) && <><div style={{ padding: "10px 12px", background: "rgba(255,255,255,0.68)", border: "1px solid rgba(184,146,90,0.18)", borderRadius: 12 }}><p style={{ color: "#6f625c", fontSize: 12, fontFamily: "Inter, system-ui, sans-serif", margin: 0 }}>{APP_DEMO_LABELS[normalizeAppType(element)!]?.icon} {APP_DEMO_LABELS[normalizeAppType(element)!]?.label}</p><p style={{ color: "#a08e84", fontSize: 10, fontFamily: "Inter, system-ui, sans-serif", margin: "4px 0 0" }}>Bloque visual de muestra</p></div><div><span style={labelStyle}>Texto del bloque</span><input type="text" value={element.content ?? APP_DEMO_LABELS[normalizeAppType(element)!]?.label ?? ""} onChange={(e) => onChange(element.id, { content: e.target.value })} style={inputStyle} /></div>
+            {normalizeAppType(element) === "whatsapp" && (
+              <div>
+                <span style={labelStyle}>Estilo visual</span>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginTop: 4 }}>
+                  {([
+                    { label: "Botanical 🌿", bg: "linear-gradient(160deg,#0d3d21,#1a6b3a)", color: "#e8f5ee", border: undefined },
+                    { label: "Luxury ✦",    bg: "linear-gradient(135deg,#c8a96a,#8f6a2d)", color: "#1a0a18", border: undefined },
+                    { label: "Soft",         bg: "rgba(20,90,45,0.13)",                     color: "#0d4a28", border: "1px solid rgba(20,90,45,0.28)" },
+                    { label: "Outline",      bg: "transparent",                              color: "#c8a96a", border: "1px solid rgba(200,169,106,0.55)" },
+                  ] as { label: string; bg: string; color: string; border?: string }[]).map((p) => (
+                    <button key={p.label} type="button"
+                      onClick={() => onChange(element.id, {
+                        background: p.bg,
+                        color: p.color,
+                        border: p.border,
+                        config: { ...(element.config ?? {}), primaryColor: p.bg, textColor: p.color },
+                      })}
+                      style={{
+                        padding: "8px 8px",
+                        borderRadius: 10,
+                        border: p.border ?? "1px solid rgba(184,146,90,0.24)",
+                        background: p.bg === "transparent" ? "rgba(255,252,248,0.92)" : p.bg,
+                        color: p.label.startsWith("Soft") ? "#0d4a28" : p.label.startsWith("Outline") ? "#8f6a2d" : p.color,
+                        fontSize: 11, fontWeight: 600, cursor: "pointer",
+                        letterSpacing: "0.03em", textAlign: "center" as const,
+                        fontFamily: "Inter, system-ui, sans-serif",
+                        minHeight: 36, display: "flex", alignItems: "center", justifyContent: "center",
+                      }}
+                    >{p.label}</button>
+                  ))}
+                </div>
+              </div>
+            )}
+            </>}
             {(element.type === "shape" || element.type === "decoration") && <p style={{ color: "#9a8a80", fontSize: 12, lineHeight: 1.5, margin: 0 }}>Edita primero color, opacidad y bordes para definir el tono visual.</p>}
           </>
         ), true, element.type === "text" ? "Texto" : element.type === "app" ? "Bloque" : "Forma")}

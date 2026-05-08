@@ -221,7 +221,7 @@ export function normalizePublicV3Design(value: unknown): CanvasV3Design | null {
 const APP_DEMO: Record<string, { label: string; icon: string }> = {
   rsvp: { label: "Confirmar asistencia", icon: "✓" },
   countdown: { label: "Cuenta regresiva", icon: "⏱" },
-  whatsapp: { label: "Enviar WhatsApp", icon: "✉" },
+  whatsapp: { label: "Enviar WhatsApp", icon: "💬" },
   maps: { label: "Ver ubicación", icon: "⌖" },
   "live-album": { label: "Álbum en vivo", icon: "▧" },
   "live-screen": { label: "Pantalla en vivo", icon: "▣" },
@@ -258,9 +258,13 @@ function PublicElement({
   /** px the element overflows below its section bottom — clip that much from the bottom */
   clipBottom?: number;
 }) {
+  // Hover state for interactive app blocks (WhatsApp lift effect)
+  const [hovered, setHovered] = useState(false);
+
   if (!el.visible) return null;
 
   const appType = el.type === "app" ? resolveAppType(el) : null;
+  const isWhatsapp = appType === "whatsapp";
 
   // Sanitise numeric values so bad data can't produce invalid CSS
   const safeNum = (v: unknown, fallback: number) =>
@@ -306,6 +310,35 @@ function PublicElement({
         <CountdownBlock el={el} eventDate={eventDate} />
       ) : appType === "qr" ? (
         <QrBlock el={el} />
+      ) : isWhatsapp ? (
+        /* ── WhatsApp premium render ──────────────────────────────────────────── */
+        <div style={{ display: "flex", alignItems: "center", gap: 13, padding: "0 24px", width: "100%", justifyContent: "center", boxSizing: "border-box" }}>
+          <span style={{
+            fontSize: 24,
+            lineHeight: 1,
+            filter: "drop-shadow(0 1px 5px rgba(0,0,0,0.28))",
+            flexShrink: 0,
+          }}>💬</span>
+          <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            <span style={{
+              color: el.color ?? "#e8f5ee",
+              fontFamily: "Inter, system-ui, sans-serif",
+              fontSize: 15,
+              fontWeight: "600",
+              letterSpacing: "0.03em",
+              lineHeight: 1.2,
+            }}>{el.content || "Enviar WhatsApp"}</span>
+            <span style={{
+              color: el.color ?? "#e8f5ee",
+              fontFamily: "Inter, system-ui, sans-serif",
+              fontSize: 10,
+              fontWeight: "400",
+              opacity: 0.55,
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
+            }}>Abrir en WhatsApp →</span>
+          </div>
+        </div>
       ) : (
         <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <span style={{ fontSize: 18 }}>{demo.icon}</span>
@@ -323,6 +356,13 @@ function PublicElement({
         </span>
       );
 
+    // Premium shadow — subtle lift for linked app blocks; WhatsApp gets hover-lift
+    const wrapBoxShadow = isWhatsapp && hovered
+      ? "0 8px 28px rgba(0,0,0,0.22), 0 2px 8px rgba(0,0,0,0.12)"
+      : href
+      ? "0 4px 18px rgba(0,0,0,0.13), 0 1px 4px rgba(0,0,0,0.07)"
+      : undefined;
+
     const wrapStyle: React.CSSProperties = {
       ...boxStyle,
       background: el.background,
@@ -331,11 +371,21 @@ function PublicElement({
       justifyContent: "center",
       cursor: href ? "pointer" : "default",
       textDecoration: "none",
+      boxShadow: wrapBoxShadow,
+      transition: isWhatsapp ? "transform 0.18s ease, box-shadow 0.18s ease" : undefined,
+      transform: (isWhatsapp && hovered) ? "translateY(-1.5px)" : undefined,
     };
 
     if (href) {
       return (
-        <a href={href} target="_blank" rel="noopener noreferrer" style={wrapStyle}>
+        <a
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={wrapStyle}
+          onMouseEnter={isWhatsapp ? () => setHovered(true) : undefined}
+          onMouseLeave={isWhatsapp ? () => setHovered(false) : undefined}
+        >
           {inner}
         </a>
       );

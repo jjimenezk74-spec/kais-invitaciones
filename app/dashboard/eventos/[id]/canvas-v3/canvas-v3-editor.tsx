@@ -1970,10 +1970,18 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
     };
   }, [elements, snapshot]);
 
-  const onCanvasMouseDown = useCallback((e: React.MouseEvent) => {
+  const shouldIgnoreWorkspaceSelectionStart = useCallback((target: HTMLElement | null) => {
+    if (!target) return true;
+    if (target.closest("[data-element-id]")) return true;
+    if (target.closest("[data-canvas-control='true']")) return true;
+    if (target.closest("button, a, input, textarea, select, option, label, [role='button'], [contenteditable='true']")) return true;
+    return false;
+  }, []);
+
+  const beginMarqueeSelection = useCallback((e: React.MouseEvent) => {
     if (preview || e.button !== 0) return;
     const target = e.target as HTMLElement;
-    if (target.closest("[data-element-id]") || target.closest("[data-canvas-control='true']")) return;
+    if (shouldIgnoreWorkspaceSelectionStart(target)) return;
     const point = getCanvasPoint(e);
     if (!point) return;
     selectionBoxRef.current = {
@@ -1985,7 +1993,18 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
       active: false,
     };
     setSelectionBox(null);
-  }, [getCanvasPoint, preview]);
+  }, [getCanvasPoint, preview, shouldIgnoreWorkspaceSelectionStart]);
+
+  const onCanvasMouseDown = useCallback((e: React.MouseEvent) => {
+    beginMarqueeSelection(e);
+  }, [beginMarqueeSelection]);
+
+  const onWorkspaceMouseDown = useCallback((e: React.MouseEvent) => {
+    // Start marquee from workspace too (outside visual canvas).
+    // If the click starts inside the canvas, canvas handler will own it.
+    if (canvasRef.current?.contains(e.target as Node)) return;
+    beginMarqueeSelection(e);
+  }, [beginMarqueeSelection]);
 
   // ── Global pointer move & up ─────────────────────────────────────────────
   useEffect(() => {
@@ -2790,13 +2809,21 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const ctrl = e.ctrlKey || e.metaKey;
+      if (e.key === "Escape") {
+        if (selectedIds.length > 0) {
+          setSelectedIds([]);
+          setSelectionBox(null);
+          selectionBoxRef.current = null;
+        }
+        return;
+      }
       if (!ctrl) return;
       if (e.key === "z" && !e.shiftKey) { e.preventDefault(); undo(); }
       if ((e.key === "z" && e.shiftKey) || e.key === "y") { e.preventDefault(); redo(); }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [undo, redo]);
+  }, [undo, redo, selectedIds.length]);
 
   // ─────────────────────────────────────────────────────────────────────────────
   // Render
@@ -3072,6 +3099,7 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
               background: "radial-gradient(120% 60% at 50% 0%, rgba(255,255,255,0.14) 0%, rgba(216,210,202,0) 68%)",
             }}
             ref={scrollRef}
+            onMouseDown={onWorkspaceMouseDown}
           >
             <div style={{
               flexShrink: 0,

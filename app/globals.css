@@ -97,6 +97,24 @@ html {
   scroll-behavior: smooth;
 }
 
+/* ── Dashboard palette override ────────────────────────────────────────────
+   The global :root palette uses warm amber-cream tones optimised for public
+   invitation pages.  In the dashboard the same values create a visible warm
+   "beige haze" that worsens on scroll (muted/40 tab-nav, muted/30 sections).
+   These overrides reset background, muted, and border to neutral near-whites
+   so the admin UI looks crisp without affecting any public-facing route.
+
+   Scope: .dashboard-root — applied only to app/dashboard/layout.tsx wrapper.
+   Public invitation pages, canvas editors, and live screens are unaffected.
+   ─────────────────────────────────────────────────────────────────────────── */
+.dashboard-root {
+  --background: 0 0% 99%;        /* #fcfcfc — neutral near-white, no warm tint   */
+  --card:       0 0% 100%;       /* #ffffff — unchanged, pure white               */
+  --muted:      220 13% 95%;     /* #f1f2f4 — cool neutral grey (was warm beige)  */
+  --border:     220 13% 88%;     /* #dcdfe4 — cool grey border (was warm greige)  */
+  --input:      220 13% 88%;     /* match border                                  */
+}
+
 .luxury-noise {
   background-image:
     radial-gradient(circle at 12% 10%, rgba(20, 184, 166, 0.18), transparent 26%),

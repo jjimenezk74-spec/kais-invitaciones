@@ -500,7 +500,7 @@ function RenderElement({
     cursor: el.locked ? "default" : (selected || highlighted) ? "grab" : "pointer",
     userSelect: "none",
     overflow: (selected || highlighted) ? "visible" : "hidden",
-    boxShadow: highlighted && !selected ? "inset 0 0 0 2px rgba(124,58,237,0.65)" : undefined,
+    boxShadow: highlighted && !selected ? "inset 0 0 0 1px rgba(184,146,90,0.72), 0 0 0 3px rgba(184,146,90,0.12)" : undefined,
   };
 
   if (el.background && !el.content) {
@@ -510,12 +510,12 @@ function RenderElement({
 
   const [isHovered, setIsHovered] = useState(false);
   const ringStyle: React.CSSProperties = selected
-    ? { outline: "2px solid #7c3aed", outlineOffset: "1px" }
+    ? { outline: "1.5px solid #b8925a", outlineOffset: "2px" }
     : isHovered
-    ? { outline: "1px dashed rgba(124,58,237,0.55)", outlineOffset: "1px" }
+    ? { outline: "1px solid rgba(184,146,90,0.46)", outlineOffset: "2px" }
     : {};
 
-  const handleSize = 10;
+  const handleSize = 8;
   const handles = ["tl", "t", "tr", "r", "br", "b", "bl", "l"];
   const handlePositions: Record<string, React.CSSProperties> = {
     tl: { top: -handleSize / 2, left: -handleSize / 2,                        cursor: "nwse-resize" },
@@ -634,8 +634,8 @@ function RenderElement({
           onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); onResizeMouseDown(e, h); }}
           onMouseEnter={(e) => {
             const d = e.currentTarget as HTMLDivElement;
-            d.style.transform = "scale(1.4)";
-            d.style.background = "#ede9fe";
+            d.style.transform = "scale(1.28)";
+            d.style.background = "#fff7e8";
           }}
           onMouseLeave={(e) => {
             const d = e.currentTarget as HTMLDivElement;
@@ -647,9 +647,9 @@ function RenderElement({
             width: handleSize,
             height: handleSize,
             background: "#ffffff",
-            border: "2px solid #7c3aed",
-            borderRadius: 3,
-            boxShadow: "0 1px 4px rgba(0,0,0,0.35), 0 0 0 1px rgba(124,58,237,0.15)",
+            border: "1px solid #b8925a",
+            borderRadius: 999,
+            boxShadow: "0 2px 8px rgba(70,50,35,0.20), 0 0 0 2px rgba(255,255,255,0.9)",
             zIndex: 9999,
             transition: "transform 0.1s, background 0.1s",
             ...handlePositions[h],
@@ -661,17 +661,17 @@ function RenderElement({
           style={{
             position: "absolute",
             left: 0,
-            top: -38,
+            top: -32,
             zIndex: 10000,
             display: "flex",
             alignItems: "center",
-            gap: 6,
-            padding: "6px 9px",
+            gap: 5,
+            padding: "4px 8px",
             borderRadius: 999,
-            background: "rgba(18,18,28,0.94)",
-            border: "1px solid rgba(124,58,237,0.65)",
-            boxShadow: "0 10px 26px rgba(0,0,0,0.38)",
-            color: "#e8e6ff",
+            background: "rgba(255,252,247,0.96)",
+            border: "1px solid rgba(184,146,90,0.36)",
+            boxShadow: "0 10px 24px rgba(70,50,35,0.16)",
+            color: "#4b2735",
             fontFamily: "Inter, system-ui, sans-serif",
             fontSize: 10,
             fontWeight: 700,
@@ -1690,6 +1690,7 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const selectedId = selectedIds.length === 1 ? selectedIds[0] : null;
   const [activeTool, setActiveTool] = useState<ToolId | null>(null);
+  const [sidebarHovered, setSidebarHovered] = useState(false);
   const [zoom, setZoom] = useState(0.75);
   const [viewportMode, setViewportMode] = useState<"mobile" | "desktop">("mobile");
   const [saved, setSaved] = useState(false);
@@ -1725,6 +1726,7 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
 
   const wasMovedRef = useRef(false); // true during the tick after a real drag completes
   const selected = elements.find((e) => e.id === selectedId) ?? null;
+  const inspectorHasContext = Boolean(selected && !preview);
   const activeSection = sections.find((section) => section.id === activeSectionId) ?? sections[0] ?? DEFAULT_SECTIONS[0];
   const documentHeight = sections.at(-1) ? sections.at(-1)!.y + sections.at(-1)!.height : DEFAULT_DOCUMENT_H;
   const canvasW = viewportMode === "desktop" ? 1000 : CANVAS_W;
@@ -2743,15 +2745,13 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
   // ── Responsive: track viewport width to auto-manage inspector ──────────────
   const [vw, setVw] = useState(() => typeof window !== "undefined" ? window.innerWidth : 1440);
   const [inspectorOpen, setInspectorOpen] = useState(() =>
-    typeof window !== "undefined" ? window.innerWidth >= 1400 : true
+    false
   );
 
   useEffect(() => {
     const onResize = () => {
       const w = window.innerWidth;
       setVw(w);
-      if (w < 1400) setInspectorOpen(false);
-      else setInspectorOpen(true);
     };
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
@@ -2774,14 +2774,19 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
   const INSPECTOR_W = vw >= 1600 ? 320 : 280;
   // On laptop and smaller screens inspector renders as overlay drawer
   const inspectorIsOverlay = vw < 1400;
+  const showInspector = inspectorOpen && inspectorHasContext;
 
   useEffect(() => {
-    const inlineInspectorWidth = !inspectorIsOverlay && inspectorOpen ? INSPECTOR_W : 0;
-    const activePanelWidth = activeTool ? EXPANDED_PANEL_W : 0;
+    setInspectorOpen(inspectorHasContext);
+  }, [inspectorHasContext, selectedId]);
+
+  useEffect(() => {
+    const inlineInspectorWidth = !inspectorIsOverlay && inspectorOpen && inspectorHasContext ? INSPECTOR_W : 0;
+    const activePanelWidth = activeTool && sidebarHovered ? EXPANDED_PANEL_W : 0;
     const availableWidth = vw - ICON_SIDEBAR_W - activePanelWidth - inlineInspectorWidth - 96;
     const nextZoom = Math.max(0.3, Math.min(1, Math.floor((availableWidth / canvasW) * 100) / 100));
     setZoom((current) => Math.abs(current - nextZoom) > 0.03 ? nextZoom : current);
-  }, [activeTool, canvasW, inspectorIsOverlay, inspectorOpen, vw]);
+  }, [activeTool, canvasW, inspectorHasContext, inspectorIsOverlay, inspectorOpen, sidebarHovered, vw]);
 
   // ── Keyboard shortcuts ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -2919,7 +2924,7 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
         </button>
 
         {/* Inspector toggle (always visible in top bar for small screens) */}
-        {vw < 1400 && (
+        {vw < 1400 && inspectorHasContext && (
           <button
             type="button"
             title={inspectorOpen ? "Cerrar inspector" : "Propiedades"}
@@ -2939,22 +2944,31 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
       {/* ── BODY ── */}
       <div style={{ flex: 1, display: "flex", overflow: "hidden", minWidth: 0, position: "relative" }}>
 
+        <div
+          onMouseEnter={() => setSidebarHovered(true)}
+          onMouseLeave={() => setSidebarHovered(false)}
+          style={{
+            display: "flex",
+            flexShrink: 0,
+            position: "relative",
+            zIndex: 40,
+          }}
+        >
         {/* -- LEFT SIDEBAR -- */}
         <div style={{
           width: ICON_SIDEBAR_W,
           minWidth: ICON_SIDEBAR_W,
           flexShrink: 0,
-          background: "#16161f",
-          borderRight: "1px solid #2a2a3d",
+          background: "#f8f5ef",
+          borderRight: "1px solid rgba(184,146,90,0.16)",
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
-          padding: "12px 8px",
-          gap: 10,
-          zIndex: 40,
+          padding: "10px 6px",
+          gap: 9,
           overflowY: "auto",
         }}>
-          <p style={{ color: "#8c86ad", fontSize: 8, fontWeight: 850, letterSpacing: "0.06em", textTransform: "uppercase", textAlign: "center", margin: "0 0 4px", width: "100%" }}>
+          <p style={{ color: "#8a6f61", fontSize: 8, fontWeight: 850, letterSpacing: "0.06em", textTransform: "uppercase", textAlign: "center", margin: "0 0 4px", width: "100%" }}>
             Biblioteca
           </p>
           <div style={{ display: "flex", flexDirection: "column", gap: 7, alignItems: "center", width: "100%" }}>
@@ -2967,20 +2981,20 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
                   onClick={() => setActiveTool(active ? null : tool.id)}
                   title={tool.label}
                   style={{
-                    width: 64,
-                    minHeight: 56,
-                    borderRadius: 14,
-                    background: active ? "linear-gradient(135deg,rgba(124,58,237,0.28),rgba(200,169,106,0.12))" : "#1b1b28",
-                    border: active ? "1px solid #7c3aed" : "1px solid #2a2a3d",
+                    width: 58,
+                    minHeight: 52,
+                    borderRadius: 12,
+                    background: active ? "linear-gradient(135deg,rgba(255,252,247,1),rgba(232,216,181,0.44))" : "rgba(255,252,247,0.55)",
+                    border: active ? "1px solid rgba(184,146,90,0.62)" : "1px solid rgba(184,146,90,0.10)",
                     cursor: "pointer",
-                    color: active ? "#f4f1ff" : "#9b96bd",
+                    color: active ? "#4b2735" : "#806f66",
                     fontSize: 18,
                     display: "flex",
                     flexDirection: "column",
                     alignItems: "center",
                     justifyContent: "center",
                     gap: 3,
-                    boxShadow: active ? "0 8px 20px rgba(124,58,237,0.22)" : "none",
+                    boxShadow: active ? "0 8px 18px rgba(100,70,40,0.12)" : "none",
                     transition: "all 0.15s",
                   }}
                 >
@@ -2993,20 +3007,21 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
         </div>
 
         {/* ── EXPANDED PANEL ── */}
-        {activeTool && (
+        {activeTool && sidebarHovered && (
           <div style={{
             width: EXPANDED_PANEL_W, maxWidth: EXPANDED_PANEL_W, minWidth: 0, flexShrink: 0,
-            background: "#16161f",
-            borderRight: "1px solid #2a2a3d",
+            background: "rgba(255,252,247,0.98)",
+            borderRight: "1px solid rgba(184,146,90,0.18)",
             overflowY: "auto", zIndex: 40,
             display: "flex", flexDirection: "column",
+            boxShadow: "12px 0 30px rgba(70,50,35,0.08)",
           }}>
             <div style={{
               padding: "14px 14px 10px", flexShrink: 0,
-              borderBottom: "1px solid #2a2a3d",
+              borderBottom: "1px solid rgba(184,146,90,0.14)",
               display: "flex", justifyContent: "space-between", alignItems: "center",
             }}>
-              <span style={{ color: "#e8e6ff", fontSize: 13, fontWeight: "600" }}>
+              <span style={{ color: "#4b2735", fontSize: 13, fontWeight: "700" }}>
                 {TOOLS.find(t => t.id === activeTool)?.label}
               </span>
               <button
@@ -3031,6 +3046,7 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
             </div>
           </div>
         )}
+        </div>
 
         {/* -- CANVAS WORKSPACE -- */}
         <div style={{
@@ -3038,7 +3054,7 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
           minWidth: 0,
           display: "flex",
           flexDirection: "column",
-          background: "#111118",
+          background: "linear-gradient(180deg,#f7f3eb 0%,#ece7df 100%)",
           overflow: "hidden",
         }}>
           <div
@@ -3049,7 +3065,7 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
               display: "flex",
               alignItems: "flex-start",
               justifyContent: "center",
-              padding: vw < 1400 ? "24px 12px" : "36px 24px",
+              padding: vw < 1400 ? "14px 8px" : "22px 16px",
             }}
             ref={scrollRef}
           >
@@ -3067,7 +3083,7 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
                   height: documentHeight,
                   borderRadius: 12,
                   overflow: "hidden",
-                  boxShadow: "0 32px 80px rgba(0,0,0,0.6), 0 0 0 1px #2a2a3d",
+                  boxShadow: "0 22px 52px rgba(92,64,51,0.16), 0 0 0 1px rgba(184,146,90,0.16)",
                 }}
               >
                 {sections.map((section) => (
@@ -3165,30 +3181,31 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
                   const maxX = Math.max(...selEls.map((el) => el.x + el.width)) + PAD;
                   const maxY = Math.max(...selEls.map((el) => el.y + (el.height ?? 60))) + PAD;
                   const groupToolbarButton: React.CSSProperties = {
-                    minWidth: 74,
-                    height: 26,
-                    border: "1px solid rgba(167,139,250,0.38)",
-                    borderRadius: 8,
-                    background: "rgba(24,24,36,0.94)",
-                    color: "#e8e6ff",
+                    minWidth: 58,
+                    height: 24,
+                    border: "1px solid rgba(184,146,90,0.30)",
+                    borderRadius: 999,
+                    background: "rgba(255,252,247,0.96)",
+                    color: "#4b2735",
                     cursor: "pointer",
-                    fontSize: 10,
+                    fontSize: 9,
                     fontWeight: 800,
                     fontFamily: "Inter, system-ui, sans-serif",
-                    padding: "0 8px",
+                    padding: "0 7px",
                     whiteSpace: "nowrap",
+                    boxShadow: "0 6px 16px rgba(70,50,35,0.10)",
                   };
                   const canDistribute = selEls.filter((el) => !el.locked).length >= 3;
                   const distributeButtonStyle: React.CSSProperties = {
                     ...groupToolbarButton,
-                    minWidth: 112,
-                    padding: "0 9px",
+                    minWidth: 98,
+                    padding: "0 8px",
                     opacity: canDistribute ? 1 : 0.45,
                     cursor: canDistribute ? "pointer" : "not-allowed",
                   };
                   const ungroupButtonStyle: React.CSSProperties = {
                     ...groupToolbarButton,
-                    minWidth: 92,
+                    minWidth: 82,
                     opacity: canUngroupSelection ? 1 : 0.45,
                     cursor: canUngroupSelection ? "pointer" : "not-allowed",
                   };
@@ -3199,18 +3216,18 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
                           position: "absolute",
                           left: minX, top: minY,
                           width: maxX - minX, height: maxY - minY,
-                          border: "2px dashed rgba(124,58,237,0.75)",
-                          borderRadius: 6,
+                          border: "1px solid rgba(184,146,90,0.85)",
+                          borderRadius: 8,
                           pointerEvents: "none",
                           zIndex: 9997,
-                          boxShadow: "0 0 0 1px rgba(124,58,237,0.12)",
+                          boxShadow: "0 0 0 3px rgba(184,146,90,0.10)",
                         }}
                       >
                         <div style={{
                           position: "absolute",
                           top: -26, left: 0,
-                          background: "rgba(124,58,237,0.92)",
-                          color: "#fff",
+                          background: "rgba(255,252,247,0.96)",
+                          color: "#4b2735",
                           fontSize: 10, fontWeight: 700,
                           padding: "2px 8px", borderRadius: 999,
                           fontFamily: "Inter, system-ui, sans-serif",
@@ -3226,35 +3243,35 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
                         style={{
                           position: "absolute",
                           left: Math.max(8, minX),
-                          top: Math.max(8, minY - 62),
+                          top: Math.max(8, minY - 46),
                           zIndex: 10002,
                           display: "flex",
                           alignItems: "center",
                           flexWrap: "wrap",
-                          gap: 5,
-                          padding: 6,
-                          borderRadius: 12,
-                          background: "rgba(14,14,22,0.96)",
-                          border: "1px solid rgba(124,58,237,0.55)",
-                          boxShadow: "0 16px 42px rgba(0,0,0,0.42)",
+                          gap: 4,
+                          padding: 4,
+                          borderRadius: 999,
+                          background: "rgba(255,252,247,0.97)",
+                          border: "1px solid rgba(184,146,90,0.34)",
+                          boxShadow: "0 16px 34px rgba(70,50,35,0.16)",
                           pointerEvents: "auto",
                         }}
                       >
                         <button type="button" title="Alinear izquierda" onClick={() => alignSelectedGroup("left")} style={groupToolbarButton}>Izquierda</button>
-                        <button type="button" title="Alinear centro horizontal" onClick={() => alignSelectedGroup("centerX")} style={{ ...groupToolbarButton, minWidth: 128 }}>Centro horizontal</button>
+                        <button type="button" title="Alinear centro horizontal" onClick={() => alignSelectedGroup("centerX")} style={{ ...groupToolbarButton, minWidth: 112 }}>Centro horizontal</button>
                         <button type="button" title="Alinear derecha" onClick={() => alignSelectedGroup("right")} style={groupToolbarButton}>Derecha</button>
                         <button type="button" title="Alinear arriba" onClick={() => alignSelectedGroup("top")} style={groupToolbarButton}>Arriba</button>
-                        <button type="button" title="Alinear centro vertical" onClick={() => alignSelectedGroup("centerY")} style={{ ...groupToolbarButton, minWidth: 112 }}>Centro vertical</button>
+                        <button type="button" title="Alinear centro vertical" onClick={() => alignSelectedGroup("centerY")} style={{ ...groupToolbarButton, minWidth: 98 }}>Centro vertical</button>
                         <button type="button" title="Alinear abajo" onClick={() => alignSelectedGroup("bottom")} style={groupToolbarButton}>Abajo</button>
-                        <span style={{ width: 1, alignSelf: "stretch", background: "rgba(167,139,250,0.25)" }} />
+                        <span style={{ width: 1, alignSelf: "stretch", background: "rgba(184,146,90,0.24)" }} />
                         <button type="button" title="Distribuir horizontalmente" disabled={!canDistribute} onClick={() => distributeSelectedGroup("horizontal")} style={distributeButtonStyle}>Distribuir horizontal</button>
                         <button type="button" title="Distribuir verticalmente" disabled={!canDistribute} onClick={() => distributeSelectedGroup("vertical")} style={distributeButtonStyle}>Distribuir vertical</button>
-                        <span style={{ width: 1, alignSelf: "stretch", background: "rgba(167,139,250,0.25)" }} />
+                        <span style={{ width: 1, alignSelf: "stretch", background: "rgba(184,146,90,0.24)" }} />
                         <button type="button" title="Agrupar elementos seleccionados" onClick={groupSelected} style={groupToolbarButton}>Agrupar</button>
                         <button type="button" title="Desagrupar selección" disabled={!canUngroupSelection} onClick={ungroupSelected} style={ungroupButtonStyle}>Desagrupar</button>
-                        <span style={{ width: 1, alignSelf: "stretch", background: "rgba(167,139,250,0.25)" }} />
-                        <button type="button" title="Duplicar grupo" onClick={duplicateSelectedGroup} style={{ ...groupToolbarButton, color: "#f4d28a" }}>Duplicar</button>
-                        <button type="button" title="Eliminar grupo" onClick={deleteSelectedGroup} style={{ ...groupToolbarButton, color: "#f87171" }}>Eliminar</button>
+                        <span style={{ width: 1, alignSelf: "stretch", background: "rgba(184,146,90,0.24)" }} />
+                        <button type="button" title="Duplicar grupo" onClick={duplicateSelectedGroup} style={{ ...groupToolbarButton, color: "#8a5d22" }}>Duplicar</button>
+                        <button type="button" title="Eliminar grupo" onClick={deleteSelectedGroup} style={{ ...groupToolbarButton, color: "#b42336" }}>Eliminar</button>
                       </div>
                     </React.Fragment>
                   );
@@ -3321,7 +3338,7 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
               <p style={{
                 textAlign: "center",
                 marginTop: 10,
-                color: "#4a4a6a",
+                color: "#8a7b72",
                 fontSize: 10,
                 letterSpacing: "0.08em",
                 fontFamily: "Inter, system-ui, sans-serif",
@@ -3332,14 +3349,14 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
           </div>
 
           <div style={{
-            minHeight: 112,
+            minHeight: 78,
             flexShrink: 0,
-            background: "#16161f",
-            borderTop: "1px solid #2a2a3d",
-            padding: "12px 16px",
+            background: "rgba(255,252,247,0.94)",
+            borderTop: "1px solid rgba(184,146,90,0.18)",
+            padding: "8px 12px",
             display: "flex",
             alignItems: "center",
-            gap: 10,
+            gap: 8,
             overflowX: "auto",
           }}>
             {sections.map((section) => {
@@ -3352,37 +3369,37 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
                   title={section.label + " - " + count + " elementos"}
                   onClick={() => { scrollToSection(section); setSelectedIds([]); }}
                   style={{
-                    width: 136,
-                    minWidth: 136,
-                    height: 82,
-                    borderRadius: 14,
-                    border: active ? "1px solid #c8a96a" : "1px solid #2a2a3d",
-                    background: active ? "rgba(200,169,106,0.14)" : "#1b1b28",
-                    color: active ? "#f4d28a" : "#b3aecf",
+                    width: 118,
+                    minWidth: 118,
+                    height: 58,
+                    borderRadius: 12,
+                    border: active ? "1px solid rgba(184,146,90,0.72)" : "1px solid rgba(184,146,90,0.14)",
+                    background: active ? "rgba(184,146,90,0.14)" : "rgba(255,255,255,0.58)",
+                    color: active ? "#4b2735" : "#6f625c",
                     cursor: "pointer",
-                    padding: 8,
+                    padding: 6,
                     display: "grid",
-                    gridTemplateColumns: "44px 1fr",
+                    gridTemplateColumns: "32px 1fr",
                     alignItems: "center",
-                    gap: 8,
-                    boxShadow: active ? "0 10px 24px rgba(200,169,106,0.12)" : "none",
+                    gap: 7,
+                    boxShadow: active ? "0 8px 18px rgba(100,70,40,0.10)" : "none",
                     fontFamily: "Inter, system-ui, sans-serif",
                     textAlign: "left",
                   }}
                 >
                   <span style={{
-                    width: 44,
-                    height: 58,
-                    borderRadius: 8,
+                    width: 32,
+                    height: 42,
+                    borderRadius: 7,
                     background: section.background,
-                    border: "1px solid rgba(255,255,255,0.10)",
-                    boxShadow: "inset 0 0 22px rgba(0,0,0,0.3)",
+                    border: "1px solid rgba(75,39,53,0.10)",
+                    boxShadow: "inset 0 0 14px rgba(70,50,35,0.16)",
                   }} />
                   <span style={{ minWidth: 0 }}>
-                    <span style={{ display: "block", fontSize: 11, fontWeight: 850, lineHeight: 1.15, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    <span style={{ display: "block", fontSize: 10, fontWeight: 850, lineHeight: 1.15, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                       {section.label}
                     </span>
-                    <span style={{ display: "block", marginTop: 6, fontSize: 10, color: active ? "#fff0c2" : "#6f6b8f" }}>
+                    <span style={{ display: "block", marginTop: 4, fontSize: 9, color: active ? "#8a5d22" : "#9a8a80" }}>
                       {count} elementos
                     </span>
                   </span>
@@ -3394,13 +3411,13 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
               title="Agregar sección"
               onClick={addDemoSection}
               style={{
-                width: 112,
-                minWidth: 112,
-                height: 82,
-                borderRadius: 14,
-                border: "1px dashed rgba(124,58,237,0.65)",
-                background: "rgba(124,58,237,0.12)",
-                color: "#c4b5fd",
+                width: 90,
+                minWidth: 90,
+                height: 58,
+                borderRadius: 12,
+                border: "1px dashed rgba(184,146,90,0.55)",
+                background: "rgba(255,255,255,0.48)",
+                color: "#7a5262",
                 cursor: "pointer",
                 fontSize: 12,
                 fontWeight: 850,
@@ -3414,7 +3431,7 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
         </div>
 
         {/* ── RIGHT INSPECTOR — inline on ≥1400px, overlay drawer on laptop/mobile ── */}
-        {inspectorOpen && inspectorIsOverlay && (
+        {showInspector && inspectorIsOverlay && (
           /* Backdrop for drawer */
           <div
             style={{
@@ -3425,7 +3442,7 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
           />
         )}
 
-        {inspectorOpen && (
+        {showInspector && (
           <div style={{
             position: inspectorIsOverlay ? "absolute" : "relative",
             top: inspectorIsOverlay ? 0 : undefined,
@@ -3445,7 +3462,7 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
               onDelete={deleteSelected}
               onBringToFront={bringToFront}
               onSendToBack={sendToBack}
-              section={!selected && !preview ? activeSection : null}
+              section={null}
               onDuplicateSection={() => duplicateSection(activeSectionId)}
               onDeleteSection={() => deleteSection(activeSectionId)}
               onMoveSectionUp={() => moveSectionUp(activeSectionId)}
@@ -3477,7 +3494,7 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
         )}
 
         {/* Floating toggle when inspector is closed (≥1400px) */}
-        {!inspectorOpen && !inspectorIsOverlay && (
+        {inspectorHasContext && !inspectorOpen && !inspectorIsOverlay && (
           <button
             type="button"
             title="Abrir propiedades"

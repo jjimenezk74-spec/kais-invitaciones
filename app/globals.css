@@ -958,22 +958,10 @@ main.kais-stage.kais-motion-gold-sparkles::before {
   animation: kais-sparkle-pulse 4s ease-in-out infinite;
 }
 
-/* elegant-glow */
-@keyframes kais-glow-breathe {
-  0%, 100% { opacity: 0.45; }
-  50%       { opacity: 1; }
-}
-main.kais-stage.kais-motion-elegant-glow::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: 1;
-  pointer-events: none;
-  background:
-    radial-gradient(ellipse 68% 48% at 50% 0%,   rgba(212,175,55,0.28), transparent 66%),
-    radial-gradient(ellipse 52% 42% at 50% 108%,  rgba(150,12,28,0.30),  transparent 62%);
-  animation: kais-glow-breathe 7s ease-in-out infinite;
-}
+/* elegant-glow — RESERVED (class not yet applied in production; no-op until activated)
+   When re-enabled, scope to public invitation pages only:
+   main.kais-stage.kais-motion-elegant-glow::before { ... }
+   DO NOT apply this class to any dashboard or editor route. */
 
 /* ---- DECORATION LEVELS -----------------------------------
    standalone, works on any template.

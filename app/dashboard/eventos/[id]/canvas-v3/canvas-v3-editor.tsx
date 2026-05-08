@@ -3584,6 +3584,8 @@ export function CanvasEditorV3({
           // Slightly cooler, lighter neutral — reduces the beige tint bleed onto the canvas
           background: "linear-gradient(180deg,#e2ddd8 0%,#d5d0cb 100%)",
           overflow: "hidden",
+          // Defensive: no inherited @keyframes animation can breathe through this wrapper
+          animation: "none",
         }}>
           <div
             style={{
@@ -3617,6 +3619,9 @@ export function CanvasEditorV3({
                   // Sharper, colder shadow — precise drop, no diffuse warm haze
                   // Ring thinned from 0.20 → 0.12 so canvas edge is crisp, not smoky
                   boxShadow: "0 12px 28px rgba(60,55,50,0.18), 0 2px 6px rgba(60,55,50,0.10), 0 0 0 1px rgba(110,105,100,0.12)",
+                  // Defensive: explicit no-animation on canvas root — prevents any future
+                  // CSS @keyframes from reaching this element regardless of class ancestry
+                  animation: "none",
                 }}
               >
                 {sections.map((section) => (

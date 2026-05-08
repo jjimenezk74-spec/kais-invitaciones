@@ -1209,6 +1209,7 @@ function RightPanel({
 }) {
   const [pendingDelete, setPendingDelete] = React.useState<"element" | "section" | null>(null);
   const [openGroup, setOpenGroup] = React.useState<InspectorGroup>("content");
+  const [showAdvanced, setShowAdvanced] = React.useState(false);
   const [layersOpen, setLayersOpen] = React.useState(true);
 
   // ── Layer drag & drop state ───────────────────────────────────────────────
@@ -1261,57 +1262,49 @@ function RightPanel({
     height: "100%",
     minWidth: 0,
     flexShrink: 0,
-    background: "#16161f",
-    borderLeft: "1px solid #2a2a3d",
+    background: "linear-gradient(180deg, rgba(255,252,247,0.97), rgba(252,248,241,0.97))",
+    borderLeft: "1px solid rgba(184,146,90,0.16)",
     display: "flex",
     flexDirection: "column",
     overflowY: "auto",
   };
 
   const labelStyle: React.CSSProperties = {
-    color: "#8884a8", fontSize: 10, letterSpacing: "0.1em",
+    color: "#9a7f72", fontSize: 10, letterSpacing: "0.04em",
     textTransform: "uppercase", display: "block", marginBottom: 6,
     fontFamily: "Inter, system-ui, sans-serif",
+    fontWeight: 700,
   };
   const inputStyle: React.CSSProperties = {
     width: "100%", padding: "7px 10px",
-    background: "#1e1e2d", border: "1px solid #2a2a3d",
-    borderRadius: 8, color: "#e8e6ff", fontSize: 12,
+    background: "rgba(255,255,255,0.66)", border: "1px solid rgba(184,146,90,0.18)",
+    borderRadius: 10, color: "#4b2735", fontSize: 12,
     fontFamily: "Inter, system-ui, sans-serif",
     outline: "none", boxSizing: "border-box",
   };
   const actionBtnStyle: React.CSSProperties = {
     padding: "7px 10px",
-    background: "#1e1e2d",
-    border: "1px solid #2a2a3d",
-    borderRadius: 8,
+    background: "rgba(255,255,255,0.72)",
+    border: "1px solid rgba(184,146,90,0.22)",
+    borderRadius: 999,
     cursor: "pointer",
-    color: "#c8c4f0",
+    color: "#6c4d57",
     fontSize: 11,
     fontFamily: "Inter, system-ui, sans-serif",
-    textAlign: "left",
+    textAlign: "center",
     transition: "all 0.12s",
     width: "100%",
-  };
-  const sectionHeaderStyle: React.CSSProperties = {
-    padding: "16px",
-    borderBottom: "1px solid #2a2a3d",
-    background: "linear-gradient(135deg, rgba(200,169,106,0.10), rgba(22,22,31,0.96))",
-  };
-  const elementHeaderStyle: React.CSSProperties = {
-    padding: "16px",
-    borderBottom: "1px solid #2a2a3d",
-    background: "linear-gradient(135deg, rgba(124,58,237,0.16), rgba(22,22,31,0.96))",
+    fontWeight: 650,
   };
   const panelBadgeStyle: React.CSSProperties = {
     display: "inline-flex",
     alignItems: "center",
     gap: 6,
-    padding: "4px 8px",
+    padding: "4px 10px",
     borderRadius: 999,
     fontSize: 9,
     fontWeight: 800,
-    letterSpacing: "0.12em",
+    letterSpacing: "0.08em",
     textTransform: "uppercase",
     fontFamily: "Inter, system-ui, sans-serif",
   };
@@ -1367,7 +1360,7 @@ function RightPanel({
   );
 
   const LayersPanel = sectionElements.length > 0 ? (
-    <div style={{ background: "#12121c", borderBottom: "1px solid #2a2a3d" }}>
+    <div style={{ background: "rgba(255,255,255,0.54)", borderBottom: "1px solid rgba(184,146,90,0.16)" }}>
       {/* header */}
       <button
         type="button"
@@ -1379,11 +1372,11 @@ function RightPanel({
         }}
       >
         <span style={{ display: "flex", alignItems: "center", gap: 7 }}>
-          <span style={{ fontSize: 10, color: "#7c3aed" }}>⧉</span>
-          <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: "0.1em", textTransform: "uppercase", color: "#a8a3c8" }}>Capas</span>
-          <span style={{ fontSize: 9, color: "#6f6b8f", background: "#1e1e2d", border: "1px solid #2a2a3d", borderRadius: 99, padding: "1px 6px" }}>{sectionElements.length}</span>
+          <span style={{ fontSize: 10, color: "#b8925a" }}>⧉</span>
+          <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: "0.07em", textTransform: "uppercase", color: "#8a6f61" }}>Capas</span>
+          <span style={{ fontSize: 9, color: "#8a6f61", background: "rgba(255,255,255,0.72)", border: "1px solid rgba(184,146,90,0.22)", borderRadius: 99, padding: "1px 6px" }}>{sectionElements.length}</span>
         </span>
-        <span style={{ fontSize: 9, color: "#6f6b8f" }}>{layersOpen ? "−" : "+"}</span>
+        <span style={{ fontSize: 9, color: "#9a8a80" }}>{layersOpen ? "−" : "+"}</span>
       </button>
       {layersOpen && (
         <div ref={layerListRef} style={{ display: "flex", flexDirection: "column", padding: "2px 8px 8px" }}>
@@ -1403,8 +1396,8 @@ function RightPanel({
                     borderRadius: 7,
                     background: isDragSrc
                       ? "rgba(124,58,237,0.08)"
-                      : isSel ? "rgba(124,58,237,0.18)" : "transparent",
-                    border: isSel ? "1px solid rgba(124,58,237,0.4)" : "1px solid transparent",
+                      : isSel ? "rgba(184,146,90,0.14)" : "transparent",
+                    border: isSel ? "1px solid rgba(184,146,90,0.34)" : "1px solid transparent",
                     opacity: isHid ? 0.42 : isDragSrc ? 0.55 : 1,
                     cursor: isDragging ? "grabbing" : "pointer",
                     transition: "background 0.1s, opacity 0.1s",
@@ -1451,7 +1444,7 @@ function RightPanel({
                     <button type="button" title={isHid ? "Mostrar" : "Ocultar"}
                       onClick={() => onToggleVisible(el.id)}
                       style={{ width: 18, height: 18, border: "none", background: "none", cursor: "pointer", color: isHid ? "#4a4870" : "#7878a8", fontSize: 10, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 4, padding: 0 }}>
-                      {isHid ? "🙈" : "👁"}
+                    {isHid ? "🙈" : "👁"}
                     </button>
                     <button type="button" title={isLocked ? "Desbloquear" : "Bloquear"}
                       onClick={() => onToggleLocked(el.id)}
@@ -1480,7 +1473,7 @@ function RightPanel({
     if (!visible) return null;
     const isOpen = openGroup === id;
     return (
-      <div style={{ background: "#14141f", border: "1px solid #2a2a3d", borderRadius: 12, overflow: "hidden" }}>
+      <div style={{ background: "rgba(255,255,255,0.58)", border: "1px solid rgba(184,146,90,0.16)", borderRadius: 14, overflow: "hidden" }}>
         <button
           type="button"
           onClick={() => setOpenGroup(id)}
@@ -1488,28 +1481,28 @@ function RightPanel({
             width: "100%",
             padding: "10px 12px",
             border: "none",
-            borderBottom: isOpen ? "1px solid #2a2a3d" : "none",
-            background: isOpen ? "#1e1e2d" : "transparent",
-            color: isOpen ? "#e8e6ff" : "#a8a3c8",
+            borderBottom: isOpen ? "1px solid rgba(184,146,90,0.14)" : "none",
+            background: isOpen ? "rgba(255,255,255,0.74)" : "transparent",
+            color: isOpen ? "#4b2735" : "#7c675d",
             cursor: "pointer",
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
             fontFamily: "Inter, system-ui, sans-serif",
             fontSize: 11,
-            fontWeight: 800,
-            letterSpacing: "0.08em",
+            fontWeight: 700,
+            letterSpacing: "0.04em",
             textTransform: "uppercase",
           }}
         >
           <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-            <span style={{ color: isOpen ? "#c8a96a" : "#6f6b8f" }}>{icon}</span>
+            <span style={{ color: isOpen ? "#b8925a" : "#b29a8d" }}>{icon}</span>
             {title}
           </span>
-          <span style={{ color: "#6f6b8f" }}>{isOpen ? "−" : "+"}</span>
+          <span style={{ color: "#b29a8d" }}>{isOpen ? "−" : "+"}</span>
         </button>
         {isOpen && (
-          <div style={{ padding: 12, display: "flex", flexDirection: "column", gap: 12 }}>
+          <div style={{ padding: 12, display: "flex", flexDirection: "column", gap: 14 }}>
             {children}
           </div>
         )}
@@ -1523,19 +1516,19 @@ function RightPanel({
       return (
         <div style={s}>
           {LayersPanel}
-          <div style={sectionHeaderStyle}>
+          <div style={{ padding: "16px", borderBottom: "1px solid rgba(184,146,90,0.14)" }}>
             <span style={{ ...panelBadgeStyle, color: "#f4d28a", background: "rgba(200,169,106,0.12)", border: "1px solid rgba(200,169,106,0.24)" }}>
               Sección
             </span>
-            <p style={{ color: "#fff7dc", fontSize: 19, fontWeight: "750", fontFamily: "Inter, system-ui, sans-serif", margin: "10px 0 0" }}>
+            <p style={{ color: "#4b2735", fontSize: 19, fontWeight: "700", fontFamily: "Inter, system-ui, sans-serif", margin: "10px 0 0" }}>
               {section.label}
             </p>
           </div>
-          <div style={{ padding: "14px 16px", display: "flex", flexDirection: "column", gap: 6 }}>
+          <div style={{ padding: "16px", display: "flex", flexDirection: "column", gap: 8 }}>
             <button type="button" onClick={onDuplicateSection} style={actionBtnStyle}>⧉ Duplicar sección</button>
             <button type="button" onClick={onMoveSectionUp} style={actionBtnStyle}>↑ Subir sección</button>
             <button type="button" onClick={onMoveSectionDown} style={actionBtnStyle}>↓ Bajar sección</button>
-            <div style={{ height: 1, background: "#2a2a3d", margin: "4px 0" }} />
+            <div style={{ height: 1, background: "rgba(184,146,90,0.14)", margin: "4px 0" }} />
             {pendingDelete === "section" ? (
               <div style={{ display: "flex", gap: 6 }}>
                 <button type="button" onClick={() => { onDeleteSection(); setPendingDelete(null); }}
@@ -1574,73 +1567,66 @@ function RightPanel({
     <div style={s}>
       {LayersPanel}
       {/* Element header */}
-      <div style={{ padding: "14px 16px", borderBottom: "1px solid #2a2a3d" }}>
-        <p style={{ color: "#c8a96a", fontSize: 10, letterSpacing: "0.1em", fontFamily: "Inter, system-ui, sans-serif", margin: 0, textTransform: "uppercase", opacity: 0.75 }}>Elemento</p>
-        <p style={{ color: "#e8e6ff", fontSize: 14, fontWeight: "600", fontFamily: "Inter, system-ui, sans-serif", margin: "4px 0 0" }}>
+      <div style={{ padding: "16px 16px 12px", borderBottom: "1px solid rgba(184,146,90,0.14)" }}>
+        <p style={{ color: "#8a6f61", fontSize: 10, letterSpacing: "0.06em", fontFamily: "Inter, system-ui, sans-serif", margin: 0, textTransform: "uppercase", opacity: 0.9 }}>Elemento</p>
+        <p style={{ color: "#4b2735", fontSize: 15, fontWeight: "650", fontFamily: "Inter, system-ui, sans-serif", margin: "4px 0 0" }}>
           {element.type === "text" ? "Texto" : element.type === "app" ? "Bloque de aplicación" : element.type === "decoration" ? "Decoración" : "Forma"}
           {element.locked && <span style={{ marginLeft: 8, color: "#c8a96a", fontSize: 10 }}>🔒</span>}
         </p>
+        <p style={{ color: "#9a8a80", fontSize: 11, margin: "6px 0 0", lineHeight: 1.45 }}>
+          Mostrando ajustes principales. Usa "Más opciones" para controles avanzados.
+        </p>
       </div>
-      {/* Element actions */}
-      <div style={{ padding: "10px 16px", borderBottom: "1px solid #2a2a3d", display: "flex", flexDirection: "column", gap: 5 }}>
-        <div style={{ display: "flex", gap: 5 }}>
-          <button type="button" onClick={onDuplicate}
-            style={{ ...actionBtnStyle, flex: 1, textAlign: "center" }}>⧉ Duplicar</button>
-          <button type="button" onClick={onBringToFront}
-            style={{ ...actionBtnStyle, flex: 1, textAlign: "center" }}>↑ Traer al frente</button>
-          <button type="button" onClick={onSendToBack}
-            style={{ ...actionBtnStyle, flex: 1, textAlign: "center" }}>↓ Atrás</button>
-        </div>
-        {pendingDelete === "element" ? (
-          <div style={{ display: "flex", gap: 5 }}>
-            <button type="button" onClick={() => { onDelete(); setPendingDelete(null); }}
-              style={{ ...actionBtnStyle, flex: 1, background: "rgba(220,38,38,0.22)", border: "1px solid rgba(220,38,38,0.5)", color: "#f87171", textAlign: "center" }}>
-              Confirmar eliminación
-            </button>
-            <button type="button" onClick={() => setPendingDelete(null)}
-              style={{ ...actionBtnStyle, width: "auto", padding: "7px 14px", color: "#8884a8", textAlign: "center" }}>
-              Cancelar
-            </button>
-          </div>
-        ) : (
-          <button type="button" onClick={() => setPendingDelete("element")}
-            style={{ ...actionBtnStyle, background: "rgba(220,38,38,0.1)", border: "1px solid rgba(220,38,38,0.28)", color: "#f87171", textAlign: "center" }}>
-            ✕ Eliminar elemento
-          </button>
-        )}
-      </div>
-
-      <div style={{ padding: "14px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
+      <div style={{ padding: "14px 16px 18px", display: "flex", flexDirection: "column", gap: 12 }}>
         {renderGroup("content", "Contenido", (
           <>
             {element.type === "text" && <div><span style={labelStyle}>Texto</span><textarea value={element.content ?? ""} rows={4} onChange={(e) => onChange(element.id, { content: e.target.value })} style={{ ...inputStyle, resize: "vertical" }} /></div>}
-            {element.type === "app" && normalizeAppType(element) && <><div style={{ padding: "10px 12px", background: "#1e1e2d", border: "1px solid #2a2a3d", borderRadius: 10 }}><p style={{ color: "#c8c4f0", fontSize: 12, fontFamily: "Inter, system-ui, sans-serif", margin: 0 }}>{APP_DEMO_LABELS[normalizeAppType(element)!]?.icon} {APP_DEMO_LABELS[normalizeAppType(element)!]?.label}</p><p style={{ color: "#8884a8", fontSize: 10, fontFamily: "Inter, system-ui, sans-serif", margin: "4px 0 0" }}>Bloque visual de muestra</p></div><div><span style={labelStyle}>Texto del bloque</span><input type="text" value={element.content ?? APP_DEMO_LABELS[normalizeAppType(element)!]?.label ?? ""} onChange={(e) => onChange(element.id, { content: e.target.value })} style={inputStyle} /></div></>}
-            {(element.type === "shape" || element.type === "decoration") && <p style={{ color: "#8884a8", fontSize: 12, lineHeight: 1.5, margin: 0 }}>Este bloque se edita desde relleno, contorno y sombra.</p>}
+            {element.type === "app" && normalizeAppType(element) && <><div style={{ padding: "10px 12px", background: "rgba(255,255,255,0.68)", border: "1px solid rgba(184,146,90,0.18)", borderRadius: 12 }}><p style={{ color: "#6f625c", fontSize: 12, fontFamily: "Inter, system-ui, sans-serif", margin: 0 }}>{APP_DEMO_LABELS[normalizeAppType(element)!]?.icon} {APP_DEMO_LABELS[normalizeAppType(element)!]?.label}</p><p style={{ color: "#a08e84", fontSize: 10, fontFamily: "Inter, system-ui, sans-serif", margin: "4px 0 0" }}>Bloque visual de muestra</p></div><div><span style={labelStyle}>Texto del bloque</span><input type="text" value={element.content ?? APP_DEMO_LABELS[normalizeAppType(element)!]?.label ?? ""} onChange={(e) => onChange(element.id, { content: e.target.value })} style={inputStyle} /></div></>}
+            {(element.type === "shape" || element.type === "decoration") && <p style={{ color: "#9a8a80", fontSize: 12, lineHeight: 1.5, margin: 0 }}>Edita primero color, opacidad y bordes para definir el tono visual.</p>}
           </>
         ), true, element.type === "text" ? "Texto" : element.type === "app" ? "Bloque" : "Forma")}
-        {renderGroup("typography", "Tipografía", <><div><span style={labelStyle}>Color</span><div style={{ display: "flex", gap: 8, alignItems: "center" }}><input type="color" value={element.color ?? "#ffffff"} onChange={(e) => onChange(element.id, { color: e.target.value })} style={{ width: 36, height: 30, border: "none", borderRadius: 6, cursor: "pointer", background: "none" }} /><input type="text" value={element.color ?? "#ffffff"} onChange={(e) => onChange(element.id, { color: e.target.value })} style={{ ...inputStyle, flex: 1 }} /></div></div><div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}><div><span style={labelStyle}>Tamaño</span><input type="number" min={8} max={120} value={element.fontSize ?? 16} onChange={(e) => onChange(element.id, { fontSize: Number(e.target.value) })} style={inputStyle} /></div><div><span style={labelStyle}>Peso</span><input type="text" value={element.fontWeight ?? "400"} onChange={(e) => onChange(element.id, { fontWeight: e.target.value })} style={inputStyle} /></div></div><div><span style={labelStyle}>Fuente</span><select value={element.fontFamily ?? "Inter, system-ui, sans-serif"} onChange={(e) => onChange(element.id, { fontFamily: e.target.value })} style={{ ...inputStyle, cursor: "pointer" }}><option value="Inter, system-ui, sans-serif">Inter</option><option value="'Playfair Display', Georgia, serif">Playfair Display</option><option value="Georgia, serif">Georgia</option><option value="'Dancing Script', cursive">Dancing Script</option></select></div><div><span style={labelStyle}>Alineación</span><div style={{ display: "flex", gap: 4 }}>{(["left", "center", "right"] as const).map((a) => <button key={a} type="button" onClick={() => onChange(element.id, { textAlign: a })} style={{ flex: 1, padding: "6px 0", background: element.textAlign === a ? "#7c3aed" : "#1e1e2d", border: "1px solid #2a2a3d", borderRadius: 6, cursor: "pointer", color: element.textAlign === a ? "#fff" : "#9898b8", fontSize: 11 }}>{a === "left" ? "Izquierda" : a === "center" ? "Centro" : "Derecha"}</button>)}</div></div><div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}><div><span style={labelStyle}>Interlineado</span><input type="number" min={0.8} max={3} step={0.05} value={element.lineHeight ?? 1.4} onChange={(e) => onChange(element.id, { lineHeight: Number(e.target.value) })} style={inputStyle} /></div><div><span style={labelStyle}>Espaciado de letras</span><input type="number" min={0} max={1} step={0.01} value={element.letterSpacing ?? 0} onChange={(e) => onChange(element.id, { letterSpacing: Number(e.target.value) })} style={inputStyle} /></div></div></>, element.type === "text", "Aa")}
-        {renderGroup("fill", "Relleno", <><div><span style={labelStyle}>Fondo</span><input type="text" value={element.config?.primaryColor ?? element.background ?? ""} placeholder="Color, rgba(...) o linear-gradient(...)" onChange={(e) => onChange(element.id, { background: e.target.value, config: element.type === "app" ? { ...(element.config ?? {}), primaryColor: e.target.value } : element.config })} style={inputStyle} /></div>{element.type === "app" && <div><span style={labelStyle}>Color de texto</span><input type="text" value={element.color ?? element.config?.textColor ?? ""} onChange={(e) => onChange(element.id, { color: e.target.value, config: { ...(element.config ?? {}), textColor: e.target.value } })} style={inputStyle} /></div>}<div><span style={labelStyle}>Transparencia {Math.round((1 - (element.opacity ?? 1)) * 100)}%</span><input type="range" min={0} max={1} step={0.01} value={element.opacity ?? 1} onChange={(e) => onChange(element.id, { opacity: Number(e.target.value) })} style={{ width: "100%", accentColor: "#7c3aed" }} /></div></>, element.type !== "text", "Relleno")}
-        {renderGroup("stroke", "Contorno", <><div><span style={labelStyle}>Borde redondeado: {element.borderRadius ?? 0}px</span><input type="range" min={0} max={999} step={1} value={element.borderRadius ?? 0} onChange={(e) => onChange(element.id, { borderRadius: Number(e.target.value) })} style={{ width: "100%", accentColor: "#7c3aed" }} /></div><div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}><span style={{ ...labelStyle, margin: 0 }}>Activar contorno</span><button type="button" onClick={() => onChange(element.id, hasBorder(element) ? { borderWidth: 0, borderStyle: "none" } : { borderWidth: 1, borderStyle: "solid", borderColor: element.borderColor ?? "#c8a96a" })} style={{ ...actionBtnStyle, width: "auto", padding: "6px 10px" }}>{hasBorder(element) ? "Activo" : "Inactivo"}</button></div>{hasBorder(element) && <><input type="text" value={element.borderColor ?? ""} placeholder="rgba(200,169,106,0.35)" onChange={(e) => onChange(element.id, { borderColor: e.target.value })} style={inputStyle} /><input type="range" min={1} max={12} step={1} value={element.borderWidth ?? 1} onChange={(e) => onChange(element.id, { borderWidth: Number(e.target.value) })} style={{ width: "100%", accentColor: "#7c3aed" }} /><div style={{ display: "flex", gap: 4 }}>{(["solid", "dashed"] as const).map((borderStyle) => <button key={borderStyle} type="button" onClick={() => onChange(element.id, { borderStyle })} style={{ ...actionBtnStyle, textAlign: "center", background: (element.borderStyle ?? "solid") === borderStyle ? "#2a1f4d" : "#1e1e2d" }}>{borderStyle === "solid" ? "Sólido" : "Discontinuo"}</button>)}</div></>}</>, element.type !== "text", "Contorno")}
-        {renderGroup("shadow", "Sombra", <>{element.type === "text" && <div><span style={labelStyle}>Sombra de texto</span><input type="text" value={element.textShadow ?? ""} placeholder="0 2px 10px rgba(...)" onChange={(e) => onChange(element.id, { textShadow: e.target.value })} style={inputStyle} /></div>}{(element.type === "shape" || element.type === "decoration") && element.blur !== undefined && <div><span style={labelStyle}>Desenfoque: {element.blur ?? 0}px</span><input type="range" min={0} max={40} step={1} value={element.blur ?? 0} onChange={(e) => onChange(element.id, { blur: Number(e.target.value) })} style={{ width: "100%", accentColor: "#7c3aed" }} /></div>}</>, element.type === "text" || element.type === "shape" || element.type === "decoration", "Sombra")}
-        {renderGroup("spacing", "Espaciado interno", <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>{(["x", "y", "width", "height"] as const).map((k) => <div key={k}><span style={{ ...labelStyle, fontSize: 9 }}>{k === "x" ? "Posición X" : k === "y" ? "Posición Y" : k === "width" ? "Ancho" : "Alto"}</span><input type="number" value={Math.round(element[k] as number) || 0} disabled={element.locked} onChange={(e) => onChange(element.id, { [k]: Number(e.target.value) })} style={{ ...inputStyle, opacity: element.locked ? 0.5 : 1 }} /></div>)}</div>, true, "Ajustes")}
-        {renderGroup("action", "Acción", <>
+        {renderGroup("typography", "Tipografía", <><div><span style={labelStyle}>Color</span><div style={{ display: "flex", gap: 8, alignItems: "center" }}><input type="color" value={element.color ?? "#ffffff"} onChange={(e) => onChange(element.id, { color: e.target.value })} style={{ width: 36, height: 30, border: "1px solid rgba(184,146,90,0.22)", borderRadius: 8, cursor: "pointer", background: "#fffaf2" }} /><input type="text" value={element.color ?? "#ffffff"} onChange={(e) => onChange(element.id, { color: e.target.value })} style={{ ...inputStyle, flex: 1 }} /></div></div><div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}><div><span style={labelStyle}>Tamaño</span><input type="number" min={8} max={120} value={element.fontSize ?? 16} onChange={(e) => onChange(element.id, { fontSize: Number(e.target.value) })} style={inputStyle} /></div><div><span style={labelStyle}>Peso</span><input type="text" value={element.fontWeight ?? "400"} onChange={(e) => onChange(element.id, { fontWeight: e.target.value })} style={inputStyle} /></div></div><div><span style={labelStyle}>Fuente</span><select value={element.fontFamily ?? "Inter, system-ui, sans-serif"} onChange={(e) => onChange(element.id, { fontFamily: e.target.value })} style={{ ...inputStyle, cursor: "pointer" }}><option value="Inter, system-ui, sans-serif">Inter</option><option value="'Playfair Display', Georgia, serif">Playfair Display</option><option value="Georgia, serif">Georgia</option><option value="'Dancing Script', cursive">Dancing Script</option></select></div></>, element.type === "text", "Aa")}
+        {renderGroup("fill", "Color", <><div><span style={labelStyle}>Fondo</span><input type="text" value={element.config?.primaryColor ?? element.background ?? ""} placeholder="Color, rgba(...) o linear-gradient(...)" onChange={(e) => onChange(element.id, { background: e.target.value, config: element.type === "app" ? { ...(element.config ?? {}), primaryColor: e.target.value } : element.config })} style={inputStyle} /></div>{element.type === "app" && <div><span style={labelStyle}>Color de texto</span><input type="text" value={element.color ?? element.config?.textColor ?? ""} onChange={(e) => onChange(element.id, { color: e.target.value, config: { ...(element.config ?? {}), textColor: e.target.value } })} style={inputStyle} /></div>}<div><span style={labelStyle}>Opacidad {Math.round((element.opacity ?? 1) * 100)}%</span><input type="range" min={0} max={1} step={0.01} value={element.opacity ?? 1} onChange={(e) => onChange(element.id, { opacity: Number(e.target.value) })} style={{ width: "100%", accentColor: "#b8925a" }} /></div></>, element.type !== "text", "Color")}
+        {renderGroup("spacing", "Espaciado básico", <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>{(["x", "y", "width", "height"] as const).map((k) => <div key={k}><span style={{ ...labelStyle, fontSize: 9 }}>{k === "x" ? "Posición X" : k === "y" ? "Posición Y" : k === "width" ? "Ancho" : "Alto"}</span><input type="number" value={Math.round(element[k] as number) || 0} disabled={element.locked} onChange={(e) => onChange(element.id, { [k]: Number(e.target.value) })} style={{ ...inputStyle, opacity: element.locked ? 0.5 : 1 }} /></div>)}</div>, true, "Ajustes")}
+        <button
+          type="button"
+          onClick={() => setShowAdvanced((v) => !v)}
+          style={{
+            width: "100%",
+            border: "none",
+            borderRadius: 999,
+            padding: "8px 12px",
+            background: "rgba(184,146,90,0.12)",
+            color: "#7a5a4f",
+            fontSize: 11,
+            fontWeight: 700,
+            letterSpacing: "0.04em",
+            textTransform: "uppercase",
+            cursor: "pointer",
+          }}
+        >
+          {showAdvanced ? "Ocultar más opciones" : "Más opciones"}
+        </button>
+        {showAdvanced && renderGroup("shadow", "Detalle visual", <>{element.type === "text" && <div><span style={labelStyle}>Sombra de texto</span><input type="text" value={element.textShadow ?? ""} placeholder="0 2px 10px rgba(...)" onChange={(e) => onChange(element.id, { textShadow: e.target.value })} style={inputStyle} /></div>}{(element.type === "shape" || element.type === "decoration") && element.blur !== undefined && <div><span style={labelStyle}>Desenfoque: {element.blur ?? 0}px</span><input type="range" min={0} max={40} step={1} value={element.blur ?? 0} onChange={(e) => onChange(element.id, { blur: Number(e.target.value) })} style={{ width: "100%", accentColor: "#b8925a" }} /></div>}</>, element.type === "text" || element.type === "shape" || element.type === "decoration", "Sombra")}
+        {showAdvanced && renderGroup("stroke", "Contorno", <><div><span style={labelStyle}>Borde redondeado: {element.borderRadius ?? 0}px</span><input type="range" min={0} max={999} step={1} value={element.borderRadius ?? 0} onChange={(e) => onChange(element.id, { borderRadius: Number(e.target.value) })} style={{ width: "100%", accentColor: "#b8925a" }} /></div><div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}><span style={{ ...labelStyle, margin: 0 }}>Contorno</span><button type="button" onClick={() => onChange(element.id, hasBorder(element) ? { borderWidth: 0, borderStyle: "none" } : { borderWidth: 1, borderStyle: "solid", borderColor: element.borderColor ?? "#c8a96a" })} style={{ ...actionBtnStyle, width: "auto", padding: "6px 12px" }}>{hasBorder(element) ? "Activo" : "Inactivo"}</button></div>{hasBorder(element) && <><input type="text" value={element.borderColor ?? ""} placeholder="rgba(200,169,106,0.35)" onChange={(e) => onChange(element.id, { borderColor: e.target.value })} style={inputStyle} /><input type="range" min={1} max={12} step={1} value={element.borderWidth ?? 1} onChange={(e) => onChange(element.id, { borderWidth: Number(e.target.value) })} style={{ width: "100%", accentColor: "#b8925a" }} /><div style={{ display: "flex", gap: 6 }}>{(["solid", "dashed"] as const).map((borderStyle) => <button key={borderStyle} type="button" onClick={() => onChange(element.id, { borderStyle })} style={{ ...actionBtnStyle, background: (element.borderStyle ?? "solid") === borderStyle ? "rgba(184,146,90,0.22)" : "rgba(255,255,255,0.78)" }}>{borderStyle === "solid" ? "Sólido" : "Discontinuo"}</button>)}</div></>}</>, element.type !== "text", "Contorno")}
+        {showAdvanced && renderGroup("action", "Acciones", <>
           {element.type === "app" && normalizeAppType(element) !== "countdown" && <div><span style={labelStyle}>URL de muestra</span><input type="text" value={element.config?.url ?? ""} onChange={(e) => onChange(element.id, { config: { ...(element.config ?? {}), url: e.target.value } })} style={inputStyle} /></div>}
           {element.type === "app" && normalizeAppType(element) === "countdown" && (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              <span style={{ ...labelStyle, fontWeight: 700, color: "#c4b5fd" }}>⏱ Cuenta Regresiva</span>
+              <span style={{ ...labelStyle, fontWeight: 700, color: "#7a5a4f" }}>⏱ Cuenta Regresiva</span>
               <div>
                 <span style={labelStyle}>Fuente de la fecha</span>
                 <div style={{ display: "flex", gap: 4 }}>
                   {(["event", "custom"] as const).map((mode) => (
-                    <button key={mode} type="button" onClick={() => onChange(element.id, { config: { ...(element.config ?? {}), countdownMode: mode } })} style={{ ...actionBtnStyle, flex: 1, textAlign: "center", background: (element.config?.countdownMode ?? "event") === mode ? "#2a1f4d" : "#1e1e2d", color: (element.config?.countdownMode ?? "event") === mode ? "#a78bfa" : "#c8c4f0" }}>
+                    <button key={mode} type="button" onClick={() => onChange(element.id, { config: { ...(element.config ?? {}), countdownMode: mode } })} style={{ ...actionBtnStyle, flex: 1, textAlign: "center", background: (element.config?.countdownMode ?? "event") === mode ? "rgba(184,146,90,0.24)" : "rgba(255,255,255,0.72)", color: (element.config?.countdownMode ?? "event") === mode ? "#7a5a4f" : "#866f62" }}>
                       {mode === "event" ? "Fecha del evento" : "Personalizada"}
                     </button>
                   ))}
                 </div>
               </div>
               {(element.config?.countdownMode ?? "event") === "event" && (
-                <div style={{ padding: "6px 8px", borderRadius: 6, background: "rgba(124,58,237,0.12)", border: "1px solid rgba(124,58,237,0.25)" }}>
-                  <span style={{ ...labelStyle, margin: 0, color: eventDate ? "#a78bfa" : "#f87171" }}>
+                <div style={{ padding: "8px 10px", borderRadius: 10, background: "rgba(184,146,90,0.12)", border: "1px solid rgba(184,146,90,0.22)" }}>
+                  <span style={{ ...labelStyle, margin: 0, color: eventDate ? "#7a5a4f" : "#b42336" }}>
                     {eventDate ? `📅 ${new Date(eventDate).toLocaleDateString("es", { day: "numeric", month: "long", year: "numeric" })}` : "⚠ Sin fecha configurada en el evento"}
                   </span>
                 </div>
@@ -1648,14 +1634,26 @@ function RightPanel({
               {element.config?.countdownMode === "custom" && (
                 <div>
                   <span style={labelStyle}>Fecha y hora objetivo</span>
-                  <input type="datetime-local" value={element.config?.countdownTarget ? element.config.countdownTarget.slice(0, 16) : ""} onChange={(e) => onChange(element.id, { config: { ...(element.config ?? {}), countdownTarget: e.target.value ? new Date(e.target.value).toISOString() : "" } })} style={{ ...inputStyle, colorScheme: "dark" }} />
+                  <input type="datetime-local" value={element.config?.countdownTarget ? element.config.countdownTarget.slice(0, 16) : ""} onChange={(e) => onChange(element.id, { config: { ...(element.config ?? {}), countdownTarget: e.target.value ? new Date(e.target.value).toISOString() : "" } })} style={inputStyle} />
                 </div>
               )}
             </div>
           )}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}><button type="button" onClick={onDuplicate} style={{ ...actionBtnStyle, textAlign: "center" }}>Duplicar</button><button type="button" onClick={onBringToFront} style={{ ...actionBtnStyle, textAlign: "center" }}>Traer al frente</button><button type="button" onClick={onSendToBack} style={{ ...actionBtnStyle, textAlign: "center" }}>Enviar atrás</button><button type="button" onClick={() => setPendingDelete("element")} style={{ ...actionBtnStyle, textAlign: "center", color: "#f87171" }}>Eliminar</button></div>
+          {pendingDelete === "element" && (
+            <div style={{ display: "flex", gap: 6 }}>
+              <button type="button" onClick={() => { onDelete(); setPendingDelete(null); }}
+                style={{ ...actionBtnStyle, flex: 1, background: "rgba(220,38,38,0.12)", border: "1px solid rgba(220,38,38,0.32)", color: "#b42336" }}>
+                Confirmar eliminación
+              </button>
+              <button type="button" onClick={() => setPendingDelete(null)}
+                style={{ ...actionBtnStyle, width: "auto", padding: "7px 14px", color: "#8a6f61" }}>
+                Cancelar
+              </button>
+            </div>
+          )}
         </>, true, "Acción")}
-        {renderGroup("visibility", "Visibilidad", <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}><span style={{ ...labelStyle, margin: 0 }}>Visible</span><button type="button" onClick={() => onChange(element.id, { visible: !element.visible })} style={{ width: 36, height: 20, borderRadius: 10, background: element.visible ? "#7c3aed" : "#2a2a3d", border: "none", cursor: "pointer", position: "relative", transition: "background 0.2s" }}><span style={{ position: "absolute", top: 2, left: element.visible ? 18 : 2, width: 16, height: 16, background: "#fff", borderRadius: 8, transition: "left 0.2s" }} /></button></div>, true, "Vista")}
+        {showAdvanced && renderGroup("visibility", "Visibilidad", <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}><span style={{ ...labelStyle, margin: 0 }}>Visible</span><button type="button" onClick={() => onChange(element.id, { visible: !element.visible })} style={{ width: 36, height: 20, borderRadius: 10, background: element.visible ? "#b8925a" : "rgba(184,146,90,0.26)", border: "none", cursor: "pointer", position: "relative", transition: "background 0.2s" }}><span style={{ position: "absolute", top: 2, left: element.visible ? 18 : 2, width: 16, height: 16, background: "#fff", borderRadius: 8, transition: "left 0.2s" }} /></button></div>, true, "Vista")}
       </div>
     </div>
   );

@@ -119,24 +119,28 @@ export default async function PreviewV3Page({ params }: Props) {
       <div
         style={{
           minHeight: "100vh",
-          background: "#0f0f17",
+          background: "linear-gradient(180deg,#fff8f0 0%,#f7eadc 55%,#f1dccd 100%)",
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
-          paddingTop: 24,
-          paddingBottom: 48,
+          paddingTop: 0,
+          paddingBottom: 0,
+          overflowX: "hidden",
         }}
       >
         {/* Top bar */}
         <div
           style={{
             width: "100%",
-            maxWidth: 480,
+            maxWidth: 520,
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            padding: "0 16px",
-            marginBottom: 20,
+            padding: "12px 16px",
+            boxSizing: "border-box",
+            marginBottom: 0,
+            background: "rgba(255,248,240,0.92)",
+            borderBottom: "1px solid rgba(184,146,90,0.18)",
           }}
         >
           <a
@@ -147,8 +151,8 @@ export default async function PreviewV3Page({ params }: Props) {
               textDecoration: "none",
               padding: "5px 12px",
               borderRadius: 8,
-              border: "1px solid #2a2a3d",
-              background: "#16161f",
+              border: "1px solid rgba(184,146,90,0.28)",
+              background: "rgba(255,252,247,0.78)",
               fontFamily: "Inter, system-ui, sans-serif",
             }}
           >
@@ -168,7 +172,7 @@ export default async function PreviewV3Page({ params }: Props) {
         </div>
 
         {/* Canvas renderer — el renderer normaliza internamente */}
-        <div style={{ width: "100%", maxWidth: 480, padding: "0 16px" }}>
+        <div style={{ width: "100%", maxWidth: "100vw", padding: 0, overflowX: "hidden" }}>
           <CanvasV3PublicRenderer
             design={asObj}
             eventTitle={eventTitle}

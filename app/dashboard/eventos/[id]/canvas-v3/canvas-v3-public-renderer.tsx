@@ -574,7 +574,11 @@ export function CanvasV3PublicRenderer({
       try {
         if (!wrapperRef.current) return;
         const containerW = wrapperRef.current.clientWidth;
-        if (containerW > 0) setScale(Math.min(1, containerW / CANVAS_W));
+        if (containerW > 0) {
+          const fitScale = containerW / CANVAS_W;
+          const isMobileWidth = window.innerWidth <= 640;
+          setScale(isMobileWidth ? fitScale : Math.min(1, fitScale));
+        }
       } catch { /* ignore */ }
     };
     update();
@@ -594,15 +598,19 @@ export function CanvasV3PublicRenderer({
     return Math.max(max, el.y + elH);
   }, 0);
   const documentHeight = Math.max(design.height, sectionMaxH, elementMaxH, 844);
+  const pageBackground = design.sections[0]?.background || "#fff8f0";
 
   return (
     <div
       ref={wrapperRef}
       style={{
         width: "100%",
+        minHeight: documentHeight * scale,
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
+        background: pageBackground,
+        overflowX: "hidden",
       }}
     >
       {/* Preview badge */}
@@ -613,10 +621,10 @@ export function CanvasV3PublicRenderer({
             maxWidth: CANVAS_W * scale,
             marginBottom: 8,
             padding: "6px 12px",
-            background: "rgba(124,58,237,0.18)",
-            border: "1px solid rgba(124,58,237,0.4)",
+            background: "rgba(255,252,247,0.72)",
+            border: "1px solid rgba(184,146,90,0.26)",
             borderRadius: 8,
-            color: "#c4b5fd",
+            color: "#8a4f63",
             fontSize: 11,
             fontFamily: "Inter, system-ui, sans-serif",
             fontWeight: "600",
@@ -635,8 +643,9 @@ export function CanvasV3PublicRenderer({
           height: documentHeight * scale,
           position: "relative",
           overflow: "hidden",
-          borderRadius: scale < 1 ? 16 : 0,
-          boxShadow: scale < 1 ? "0 8px 48px rgba(0,0,0,0.6)" : "none",
+          borderRadius: 0,
+          boxShadow: "none",
+          background: pageBackground,
         }}
       >
         {/* Section backgrounds */}

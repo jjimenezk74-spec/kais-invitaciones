@@ -479,6 +479,10 @@ function RenderElement({
   onMouseDown,
   onClick,
   onResizeMouseDown,
+  // Section clip values: how many px the element overflows its section top/bottom.
+  // Applied only to the visual content layer — handles and toolbar remain unclipped.
+  clipTop = 0,
+  clipBottom = 0,
 }: {
   el: V3Element;
   selected: boolean;
@@ -486,8 +490,15 @@ function RenderElement({
   onMouseDown: (e: React.MouseEvent) => void;
   onClick: (e: React.MouseEvent) => void;
   onResizeMouseDown: (e: React.MouseEvent, handle: string) => void;
+  clipTop?: number;
+  clipBottom?: number;
 }) {
-  const boxStyle: React.CSSProperties = {
+  const [isHovered, setIsHovered] = useState(false);
+
+  // ── Outer positioning div ─────────────────────────────────────────────────
+  // Always overflow: visible so resize handles (-4px) and toolbar (-32px) show.
+  // Border and borderRadius live on the inner content wrapper (so they get clipped too).
+  const outerStyle: React.CSSProperties = {
     position: "absolute",
     left: el.x,
     top: el.y,
@@ -495,25 +506,33 @@ function RenderElement({
     height: el.height ?? "auto",
     zIndex: el.zIndex,
     opacity: el.opacity ?? 1,
-    borderRadius: el.borderRadius,
-    border: computeBorder(el),
     cursor: el.locked ? "default" : (selected || highlighted) ? "grab" : "pointer",
     userSelect: "none",
-    overflow: (selected || highlighted) ? "visible" : "hidden",
-    boxShadow: highlighted && !selected ? "inset 0 0 0 1px rgba(184,146,90,0.72), 0 0 0 3px rgba(184,146,90,0.12)" : undefined,
+    overflow: "visible",
+    // selection / hover ring — stays on outer so it's always fully visible
+    outline: selected
+      ? "1.5px solid #b8925a"
+      : isHovered
+      ? "1px solid rgba(184,146,90,0.46)"
+      : undefined,
+    outlineOffset: "2px",
+    boxShadow: highlighted && !selected
+      ? "inset 0 0 0 1px rgba(184,146,90,0.72), 0 0 0 3px rgba(184,146,90,0.12)"
+      : undefined,
   };
 
-  if (el.background && !el.content) {
-    boxStyle.background = el.background;
-    if (el.blur) boxStyle.backdropFilter = `blur(${el.blur}px)`;
-  }
-
-  const [isHovered, setIsHovered] = useState(false);
-  const ringStyle: React.CSSProperties = selected
-    ? { outline: "1.5px solid #b8925a", outlineOffset: "2px" }
-    : isHovered
-    ? { outline: "1px solid rgba(184,146,90,0.46)", outlineOffset: "2px" }
-    : {};
+  // ── Inner content wrapper — clipped to section boundaries ─────────────────
+  // clipPath clips anything that overflows section top or bottom.
+  // border + borderRadius live here so they're clipped too (no border bleed).
+  const hasClip = clipTop > 0 || clipBottom > 0;
+  const contentStyle: React.CSSProperties = {
+    position: "absolute",
+    inset: 0,
+    borderRadius: el.borderRadius,
+    border: computeBorder(el),
+    overflow: "hidden",
+    clipPath: hasClip ? `inset(${clipTop}px 0px ${clipBottom}px 0px)` : undefined,
+  };
 
   const handleSize = 8;
   const handles = ["tl", "t", "tr", "r", "br", "b", "bl", "l"];
@@ -532,102 +551,105 @@ function RenderElement({
 
   return (
     <div
-      style={{ ...boxStyle, ...ringStyle }}
+      style={outerStyle}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       onMouseDown={(e) => { e.stopPropagation(); onMouseDown(e); }}
       onClick={(e) => { e.stopPropagation(); onClick(e); }}
     >
-      {/* Background fill */}
-      {el.background && (
-        <div
-          style={{
-            position: "absolute", inset: 0,
-            background: el.background,
-            borderRadius: el.borderRadius,
-            backdropFilter: el.blur ? `blur(${el.blur}px)` : undefined,
-          }}
-        />
-      )}
+      {/* ── Visual content — clipped to section boundaries ── */}
+      <div style={contentStyle}>
+        {/* Background fill */}
+        {el.background && (
+          <div
+            style={{
+              position: "absolute", inset: 0,
+              background: el.background,
+              borderRadius: el.borderRadius,
+              backdropFilter: el.blur ? `blur(${el.blur}px)` : undefined,
+            }}
+          />
+        )}
 
-      {/* Text content */}
-      {el.content && el.type !== "app" && (
-        <p
-          style={{
-            position: "relative",
-            margin: 0,
-            padding: el.type === "decoration" ? "16px 20px" : 0,
-            fontFamily: el.fontFamily ?? "Inter, system-ui, sans-serif",
-            fontSize: el.fontSize ?? 14,
-            fontWeight: el.fontWeight ?? "400",
-            fontStyle: el.fontStyle ?? "normal",
-            textAlign: el.textAlign ?? "center",
-            color: el.color ?? "#ffffff",
-            lineHeight: el.lineHeight ?? 1.4,
-            letterSpacing: el.letterSpacing ? `${el.letterSpacing}em` : undefined,
-            textShadow: el.textShadow ?? undefined,
-            whiteSpace: "pre-wrap",
-            wordBreak: "break-word",
-            width: "100%",
-          }}
-        >
-          {el.content}
-        </p>
-      )}
+        {/* Text content */}
+        {el.content && el.type !== "app" && (
+          <p
+            style={{
+              position: "relative",
+              margin: 0,
+              padding: el.type === "decoration" ? "16px 20px" : 0,
+              fontFamily: el.fontFamily ?? "Inter, system-ui, sans-serif",
+              fontSize: el.fontSize ?? 14,
+              fontWeight: el.fontWeight ?? "400",
+              fontStyle: el.fontStyle ?? "normal",
+              textAlign: el.textAlign ?? "center",
+              color: el.color ?? "#ffffff",
+              lineHeight: el.lineHeight ?? 1.4,
+              letterSpacing: el.letterSpacing ? `${el.letterSpacing}em` : undefined,
+              textShadow: el.textShadow ?? undefined,
+              whiteSpace: "pre-wrap",
+              wordBreak: "break-word",
+              width: "100%",
+            }}
+          >
+            {el.content}
+          </p>
+        )}
 
-      {/* App block content */}
-      {el.type === "app" && normalizeAppType(el) && (
-        <div
-          style={{
-            position: "absolute", inset: 0,
-            background: el.background,
-            borderRadius: el.borderRadius,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 10,
-            padding: normalizeAppType(el) === "qr" ? 12 : 0,
-            flexDirection: normalizeAppType(el) === "qr" ? "column" : "row",
-          }}
-        >
-          {normalizeAppType(el) === "countdown" ? (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8, width: "88%" }}>
-              {["45", "12", "08", "30"].map((value, index) => (
-                <div key={index} style={{ textAlign: "center" }}>
-                  <strong style={{ display: "block", color: el.color ?? "#e8e6ff", fontSize: 18 }}>{value}</strong>
-                  <span style={{ color: el.color ?? "#e8e6ff", opacity: 0.72, fontSize: 8, letterSpacing: "0.08em" }}>
-                    {["DIAS", "HRS", "MIN", "SEG"][index]}
-                  </span>
-                </div>
-              ))}
-            </div>
-          ) : normalizeAppType(el) === "qr" ? (
-            <>
-              <div style={{ width: 104, height: 104, display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 4 }}>
-                {Array.from({ length: 25 }).map((_, index) => (
-                  <span key={index} style={{ background: index % 3 === 0 || index % 7 === 0 ? "#1a0a18" : "transparent", borderRadius: 2 }} />
+        {/* App block content */}
+        {el.type === "app" && normalizeAppType(el) && (
+          <div
+            style={{
+              position: "absolute", inset: 0,
+              background: el.background,
+              borderRadius: el.borderRadius,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 10,
+              padding: normalizeAppType(el) === "qr" ? 12 : 0,
+              flexDirection: normalizeAppType(el) === "qr" ? "column" : "row",
+            }}
+          >
+            {normalizeAppType(el) === "countdown" ? (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8, width: "88%" }}>
+                {["45", "12", "08", "30"].map((value, index) => (
+                  <div key={index} style={{ textAlign: "center" }}>
+                    <strong style={{ display: "block", color: el.color ?? "#e8e6ff", fontSize: 18 }}>{value}</strong>
+                    <span style={{ color: el.color ?? "#e8e6ff", opacity: 0.72, fontSize: 8, letterSpacing: "0.08em" }}>
+                      {["DIAS", "HRS", "MIN", "SEG"][index]}
+                    </span>
+                  </div>
                 ))}
               </div>
-              <span style={{ color: el.color ?? "#1a0a18", fontSize: 11, fontWeight: 700 }}>{el.content ?? "QR del evento"}</span>
-            </>
-          ) : (
-            <>
-              <span style={{ fontSize: 18 }}>{APP_DEMO_LABELS[normalizeAppType(el)!]?.icon}</span>
-              <span style={{
-                color: el.color ?? APP_DEFAULTS[normalizeAppType(el)!].color,
-                fontFamily: "Inter, system-ui, sans-serif",
-                fontSize: normalizeAppType(el) === "rsvp" ? 15 : 13,
-                fontWeight: normalizeAppType(el) === "rsvp" ? "700" : "600",
-                letterSpacing: normalizeAppType(el) === "rsvp" ? "0.12em" : "0.04em",
-              }}>
-                {el.content || APP_DEMO_LABELS[normalizeAppType(el)!]?.label}
-              </span>
-            </>
-          )}
-        </div>
-      )}
+            ) : normalizeAppType(el) === "qr" ? (
+              <>
+                <div style={{ width: 104, height: 104, display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 4 }}>
+                  {Array.from({ length: 25 }).map((_, index) => (
+                    <span key={index} style={{ background: index % 3 === 0 || index % 7 === 0 ? "#1a0a18" : "transparent", borderRadius: 2 }} />
+                  ))}
+                </div>
+                <span style={{ color: el.color ?? "#1a0a18", fontSize: 11, fontWeight: 700 }}>{el.content ?? "QR del evento"}</span>
+              </>
+            ) : (
+              <>
+                <span style={{ fontSize: 18 }}>{APP_DEMO_LABELS[normalizeAppType(el)!]?.icon}</span>
+                <span style={{
+                  color: el.color ?? APP_DEFAULTS[normalizeAppType(el)!].color,
+                  fontFamily: "Inter, system-ui, sans-serif",
+                  fontSize: normalizeAppType(el) === "rsvp" ? 15 : 13,
+                  fontWeight: normalizeAppType(el) === "rsvp" ? "700" : "600",
+                  letterSpacing: normalizeAppType(el) === "rsvp" ? "0.12em" : "0.04em",
+                }}>
+                  {el.content || APP_DEMO_LABELS[normalizeAppType(el)!]?.label}
+                </span>
+              </>
+            )}
+          </div>
+        )}
+      </div>{/* end visual content wrapper */}
 
-      {/* Resize handles — Canva-style */}
+      {/* ── Resize handles — outside clip so they always show ── */}
       {selected && !el.locked && handles.map((h) => (
         <div
           key={h}
@@ -656,6 +678,8 @@ function RenderElement({
           }}
         />
       ))}
+
+      {/* ── Context toolbar — outside clip so it never gets hidden ── */}
       {selected && (
         <div
           style={{
@@ -3497,34 +3521,46 @@ export function CanvasEditorV3({ eventId, eventSlug, eventTitle, initialDesign =
                 {[...elements]
                   .filter((el) => el.visible)
                   .sort((a, b) => a.zIndex - b.zIndex)
-                  .map((el) => (
-                    <RenderElement
-                      key={el.id}
-                      el={el}
-                      selected={el.id === selectedId && !preview}
-                      highlighted={selectedIds.length > 1 && selectedIds.includes(el.id) && !preview}
-                      onMouseDown={(e) => !preview && onMoveStart(e, el.id)}
-                      onClick={(e) => {
-                        if (preview) return;
-                        e.stopPropagation();
-                        // Ignore click events that follow a real drag (wasMovedRef still true)
-                        if (wasMovedRef.current) return;
-                        const expanded = expandSelectionWithGroups([el.id]);
-                        if (e.shiftKey) {
-                          setSelectedIds((prev) => {
-                            const expandedSet = new Set(expanded);
-                            const allSelected = expanded.every((id) => prev.includes(id));
-                            return allSelected
-                              ? prev.filter((sid) => !expandedSet.has(sid))
-                              : Array.from(new Set([...prev, ...expanded]));
-                          });
-                        } else {
-                          setSelectedIds(expanded);
-                        }
-                      }}
-                      onResizeMouseDown={(e, h) => !preview && onResizeStart(e, el.id, h)}
-                    />
-                  ))}
+                  .map((el) => {
+                    const elH = el.height ?? 60;
+                    const sec =
+                      sections.find((s) => el.y >= s.y && el.y < s.y + s.height) ??
+                      (el.y < (sections[0]?.y ?? 0)
+                        ? sections[0]
+                        : sections[sections.length - 1]);
+                    const clipTop = sec ? Math.max(0, sec.y - el.y) : 0;
+                    const clipBottom = sec ? Math.max(0, el.y + elH - (sec.y + sec.height)) : 0;
+                    return (
+                      <RenderElement
+                        key={el.id}
+                        el={el}
+                        clipTop={clipTop}
+                        clipBottom={clipBottom}
+                        selected={el.id === selectedId && !preview}
+                        highlighted={selectedIds.length > 1 && selectedIds.includes(el.id) && !preview}
+                        onMouseDown={(e) => !preview && onMoveStart(e, el.id)}
+                        onClick={(e) => {
+                          if (preview) return;
+                          e.stopPropagation();
+                          // Ignore click events that follow a real drag (wasMovedRef still true)
+                          if (wasMovedRef.current) return;
+                          const expanded = expandSelectionWithGroups([el.id]);
+                          if (e.shiftKey) {
+                            setSelectedIds((prev) => {
+                              const expandedSet = new Set(expanded);
+                              const allSelected = expanded.every((id) => prev.includes(id));
+                              return allSelected
+                                ? prev.filter((sid) => !expandedSet.has(sid))
+                                : Array.from(new Set([...prev, ...expanded]));
+                            });
+                          } else {
+                            setSelectedIds(expanded);
+                          }
+                        }}
+                        onResizeMouseDown={(e, h) => !preview && onResizeStart(e, el.id, h)}
+                      />
+                    );
+                  })}
 
                 {!preview && selectionBox && (
                   <div

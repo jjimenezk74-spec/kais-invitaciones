@@ -11,6 +11,14 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
+function hasUnsafeInlineAsset(value: unknown): boolean {
+  return typeof value === "string" && (
+    value.includes("data:") ||
+    value.includes("blob:") ||
+    value.length > 12_000
+  );
+}
+
 /**
  * Returns the first failed check as a string, or null if the design is valid.
  * This replaces the silent boolean validator so we can log why it failed.
@@ -49,6 +57,7 @@ function validateCanvasV3Design(value: unknown): string | null {
     if (!Number.isFinite(Number(s.y))) return `section[${i}].y is not finite: ${String(s.y)}`;
     if (!Number.isFinite(Number(s.height))) return `section[${i}].height is not finite: ${String(s.height)}`;
     if (typeof s.background !== "string") return `section[${i}].background is not a string`;
+    if (hasUnsafeInlineAsset(s.background)) return `section[${i}].background contains unsafe inline asset`;
   }
 
   for (let i = 0; i < value.elements.length; i++) {
@@ -66,6 +75,11 @@ function validateCanvasV3Design(value: unknown): string | null {
     if (typeof el.locked !== "boolean") return `element[${i}].locked is not boolean`;
     if (typeof el.visible !== "boolean") return `element[${i}].visible is not boolean`;
     if (!Number.isFinite(Number(el.zIndex))) return `element[${i}].zIndex is not finite: ${String(el.zIndex)}`;
+    if (hasUnsafeInlineAsset(el.background)) return `element[${i}].background contains unsafe inline asset`;
+    if (hasUnsafeInlineAsset(el.content)) return `element[${i}].content contains unsafe inline asset`;
+    if (isRecord(el.config) && hasUnsafeInlineAsset(el.config.url)) {
+      return `element[${i}].config.url contains unsafe inline asset`;
+    }
   }
 
   return null; // valid

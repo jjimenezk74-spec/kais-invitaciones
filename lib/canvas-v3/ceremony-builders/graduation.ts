@@ -5,17 +5,16 @@ const DISPLAY_FONT = "'Playfair Display', Georgia, serif";
 const BODY_FONT = "Inter, system-ui, sans-serif";
 
 const SECTION_VISUALS: Array<Pick<CanvasV3Section, "id" | "label" | "height" | "background" | "kind" | "required" | "sourceEventType">> = [
-  { id: "hero", label: "Portada", height: 820, background: "linear-gradient(180deg,#060b18 0%,#111827 52%,#080a10 100%)", kind: "hero", required: true, sourceEventType: "graduation" },
-  { id: "countdown", label: "Cuenta regresiva", height: 380, background: "linear-gradient(180deg,#080a10,#101827)", kind: "countdown", required: true, sourceEventType: "graduation" },
-  { id: "presentation", label: "Graduado", height: 540, background: "linear-gradient(180deg,#101827,#080d18)", kind: "person_presentation", required: true, sourceEventType: "graduation" },
-  { id: "academic_ceremony", label: "Acto academico", height: 520, background: "linear-gradient(180deg,#080d18,#12141c)", kind: "academic_ceremony", required: true, sourceEventType: "graduation" },
-  { id: "reception", label: "Recepcion", height: 460, background: "linear-gradient(180deg,#12141c,#090d16)", kind: "reception", required: false, sourceEventType: "graduation" },
-  { id: "graduate_message", label: "Mensaje del graduado", height: 520, background: "linear-gradient(180deg,#090d16,#111827)", kind: "message", required: false, sourceEventType: "graduation" },
-  { id: "family_message", label: "Mensaje familiar", height: 500, background: "linear-gradient(180deg,#111827,#0b101a)", kind: "parents_message", required: false, sourceEventType: "graduation" },
-  { id: "dress_code", label: "Vestimenta", height: 420, background: "linear-gradient(180deg,#0b101a,#10131b)", kind: "dress_code", required: false, sourceEventType: "graduation" },
-  { id: "location", label: "Ubicacion", height: 520, background: "linear-gradient(180deg,#10131b,#080a10)", kind: "event_details", required: true, sourceEventType: "graduation" },
-  { id: "rsvp", label: "Confirmacion", height: 520, background: "linear-gradient(180deg,#080a10,#111827)", kind: "rsvp", required: true, sourceEventType: "graduation" },
-  { id: "footer", label: "Cierre", height: 260, background: "linear-gradient(180deg,#111827,#05070d)", kind: "footer", required: true, sourceEventType: "graduation" },
+  { id: "hero", label: "Portada", height: 860, background: "linear-gradient(180deg,#030712 0%,#0f172a 48%,#070a12 100%)", kind: "hero", required: true, sourceEventType: "graduation" },
+  { id: "presentation", label: "Presentacion", height: 540, background: "linear-gradient(180deg,#070a12,#111827 62%,#080c15)", kind: "person_presentation", required: true, sourceEventType: "graduation" },
+  { id: "achievement", label: "Logro academico", height: 500, background: "linear-gradient(180deg,#080c15,#101827)", kind: "academic_ceremony", required: true, sourceEventType: "graduation" },
+  { id: "academic_ceremony", label: "Acto academico", height: 500, background: "linear-gradient(180deg,#101827,#0b1020)", kind: "academic_ceremony", required: true, sourceEventType: "graduation" },
+  { id: "reception", label: "Recepcion", height: 440, background: "linear-gradient(180deg,#0b1020,#12141c)", kind: "reception", required: false, sourceEventType: "graduation" },
+  { id: "message", label: "Mensaje principal", height: 560, background: "linear-gradient(180deg,#12141c,#080d18)", kind: "message", required: false, sourceEventType: "graduation" },
+  { id: "dress_code", label: "Vestimenta", height: 400, background: "linear-gradient(180deg,#080d18,#10131b)", kind: "dress_code", required: false, sourceEventType: "graduation" },
+  { id: "location", label: "Ubicacion", height: 520, background: "linear-gradient(180deg,#10131b,#070a12)", kind: "event_details", required: true, sourceEventType: "graduation" },
+  { id: "rsvp", label: "Confirmacion", height: 520, background: "linear-gradient(180deg,#070a12,#111827)", kind: "rsvp", required: true, sourceEventType: "graduation" },
+  { id: "footer", label: "Cierre", height: 360, background: "linear-gradient(180deg,#111827,#030712)", kind: "footer", required: true, sourceEventType: "graduation" },
 ];
 
 function buildSections(): CanvasV3Section[] {
@@ -101,23 +100,25 @@ export function createGraduationCanvasV3Design(event: CanvasV3EventData): Canvas
   const ceremonyTime = clean(event.academic_ceremony_time) || clean(event.event_time);
   const receptionPlace = clean(event.reception_place) || clean(event.address);
   const receptionTime = clean(event.reception_time) || clean(event.event_time);
-  const graduateMessage = clean(event.graduate_message) || clean(event.main_message) || "Gracias por acompanarme en este logro.";
-  const familyMessage = clean(event.family_message) || "Celebramos este logro con gratitud, orgullo y alegria.";
+  const graduateMessage =
+    clean(event.graduate_message) ||
+    clean(event.main_message) ||
+    "Una noche para celebrar anos de esfuerzo, aprendizaje y nuevos comienzos.";
+  const familyMessage = clean(event.family_message) || "Acompananos a compartir este logro tan especial.";
   const dressText = [
     clean(event.dress_code),
     clean(event.color_palette) ? `Colores: ${clean(event.color_palette)}` : "",
     clean(event.theme) ? `Estilo: ${clean(event.theme)}` : "",
   ].filter(Boolean).join("\n") || "Vestimenta por confirmar";
-  const locationText = [
-    dateLabel,
-    clean(event.address) || ceremonyPlace,
-  ].filter(Boolean).join("\n");
+  const achievementText = [degreeTitle, academicProgram, promotionName].filter(Boolean).join("\n") || "Logro academico";
+  const locationText = [dateLabel, clean(event.address) || ceremonyPlace].filter(Boolean).join("\n");
   const mapsUrl = safeExternalUrl(event.google_maps_link) || "https://maps.google.com";
   const waUrl = whatsappUrl(event.whatsapp_phone);
   const target = eventDateTime(event);
 
   const elements: CanvasV3Element[] = [];
   const push = (element: CanvasV3Element) => elements.push(element);
+
   const text = (id: string, sectionId: string, y: number, content: string, width: number, height: number | null, zIndex: number, extra: Partial<CanvasV3Element> = {}) => {
     push({
       id,
@@ -142,7 +143,8 @@ export function createGraduationCanvasV3Design(event: CanvasV3EventData): Canvas
       ...extra,
     });
   };
-  const card = (id: string, sectionId: string, y: number, width: number, height: number, zIndex: number, extra: Partial<CanvasV3Element> = {}) => {
+
+  const block = (id: string, sectionId: string, y: number, width: number, height: number, zIndex: number, extra: Partial<CanvasV3Element> = {}) => {
     push({
       id,
       type: "decoration",
@@ -154,12 +156,22 @@ export function createGraduationCanvasV3Design(event: CanvasV3EventData): Canvas
       visible: true,
       zIndex,
       background: "linear-gradient(135deg,rgba(255,255,255,0.08),rgba(212,175,55,0.08))",
-      border: "1px solid rgba(212,175,55,0.28)",
+      border: "1px solid rgba(212,175,55,0.26)",
       borderRadius: 22,
       opacity: 1,
       ...extra,
     });
   };
+
+  const line = (id: string, sectionId: string, y: number, width: number, zIndex: number, opacity = 0.72) => {
+    block(id, sectionId, y, width, 1, zIndex, {
+      background: "linear-gradient(90deg,transparent,#d4af37,transparent)",
+      border: undefined,
+      borderRadius: 999,
+      opacity,
+    });
+  };
+
   const app = (id: string, sectionId: string, y: number, appType: CanvasV3AppType, content: string, width: number, height: number, zIndex: number, url = "") => {
     push({
       id,
@@ -205,20 +217,27 @@ export function createGraduationCanvasV3Design(event: CanvasV3EventData): Canvas
     });
   };
 
-  card("grad-hero-bg", "hero", 0, 390, 820, 0, {
+  block("grad-hero-bg", "hero", 0, 390, 860, 0, {
     locked: true,
     borderRadius: 0,
     border: undefined,
     background: sections.find((section) => section.id === "hero")?.background,
   });
-  card("grad-hero-glow", "hero", 214, 300, 300, 1, {
-    background: "radial-gradient(circle,#d4af3744 0%,#1e40af22 48%,transparent 72%)",
+  block("grad-hero-glow-main", "hero", 154, 330, 330, 1, {
+    background: "radial-gradient(circle,#d4af3742 0%,#1d4ed833 46%,transparent 72%)",
     borderRadius: 999,
     border: undefined,
-    blur: 14,
-    opacity: 0.78,
+    blur: 16,
+    opacity: 0.82,
   });
-  text("grad-hero-type", "hero", 118, graduationType.toUpperCase(), 300, 22, 2, {
+  block("grad-hero-orbit", "hero", 88, 286, 286, 2, {
+    background: "transparent",
+    border: "1px solid rgba(212,175,55,0.22)",
+    borderRadius: 999,
+    opacity: 0.75,
+  });
+  line("grad-hero-line-top", "hero", 116, 170, 3);
+  text("grad-hero-type", "hero", 142, graduationType.toUpperCase(), 310, 22, 4, {
     semanticRole: "graduation_subtype",
     dataKey: "graduation_type",
     lockedContent: true,
@@ -227,81 +246,102 @@ export function createGraduationCanvasV3Design(event: CanvasV3EventData): Canvas
     color: "#d4af37",
     letterSpacing: 0.16,
   });
-  text("grad-hero-name", "hero", 160, graduateName, 356, null, 3, {
+  text("grad-hero-name", "hero", 196, graduateName, 356, null, 5, {
     semanticRole: "graduate_name",
     dataKey: "graduate_name",
     lockedContent: true,
-    fontSize: graduateName.length > 22 ? 44 : 56,
+    fontSize: graduateName.length > 22 ? 44 : 58,
     fontFamily: DISPLAY_FONT,
     fontWeight: "500",
     color: "#fff8e6",
-    lineHeight: 1,
+    lineHeight: 0.98,
   });
-  text("grad-hero-program", "hero", 286, [degreeTitle, academicProgram].filter(Boolean).join("\n") || "Logro academico", 320, null, 4, {
-    semanticRole: "graduation_program",
-    dataKey: degreeTitle ? "degree_title" : "academic_program",
-    lockedContent: true,
-    fontSize: 15,
-    color: "#d8cfbd",
-    lineHeight: 1.42,
-  });
-  text("grad-hero-institution", "hero", 372, institution, 330, null, 5, {
-    semanticRole: "institution_name",
-    dataKey: "institution_name",
-    lockedContent: true,
-    fontSize: 17,
-    fontFamily: DISPLAY_FONT,
-    fontStyle: "italic",
-    color: "#f5d782",
-  });
-  text("grad-hero-date", "hero", 446, dateLabel, 340, 30, 6, {
+  text("grad-hero-date", "hero", 334, dateLabel, 340, 30, 6, {
     semanticRole: "event_date",
     dataKey: "event_date",
     lockedContent: true,
     fontSize: 14,
     color: "#f7f0df",
   });
-  app("grad-hero-countdown", "hero", 560, "countdown", "", 340, 72, 7);
-
-  text("grad-countdown-title", "countdown", 62, "La cuenta final", 320, 42, 8, {
-    semanticRole: "countdown",
+  text("grad-hero-invitation", "hero", 396, "Tu presencia hara parte de este recuerdo.", 300, null, 7, {
+    semanticRole: "main_message",
+    dataKey: clean(event.main_message) ? "main_message" : undefined,
+    lockedContent: true,
     fontFamily: DISPLAY_FONT,
-    fontSize: 34,
+    fontSize: 20,
     fontStyle: "italic",
     color: "#f5d782",
+    lineHeight: 1.35,
   });
-  app("grad-countdown-app", "countdown", 138, "countdown", "", 340, 80, 9);
-  text("grad-countdown-caption", "countdown", 248, "para celebrar este logro", 300, 24, 10, {
-    fontSize: 13,
+  app("grad-hero-countdown", "hero", 540, "countdown", "", 340, 78, 8);
+  line("grad-hero-line-bottom", "hero", 686, 210, 9, 0.55);
+  text("grad-hero-institution", "hero", 718, institution, 330, null, 10, {
+    semanticRole: "institution_name",
+    dataKey: "institution_name",
+    lockedContent: true,
+    fontSize: 15,
     color: "#b9c2d6",
-    letterSpacing: 0.08,
+    lineHeight: 1.32,
   });
 
-  card("grad-presentation-card", "presentation", 78, 340, 340, 11);
-  text("grad-presentation-label", "presentation", 112, "GRADUADO", 280, 18, 12, {
+  text("grad-presentation-kicker", "presentation", 78, "UN CAMINO QUE SE CELEBRA", 330, 18, 11, {
     fontSize: 10,
     fontWeight: "900",
     color: "#d4af37",
     letterSpacing: 0.16,
   });
-  text("grad-presentation-name", "presentation", 152, graduateName, 310, null, 13, {
-    semanticRole: "graduate_name",
-    dataKey: "graduate_name",
+  text("grad-presentation-copy", "presentation", 132, "Una noche para celebrar anos de esfuerzo, aprendizaje y nuevos comienzos.", 330, null, 12, {
+    semanticRole: "main_message",
+    dataKey: clean(event.main_message) ? "main_message" : undefined,
     lockedContent: true,
     fontFamily: DISPLAY_FONT,
-    fontSize: 38,
+    fontSize: 28,
+    fontStyle: "italic",
     color: "#fff8e6",
+    lineHeight: 1.25,
   });
-  text("grad-presentation-details", "presentation", 248, [academicProgram, degreeTitle].filter(Boolean).join("\n") || "Trayectoria academica", 300, null, 14, {
-    semanticRole: "graduation_program",
-    dataKey: academicProgram ? "academic_program" : "degree_title",
+  line("grad-presentation-line", "presentation", 292, 150, 13);
+  text("grad-presentation-support", "presentation", 336, familyMessage, 310, null, 14, {
+    semanticRole: "parents_message",
+    dataKey: "family_message",
     lockedContent: true,
     fontSize: 15,
     color: "#d8cfbd",
     lineHeight: 1.45,
   });
+
+  block("grad-achievement-panel", "achievement", 62, 340, 320, 15, {
+    background: "linear-gradient(180deg,rgba(212,175,55,0.12),rgba(255,255,255,0.045))",
+    border: "1px solid rgba(212,175,55,0.34)",
+  });
+  text("grad-achievement-title", "achievement", 96, "Logro academico", 300, 34, 16, {
+    semanticRole: "graduation_program",
+    fontFamily: DISPLAY_FONT,
+    fontSize: 31,
+    fontStyle: "italic",
+    color: "#f5d782",
+  });
+  text("grad-achievement-degree", "achievement", 164, achievementText, 300, null, 17, {
+    semanticRole: "graduation_program",
+    dataKey: degreeTitle ? "degree_title" : academicProgram ? "academic_program" : "promotion_name",
+    lockedContent: true,
+    fontSize: 16,
+    color: "#fff8e6",
+    lineHeight: 1.45,
+  });
+  if (academicProgram) {
+    text("grad-achievement-program", "achievement", 260, academicProgram, 280, 24, 18, {
+      semanticRole: "graduation_program",
+      dataKey: "academic_program",
+      lockedContent: true,
+      fontSize: 12,
+      fontWeight: "800",
+      color: "#b9c2d6",
+      letterSpacing: 0.08,
+    });
+  }
   if (promotionName) {
-    text("grad-promotion-name", "presentation", 336, promotionName, 300, 24, 15, {
+    text("grad-promotion-name", "achievement", 306, promotionName, 280, 24, 19, {
       semanticRole: "graduation_program",
       dataKey: "promotion_name",
       lockedContent: true,
@@ -311,98 +351,129 @@ export function createGraduationCanvasV3Design(event: CanvasV3EventData): Canvas
       letterSpacing: 0.1,
     });
   }
-
-  card("grad-ceremony-card", "academic_ceremony", 74, 340, 300, 15);
-  text("grad-ceremony-title", "academic_ceremony", 106, "Acto academico", 300, 38, 16, {
-    semanticRole: "academic_ceremony",
-    fontFamily: DISPLAY_FONT,
-    fontSize: 32,
-    fontStyle: "italic",
-    color: "#f5d782",
+  text("grad-achievement-inst", "achievement", 382, institution, 320, null, 20, {
+    semanticRole: "institution_name",
+    dataKey: "institution_name",
+    lockedContent: true,
+    fontSize: 13,
+    color: "#d8cfbd",
   });
-  text("grad-ceremony-place", "academic_ceremony", 174, ceremonyPlace, 300, null, 17, {
+
+  block("grad-ceremony-side-line", "academic_ceremony", 72, 2, 310, 21, {
+    x: 42,
+    background: "linear-gradient(180deg,#d4af37,transparent)",
+    border: undefined,
+    borderRadius: 999,
+    opacity: 0.72,
+  });
+  text("grad-ceremony-label", "academic_ceremony", 92, "ACTO ACADEMICO", 280, 18, 22, {
+    fontSize: 10,
+    fontWeight: "900",
+    color: "#d4af37",
+    letterSpacing: 0.16,
+    textAlign: "left",
+    x: 66,
+  });
+  text("grad-ceremony-place", "academic_ceremony", 140, ceremonyPlace, 290, null, 23, {
     semanticRole: "academic_ceremony",
     dataKey: "academic_ceremony_place",
     lockedContent: true,
-    fontSize: 15,
-    color: "#f7f0df",
-    lineHeight: 1.4,
+    fontFamily: DISPLAY_FONT,
+    fontSize: 29,
+    fontStyle: "italic",
+    color: "#fff8e6",
+    lineHeight: 1.25,
+    textAlign: "left",
+    x: 66,
   });
-  text("grad-ceremony-time", "academic_ceremony", 262, ceremonyTime ? `${ceremonyTime} hs` : "Hora por confirmar", 260, 28, 18, {
+  text("grad-ceremony-time", "academic_ceremony", 276, ceremonyTime ? `${ceremonyTime} hs` : "Hora por confirmar", 250, 28, 24, {
     semanticRole: "academic_ceremony",
     dataKey: "academic_ceremony_time",
     lockedContent: true,
     fontSize: 14,
+    fontWeight: "800",
     color: "#d4af37",
+    textAlign: "left",
+    x: 66,
+  });
+  text("grad-ceremony-note", "academic_ceremony", 336, "Acompananos a compartir este logro tan especial.", 278, null, 25, {
+    fontSize: 14,
+    color: "#d8cfbd",
+    lineHeight: 1.42,
+    textAlign: "left",
+    x: 66,
   });
 
-  card("grad-reception-card", "reception", 72, 340, 250, 19);
-  text("grad-reception-title", "reception", 104, "Recepcion", 300, 38, 20, {
+  block("grad-reception-glow", "reception", 50, 230, 230, 26, {
+    background: "radial-gradient(circle,#d4af372e,transparent 72%)",
+    border: undefined,
+    borderRadius: 999,
+    blur: 12,
+    opacity: 0.8,
+  });
+  text("grad-reception-title", "reception", 96, "Recepcion", 300, 38, 27, {
     semanticRole: "reception_place",
     fontFamily: DISPLAY_FONT,
-    fontSize: 32,
+    fontSize: 34,
     fontStyle: "italic",
     color: "#f5d782",
   });
-  text("grad-reception-place", "reception", 174, receptionPlace || "Recepcion por confirmar", 300, null, 21, {
+  text("grad-reception-place", "reception", 172, receptionPlace || "Recepcion por confirmar", 310, null, 28, {
     semanticRole: "reception_place",
     dataKey: "reception_place",
     lockedContent: true,
-    fontSize: 15,
-    color: "#f7f0df",
+    fontSize: 16,
+    color: "#fff8e6",
     lineHeight: 1.4,
   });
-  text("grad-reception-time", "reception", 250, receptionTime ? `${receptionTime} hs` : "Hora por confirmar", 260, 28, 22, {
+  text("grad-reception-time", "reception", 264, receptionTime ? `${receptionTime} hs` : "Hora por confirmar", 260, 28, 29, {
     semanticRole: "reception_place",
     dataKey: "reception_time",
     lockedContent: true,
-    fontSize: 14,
+    fontSize: 13,
+    fontWeight: "800",
     color: "#d4af37",
   });
 
-  card("grad-message-card", "graduate_message", 74, 340, 270, 23);
-  text("grad-message-title", "graduate_message", 106, "Mensaje del graduado", 300, 24, 24, {
-    fontSize: 10,
-    fontWeight: "900",
-    color: "#d4af37",
-    letterSpacing: 0.16,
+  text("grad-message-title", "message", 80, "Para recordar", 300, 38, 30, {
+    fontFamily: DISPLAY_FONT,
+    fontSize: 34,
+    fontStyle: "italic",
+    color: "#f5d782",
   });
-  text("grad-message-copy", "graduate_message", 154, graduateMessage, 292, null, 25, {
+  line("grad-message-line", "message", 142, 120, 31);
+  text("grad-message-copy", "message", 194, graduateMessage, 314, null, 32, {
     semanticRole: "honoree_message",
     dataKey: clean(event.graduate_message) ? "graduate_message" : "main_message",
     lockedContent: true,
     fontFamily: DISPLAY_FONT,
-    fontSize: 19,
+    fontSize: 22,
     fontStyle: "italic",
     color: "#fff8e6",
     lineHeight: 1.45,
   });
-
-  card("grad-family-card", "family_message", 72, 340, 250, 26);
-  text("grad-family-title", "family_message", 104, "Mensaje familiar", 300, 24, 27, {
-    fontSize: 10,
-    fontWeight: "900",
-    color: "#d4af37",
-    letterSpacing: 0.16,
-  });
-  text("grad-family-copy", "family_message", 152, familyMessage, 292, null, 28, {
+  text("grad-message-family", "message", 378, familyMessage, 304, null, 33, {
     semanticRole: "parents_message",
     dataKey: "family_message",
     lockedContent: true,
-    fontSize: 16,
-    color: "#f7f0df",
-    lineHeight: 1.45,
+    fontSize: 14,
+    color: "#b9c2d6",
+    lineHeight: 1.42,
   });
 
-  card("grad-dress-card", "dress_code", 72, 340, 220, 29);
-  text("grad-dress-title", "dress_code", 104, "Codigo de vestimenta", 300, 34, 30, {
+  block("grad-dress-pill", "dress_code", 82, 318, 214, 34, {
+    background: "rgba(255,255,255,0.055)",
+    border: "1px solid rgba(212,175,55,0.22)",
+    borderRadius: 999,
+  });
+  text("grad-dress-title", "dress_code", 122, "Codigo de vestimenta", 280, 32, 35, {
     semanticRole: "dress_code",
     fontFamily: DISPLAY_FONT,
-    fontSize: 29,
+    fontSize: 27,
     fontStyle: "italic",
     color: "#f5d782",
   });
-  text("grad-dress-copy", "dress_code", 162, dressText, 300, null, 31, {
+  text("grad-dress-copy", "dress_code", 180, dressText, 280, null, 36, {
     semanticRole: "dress_code",
     dataKey: "dress_code",
     lockedContent: true,
@@ -411,15 +482,18 @@ export function createGraduationCanvasV3Design(event: CanvasV3EventData): Canvas
     lineHeight: 1.38,
   });
 
-  card("grad-location-card", "location", 70, 340, 260, 32);
-  text("grad-location-title", "location", 102, "Ubicacion", 300, 36, 33, {
+  text("grad-location-title", "location", 78, "Ubicacion", 300, 36, 37, {
     semanticRole: "event_address",
     fontFamily: DISPLAY_FONT,
-    fontSize: 32,
+    fontSize: 34,
     fontStyle: "italic",
     color: "#f5d782",
   });
-  text("grad-location-copy", "location", 166, locationText, 300, null, 34, {
+  block("grad-location-panel", "location", 144, 340, 178, 38, {
+    background: "linear-gradient(135deg,rgba(15,23,42,0.82),rgba(255,255,255,0.055))",
+    border: "1px solid rgba(212,175,55,0.24)",
+  });
+  text("grad-location-copy", "location", 178, locationText, 300, null, 39, {
     semanticRole: "event_address",
     dataKey: "address",
     lockedContent: true,
@@ -427,18 +501,23 @@ export function createGraduationCanvasV3Design(event: CanvasV3EventData): Canvas
     color: "#f7f0df",
     lineHeight: 1.4,
   });
-  app("grad-location-map", "location", 360, "maps", "Ver mapa", 230, 48, 35, mapsUrl);
+  app("grad-location-map", "location", 370, "maps", "Ver mapa", 230, 48, 40, mapsUrl);
 
-  text("grad-rsvp-title", "rsvp", 86, "Confirma tu asistencia", 340, 42, 36, {
+  text("grad-rsvp-title", "rsvp", 86, "Confirma tu asistencia", 340, 42, 41, {
     semanticRole: "rsvp_action",
     fontFamily: DISPLAY_FONT,
     fontSize: 31,
     fontStyle: "italic",
     color: "#f5d782",
   });
-  app("grad-rsvp-app", "rsvp", 176, "rsvp", "Confirmar asistencia", 320, 64, 37);
-  if (waUrl) app("grad-whatsapp-app", "rsvp", 260, "whatsapp", "Enviar WhatsApp", 320, 60, 38, waUrl);
-  text("grad-package-note", "rsvp", 374, `Plan ${clean(event.package_key) || "KAIS"}`, 260, 24, 39, {
+  text("grad-rsvp-copy", "rsvp", 148, "Tu presencia hara parte de este recuerdo.", 300, null, 42, {
+    fontSize: 14,
+    color: "#d8cfbd",
+    lineHeight: 1.38,
+  });
+  app("grad-rsvp-app", "rsvp", 226, "rsvp", "Confirmar asistencia", 320, 64, 43);
+  if (waUrl) app("grad-whatsapp-app", "rsvp", 312, "whatsapp", "Enviar WhatsApp", 320, 60, 44, waUrl);
+  text("grad-package-note", "rsvp", 416, `Plan ${clean(event.package_key) || "KAIS"}`, 260, 24, 45, {
     semanticRole: "package_note",
     dataKey: "package_key",
     lockedContent: true,
@@ -448,16 +527,23 @@ export function createGraduationCanvasV3Design(event: CanvasV3EventData): Canvas
     letterSpacing: 0.12,
   });
 
-  text("grad-footer-name", "footer", 72, graduateName, 320, null, 40, {
-    semanticRole: "graduate_name",
-    dataKey: "graduate_name",
+  block("grad-footer-orbit", "footer", 42, 230, 230, 46, {
+    background: "transparent",
+    border: "1px solid rgba(212,175,55,0.18)",
+    borderRadius: 999,
+    opacity: 0.8,
+  });
+  text("grad-footer-title", "footer", 92, "El comienzo de una nueva historia", 320, null, 47, {
+    semanticRole: "event_title",
+    dataKey: "title",
     lockedContent: true,
     fontFamily: DISPLAY_FONT,
-    fontSize: 30,
+    fontSize: 27,
     fontStyle: "italic",
     color: "#fff8e6",
+    lineHeight: 1.22,
   });
-  text("grad-footer-inst", "footer", 142, institution, 320, null, 41, {
+  text("grad-footer-inst", "footer", 196, institution, 320, null, 48, {
     semanticRole: "institution_name",
     dataKey: "institution_name",
     lockedContent: true,
@@ -465,6 +551,7 @@ export function createGraduationCanvasV3Design(event: CanvasV3EventData): Canvas
     color: "#d4af37",
     letterSpacing: 0.08,
   });
+  line("grad-footer-line", "footer", 258, 150, 49, 0.6);
 
   const lastSection = sections.at(-1)!;
   return {

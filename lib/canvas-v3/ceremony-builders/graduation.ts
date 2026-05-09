@@ -289,7 +289,7 @@ export function createGraduationCanvasV3Design(event: CanvasV3EventData): Canvas
     color: "#d4af37",
     letterSpacing: 0.16,
   });
-  text("grad-hero-name", "hero", 196, graduateName, 356, 136, 5, {
+  text("grad-hero-name", "hero", 190, graduateName, 356, 158, 5, {
     semanticRole: "graduate_name",
     dataKey: "graduate_name",
     lockedContent: true,
@@ -297,7 +297,7 @@ export function createGraduationCanvasV3Design(event: CanvasV3EventData): Canvas
     fontFamily: DISPLAY_FONT,
     fontWeight: "500",
     color: "#fff8e6",
-    lineHeight: 0.98,
+    lineHeight: 1.08,
   });
   text("grad-hero-date", "hero", 334, dateLabel, 340, 30, 6, {
     semanticRole: "event_date",
@@ -306,7 +306,7 @@ export function createGraduationCanvasV3Design(event: CanvasV3EventData): Canvas
     fontSize: 14,
     color: "#f7f0df",
   });
-  text("grad-hero-invitation", "hero", 396, "Tu presencia hará parte de este recuerdo.", 310, 74, 7, {
+  text("grad-hero-invitation", "hero", 400, "Tu presencia hará parte de este recuerdo.", 314, 90, 7, {
     semanticRole: "main_message",
     dataKey: clean(event.main_message) ? "main_message" : undefined,
     lockedContent: true,
@@ -314,7 +314,7 @@ export function createGraduationCanvasV3Design(event: CanvasV3EventData): Canvas
     fontSize: 20,
     fontStyle: "italic",
     color: "#f5d782",
-    lineHeight: 1.35,
+    lineHeight: 1.5,
   });
   app("grad-hero-countdown", "hero", 540, "countdown", "", 340, 78, 8);
   line("grad-hero-line-bottom", "hero", 686, 210, 9, 0.55);
@@ -334,13 +334,13 @@ export function createGraduationCanvasV3Design(event: CanvasV3EventData): Canvas
     lineHeight: 1.25,
   });
 
-  text("grad-presentation-kicker", "presentation", 78, "PRESENTACIÓN", 330, 18, 12, {
+  text("grad-presentation-kicker", "presentation", 70, "PRESENTACIÓN", 330, 20, 12, {
     fontSize: 10,
     fontWeight: "900",
     color: "#d4af37",
     letterSpacing: 0.16,
   });
-  text("grad-presentation-copy", "presentation", 132, "Una noche para celebrar años de esfuerzo, aprendizaje y nuevos comienzos.", 334, 126, 13, {
+  text("grad-presentation-copy", "presentation", 122, "Una noche para celebrar años de esfuerzo, aprendizaje y nuevos comienzos.", 338, 172, 13, {
     semanticRole: "main_message",
     dataKey: clean(event.main_message) ? "main_message" : undefined,
     lockedContent: true,
@@ -348,10 +348,10 @@ export function createGraduationCanvasV3Design(event: CanvasV3EventData): Canvas
     fontSize: 28,
     fontStyle: "italic",
     color: "#fff8e6",
-    lineHeight: 1.25,
+    lineHeight: 1.42,
   });
-  line("grad-presentation-line", "presentation", 292, 150, 14);
-  text("grad-presentation-support", "presentation", 330, familyMessage, 318, 112, 15, {
+  line("grad-presentation-line", "presentation", 322, 150, 14);
+  text("grad-presentation-support", "presentation", 356, familyMessage, 318, 112, 15, {
     semanticRole: "parents_message",
     dataKey: "family_message",
     lockedContent: true,
@@ -374,20 +374,20 @@ export function createGraduationCanvasV3Design(event: CanvasV3EventData): Canvas
     opacity: 0.94,
   });
   line("grad-achievement-line", "achievement", 106, 112, 18, 0.5);
-  text("grad-achievement-title", "achievement", 128, "Sello académico", 286, 34, 19, {
+  text("grad-achievement-title", "achievement", 124, "Sello académico", 286, 48, 19, {
     semanticRole: "graduation_program",
     fontFamily: DISPLAY_FONT,
     fontSize: 27,
     fontStyle: "italic",
     color: "#f5d782",
   });
-  text("grad-achievement-degree", "achievement", 184, achievementText, 278, 62, 20, {
+  text("grad-achievement-degree", "achievement", 184, achievementText, 278, 78, 20, {
     semanticRole: "graduation_program",
     dataKey: degreeTitle ? "degree_title" : academicProgram ? "academic_program" : "promotion_name",
     lockedContent: true,
     fontSize: 17,
     color: "#fff8e6",
-    lineHeight: 1.34,
+    lineHeight: 1.48,
   });
   if (promotionName) {
     text("grad-promotion-name", "achievement", 258, promotionName, 250, 24, 21, {
@@ -423,7 +423,7 @@ export function createGraduationCanvasV3Design(event: CanvasV3EventData): Canvas
     textAlign: "left",
     x: 66,
   });
-  text("grad-ceremony-place", "academic_ceremony", 140, ceremonyPlace, 294, 124, 23, {
+  text("grad-ceremony-place", "academic_ceremony", 136, ceremonyPlace, 296, 148, 23, {
     semanticRole: "academic_ceremony",
     dataKey: "academic_ceremony_place",
     lockedContent: true,
@@ -431,11 +431,11 @@ export function createGraduationCanvasV3Design(event: CanvasV3EventData): Canvas
     fontSize: ceremonyPlace.length > 32 ? 25 : 29,
     fontStyle: "italic",
     color: "#fff8e6",
-    lineHeight: 1.25,
+    lineHeight: 1.38,
     textAlign: "left",
     x: 66,
   });
-  text("grad-ceremony-time", "academic_ceremony", 276, ceremonyTime ? `${ceremonyTime} hs` : "Hora por confirmar", 250, 28, 24, {
+  text("grad-ceremony-time", "academic_ceremony", 296, ceremonyTime ? `${ceremonyTime} hs` : "Hora por confirmar", 250, 32, 24, {
     semanticRole: "academic_ceremony",
     dataKey: "academic_ceremony_time",
     lockedContent: true,
@@ -445,7 +445,7 @@ export function createGraduationCanvasV3Design(event: CanvasV3EventData): Canvas
     textAlign: "left",
     x: 66,
   });
-  text("grad-ceremony-note", "academic_ceremony", 336, "Acompáñanos a compartir este logro tan especial.", 282, 62, 25, {
+  text("grad-ceremony-note", "academic_ceremony", 352, "Acompáñanos a compartir este logro tan especial.", 282, 72, 25, {
     fontSize: 14,
     color: "#d8cfbd",
     lineHeight: 1.42,
@@ -460,14 +460,14 @@ export function createGraduationCanvasV3Design(event: CanvasV3EventData): Canvas
     blur: 12,
     opacity: 0.8,
   });
-  text("grad-reception-title", "reception", 92, "Recepción", 300, 38, 27, {
+  text("grad-reception-title", "reception", 86, "Recepción", 300, 58, 27, {
     semanticRole: "reception_place",
     fontFamily: DISPLAY_FONT,
     fontSize: 34,
     fontStyle: "italic",
     color: "#f5d782",
   });
-  text("grad-reception-place", "reception", 166, receptionPlace || "Recepción por confirmar", 318, 78, 28, {
+  text("grad-reception-place", "reception", 164, receptionPlace || "Recepción por confirmar", 320, 96, 28, {
     semanticRole: "reception_place",
     dataKey: "reception_place",
     lockedContent: true,
@@ -475,8 +475,8 @@ export function createGraduationCanvasV3Design(event: CanvasV3EventData): Canvas
     color: "#fff8e6",
     lineHeight: 1.4,
   });
-  line("grad-reception-line", "reception", 244, 118, 29, 0.52);
-  text("grad-reception-time", "reception", 282, receptionTime ? `${receptionTime} hs` : "Hora por confirmar", 260, 28, 30, {
+  line("grad-reception-line", "reception", 268, 118, 29, 0.52);
+  text("grad-reception-time", "reception", 304, receptionTime ? `${receptionTime} hs` : "Hora por confirmar", 260, 32, 30, {
     semanticRole: "reception_place",
     dataKey: "reception_time",
     lockedContent: true,
@@ -485,14 +485,14 @@ export function createGraduationCanvasV3Design(event: CanvasV3EventData): Canvas
     color: "#d4af37",
   });
 
-  text("grad-message-title", "message", 80, "Para recordar", 300, 38, 30, {
+  text("grad-message-title", "message", 72, "Para recordar", 300, 58, 30, {
     fontFamily: DISPLAY_FONT,
     fontSize: 34,
     fontStyle: "italic",
     color: "#f5d782",
   });
-  line("grad-message-line", "message", 142, 120, 31);
-  text("grad-message-copy", "message", 194, graduateMessage, 320, 150, 32, {
+  line("grad-message-line", "message", 148, 120, 31);
+  text("grad-message-copy", "message", 190, graduateMessage, 324, 174, 32, {
     semanticRole: "honoree_message",
     dataKey: clean(event.graduate_message) ? "graduate_message" : "main_message",
     lockedContent: true,
@@ -500,9 +500,9 @@ export function createGraduationCanvasV3Design(event: CanvasV3EventData): Canvas
     fontSize: graduateMessage.length > 150 ? 19 : 22,
     fontStyle: "italic",
     color: "#fff8e6",
-    lineHeight: 1.45,
+    lineHeight: 1.55,
   });
-  text("grad-message-family", "message", 378, familyMessage, 312, 104, 33, {
+  text("grad-message-family", "message", 396, familyMessage, 312, 110, 33, {
     semanticRole: "parents_message",
     dataKey: "family_message",
     lockedContent: true,
@@ -524,14 +524,14 @@ export function createGraduationCanvasV3Design(event: CanvasV3EventData): Canvas
       border: "1px solid rgba(212,175,55,0.22)",
       borderRadius: 999,
     });
-    text("grad-dress-title", "dress_code", 122, "Vestimenta", 280, 32, 35, {
+    text("grad-dress-title", "dress_code", 114, "Vestimenta", 280, 52, 35, {
       semanticRole: "dress_code",
       fontFamily: DISPLAY_FONT,
       fontSize: 29,
       fontStyle: "italic",
       color: "#f5d782",
     });
-    text("grad-dress-copy", "dress_code", 180, dressText, 280, null, 36, {
+    text("grad-dress-copy", "dress_code", 188, dressText, 286, 96, 36, {
       semanticRole: "dress_code",
       dataKey: "dress_code",
       lockedContent: true,
@@ -552,7 +552,7 @@ export function createGraduationCanvasV3Design(event: CanvasV3EventData): Canvas
     });
   }
 
-  text("grad-location-title", "location", 78, "Ubicación", 300, 36, 37, {
+  text("grad-location-title", "location", 70, "Ubicación", 300, 64, 37, {
     semanticRole: "event_address",
     fontFamily: DISPLAY_FONT,
     fontSize: 34,
@@ -571,13 +571,13 @@ export function createGraduationCanvasV3Design(event: CanvasV3EventData): Canvas
     border: "1px solid rgba(255,244,198,0.11)",
     borderRadius: 28,
   });
-  text("grad-location-copy", "location", 178, locationText, 304, 108, 40, {
+  text("grad-location-copy", "location", 180, locationText, 308, 124, 40, {
     semanticRole: "event_address",
     dataKey: "address",
     lockedContent: true,
     fontSize: 14,
     color: "#f7f0df",
-    lineHeight: 1.4,
+    lineHeight: 1.5,
   });
   app("grad-location-map", "location", 370, "maps", "Ver mapa", 230, 48, 41, mapsUrl);
 
@@ -588,20 +588,20 @@ export function createGraduationCanvasV3Design(event: CanvasV3EventData): Canvas
     blur: 12,
     opacity: 0.76,
   });
-  text("grad-rsvp-title", "rsvp", 86, "Confirmá tu asistencia", 340, 50, 42, {
+  text("grad-rsvp-title", "rsvp", 78, "Confirmá tu asistencia", 342, 72, 42, {
     semanticRole: "rsvp_action",
     fontFamily: DISPLAY_FONT,
     fontSize: 31,
     fontStyle: "italic",
     color: "#f5d782",
   });
-  text("grad-rsvp-copy", "rsvp", 150, "Tu presencia hará parte de este recuerdo.", 304, 46, 43, {
+  text("grad-rsvp-copy", "rsvp", 158, "Tu presencia hará parte de este recuerdo.", 310, 56, 43, {
     fontSize: 14,
     color: "#d8cfbd",
     lineHeight: 1.38,
   });
-  app("grad-rsvp-app", "rsvp", 226, "rsvp", "Confirmar asistencia", 320, 66, 44);
-  if (waUrl) app("grad-whatsapp-app", "rsvp", 316, "whatsapp", "Enviar WhatsApp", 320, 60, 45, waUrl);
+  app("grad-rsvp-app", "rsvp", 236, "rsvp", "Confirmar asistencia", 320, 66, 44);
+  if (waUrl) app("grad-whatsapp-app", "rsvp", 326, "whatsapp", "Enviar WhatsApp", 320, 60, 45, waUrl);
   text("grad-package-note", "rsvp", 430, "KAIS", 120, 18, 46, {
     semanticRole: "package_note",
     dataKey: "package_key",
@@ -619,7 +619,7 @@ export function createGraduationCanvasV3Design(event: CanvasV3EventData): Canvas
     borderRadius: 999,
     opacity: 0.8,
   });
-  text("grad-footer-title", "footer", 92, "El comienzo de una nueva historia", 320, 78, 47, {
+  text("grad-footer-title", "footer", 84, "El comienzo de una nueva historia", 324, 112, 47, {
     semanticRole: "event_title",
     dataKey: "title",
     lockedContent: true,
@@ -627,9 +627,9 @@ export function createGraduationCanvasV3Design(event: CanvasV3EventData): Canvas
     fontSize: 27,
     fontStyle: "italic",
     color: "#fff8e6",
-    lineHeight: 1.22,
+    lineHeight: 1.38,
   });
-  text("grad-footer-inst", "footer", 196, institution, 320, 42, 48, {
+  text("grad-footer-inst", "footer", 212, institution, 320, 48, 48, {
     semanticRole: "institution_name",
     dataKey: "institution_name",
     lockedContent: true,
@@ -637,7 +637,7 @@ export function createGraduationCanvasV3Design(event: CanvasV3EventData): Canvas
     color: "#d4af37",
     letterSpacing: 0.08,
   });
-  line("grad-footer-line", "footer", 258, 150, 49, 0.6);
+  line("grad-footer-line", "footer", 282, 150, 49, 0.6);
 
   const lastSection = sections.at(-1)!;
   return {

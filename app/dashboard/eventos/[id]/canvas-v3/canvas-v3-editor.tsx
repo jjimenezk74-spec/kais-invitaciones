@@ -290,7 +290,7 @@ function isV3Element(value: unknown): value is V3Element {
     typeof value.x === "number" &&
     typeof value.y === "number" &&
     typeof value.width === "number" &&
-    (typeof value.height === "number" || value.height === null) &&
+    (typeof value.height === "number" || value.height === null || value.height === undefined) &&
     typeof value.locked === "boolean" &&
     typeof value.visible === "boolean" &&
     typeof value.zIndex === "number"
@@ -314,8 +314,12 @@ function normalizeInitialV3Design(value: unknown): CanvasV3Design | null {
   if (value.width !== CANVAS_W || typeof value.height !== "number") return null;
   if (!Array.isArray(value.elements)) return null;
 
-  const elements = value.elements.filter(isV3Element);
-  if (elements.length !== value.elements.length) return null;
+  const validElements = value.elements.filter(isV3Element);
+  if (validElements.length !== value.elements.length) return null;
+  const elements = validElements.map((element) => ({
+    ...element,
+    height: element.height ?? null,
+  }));
   const rawSections = Array.isArray(value.sections) ? value.sections.filter(isV3Section) : [];
   const sections = rawSections.length ? rawSections : DEFAULT_SECTIONS;
   const height = sections.at(-1) ? sections.at(-1)!.y + sections.at(-1)!.height : DEFAULT_DOCUMENT_H;
@@ -469,6 +473,24 @@ function hasBorder(el: Pick<V3Element, "border" | "borderWidth" | "borderStyle">
   return true;
 }
 
+function estimateElementRenderHeight(el: V3Element): number {
+  if (el.height != null) return el.height;
+  if (el.type === "app") return 88;
+  if (!el.content) return 60;
+
+  const fontSize = el.fontSize ?? 14;
+  const lineHeight = typeof el.lineHeight === "number" ? el.lineHeight : 1.4;
+  const approxCharWidth = Math.max(6, fontSize * 0.56);
+  const charsPerLine = Math.max(8, Math.floor(el.width / approxCharWidth));
+  const visualLines = el.content.split("\n").reduce((total, line) => {
+    const clean = line.trim();
+    return total + Math.max(1, Math.ceil(clean.length / charsPerLine));
+  }, 0);
+  const padding = el.type === "decoration" ? 32 : 6;
+
+  return Math.max(24, Math.ceil(visualLines * fontSize * lineHeight + padding));
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Render a single canvas element
 // ─────────────────────────────────────────────────────────────────────────────
@@ -495,6 +517,7 @@ function RenderElement({
   clipBottom?: number;
 }) {
   const [isHovered, setIsHovered] = useState(false);
+  const renderHeight = estimateElementRenderHeight(el);
 
   // ── Outer positioning div ─────────────────────────────────────────────────
   // Always overflow: visible so resize handles (-4px) and toolbar (-32px) show.
@@ -504,7 +527,7 @@ function RenderElement({
     left: el.x,
     top: el.y,
     width: el.width,
-    height: el.height ?? "auto",
+    height: renderHeight,
     zIndex: el.zIndex,
     opacity: el.opacity ?? 1,
     cursor: el.locked ? "default" : (selected || highlighted) ? "grab" : "pointer",
@@ -2318,7 +2341,7 @@ export function CanvasEditorV3({
     allElements
       .filter((el) => el.id !== moving.id && el.visible)
       .forEach((el) => {
-        const otherHeight = el.height ?? 60;
+        const otherHeight = estimateElementRenderHeight(el);
         const verticalTargets = [el.x, el.x + el.width / 2, el.x + el.width];
         const verticalOffsets = [0, width / 2, width];
         const horizontalTargets = [el.y, el.y + otherHeight / 2, el.y + otherHeight];
@@ -2992,7 +3015,7 @@ export function CanvasEditorV3({
     const minX = Math.min(...selectedElements.map((el) => el.x));
     const minY = Math.min(...selectedElements.map((el) => el.y));
     const maxX = Math.max(...selectedElements.map((el) => el.x + el.width));
-    const maxY = Math.max(...selectedElements.map((el) => el.y + (el.height ?? 60)));
+    const maxY = Math.max(...selectedElements.map((el) => el.y + estimateElementRenderHeight(el)));
     return {
       minX,
       minY,
@@ -3012,7 +3035,7 @@ export function CanvasEditorV3({
     setElements((prev) =>
       prev.map((el) => {
         if (!selectedIds.includes(el.id) || el.locked) return el;
-        const height = el.height ?? 60;
+        const height = estimateElementRenderHeight(el);
         if (mode === "left") return { ...el, x: Math.round(bounds.minX) };
         if (mode === "centerX") return { ...el, x: Math.round(bounds.minX + (bounds.width - el.width) / 2) };
         if (mode === "right") return { ...el, x: Math.round(bounds.maxX - el.width) };
@@ -3113,15 +3136,15 @@ export function CanvasEditorV3({
 
     const first = selectedElements[0];
     const last = selectedElements[selectedElements.length - 1];
-    const lastHeight = last.height ?? 60;
+    const lastHeight = estimateElementRenderHeight(last);
     const availableSpace = (last.y + lastHeight) - first.y;
-    const totalHeight = selectedElements.reduce((sum, el) => sum + (el.height ?? 60), 0);
+    const totalHeight = selectedElements.reduce((sum, el) => sum + estimateElementRenderHeight(el), 0);
     const gap = (availableSpace - totalHeight) / (selectedElements.length - 1);
     let nextY = first.y;
     const positions: Record<string, number> = {};
     selectedElements.forEach((el, index) => {
       positions[el.id] = index === selectedElements.length - 1 ? last.y : Math.round(nextY);
-      nextY += (el.height ?? 60) + gap;
+      nextY += estimateElementRenderHeight(el) + gap;
     });
     setElements((prev) => prev.map((el) => el.id in positions ? { ...el, y: positions[el.id] } : el));
   };
@@ -3767,7 +3790,7 @@ export function CanvasEditorV3({
                   .filter((el) => el.visible)
                   .sort((a, b) => a.zIndex - b.zIndex)
                   .map((el) => {
-                    const elH = el.height ?? 60;
+                    const elH = estimateElementRenderHeight(el);
                     const sec =
                       sections.find((s) => el.y >= s.y && el.y < s.y + s.height) ??
                       (el.y < (sections[0]?.y ?? 0)
@@ -3836,7 +3859,7 @@ export function CanvasEditorV3({
                   const minX = Math.min(...selEls.map((el) => el.x)) - PAD;
                   const minY = Math.min(...selEls.map((el) => el.y)) - PAD;
                   const maxX = Math.max(...selEls.map((el) => el.x + el.width)) + PAD;
-                  const maxY = Math.max(...selEls.map((el) => el.y + (el.height ?? 60))) + PAD;
+                  const maxY = Math.max(...selEls.map((el) => el.y + estimateElementRenderHeight(el))) + PAD;
                   const canPlaceTop = minY - TOOLBAR_H - GAP >= 8;
                   const canPlaceBottom = maxY + GAP + TOOLBAR_H <= documentHeight - 8;
                   const toolbarTop = canPlaceTop

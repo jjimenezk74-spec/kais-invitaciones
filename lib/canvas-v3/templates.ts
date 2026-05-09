@@ -188,6 +188,8 @@ function placeholderForDataKey(dataKey?: keyof CanvasV3EventData) {
 
 function placeholderForSemanticRole(role?: CeremonySemanticRole) {
   switch (role) {
+    case "event_type":
+      return "Tipo de evento";
     case "honoree_name":
     case "event_title":
     case "birthday_person_name":
@@ -197,6 +199,8 @@ function placeholderForSemanticRole(role?: CeremonySemanticRole) {
       return "Nombre del evento";
     case "graduate_name":
       return "Nombre del graduado";
+    case "graduation_subtype":
+      return "Graduacion";
     case "parents_names":
       return "Nombres de los padres";
     case "parents_message":
@@ -253,12 +257,16 @@ function getEventValueForDataKey(event: CanvasV3EventData, dataKey?: keyof Canva
 
 function getEventValueForSemanticRole(event: CanvasV3EventData, role?: CeremonySemanticRole) {
   switch (role) {
+    case "event_type":
+      return cleanText(event.event_type);
     case "event_title":
       return cleanText(event.title) || cleanText(event.hosts_names);
     case "honoree_name":
       return cleanText(event.quinceanera_name) || cleanText(event.hosts_names) || cleanText(event.title);
     case "graduate_name":
       return cleanText(event.graduate_name) || cleanText(event.hosts_names) || cleanText(event.title);
+    case "graduation_subtype":
+      return cleanText(event.graduation_type);
     case "main_message":
       return cleanText(event.main_message);
     case "honoree_message":
@@ -302,6 +310,77 @@ function getEventValueForSemanticRole(event: CanvasV3EventData, role?: CeremonyS
     default:
       return "";
   }
+}
+
+function inferTemplateMetadata(element: CanvasV3Element): Pick<CanvasV3Element, "dataKey" | "semanticRole" | "lockedContent"> {
+  const id = element.id.toLowerCase();
+  const content = cleanText(element.content).toLowerCase();
+  const metadata: Pick<CanvasV3Element, "dataKey" | "semanticRole" | "lockedContent"> = {};
+
+  const set = (dataKey: keyof CanvasV3EventData | undefined, semanticRole: CeremonySemanticRole) => {
+    metadata.dataKey = dataKey;
+    metadata.semanticRole = semanticRole;
+    metadata.lockedContent = true;
+  };
+
+  if (element.type === "app") {
+    const appType = normalizeAppType(element);
+    if (appType === "countdown") set("event_date", "countdown");
+    if (appType === "maps") set("google_maps_link", "maps_link");
+    if (appType === "whatsapp") set("whatsapp_phone", "whatsapp_action");
+    if (appType === "rsvp") set(undefined, "rsvp_action");
+    return metadata;
+  }
+
+  if (element.type !== "text") return metadata;
+
+  if (id.startsWith("grad-")) {
+    if (id.includes("hero-name")) set("graduate_name", "graduate_name");
+    else if (id.includes("hero-type")) set("graduation_type", "graduation_subtype");
+    else if (id.includes("date")) set("event_date", "event_date");
+    else if (id.includes("institution") || id.includes("-inst")) set("institution_name", "institution_name");
+    else if (id.includes("promotion")) set("promotion_name", "graduation_program");
+    else if (id.includes("achievement-degree")) set("degree_title", "graduation_program");
+    else if (id.includes("ceremony-place")) set("academic_ceremony_place", "academic_ceremony");
+    else if (id.includes("ceremony-time")) set("academic_ceremony_time", "academic_ceremony");
+    else if (id.includes("reception-place")) set("reception_place", "reception_place");
+    else if (id.includes("reception-time")) set("reception_time", "reception_place");
+    else if (id.includes("message-family") || id.includes("presentation-support")) set("family_message", "parents_message");
+    else if (id.includes("graduate-message") || id.includes("message-copy")) set("graduate_message", "honoree_message");
+    else if (id.includes("location-copy")) set("address", "event_address");
+    else if (id.includes("dress")) set("dress_code", "dress_code");
+    else if (id.includes("package")) set("package_key", "package_note");
+    else if (id.includes("footer-title")) set("title", "event_title");
+    else if (id.includes("presentation-copy") || id.includes("hero-invitation")) set("main_message", "main_message");
+    return metadata;
+  }
+
+  if (id.includes("quince-message") || id.includes("hero-message") || id.includes("s4-message")) set("quince_message", "honoree_message");
+  else if (id.includes("parents-message") || id.includes("parents") || id.includes("family")) set(id.includes("grad-") ? "family_message" : "parents_message", "parents_message");
+  else if (id.includes("hero-title") || id.includes("presentation-title") || id.includes("footer-title") || id.includes("s1-name") || id.includes("s3-name") || id.includes("s8-name")) set("quinceanera_name", "honoree_name");
+  else if (id.includes("hero-date") || id.includes("date") || id.includes("details-day") || id.includes("details-month")) set("event_date", "event_date");
+  else if (id.includes("event-time") || id.endsWith("-time")) set("event_time", "event_time");
+  else if (id.includes("church-details") || id.includes("church-name") || id.includes("s6-venue")) set("church_name", "ceremony_place");
+  else if (id.includes("church-time")) set("church_time", "ceremony_time");
+  else if (id.includes("address") || id.includes("location-copy")) set("address", "event_address");
+  else if (id.includes("dress")) set("dress_code", "dress_code");
+  else if (id.includes("swatch") || id.includes("palette")) set("color_palette", "color_palette");
+  else if (id.includes("theme")) set("theme", "theme");
+  else if (id.includes("package")) set("package_key", "package_note");
+  else if (id.includes("grad-hero-name")) set("graduate_name", "graduate_name");
+  else if (id.includes("grad-hero-type")) set("graduation_type", "graduation_subtype");
+  else if (id.includes("institution") || id.includes("-inst")) set("institution_name", "institution_name");
+  else if (id.includes("promotion")) set("promotion_name", "graduation_program");
+  else if (id.includes("achievement-degree")) set("degree_title", "graduation_program");
+  else if (id.includes("ceremony-place")) set("academic_ceremony_place", "academic_ceremony");
+  else if (id.includes("ceremony-time")) set("academic_ceremony_time", "academic_ceremony");
+  else if (id.includes("reception-place")) set("reception_place", "reception_place");
+  else if (id.includes("reception-time")) set("reception_time", "reception_place");
+  else if (id.includes("graduate-message") || id.includes("grad-message-copy")) set("graduate_message", "honoree_message");
+  else if (id.includes("main-message") || id.includes("presentation-copy") || id.includes("hero-invitation")) set("main_message", "main_message");
+  else if (id.includes("title") && (content.includes("confirm") || content.includes("asistencia"))) set(undefined, "rsvp_action");
+
+  return metadata;
 }
 
 function findCurrentElement(currentDesign: CanvasV3Design | undefined, templateElement: CanvasV3Element) {
@@ -412,6 +491,12 @@ function sanitizeElement(element: unknown, mode: "template" | "hydrated", event?
     content: safeString(element.content),
     background: safeString(element.background),
   } as CanvasV3Element;
+
+  const inferred = inferTemplateMetadata(typedElement);
+  typedElement.dataKey = typedElement.dataKey ?? inferred.dataKey;
+  typedElement.semanticRole = typedElement.semanticRole ?? inferred.semanticRole;
+  typedElement.lockedContent = typedElement.lockedContent ?? inferred.lockedContent;
+
   const source = findCurrentElement(currentDesign, typedElement);
 
   if (mode === "template" && typedElement.type === "text" && (typedElement.dataKey || typedElement.semanticRole || typedElement.lockedContent)) {

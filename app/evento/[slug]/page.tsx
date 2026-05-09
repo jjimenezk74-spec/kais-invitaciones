@@ -4,6 +4,7 @@ import { resolvePremiumThemeDesign, resolveLegacyDesign } from "@/lib/invitation
 import { CanvasMobileRenderer } from "@/components/public-invitation/canvas-mobile-renderer";
 import { PublicInvitation } from "@/components/public-invitation/public-invitation";
 import { hasRenderableMobileCanvasDesign, normalizeCanvasDesign } from "@/lib/canvas/normalize-canvas-design";
+import { CanvasV3PublicRenderer } from "@/app/dashboard/eventos/[id]/canvas-v3/canvas-v3-public-renderer";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { fetchThemeById } from "@/lib/invitation-themes.server";
 import { eventHasFeature } from "@/lib/event-features";
@@ -264,8 +265,9 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
     });
   }
 
-  const canvasDesign = event.canvas_design as CanvasDesign | null;
-  const hasMobileCanvas = hasRenderableMobileCanvasDesign(canvasDesign);
+  const canvasDesign = event.canvas_design as unknown;
+  const hasCanvasV3Design = isCanvasV3Design(canvasDesign);
+  const hasMobileCanvas = !hasCanvasV3Design && hasRenderableMobileCanvasDesign(canvasDesign);
 
   const publicInvitation = (
     <PublicInvitation
@@ -290,9 +292,36 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
       slotDecorations={slotDecorations}
       freeDecorations={freeDecorations}
       showRoyalPack={showRoyalPack}
-      canvasDesign={canvasDesign}
+      canvasDesign={canvasDesign as CanvasDesign | null}
     />
   );
+
+  if (hasCanvasV3Design) {
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          background: "linear-gradient(180deg,#fff8f0 0%,#f7eadc 55%,#f1dccd 100%)",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          paddingTop: 0,
+          paddingBottom: 0,
+          overflowX: "hidden",
+        }}
+      >
+        <div style={{ width: "100%", maxWidth: "100vw", padding: 0, overflowX: "hidden" }}>
+          <CanvasV3PublicRenderer
+            design={canvasDesign}
+            eventTitle={event.hosts_names || event.title || "Evento"}
+            eventSlug={event.slug ?? slug}
+            eventDate={event.event_date && event.event_time ? `${event.event_date}T${event.event_time}` : undefined}
+            mode="public"
+          />
+        </div>
+      </div>
+    );
+  }
 
   if (hasMobileCanvas && canvasDesign) {
     return (
@@ -313,6 +342,13 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
 
   return publicInvitation;
 }
+
+function isCanvasV3Design(value: unknown): value is Record<string, unknown> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const design = value as Record<string, unknown>;
+  return design.version === 3 && Array.isArray(design.sections) && Array.isArray(design.elements);
+}
+
 function normalizeVisualDecorations(value: unknown): VisualDecoration[] {
   if (Array.isArray(value)) return value.filter((decoration) => Boolean(decoration?.url)) as VisualDecoration[];
   if (typeof value !== "string") return [];

@@ -3,6 +3,7 @@ import { revalidatePath } from "next/cache";
 import { BadgeCheck, FileCode2, Plus, Power, Sparkles } from "lucide-react";
 import { getCurrentProfile } from "@/app/actions/events";
 import {
+  applyCanvasV3TemplateToEvent,
   createCanvasV3TemplateFromEvent,
   deleteCanvasV3Template,
   listCanvasV3Templates,
@@ -14,6 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { canEditEventDesign } from "@/lib/permissions";
+import { ApplyCanvasV3TemplateToEventButton } from "./apply-template-to-event-button";
 import { DeleteCanvasV3TemplateButton } from "./delete-template-button";
 
 type SearchParams = {
@@ -21,6 +23,7 @@ type SearchParams = {
   created?: string;
   updated?: string;
   deleted?: string;
+  applied?: string;
 };
 
 const EVENT_TYPE_OPTIONS = [
@@ -96,6 +99,19 @@ async function deleteTemplateAction(id: string) {
   redirect(`${PAGE_PATH}?deleted=${encodeURIComponent(result.data.id)}`);
 }
 
+async function applyTemplateToEventAction(templateId: string, templateName: string, formData: FormData) {
+  "use server";
+
+  const eventId = textValue(formData, "event_id");
+  const result = await applyCanvasV3TemplateToEvent(eventId, templateId);
+  if (!result.ok) {
+    redirect(`${PAGE_PATH}?error=${encodeURIComponent(result.error)}`);
+  }
+
+  revalidatePath(PAGE_PATH);
+  redirect(`${PAGE_PATH}?applied=${encodeURIComponent(templateName)}`);
+}
+
 export default async function CanvasV3TemplatesPage({
   searchParams,
 }: {
@@ -144,6 +160,11 @@ export default async function CanvasV3TemplatesPage({
             {query.deleted ? (
               <p className="mt-4 rounded-lg bg-amber-50 p-3 text-sm font-semibold text-amber-800">
                 Plantilla eliminada.
+              </p>
+            ) : null}
+            {query.applied ? (
+              <p className="mt-4 rounded-lg bg-emerald-50 p-3 text-sm font-semibold text-emerald-800">
+                Plantilla aplicada: {query.applied}
               </p>
             ) : null}
           </div>
@@ -226,6 +247,7 @@ export default async function CanvasV3TemplatesPage({
                 <th>Tipos compatibles</th>
                 <th>Categoria</th>
                 <th>Orden</th>
+                <th>Aplicar a evento</th>
                 <th>Acciones</th>
               </tr>
             </thead>
@@ -267,6 +289,27 @@ export default async function CanvasV3TemplatesPage({
                   <td>{template.visualCategory ?? "-"}</td>
                   <td>{template.sortOrder ?? 0}</td>
                   <td>
+                    {template.templateScope === "full" ? (
+                      <form
+                        id={`apply-template-${template.id}`}
+                        action={applyTemplateToEventAction.bind(null, template.id ?? "", template.name)}
+                        className="grid min-w-[230px] gap-2"
+                      >
+                        <Input
+                          name="event_id"
+                          required
+                          placeholder="UUID del evento"
+                        />
+                        <ApplyCanvasV3TemplateToEventButton
+                          formId={`apply-template-${template.id}`}
+                          templateName={template.name}
+                        />
+                      </form>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">Solo scope full</span>
+                    )}
+                  </td>
+                  <td>
                     <div className="flex flex-wrap gap-2">
                       <form action={toggleTemplateAction.bind(null, template.id ?? "", !template.isActive)}>
                         <Button size="sm" variant={template.isActive ? "outline" : "secondary"}>
@@ -284,7 +327,7 @@ export default async function CanvasV3TemplatesPage({
               ))}
               {templates.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-10 text-center text-sm text-muted-foreground">
+                  <td colSpan={9} className="py-10 text-center text-sm text-muted-foreground">
                     Todavia no hay plantillas Canvas V3.
                   </td>
                 </tr>

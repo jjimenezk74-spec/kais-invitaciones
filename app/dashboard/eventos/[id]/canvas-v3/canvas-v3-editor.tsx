@@ -9,6 +9,9 @@ import {
   type CanvasV3Theme
 } from "./themes-v3";
 import { eventHasFeature, type EventFeatureKey } from "@/lib/event-features";
+import { hydrateCanvasV3Template } from "@/lib/canvas-v3/templates";
+import type { CanvasV3Design as SharedCanvasV3Design, CanvasV3EventData } from "@/lib/canvas-v3/initial-design";
+import type { CeremonySectionKind, CeremonySemanticRole } from "@/lib/canvas-v3/ceremonial-structures";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -51,6 +54,9 @@ interface V3Element {
   // app
   appKind?: V3AppType | "album" | "live";
   appType?: V3AppType;
+  semanticRole?: CeremonySemanticRole;
+  dataKey?: keyof CanvasV3EventData;
+  lockedContent?: boolean;
   config?: {
     url?: string;
     primaryColor?: string;
@@ -66,6 +72,8 @@ type V3Section = {
   y: number;
   height: number;
   background: string;
+  kind?: CeremonySectionKind;
+  required?: boolean;
 };
 
 type CanvasV3Design = {
@@ -821,6 +829,70 @@ function formatTemplateDateCompact(value?: string): string {
   return `${day} . ${month} . ${year}`;
 }
 
+function splitEventDateTime(value?: string): { date: string; time: string } {
+  if (!value) return { date: "", time: "" };
+  const [date = "", rawTime = ""] = value.split("T");
+  return { date, time: rawTime.slice(0, 5) };
+}
+
+function createTemplateHydrationEventData({
+  eventId,
+  eventSlug,
+  eventTitle,
+  eventDate,
+  googleMapsLink,
+  whatsappPhone,
+  packageKey,
+  currentDesign,
+}: {
+  eventId: string;
+  eventSlug?: string;
+  eventTitle: string;
+  eventDate?: string;
+  googleMapsLink?: string | null;
+  whatsappPhone?: string | null;
+  packageKey?: string | null;
+  currentDesign: CanvasV3Design;
+}): CanvasV3EventData {
+  const { date, time } = splitEventDateTime(eventDate);
+  return {
+    id: eventId,
+    slug: eventSlug ?? eventId,
+    event_type: "otro",
+    title: eventTitle,
+    hosts_names: eventTitle,
+    event_date: date,
+    event_time: time,
+    address: "",
+    google_maps_link: googleMapsLink ?? null,
+    main_message: null,
+    quinceanera_name: null,
+    parents_names: null,
+    church_name: null,
+    church_time: null,
+    dress_code: null,
+    color_palette: null,
+    theme: null,
+    quince_message: null,
+    parents_message: null,
+    graduate_name: null,
+    graduation_type: null,
+    institution_name: null,
+    academic_program: null,
+    degree_title: null,
+    promotion_name: null,
+    academic_ceremony_place: null,
+    academic_ceremony_time: null,
+    reception_place: null,
+    reception_time: null,
+    family_message: null,
+    graduate_message: null,
+    whatsapp_phone: whatsappPhone ?? null,
+    package_key: (packageKey ?? "essential") as CanvasV3EventData["package_key"],
+    canvas_design: currentDesign as unknown as CanvasV3EventData["canvas_design"],
+  };
+}
+
 function hydratePremiumTemplateElements(
   templateElements: V3Element[],
   currentElements: V3Element[],
@@ -964,6 +1036,25 @@ const PREMIUM_TEMPLATES: PremiumTemplate[] = [
         zIndex: z(),
         appKind: appType,
         appType,
+        semanticRole: appType === "countdown"
+          ? "countdown"
+          : appType === "maps"
+            ? "maps_link"
+            : appType === "rsvp"
+              ? "rsvp_action"
+              : appType === "whatsapp"
+                ? "whatsapp_action"
+                : undefined,
+        dataKey: appType === "countdown"
+          ? "event_date"
+          : appType === "maps"
+            ? "google_maps_link"
+            : appType === "whatsapp"
+              ? "whatsapp_phone"
+              : appType === "rsvp"
+                ? "package_key"
+                : undefined,
+        lockedContent: true,
         content,
         background: "linear-gradient(135deg," + ROSE + "," + MAUVE + ")",
         color: IVORY,
@@ -974,14 +1065,14 @@ const PREMIUM_TEMPLATES: PremiumTemplate[] = [
       });
 
       const sections: V3Section[] = [
-        { id: mkId("s1"), label: "Portada", y: 0, height: 780, background: "linear-gradient(180deg,#fff8f0 0%,#f7eadc 58%,#f1dccd 100%)" },
-        { id: mkId("s2"), label: "Cuenta regresiva", y: 780, height: 400, background: "linear-gradient(180deg,#f1dccd,#fff8f0)" },
-        { id: mkId("s3"), label: "Presentacion", y: 1180, height: 540, background: "linear-gradient(180deg,#fff8f0,#fffdf9,#f7eadc)" },
-        { id: mkId("s4"), label: "Mensaje especial", y: 1720, height: 480, background: "linear-gradient(180deg,#f7eadc,#fff8f0)" },
-        { id: mkId("s5"), label: "Vestimenta", y: 2200, height: 440, background: "linear-gradient(180deg,#fff8f0,#f4dfe0 48%,#fff8f0)" },
-        { id: mkId("s6"), label: "Ubicacion", y: 2640, height: 480, background: "linear-gradient(180deg,#fffdf9,#f7eadc,#fffdf9)" },
-        { id: mkId("s7"), label: "RSVP", y: 3120, height: 400, background: "linear-gradient(180deg,#fff8f0,#f1dccd)" },
-        { id: mkId("s8"), label: "Cierre", y: 3520, height: 440, background: "linear-gradient(180deg,#f1dccd,#fffdf9 62%,#f7eadc 100%)" },
+        { id: mkId("s1"), label: "Portada", y: 0, height: 780, background: "linear-gradient(180deg,#fff8f0 0%,#f7eadc 58%,#f1dccd 100%)", kind: "hero", required: true },
+        { id: mkId("s2"), label: "Cuenta regresiva", y: 780, height: 400, background: "linear-gradient(180deg,#f1dccd,#fff8f0)", kind: "countdown", required: true },
+        { id: mkId("s3"), label: "Presentacion", y: 1180, height: 540, background: "linear-gradient(180deg,#fff8f0,#fffdf9,#f7eadc)", kind: "person_presentation", required: true },
+        { id: mkId("s4"), label: "Mensaje especial", y: 1720, height: 480, background: "linear-gradient(180deg,#f7eadc,#fff8f0)", kind: "message", required: true },
+        { id: mkId("s5"), label: "Vestimenta", y: 2200, height: 440, background: "linear-gradient(180deg,#fff8f0,#f4dfe0 48%,#fff8f0)", kind: "dress_code", required: false },
+        { id: mkId("s6"), label: "Ubicacion", y: 2640, height: 480, background: "linear-gradient(180deg,#fffdf9,#f7eadc,#fffdf9)", kind: "event_details", required: true },
+        { id: mkId("s7"), label: "RSVP", y: 3120, height: 400, background: "linear-gradient(180deg,#fff8f0,#f1dccd)", kind: "rsvp", required: true },
+        { id: mkId("s8"), label: "Cierre", y: 3520, height: 440, background: "linear-gradient(180deg,#f1dccd,#fffdf9 62%,#f7eadc 100%)", kind: "footer", required: true },
       ];
 
       const els: V3Element[] = [];
@@ -992,10 +1083,10 @@ const PREMIUM_TEMPLATES: PremiumTemplate[] = [
       els.push(mkText("s1-mis", "MIS", cx(44), 54, 44, 16, { fontSize: 11, fontWeight: "700", letterSpacing: 0.42, color: GOLD }));
       els.push(mkText("s1-15", "15", cx(148), 66, 148, 112, { fontSize: 98, fontFamily: "'Playfair Display',Georgia,serif", fontStyle: "italic", fontWeight: "700", color: ROSE, lineHeight: 1 }));
       els.push(mkShape("s1-div1", cx(200), 196, 200, 1, "linear-gradient(90deg,transparent," + GOLD + ",transparent)"));
-      els.push(mkText("s1-name", "Tu nombre", cx(292), 212, 292, 54, { fontSize: 43, fontFamily: "'Playfair Display',Georgia,serif", fontStyle: "italic", fontWeight: "700", color: TEXT, lineHeight: 1.08 }));
+      els.push(mkText("s1-name", "Tu nombre", cx(292), 212, 292, 54, { semanticRole: "honoree_name", dataKey: "quinceanera_name", fontSize: 43, fontFamily: "'Playfair Display',Georgia,serif", fontStyle: "italic", fontWeight: "700", color: TEXT, lineHeight: 1.08 }));
       els.push(mkText("s1-last", "MIS QUINCE ANOS", cx(226), 270, 226, 20, { fontSize: 10, fontWeight: "700", letterSpacing: 0.32, color: TEXT_MUTED }));
       els.push(mkShape("s1-div2", cx(88), 304, 88, 1, goldLine()));
-      els.push(mkText("s1-date", "FECHA POR CONFIRMAR", cx(218), 322, 218, 18, { fontSize: 10, fontWeight: "600", letterSpacing: 0.20, color: GOLD }));
+      els.push(mkText("s1-date", "FECHA POR CONFIRMAR", cx(218), 322, 218, 18, { semanticRole: "event_date", dataKey: "event_date", fontSize: 10, fontWeight: "600", letterSpacing: 0.20, color: GOLD }));
       els.push(mkText("s1-type", "Quinceanos", cx(142), 350, 142, 22, { fontSize: 14, fontStyle: "italic", fontFamily: "'Playfair Display',Georgia,serif", color: MAUVE_SOFT }));
       els.push(mkShape("s1-card", cx(318), 444, 318, 94, CARD, { borderRadius: 18, border: "1px solid rgba(184,146,90,0.28)" }));
       els.push(mkText("s1-inv1", "Te invito a celebrar", cx(228), 462, 228, 18, { fontSize: 11, color: TEXT_MUTED, fontStyle: "italic", fontFamily: "'Playfair Display',Georgia,serif" }));
@@ -1008,16 +1099,16 @@ const PREMIUM_TEMPLATES: PremiumTemplate[] = [
       els.push(mkShape("s2-card", cx(330), s2 + 74, 330, 144, CARD, { borderRadius: 20, border: "1px solid rgba(184,146,90,0.24)" }));
       els.push(mkApp("s2-countdown", "countdown", "", cx(296), s2 + 96, 296, 62, { background: "transparent", color: TEXT, borderRadius: 0, config: { url: "", primaryColor: "transparent", textColor: TEXT } }));
       els.push(mkText("s2-caption", "para celebrar juntos", cx(228), s2 + 230, 228, 18, { fontSize: 13, fontStyle: "italic", fontFamily: "'Playfair Display',Georgia,serif", color: ROSE }));
-      els.push(mkText("s2-date", "Fecha por confirmar", cx(282), s2 + 278, 282, 18, { fontSize: 10, color: TEXT_MUTED, letterSpacing: 0.08 }));
+      els.push(mkText("s2-date", "Fecha por confirmar", cx(282), s2 + 278, 282, 18, { semanticRole: "event_date", dataKey: "event_date", fontSize: 10, color: TEXT_MUTED, letterSpacing: 0.08 }));
 
       const s3 = 1180;
       els.push(mkShape("s3-wash", 0, s3, 390, 540, "radial-gradient(ellipse at 50% 30%,rgba(232,185,193,0.16) 0%,transparent 58%)"));
       els.push(mkText("s3-eye", "LA FESTEJADA", cx(158), s3 + 36, 158, 16, { fontSize: 9, fontWeight: "700", letterSpacing: 0.40, color: GOLD }));
       els.push(mkShape("s3-div1", cx(176), s3 + 58, 176, 1, goldLine()));
-      els.push(mkText("s3-name1", "Tu nombre", cx(304), s3 + 74, 304, 54, { fontSize: 42, fontFamily: "'Playfair Display',Georgia,serif", fontStyle: "italic", fontWeight: "700", color: TEXT, lineHeight: 1.1 }));
+      els.push(mkText("s3-name1", "Tu nombre", cx(304), s3 + 74, 304, 54, { semanticRole: "honoree_name", dataKey: "quinceanera_name", fontSize: 42, fontFamily: "'Playfair Display',Georgia,serif", fontStyle: "italic", fontWeight: "700", color: TEXT, lineHeight: 1.1 }));
       els.push(mkText("s3-name2", "", cx(168), s3 + 132, 168, 36, { fontSize: 28, fontFamily: "'Playfair Display',Georgia,serif", fontStyle: "italic", color: ROSE, lineHeight: 1 }));
       els.push(mkText("s3-parents-label", "Hija de", cx(88), s3 + 194, 88, 18, { fontSize: 10, fontStyle: "italic", fontFamily: "'Playfair Display',Georgia,serif", color: TEXT_MUTED }));
-      els.push(mkText("s3-parents", "Mis padres", cx(270), s3 + 220, 270, 22, { fontSize: 13, fontFamily: "'Playfair Display',Georgia,serif", fontStyle: "italic", color: GOLD }));
+      els.push(mkText("s3-parents", "Mis padres", cx(270), s3 + 220, 270, 22, { semanticRole: "parents_names", dataKey: "parents_names", fontSize: 13, fontFamily: "'Playfair Display',Georgia,serif", fontStyle: "italic", color: GOLD }));
       els.push(mkShape("s3-card", cx(314), s3 + 258, 314, 96, CARD, { borderRadius: 16, border: "1px solid rgba(184,146,90,0.24)" }));
       els.push(mkText("s3-verse", "Hoy cumplo quince anos\ny quiero compartirlos contigo", cx(274), s3 + 274, 274, null, { fontSize: 13, fontFamily: "'Playfair Display',Georgia,serif", fontStyle: "italic", color: TEXT_MUTED, lineHeight: 1.55 }));
       els.push(mkText("s3-watermark", "15", cx(108), s3 + 394, 108, 90, { fontSize: 80, fontFamily: "'Playfair Display',Georgia,serif", fontStyle: "italic", color: "rgba(200,117,131,0.10)", lineHeight: 1 }));
@@ -1027,28 +1118,28 @@ const PREMIUM_TEMPLATES: PremiumTemplate[] = [
       els.push(mkText("s4-eye", "MENSAJE ESPECIAL", cx(188), s4 + 36, 188, 16, { fontSize: 9, fontWeight: "700", letterSpacing: 0.34, color: GOLD }));
       els.push(mkShape("s4-card", cx(330), s4 + 58, 330, 258, CARD, { borderRadius: 20, border: "1px solid rgba(184,146,90,0.22)" }));
       els.push(mkText("s4-quote", '"', 50, s4 + 66, 38, 50, { fontSize: 52, fontFamily: "'Playfair Display',Georgia,serif", color: ROSE, opacity: 0.55, lineHeight: 0.9 }));
-      els.push(mkText("s4-message", "Este momento es magico\ny unico. Gracias por acompanarme\nen el inicio de esta nueva etapa.", cx(272), s4 + 116, 272, null, { fontSize: 15, fontFamily: "'Playfair Display',Georgia,serif", fontStyle: "italic", color: TEXT, lineHeight: 1.58 }));
+      els.push(mkText("s4-message", "Este momento es magico\ny unico. Gracias por acompanarme\nen el inicio de esta nueva etapa.", cx(272), s4 + 116, 272, null, { semanticRole: "honoree_message", dataKey: "quince_message", fontSize: 15, fontFamily: "'Playfair Display',Georgia,serif", fontStyle: "italic", color: TEXT, lineHeight: 1.58 }));
       els.push(mkShape("s4-sig-div", cx(78), s4 + 280, 78, 1, goldLine()));
       els.push(mkText("s4-signature", "Con carino", cx(208), s4 + 292, 208, 20, { fontSize: 11, fontWeight: "600", color: GOLD, letterSpacing: 0.12 }));
 
       const s5 = 2200;
       els.push(mkShape("s5-wash", 0, s5, 390, 440, "radial-gradient(ellipse at 50% 25%,rgba(232,185,193,0.16) 0%,transparent 53%)"));
       els.push(mkText("s5-eye", "CODIGO DE VESTIMENTA", cx(246), s5 + 36, 246, 16, { fontSize: 9, fontWeight: "700", letterSpacing: 0.26, color: GOLD }));
-      els.push(mkText("s5-style", "Formal Elegante", cx(258), s5 + 76, 258, 40, { fontSize: 32, fontFamily: "'Playfair Display',Georgia,serif", fontStyle: "italic", color: TEXT, lineHeight: 1.1 }));
-      els.push(mkText("s5-hint", "Paleta sugerida: rosa, lavanda y champagne.\nEvitar blanco y negro total.", cx(282), s5 + 126, 282, null, { fontSize: 12, color: TEXT_MUTED, fontStyle: "italic", fontFamily: "'Playfair Display',Georgia,serif", lineHeight: 1.5 }));
+      els.push(mkText("s5-style", "Formal Elegante", cx(258), s5 + 76, 258, 40, { semanticRole: "dress_code", dataKey: "dress_code", fontSize: 32, fontFamily: "'Playfair Display',Georgia,serif", fontStyle: "italic", color: TEXT, lineHeight: 1.1 }));
+      els.push(mkText("s5-hint", "Paleta sugerida: rosa, lavanda y champagne.\nEvitar blanco y negro total.", cx(282), s5 + 126, 282, null, { semanticRole: "dress_code", dataKey: "dress_code", fontSize: 12, color: TEXT_MUTED, fontStyle: "italic", fontFamily: "'Playfair Display',Georgia,serif", lineHeight: 1.5 }));
       const sw = s5 + 192;
       const sX = cx(140);
       els.push(mkShape("s5-sw1", sX, sw, 40, 40, BLUSH, { borderRadius: 999, border: "2px solid rgba(255,255,255,0.72)" }));
       els.push(mkShape("s5-sw2", sX + 52, sw, 40, 40, LAVENDER, { borderRadius: 999, border: "2px solid rgba(255,255,255,0.68)" }));
       els.push(mkShape("s5-sw3", sX + 104, sw, 40, 40, GOLD_SOFT, { borderRadius: 999, border: "2px solid rgba(255,255,255,0.68)" }));
-      els.push(mkText("s5-swatch-label", "Rosa . Lavanda . Champagne", cx(264), sw + 52, 264, 16, { fontSize: 10, color: TEXT_MUTED, letterSpacing: 0.08 }));
+      els.push(mkText("s5-swatch-label", "Rosa . Lavanda . Champagne", cx(264), sw + 52, 264, 16, { semanticRole: "color_palette", dataKey: "color_palette", fontSize: 10, color: TEXT_MUTED, letterSpacing: 0.08 }));
 
       const s6 = 2640;
       els.push(mkShape("s6-wash", 0, s6 + 80, 390, 280, "radial-gradient(ellipse at 50% 50%,rgba(232,185,193,0.16) 0%,transparent 60%)"));
       els.push(mkText("s6-eye", "DONDE NOS ENCONTRAMOS", cx(288), s6 + 36, 288, 16, { fontSize: 9, fontWeight: "700", letterSpacing: 0.20, color: GOLD }));
-      els.push(mkText("s6-venue", "Ubicacion del evento", cx(278), s6 + 112, 278, 34, { fontSize: 27, fontFamily: "'Playfair Display',Georgia,serif", fontStyle: "italic", fontWeight: "700", color: TEXT, lineHeight: 1.1 }));
-      els.push(mkText("s6-address", "Direccion por confirmar", cx(268), s6 + 152, 268, 22, { fontSize: 12, color: TEXT_MUTED, lineHeight: 1.4 }));
-      els.push(mkText("s6-date", "Fecha por confirmar", cx(306), s6 + 182, 306, 20, { fontSize: 10, fontWeight: "600", color: GOLD, letterSpacing: 0.09 }));
+      els.push(mkText("s6-venue", "Ubicacion del evento", cx(278), s6 + 112, 278, 34, { semanticRole: "ceremony_place", dataKey: "church_name", fontSize: 27, fontFamily: "'Playfair Display',Georgia,serif", fontStyle: "italic", fontWeight: "700", color: TEXT, lineHeight: 1.1 }));
+      els.push(mkText("s6-address", "Direccion por confirmar", cx(268), s6 + 152, 268, 22, { semanticRole: "event_address", dataKey: "address", fontSize: 12, color: TEXT_MUTED, lineHeight: 1.4 }));
+      els.push(mkText("s6-date", "Fecha por confirmar", cx(306), s6 + 182, 306, 20, { semanticRole: "event_date", dataKey: "event_date", fontSize: 10, fontWeight: "600", color: GOLD, letterSpacing: 0.09 }));
       els.push(mkApp("s6-map", "maps", "Ver en el mapa", cx(230), s6 + 230, 230, 50, { background: CARD, color: MAUVE, borderRadius: 16, border: "1px solid rgba(184,146,90,0.36)", config: { url: "https://maps.google.com", primaryColor: ROSE, textColor: MAUVE } }));
 
       const s7 = 3120;
@@ -1062,7 +1153,7 @@ const PREMIUM_TEMPLATES: PremiumTemplate[] = [
       const s8 = 3520;
       els.push(mkShape("s8-wash-top", 0, s8, 390, 220, "radial-gradient(ellipse at 50% 0%,rgba(232,185,193,0.24) 0%,transparent 65%)"));
       els.push(mkText("s8-title", "Nos vemos pronto", cx(278), s8 + 90, 278, 38, { fontSize: 30, fontFamily: "'Playfair Display',Georgia,serif", fontStyle: "italic", fontWeight: "700", color: TEXT }));
-      els.push(mkText("s8-name", "Tu nombre", cx(190), s8 + 140, 190, 28, { fontSize: 22, fontFamily: "'Playfair Display',Georgia,serif", fontStyle: "italic", color: ROSE }));
+      els.push(mkText("s8-name", "Tu nombre", cx(190), s8 + 140, 190, 28, { semanticRole: "honoree_name", dataKey: "quinceanera_name", fontSize: 22, fontFamily: "'Playfair Display',Georgia,serif", fontStyle: "italic", color: ROSE }));
       els.push(mkShape("s8-divider", cx(178), s8 + 182, 178, 1, goldLine()));
       els.push(mkText("s8-watermark", "15", cx(108), s8 + 204, 108, 92, { fontSize: 82, fontFamily: "'Playfair Display',Georgia,serif", fontStyle: "italic", color: "rgba(200,117,131,0.10)", lineHeight: 1 }));
       els.push(mkText("s8-footer", "Creado con KAIS Invitaciones", cx(234), s8 + 360, 234, 14, { fontSize: 9, color: TEXT_MUTED, opacity: 0.45, letterSpacing: 0.08 }));
@@ -3465,14 +3556,30 @@ export function CanvasEditorV3({
     if (!tpl) return;
     pushHistory(snapshot());
     const { sections: newSections, elements: newElements } = tpl.create();
-    const hydratedElements = hydratePremiumTemplateElements(newElements, elementsRef.current, {
+    const legacyHydratedElements = hydratePremiumTemplateElements(newElements, elementsRef.current, {
       eventTitle,
       eventDate,
       googleMapsLink,
       whatsappPhone
     });
-    setSections(newSections);
-    setElements(hydratedElements);
+    const currentDesign = createV3Design(elementsRef.current, sections, themeId);
+    const templateDesign = createV3Design(legacyHydratedElements, newSections, tpl.themeId);
+    const hydratedDesign = hydrateCanvasV3Template(
+      templateDesign as unknown as SharedCanvasV3Design,
+      createTemplateHydrationEventData({
+        eventId,
+        eventSlug,
+        eventTitle,
+        eventDate,
+        googleMapsLink,
+        whatsappPhone,
+        packageKey,
+        currentDesign,
+      }),
+      currentDesign as unknown as SharedCanvasV3Design
+    ) as unknown as CanvasV3Design | null;
+    setSections(hydratedDesign?.sections ?? newSections);
+    setElements(hydratedDesign?.elements ?? legacyHydratedElements);
     setThemeId(tpl.themeId);
     setActiveSectionId(newSections[0]?.id ?? "");
     setSelectedIds([]);

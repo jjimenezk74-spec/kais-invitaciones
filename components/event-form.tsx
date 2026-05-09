@@ -388,6 +388,61 @@ export function EventForm({
               </div>
             </div>
           </FormSection>
+
+          <FormSection title="Datos de graduacion" description="Informacion opcional para invitaciones de graduacion.">
+            <div className="grid gap-5 md:grid-cols-2">
+              <Field label="Nombre del graduado">
+                <Input name="graduate_name" defaultValue={event?.graduate_name ?? ""} placeholder="Sofia Martinez" />
+              </Field>
+              <Field label="Tipo de graduacion">
+                <Select name="graduation_type" defaultValue={event?.graduation_type ?? ""}>
+                  <option value="">Seleccionar tipo</option>
+                  <option value="high_school">Secundaria</option>
+                  <option value="university">Universitaria</option>
+                  <option value="technical">Tecnica</option>
+                  <option value="kindergarten">Jardin / Kinder</option>
+                  <option value="primary">Primaria</option>
+                  <option value="postgraduate">Postgrado</option>
+                  <option value="course">Curso</option>
+                  <option value="general">General</option>
+                </Select>
+              </Field>
+              <Field label="Institucion">
+                <Input name="institution_name" defaultValue={event?.institution_name ?? ""} placeholder="Universidad / colegio" />
+              </Field>
+              <Field label="Carrera / programa">
+                <Input name="academic_program" defaultValue={event?.academic_program ?? ""} placeholder="Arquitectura" />
+              </Field>
+              <Field label="Titulo obtenido">
+                <Input name="degree_title" defaultValue={event?.degree_title ?? ""} placeholder="Licenciada en..." />
+              </Field>
+              <Field label="Promocion">
+                <Input name="promotion_name" defaultValue={event?.promotion_name ?? ""} placeholder="Promocion 2026" />
+              </Field>
+              <Field label="Lugar del acto academico">
+                <Input name="academic_ceremony_place" defaultValue={event?.academic_ceremony_place ?? ""} placeholder="Auditorio principal" />
+              </Field>
+              <Field label="Hora del acto academico">
+                <Input name="academic_ceremony_time" type="time" defaultValue={event?.academic_ceremony_time ?? ""} />
+              </Field>
+              <Field label="Lugar de recepcion">
+                <Input name="reception_place" defaultValue={event?.reception_place ?? ""} placeholder="Salon / residencia / club" />
+              </Field>
+              <Field label="Hora de recepcion">
+                <Input name="reception_time" type="time" defaultValue={event?.reception_time ?? ""} />
+              </Field>
+              <div className="md:col-span-2">
+                <Field label="Mensaje del graduado">
+                  <Textarea name="graduate_message" defaultValue={event?.graduate_message ?? ""} placeholder="Un mensaje especial para compartir este logro" />
+                </Field>
+              </div>
+              <div className="md:col-span-2">
+                <Field label="Mensaje familiar">
+                  <Textarea name="family_message" defaultValue={event?.family_message ?? ""} placeholder="Un mensaje de la familia" />
+                </Field>
+              </div>
+            </div>
+          </FormSection>
           </div>
 
           <div className={activeStep === "multimedia" ? "grid gap-6" : "hidden"}>

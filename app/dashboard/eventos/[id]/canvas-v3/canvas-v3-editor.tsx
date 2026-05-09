@@ -3449,7 +3449,7 @@ export function CanvasEditorV3({
       }}>
         {/* Back */}
         <a
-          href="../"
+          href={`/dashboard/eventos/${eventId}`}
           style={{
             display: "flex", alignItems: "center", gap: 5,
             color: "#b7a89a", fontSize: 11, textDecoration: "none",

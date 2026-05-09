@@ -292,14 +292,25 @@ export function createGraduationCanvasV3Design(event: CanvasV3EventData): Canvas
     fontSize: 38,
     color: "#fff8e6",
   });
-  text("grad-presentation-details", "presentation", 248, [academicProgram, degreeTitle, promotionName].filter(Boolean).join("\n") || "Trayectoria academica", 300, null, 14, {
+  text("grad-presentation-details", "presentation", 248, [academicProgram, degreeTitle].filter(Boolean).join("\n") || "Trayectoria academica", 300, null, 14, {
     semanticRole: "graduation_program",
-    dataKey: academicProgram ? "academic_program" : promotionName ? "promotion_name" : "degree_title",
+    dataKey: academicProgram ? "academic_program" : "degree_title",
     lockedContent: true,
     fontSize: 15,
     color: "#d8cfbd",
     lineHeight: 1.45,
   });
+  if (promotionName) {
+    text("grad-promotion-name", "presentation", 336, promotionName, 300, 24, 15, {
+      semanticRole: "graduation_program",
+      dataKey: "promotion_name",
+      lockedContent: true,
+      fontSize: 12,
+      fontWeight: "800",
+      color: "#d4af37",
+      letterSpacing: 0.1,
+    });
+  }
 
   card("grad-ceremony-card", "academic_ceremony", 74, 340, 300, 15);
   text("grad-ceremony-title", "academic_ceremony", 106, "Acto academico", 300, 38, 16, {

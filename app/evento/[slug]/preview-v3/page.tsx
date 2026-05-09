@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { resolveInitialCanvasV3Design, type CanvasV3EventData } from "@/lib/canvas-v3/initial-design";
 import { CanvasV3PublicRenderer } from "@/app/dashboard/eventos/[id]/canvas-v3/canvas-v3-public-renderer";
 
 type Props = { params: Promise<{ slug: string }> };
@@ -83,7 +84,7 @@ export default async function PreviewV3Page({ params }: Props) {
     const admin = createAdminClient();
     const { data, error: dbError } = await admin
       .from("events")
-      .select("id, slug, hosts_names, title, canvas_design, event_date, event_time")
+      .select("id, slug, event_type, hosts_names, title, canvas_design, event_date, event_time, address, google_maps_link, main_message, quinceanera_name, parents_names, church_name, church_time, dress_code, color_palette, theme, quince_message, parents_message, package_key, whatsapp_phone")
       .eq("slug", slug)
       .maybeSingle();
 
@@ -94,24 +95,7 @@ export default async function PreviewV3Page({ params }: Props) {
 
     if (!data) notFound();
 
-    // ── Guard: solo rechazar si canvas_design no es un objeto ──────────────
-    const rawDesign = data.canvas_design;
-    const rawType = rawDesign === null ? "null" : typeof rawDesign;
-    const asObj =
-      rawDesign && typeof rawDesign === "object" && !Array.isArray(rawDesign)
-        ? (rawDesign as Record<string, unknown>)
-        : null;
-    const sectionsCount =
-      asObj && Array.isArray(asObj.sections)
-        ? (asObj.sections as unknown[]).length
-        : -1;
-    const elementsCount =
-      asObj && Array.isArray(asObj.elements)
-        ? (asObj.elements as unknown[]).length
-        : -1;
-    console.log("[preview-v3]", { slug, rawType, sectionsCount, elementsCount });
-
-    if (!asObj) return noDesignUI(slug);
+    const design = resolveInitialCanvasV3Design(data as unknown as CanvasV3EventData);
 
     const eventTitle = data.hosts_names || data.title || "Evento";
 
@@ -174,7 +158,7 @@ export default async function PreviewV3Page({ params }: Props) {
         {/* Canvas renderer — el renderer normaliza internamente */}
         <div style={{ width: "100%", maxWidth: "100vw", padding: 0, overflowX: "hidden" }}>
           <CanvasV3PublicRenderer
-            design={asObj}
+            design={design}
             eventTitle={eventTitle}
             eventSlug={data.slug ?? slug}
             eventDate={data.event_date && data.event_time ? `${data.event_date}T${data.event_time}` : undefined}

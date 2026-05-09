@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { canEditEventDesign } from "@/lib/permissions";
 import { getCurrentUserProfile } from "@/lib/profiles";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { resolveInitialCanvasV3Design, type CanvasV3EventData } from "@/lib/canvas-v3/initial-design";
 import { CanvasEditorV3 } from "./canvas-v3-editor";
 import type { Event } from "@/lib/types";
 
@@ -12,17 +13,30 @@ type EventV3Row = Pick<
   Event,
   | "id"
   | "slug"
+  | "event_type"
   | "hosts_names"
   | "title"
   | "canvas_design"
   | "event_date"
   | "event_time"
+  | "address"
+  | "main_message"
+  | "quinceanera_name"
+  | "parents_names"
+  | "church_name"
+  | "church_time"
+  | "dress_code"
+  | "color_palette"
+  | "theme"
+  | "quince_message"
+  | "parents_message"
   | "package_key"
   | "enabled_features"
   | "disabled_features"
   | "whatsapp_phone"
   | "google_maps_link"
   | "music_url"
+  | "updated_at"
 >;
 
 type Props = { params: Promise<{ id: string }> };
@@ -46,21 +60,23 @@ export default async function CanvasV3Page({ params }: Props) {
   // every column we added (package_key, etc.) depending on the local type snapshot.
   const { data: rawData } = await admin
     .from("events")
-    .select("id, slug, hosts_names, title, canvas_design, event_date, event_time, package_key, enabled_features, disabled_features, whatsapp_phone, google_maps_link, music_url")
+    .select("id, slug, event_type, hosts_names, title, canvas_design, event_date, event_time, address, google_maps_link, main_message, quinceanera_name, parents_names, church_name, church_time, dress_code, color_palette, theme, quince_message, parents_message, package_key, enabled_features, disabled_features, whatsapp_phone, music_url, updated_at")
     .eq(isUuid(id) ? "id" : "slug", id)
     .maybeSingle();
 
   if (!rawData) notFound();
   // Single cast — all accesses below are fully typed via EventV3Row.
   const data = rawData as unknown as EventV3Row;
+  const initialDesign = resolveInitialCanvasV3Design(data as unknown as CanvasV3EventData);
 
   return (
     <div className="fixed inset-0 z-[9999] h-dvh w-screen overflow-hidden bg-[#0f0f17]">
       <CanvasEditorV3
+        key={`${data.id}:${data.updated_at ?? ""}`}
         eventId={data.id}
         eventSlug={data.slug ?? id}
         eventTitle={data.hosts_names || data.title || "Evento"}
-        initialDesign={data.canvas_design ?? null}
+        initialDesign={initialDesign}
         eventDate={data.event_date && data.event_time ? `${data.event_date}T${data.event_time}` : undefined}
         packageKey={data.package_key ?? null}
         enabledFeatures={data.enabled_features ?? []}

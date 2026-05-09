@@ -219,7 +219,7 @@ async function MetricsSection({ event }: { event: Event }) {
   );
 }
 
-const VALID_TABS = ["resumen", "invitados", "confirmaciones", "publicacion", "acceso", "ajustes"];
+const VALID_TABS = ["resumen", "invitados", "confirmaciones", "publicacion", "diseno-v3", "acceso", "ajustes"];
 
 export default async function EventDetailPage({
   params,
@@ -263,6 +263,7 @@ export default async function EventDetailPage({
     if (tab.key === "invitados") return permissions.manageGuests;
     if (tab.key === "confirmaciones") return permissions.viewRsvps;
     if (tab.key === "publicacion") return permissions.publishEvents;
+    if (tab.key === "diseno-v3") return permissions.editEventDesign;
     if (tab.key === "acceso") return permissions.manageEventAccess;
     if (tab.key === "ajustes") return permissions.manageEvents;
     return false;
@@ -467,16 +468,6 @@ export default async function EventDetailPage({
               <p className="font-semibold text-[#3b1721]">Activar album</p>
               <p className="mt-1 text-sm text-muted-foreground">Prepara QR, pantalla en vivo y moderacion.</p>
             </Link>
-            {permissions.editEventDesign && (
-              <Link
-                href={`/dashboard/eventos/${event.id}/canvas`}
-                className="rounded-2xl border border-indigo-200 bg-indigo-50 p-4 transition hover:-translate-y-0.5 hover:shadow-md"
-              >
-                <Wand2 className="mb-3 h-5 w-5 text-indigo-600" />
-                <p className="font-semibold text-indigo-900">Editor visual</p>
-                <p className="mt-1 text-sm text-muted-foreground">Diseña la invitacion con texto libre y stickers.</p>
-              </Link>
-            )}
           </CardContent>
         </Card>
       )}

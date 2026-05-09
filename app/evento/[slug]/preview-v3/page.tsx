@@ -84,7 +84,7 @@ export default async function PreviewV3Page({ params }: Props) {
     const admin = createAdminClient();
     const { data, error: dbError } = await admin
       .from("events")
-      .select("id, slug, event_type, hosts_names, title, canvas_design, event_date, event_time, address, google_maps_link, main_message, quinceanera_name, parents_names, church_name, church_time, dress_code, color_palette, theme, quince_message, parents_message, package_key, whatsapp_phone")
+      .select("id, slug, event_type, hosts_names, title, canvas_design, event_date, event_time, address, google_maps_link, main_message, quinceanera_name, parents_names, church_name, church_time, dress_code, color_palette, theme, quince_message, parents_message, graduate_name, graduation_type, institution_name, academic_program, degree_title, promotion_name, academic_ceremony_place, academic_ceremony_time, reception_place, reception_time, family_message, graduate_message, package_key, whatsapp_phone")
       .eq("slug", slug)
       .maybeSingle();
 

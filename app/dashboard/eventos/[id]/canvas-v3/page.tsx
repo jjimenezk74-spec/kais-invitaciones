@@ -30,6 +30,18 @@ type EventV3Row = Pick<
   | "theme"
   | "quince_message"
   | "parents_message"
+  | "graduate_name"
+  | "graduation_type"
+  | "institution_name"
+  | "academic_program"
+  | "degree_title"
+  | "promotion_name"
+  | "academic_ceremony_place"
+  | "academic_ceremony_time"
+  | "reception_place"
+  | "reception_time"
+  | "family_message"
+  | "graduate_message"
   | "package_key"
   | "enabled_features"
   | "disabled_features"
@@ -60,7 +72,7 @@ export default async function CanvasV3Page({ params }: Props) {
   // every column we added (package_key, etc.) depending on the local type snapshot.
   const { data: rawData } = await admin
     .from("events")
-    .select("id, slug, event_type, hosts_names, title, canvas_design, event_date, event_time, address, google_maps_link, main_message, quinceanera_name, parents_names, church_name, church_time, dress_code, color_palette, theme, quince_message, parents_message, package_key, enabled_features, disabled_features, whatsapp_phone, music_url, updated_at")
+    .select("id, slug, event_type, hosts_names, title, canvas_design, event_date, event_time, address, google_maps_link, main_message, quinceanera_name, parents_names, church_name, church_time, dress_code, color_palette, theme, quince_message, parents_message, graduate_name, graduation_type, institution_name, academic_program, degree_title, promotion_name, academic_ceremony_place, academic_ceremony_time, reception_place, reception_time, family_message, graduate_message, package_key, enabled_features, disabled_features, whatsapp_phone, music_url, updated_at")
     .eq(isUuid(id) ? "id" : "slug", id)
     .maybeSingle();
 

@@ -277,6 +277,18 @@ export type Event = {
   theme?: string | null;
   quince_message?: string | null;
   parents_message?: string | null;
+  graduate_name?: string | null;
+  graduation_type?: string | null;
+  institution_name?: string | null;
+  academic_program?: string | null;
+  degree_title?: string | null;
+  promotion_name?: string | null;
+  academic_ceremony_place?: string | null;
+  academic_ceremony_time?: string | null;
+  reception_place?: string | null;
+  reception_time?: string | null;
+  family_message?: string | null;
+  graduate_message?: string | null;
   cover_image_url: string | null;
   mobile_cover_image_url: string | null;
   music_url: string | null;

@@ -39,12 +39,14 @@ import {
 import { perfEnd, perfStart, timed } from "@/lib/perf";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { setEventStatus } from "@/app/actions/event-status";
+import { regenerateCanvasDesignV3 } from "@/app/actions/canvas-v3";
 import type { Client, Event } from "@/lib/types";
 import { absoluteUrl, publicEventUrl, shortAlbumUrl, shortLiveScreenUrl, shortPhotoUploadUrl } from "@/lib/utils";
 import { DetallesSection } from "@/components/event-sections/detalles-section";
 import { AccesoSection } from "@/components/event-sections/acceso-section";
 import { GuestSection } from "@/components/event-sections/guest-section";
 import { RsvpSection } from "@/components/event-sections/rsvp-section";
+import { RegenerateCanvasV3Button } from "@/components/regenerate-canvas-v3-button";
 
 function CardSkeleton({ rows = 3 }: { rows?: number }) {
   return (
@@ -308,6 +310,7 @@ export default async function EventDetailPage({
   const isDraft        = event.status !== "publicado";
   const previewUrl     = `/evento/${event.slug}?preview=admin`;
   const publishAction  = setEventStatus.bind(null, event.id, isDraft ? "publicado" : "borrador");
+  const regenerateV3Action = regenerateCanvasDesignV3.bind(null, event.id);
   const savedToast     = query.saved
     ? query.saved === "status"
       ? "Estado actualizado correctamente."
@@ -520,6 +523,41 @@ export default async function EventDetailPage({
             mode="publicacion"
           />
         </Suspense>
+      )}
+
+      {activeTab === "diseno-v3" && permissions.editEventDesign && (
+        <Card className="border-[#eadfd2] bg-white shadow-[0_18px_55px_rgba(74,23,36,0.06)]">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-[#3b1721]">
+              <Wand2 className="h-5 w-5 text-[#b8862b]" />
+              Diseño V3
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+            <div>
+              <p className="text-sm font-medium text-[#3b1721]">
+                Editor Canvas V3 conectado a los datos actuales del evento.
+              </p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Regenerar reemplaza el diseño V3 actual con una estructura nueva basada en nombre, fecha, mensajes, misa, ubicación y RSVP.
+              </p>
+              {query.error && (
+                <p className="mt-3 rounded-md bg-red-50 px-3 py-2 text-sm font-medium text-red-700">
+                  {query.error}
+                </p>
+              )}
+            </div>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Button variant="outline" asChild>
+                <Link href={`/dashboard/eventos/${event.id}/canvas-v3`}>
+                  <Wand2 className="h-4 w-4" />
+                  Abrir editor
+                </Link>
+              </Button>
+              <RegenerateCanvasV3Button action={regenerateV3Action} />
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {activeTab === "acceso" && (

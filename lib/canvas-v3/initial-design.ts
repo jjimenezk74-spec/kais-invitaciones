@@ -1,4 +1,5 @@
 import type { Event } from "@/lib/types";
+import { createGraduationCanvasV3Design } from "./ceremony-builders/graduation";
 import { createQuinceaniosCanvasV3Design } from "./ceremony-builders/quinceanios";
 import {
   normalizeCanvasV3EventType,
@@ -166,6 +167,8 @@ export function createInitialCanvasV3Design(event: CanvasV3EventData): CanvasV3D
   const eventType = normalizeCanvasV3EventType(event.event_type);
 
   switch (eventType) {
+    case "graduation":
+      return createGraduationCanvasV3Design(event);
     case "quinceanios":
       return createQuinceaniosCanvasV3Design(event);
     default:

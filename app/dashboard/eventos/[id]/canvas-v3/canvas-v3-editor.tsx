@@ -855,6 +855,15 @@ function createTemplateHydrationEventData({
   currentDesign: CanvasV3Design;
 }): CanvasV3EventData {
   const { date, time } = splitEventDateTime(eventDate);
+  const currentElements = currentDesign.elements;
+  const eventName = getElementText(currentElements, ["hero-title", "presentation-title", "footer-title", "s1-name", "s3-name1", "s8-name"]) || eventTitle;
+  const mainMessage = getElementText(currentElements, ["quince-message", "hero-message", "main-message", "s4-message"]);
+  const parents = getElementText(currentElements, ["parents-message", "s3-parents"])
+    .replace(/^Junto a mis padres\s*/i, "")
+    .trim();
+  const churchDetails = getElementText(currentElements, ["church-details", "church-title", "s6-venue"]);
+  const address = getElementText(currentElements, ["event-address", "details-address", "s6-address"]);
+  const dressDetails = getElementText(currentElements, ["dress-details", "dress-code", "s5-hint"]);
   return {
     id: eventId,
     slug: eventSlug ?? eventId,
@@ -863,17 +872,17 @@ function createTemplateHydrationEventData({
     hosts_names: eventTitle,
     event_date: date,
     event_time: time,
-    address: "",
+    address,
     google_maps_link: googleMapsLink ?? null,
-    main_message: null,
-    quinceanera_name: null,
-    parents_names: null,
-    church_name: null,
+    main_message: mainMessage || null,
+    quinceanera_name: eventName,
+    parents_names: parents || null,
+    church_name: churchDetails || null,
     church_time: null,
-    dress_code: null,
+    dress_code: dressDetails || null,
     color_palette: null,
     theme: null,
-    quince_message: null,
+    quince_message: mainMessage || null,
     parents_message: null,
     graduate_name: null,
     graduation_type: null,
@@ -900,16 +909,7 @@ function hydratePremiumTemplateElements(
 ): V3Element[] {
   const eventName = getElementText(currentElements, ["hero-title", "presentation-title", "footer-title", "s1-name", "s3-name1", "s8-name"]) || context.eventTitle;
   const { firstLine, secondLine } = splitEventName(eventName);
-  const mainMessage =
-    getElementText(currentElements, ["quince-message", "hero-message", "main-message", "s4-message"]) ||
-    "Quiero compartir esta noche especial con las personas que mas quiero.";
-  const parents =
-    getElementText(currentElements, ["parents-message", "s3-parents"])
-      .replace(/^Junto a mis padres\s*/i, "")
-      .trim() || "Mis padres";
   const churchDetails = getElementText(currentElements, ["church-details", "church-title", "s6-venue"]);
-  const address = getElementText(currentElements, ["event-address", "details-address", "s6-address"]) || "Direccion por confirmar";
-  const dressDetails = getElementText(currentElements, ["dress-details", "dress-code", "s5-hint"]) || "Dress code por confirmar";
   const mapsUrl = context.googleMapsLink || getElementConfigUrl(currentElements, "maps");
   const whatsappUrl = context.whatsappPhone
     ? `https://wa.me/${context.whatsappPhone.replace(/\D/g, "")}`
@@ -925,18 +925,11 @@ function hydratePremiumTemplateElements(
     if (id.includes("-s1-last-")) return contentFor(secondLine);
     if (id.includes("-s1-date-")) return contentFor(dateCompact);
     if (id.includes("-s2-date-") || id.includes("-s6-date-")) return contentFor(dateLine);
-    if (id.includes("-s3-name1-")) return contentFor(eventName);
     if (id.includes("-s3-name2-")) return contentFor(secondLine === "MIS QUINCE ANOS" ? "" : secondLine, secondLine !== "MIS QUINCE ANOS");
-    if (id.includes("-s3-parents-")) return contentFor(parents);
-    if (id.includes("-s4-message-")) return contentFor(mainMessage);
     if (id.includes("-s4-signature-")) return contentFor(`Con carino, ${eventName}`);
     if (id.includes("-s5-style-")) return contentFor("Dress code");
-    if (id.includes("-s5-hint-")) return contentFor(dressDetails);
     if (id.includes("-s5-swatch-label-")) return contentFor("Paleta del evento");
     if (id.includes("-s6-eye-")) return contentFor(churchDetails ? "MISA Y UBICACION" : "UBICACION");
-    if (id.includes("-s6-venue-")) return contentFor(churchDetails || "Ubicacion del evento");
-    if (id.includes("-s6-address-")) return contentFor(address);
-    if (id.includes("-s8-name-")) return contentFor(eventName);
 
     if (element.type === "app" && normalizeAppType(element) === "countdown" && context.eventDate) {
       return {

@@ -765,6 +765,124 @@ function RenderElement({
 // Premium templates
 // ─────────────────────────────────────────────────────────────────────────────
 
+type PremiumTemplateHydrationContext = {
+  eventTitle: string;
+  eventDate?: string;
+  googleMapsLink?: string | null;
+  whatsappPhone?: string | null;
+};
+
+function cleanText(value?: string | null): string {
+  return (value ?? "").replace(/\s+/g, " ").trim();
+}
+
+function getElementText(elements: V3Element[], ids: string[]): string {
+  for (const id of ids) {
+    const text = cleanText(elements.find((el) => el.id === id)?.content);
+    if (text) return text;
+  }
+  return "";
+}
+
+function getElementConfigUrl(elements: V3Element[], appType: V3AppType): string {
+  const element = elements.find((el) => el.type === "app" && normalizeAppType(el) === appType);
+  return cleanText(element?.config?.url);
+}
+
+function splitEventName(name: string): { firstLine: string; secondLine: string } {
+  const parts = cleanText(name).split(" ").filter(Boolean);
+  if (parts.length <= 1) return { firstLine: parts[0] ?? "Tu nombre", secondLine: "MIS QUINCE ANOS" };
+  return { firstLine: parts.slice(0, 2).join(" "), secondLine: parts.slice(2).join(" ").toUpperCase() || "MIS QUINCE ANOS" };
+}
+
+function parseEventDate(value?: string): Date | null {
+  if (!value) return null;
+  const normalized = value.length === 10 ? `${value}T00:00:00` : value;
+  const parsed = new Date(normalized);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function formatTemplateDateLine(value?: string): string {
+  const parsed = parseEventDate(value);
+  if (!parsed) return "Fecha por confirmar";
+  const day = new Intl.DateTimeFormat("es-PY", { day: "numeric" }).format(parsed);
+  const month = new Intl.DateTimeFormat("es-PY", { month: "long" }).format(parsed);
+  const year = new Intl.DateTimeFormat("es-PY", { year: "numeric" }).format(parsed);
+  const time = new Intl.DateTimeFormat("es-PY", { hour: "2-digit", minute: "2-digit", hour12: false }).format(parsed);
+  return `${day} de ${month} . ${year} . ${time} hs`;
+}
+
+function formatTemplateDateCompact(value?: string): string {
+  const parsed = parseEventDate(value);
+  if (!parsed) return "FECHA POR CONFIRMAR";
+  const day = new Intl.DateTimeFormat("es-PY", { day: "2-digit" }).format(parsed);
+  const month = new Intl.DateTimeFormat("es-PY", { month: "long" }).format(parsed).toUpperCase();
+  const year = new Intl.DateTimeFormat("es-PY", { year: "numeric" }).format(parsed);
+  return `${day} . ${month} . ${year}`;
+}
+
+function hydratePremiumTemplateElements(
+  templateElements: V3Element[],
+  currentElements: V3Element[],
+  context: PremiumTemplateHydrationContext
+): V3Element[] {
+  const eventName = getElementText(currentElements, ["hero-title", "presentation-title", "footer-title", "s1-name", "s3-name1", "s8-name"]) || context.eventTitle;
+  const { firstLine, secondLine } = splitEventName(eventName);
+  const mainMessage =
+    getElementText(currentElements, ["quince-message", "hero-message", "main-message", "s4-message"]) ||
+    "Quiero compartir esta noche especial con las personas que mas quiero.";
+  const parents =
+    getElementText(currentElements, ["parents-message", "s3-parents"])
+      .replace(/^Junto a mis padres\s*/i, "")
+      .trim() || "Mis padres";
+  const churchDetails = getElementText(currentElements, ["church-details", "church-title", "s6-venue"]);
+  const address = getElementText(currentElements, ["event-address", "details-address", "s6-address"]) || "Direccion por confirmar";
+  const dressDetails = getElementText(currentElements, ["dress-details", "dress-code", "s5-hint"]) || "Dress code por confirmar";
+  const mapsUrl = context.googleMapsLink || getElementConfigUrl(currentElements, "maps");
+  const whatsappUrl = context.whatsappPhone
+    ? `https://wa.me/${context.whatsappPhone.replace(/\D/g, "")}`
+    : getElementConfigUrl(currentElements, "whatsapp");
+  const dateLine = getElementText(currentElements, ["event-date-time", "s2-date", "s6-date"]) || formatTemplateDateLine(context.eventDate);
+  const dateCompact = getElementText(currentElements, ["hero-date", "s1-date"]) || formatTemplateDateCompact(context.eventDate);
+
+  return templateElements.map((element) => {
+    const id = element.id;
+    const contentFor = (content: string, visible = true): V3Element => ({ ...element, content, visible });
+
+    if (id.includes("-s1-name-")) return contentFor(firstLine);
+    if (id.includes("-s1-last-")) return contentFor(secondLine);
+    if (id.includes("-s1-date-")) return contentFor(dateCompact);
+    if (id.includes("-s2-date-") || id.includes("-s6-date-")) return contentFor(dateLine);
+    if (id.includes("-s3-name1-")) return contentFor(eventName);
+    if (id.includes("-s3-name2-")) return contentFor(secondLine === "MIS QUINCE ANOS" ? "" : secondLine, secondLine !== "MIS QUINCE ANOS");
+    if (id.includes("-s3-parents-")) return contentFor(parents);
+    if (id.includes("-s4-message-")) return contentFor(mainMessage);
+    if (id.includes("-s4-signature-")) return contentFor(`Con carino, ${eventName}`);
+    if (id.includes("-s5-style-")) return contentFor("Dress code");
+    if (id.includes("-s5-hint-")) return contentFor(dressDetails);
+    if (id.includes("-s5-swatch-label-")) return contentFor("Paleta del evento");
+    if (id.includes("-s6-eye-")) return contentFor(churchDetails ? "MISA Y UBICACION" : "UBICACION");
+    if (id.includes("-s6-venue-")) return contentFor(churchDetails || "Ubicacion del evento");
+    if (id.includes("-s6-address-")) return contentFor(address);
+    if (id.includes("-s8-name-")) return contentFor(eventName);
+
+    if (element.type === "app" && normalizeAppType(element) === "countdown" && context.eventDate) {
+      return {
+        ...element,
+        config: { ...element.config, countdownMode: "event", countdownTarget: context.eventDate }
+      };
+    }
+    if (element.type === "app" && normalizeAppType(element) === "maps" && mapsUrl) {
+      return { ...element, config: { ...element.config, url: mapsUrl } };
+    }
+    if (element.type === "app" && normalizeAppType(element) === "whatsapp") {
+      return { ...element, visible: Boolean(whatsappUrl), config: { ...element.config, url: whatsappUrl } };
+    }
+
+    return element;
+  });
+}
+
 const PREMIUM_TEMPLATES: PremiumTemplate[] = [
   {
     id: "glam-rosa",
@@ -874,10 +992,10 @@ const PREMIUM_TEMPLATES: PremiumTemplate[] = [
       els.push(mkText("s1-mis", "MIS", cx(44), 54, 44, 16, { fontSize: 11, fontWeight: "700", letterSpacing: 0.42, color: GOLD }));
       els.push(mkText("s1-15", "15", cx(148), 66, 148, 112, { fontSize: 98, fontFamily: "'Playfair Display',Georgia,serif", fontStyle: "italic", fontWeight: "700", color: ROSE, lineHeight: 1 }));
       els.push(mkShape("s1-div1", cx(200), 196, 200, 1, "linear-gradient(90deg,transparent," + GOLD + ",transparent)"));
-      els.push(mkText("s1-name", "Valentina", cx(292), 212, 292, 54, { fontSize: 43, fontFamily: "'Playfair Display',Georgia,serif", fontStyle: "italic", fontWeight: "700", color: TEXT, lineHeight: 1.08 }));
-      els.push(mkText("s1-last", "MARIA GARCIA", cx(226), 270, 226, 20, { fontSize: 10, fontWeight: "700", letterSpacing: 0.32, color: TEXT_MUTED }));
+      els.push(mkText("s1-name", "Tu nombre", cx(292), 212, 292, 54, { fontSize: 43, fontFamily: "'Playfair Display',Georgia,serif", fontStyle: "italic", fontWeight: "700", color: TEXT, lineHeight: 1.08 }));
+      els.push(mkText("s1-last", "MIS QUINCE ANOS", cx(226), 270, 226, 20, { fontSize: 10, fontWeight: "700", letterSpacing: 0.32, color: TEXT_MUTED }));
       els.push(mkShape("s1-div2", cx(88), 304, 88, 1, goldLine()));
-      els.push(mkText("s1-date", "14 . JUNIO . 2026", cx(218), 322, 218, 18, { fontSize: 10, fontWeight: "600", letterSpacing: 0.20, color: GOLD }));
+      els.push(mkText("s1-date", "FECHA POR CONFIRMAR", cx(218), 322, 218, 18, { fontSize: 10, fontWeight: "600", letterSpacing: 0.20, color: GOLD }));
       els.push(mkText("s1-type", "Quinceanos", cx(142), 350, 142, 22, { fontSize: 14, fontStyle: "italic", fontFamily: "'Playfair Display',Georgia,serif", color: MAUVE_SOFT }));
       els.push(mkShape("s1-card", cx(318), 444, 318, 94, CARD, { borderRadius: 18, border: "1px solid rgba(184,146,90,0.28)" }));
       els.push(mkText("s1-inv1", "Te invito a celebrar", cx(228), 462, 228, 18, { fontSize: 11, color: TEXT_MUTED, fontStyle: "italic", fontFamily: "'Playfair Display',Georgia,serif" }));
@@ -890,16 +1008,16 @@ const PREMIUM_TEMPLATES: PremiumTemplate[] = [
       els.push(mkShape("s2-card", cx(330), s2 + 74, 330, 144, CARD, { borderRadius: 20, border: "1px solid rgba(184,146,90,0.24)" }));
       els.push(mkApp("s2-countdown", "countdown", "", cx(296), s2 + 96, 296, 62, { background: "transparent", color: TEXT, borderRadius: 0, config: { url: "", primaryColor: "transparent", textColor: TEXT } }));
       els.push(mkText("s2-caption", "para celebrar juntos", cx(228), s2 + 230, 228, 18, { fontSize: 13, fontStyle: "italic", fontFamily: "'Playfair Display',Georgia,serif", color: ROSE }));
-      els.push(mkText("s2-date", "14 de Junio . 2026 . 20:00 hs", cx(282), s2 + 278, 282, 18, { fontSize: 10, color: TEXT_MUTED, letterSpacing: 0.08 }));
+      els.push(mkText("s2-date", "Fecha por confirmar", cx(282), s2 + 278, 282, 18, { fontSize: 10, color: TEXT_MUTED, letterSpacing: 0.08 }));
 
       const s3 = 1180;
       els.push(mkShape("s3-wash", 0, s3, 390, 540, "radial-gradient(ellipse at 50% 30%,rgba(232,185,193,0.16) 0%,transparent 58%)"));
       els.push(mkText("s3-eye", "LA FESTEJADA", cx(158), s3 + 36, 158, 16, { fontSize: 9, fontWeight: "700", letterSpacing: 0.40, color: GOLD }));
       els.push(mkShape("s3-div1", cx(176), s3 + 58, 176, 1, goldLine()));
-      els.push(mkText("s3-name1", "Valentina Maria", cx(304), s3 + 74, 304, 54, { fontSize: 42, fontFamily: "'Playfair Display',Georgia,serif", fontStyle: "italic", fontWeight: "700", color: TEXT, lineHeight: 1.1 }));
-      els.push(mkText("s3-name2", "Garcia", cx(168), s3 + 132, 168, 36, { fontSize: 28, fontFamily: "'Playfair Display',Georgia,serif", fontStyle: "italic", color: ROSE, lineHeight: 1 }));
+      els.push(mkText("s3-name1", "Tu nombre", cx(304), s3 + 74, 304, 54, { fontSize: 42, fontFamily: "'Playfair Display',Georgia,serif", fontStyle: "italic", fontWeight: "700", color: TEXT, lineHeight: 1.1 }));
+      els.push(mkText("s3-name2", "", cx(168), s3 + 132, 168, 36, { fontSize: 28, fontFamily: "'Playfair Display',Georgia,serif", fontStyle: "italic", color: ROSE, lineHeight: 1 }));
       els.push(mkText("s3-parents-label", "Hija de", cx(88), s3 + 194, 88, 18, { fontSize: 10, fontStyle: "italic", fontFamily: "'Playfair Display',Georgia,serif", color: TEXT_MUTED }));
-      els.push(mkText("s3-parents", "Patricia & Roberto Garcia", cx(270), s3 + 220, 270, 22, { fontSize: 13, fontFamily: "'Playfair Display',Georgia,serif", fontStyle: "italic", color: GOLD }));
+      els.push(mkText("s3-parents", "Mis padres", cx(270), s3 + 220, 270, 22, { fontSize: 13, fontFamily: "'Playfair Display',Georgia,serif", fontStyle: "italic", color: GOLD }));
       els.push(mkShape("s3-card", cx(314), s3 + 258, 314, 96, CARD, { borderRadius: 16, border: "1px solid rgba(184,146,90,0.24)" }));
       els.push(mkText("s3-verse", "Hoy cumplo quince anos\ny quiero compartirlos contigo", cx(274), s3 + 274, 274, null, { fontSize: 13, fontFamily: "'Playfair Display',Georgia,serif", fontStyle: "italic", color: TEXT_MUTED, lineHeight: 1.55 }));
       els.push(mkText("s3-watermark", "15", cx(108), s3 + 394, 108, 90, { fontSize: 80, fontFamily: "'Playfair Display',Georgia,serif", fontStyle: "italic", color: "rgba(200,117,131,0.10)", lineHeight: 1 }));
@@ -911,7 +1029,7 @@ const PREMIUM_TEMPLATES: PremiumTemplate[] = [
       els.push(mkText("s4-quote", '"', 50, s4 + 66, 38, 50, { fontSize: 52, fontFamily: "'Playfair Display',Georgia,serif", color: ROSE, opacity: 0.55, lineHeight: 0.9 }));
       els.push(mkText("s4-message", "Este momento es magico\ny unico. Gracias por acompanarme\nen el inicio de esta nueva etapa.", cx(272), s4 + 116, 272, null, { fontSize: 15, fontFamily: "'Playfair Display',Georgia,serif", fontStyle: "italic", color: TEXT, lineHeight: 1.58 }));
       els.push(mkShape("s4-sig-div", cx(78), s4 + 280, 78, 1, goldLine()));
-      els.push(mkText("s4-signature", "Con amor, Valentina", cx(208), s4 + 292, 208, 20, { fontSize: 11, fontWeight: "600", color: GOLD, letterSpacing: 0.12 }));
+      els.push(mkText("s4-signature", "Con carino", cx(208), s4 + 292, 208, 20, { fontSize: 11, fontWeight: "600", color: GOLD, letterSpacing: 0.12 }));
 
       const s5 = 2200;
       els.push(mkShape("s5-wash", 0, s5, 390, 440, "radial-gradient(ellipse at 50% 25%,rgba(232,185,193,0.16) 0%,transparent 53%)"));
@@ -928,9 +1046,9 @@ const PREMIUM_TEMPLATES: PremiumTemplate[] = [
       const s6 = 2640;
       els.push(mkShape("s6-wash", 0, s6 + 80, 390, 280, "radial-gradient(ellipse at 50% 50%,rgba(232,185,193,0.16) 0%,transparent 60%)"));
       els.push(mkText("s6-eye", "DONDE NOS ENCONTRAMOS", cx(288), s6 + 36, 288, 16, { fontSize: 9, fontWeight: "700", letterSpacing: 0.20, color: GOLD }));
-      els.push(mkText("s6-venue", "Salon de Eventos", cx(278), s6 + 112, 278, 34, { fontSize: 27, fontFamily: "'Playfair Display',Georgia,serif", fontStyle: "italic", fontWeight: "700", color: TEXT, lineHeight: 1.1 }));
-      els.push(mkText("s6-address", "Av. Principal 123 . Ciudad", cx(268), s6 + 152, 268, 22, { fontSize: 12, color: TEXT_MUTED, lineHeight: 1.4 }));
-      els.push(mkText("s6-date", "Viernes 14 de Junio 2026 . 20:00 hs", cx(306), s6 + 182, 306, 20, { fontSize: 10, fontWeight: "600", color: GOLD, letterSpacing: 0.09 }));
+      els.push(mkText("s6-venue", "Ubicacion del evento", cx(278), s6 + 112, 278, 34, { fontSize: 27, fontFamily: "'Playfair Display',Georgia,serif", fontStyle: "italic", fontWeight: "700", color: TEXT, lineHeight: 1.1 }));
+      els.push(mkText("s6-address", "Direccion por confirmar", cx(268), s6 + 152, 268, 22, { fontSize: 12, color: TEXT_MUTED, lineHeight: 1.4 }));
+      els.push(mkText("s6-date", "Fecha por confirmar", cx(306), s6 + 182, 306, 20, { fontSize: 10, fontWeight: "600", color: GOLD, letterSpacing: 0.09 }));
       els.push(mkApp("s6-map", "maps", "Ver en el mapa", cx(230), s6 + 230, 230, 50, { background: CARD, color: MAUVE, borderRadius: 16, border: "1px solid rgba(184,146,90,0.36)", config: { url: "https://maps.google.com", primaryColor: ROSE, textColor: MAUVE } }));
 
       const s7 = 3120;
@@ -944,7 +1062,7 @@ const PREMIUM_TEMPLATES: PremiumTemplate[] = [
       const s8 = 3520;
       els.push(mkShape("s8-wash-top", 0, s8, 390, 220, "radial-gradient(ellipse at 50% 0%,rgba(232,185,193,0.24) 0%,transparent 65%)"));
       els.push(mkText("s8-title", "Nos vemos pronto", cx(278), s8 + 90, 278, 38, { fontSize: 30, fontFamily: "'Playfair Display',Georgia,serif", fontStyle: "italic", fontWeight: "700", color: TEXT }));
-      els.push(mkText("s8-name", "Valentina", cx(190), s8 + 140, 190, 28, { fontSize: 22, fontFamily: "'Playfair Display',Georgia,serif", fontStyle: "italic", color: ROSE }));
+      els.push(mkText("s8-name", "Tu nombre", cx(190), s8 + 140, 190, 28, { fontSize: 22, fontFamily: "'Playfair Display',Georgia,serif", fontStyle: "italic", color: ROSE }));
       els.push(mkShape("s8-divider", cx(178), s8 + 182, 178, 1, goldLine()));
       els.push(mkText("s8-watermark", "15", cx(108), s8 + 204, 108, 92, { fontSize: 82, fontFamily: "'Playfair Display',Georgia,serif", fontStyle: "italic", color: "rgba(200,117,131,0.10)", lineHeight: 1 }));
       els.push(mkText("s8-footer", "Creado con KAIS Invitaciones", cx(234), s8 + 360, 234, 14, { fontSize: 9, color: TEXT_MUTED, opacity: 0.45, letterSpacing: 0.08 }));
@@ -3347,8 +3465,14 @@ export function CanvasEditorV3({
     if (!tpl) return;
     pushHistory(snapshot());
     const { sections: newSections, elements: newElements } = tpl.create();
+    const hydratedElements = hydratePremiumTemplateElements(newElements, elementsRef.current, {
+      eventTitle,
+      eventDate,
+      googleMapsLink,
+      whatsappPhone
+    });
     setSections(newSections);
-    setElements(newElements);
+    setElements(hydratedElements);
     setThemeId(tpl.themeId);
     setActiveSectionId(newSections[0]?.id ?? "");
     setSelectedIds([]);

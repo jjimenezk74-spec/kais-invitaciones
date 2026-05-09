@@ -78,6 +78,7 @@ export function EventForm({
   const [musicToast, setMusicToast] = useState("");
   const [activeStep, setActiveStep] = useState<WizardStepId>("datos");
   const [draftToast, setDraftToast] = useState("");
+  const [selectedEventType, setSelectedEventType] = useState<string>(event?.event_type ?? "boda");
   const finalSubmitIntentRef = useRef(false);
   const formRef = useRef<HTMLFormElement>(null);
 
@@ -85,6 +86,9 @@ export function EventForm({
   const isLastStep = activeStepIndex === wizardSteps.length - 1;
   const isEditing = Boolean(event?.id);
   const shouldShowExternalPhotoAlbum = eventHasFeature(event, "external_photo_album");
+  const normalizedEventType = normalizeEventType(selectedEventType);
+  const showQuinceaniosFields = ["quinceanios", "quinceanos", "quinceanera", "15 anos"].includes(normalizedEventType);
+  const showGraduationFields = ["graduacion", "graduation"].includes(normalizedEventType);
 
   function goToStep(step: WizardStepId) {
     setActiveStep(step);
@@ -291,7 +295,7 @@ export function EventForm({
               </Field>
 
               <Field label="Tipo de evento">
-                <Select name="event_type" defaultValue={event?.event_type ?? "boda"}>
+                <Select name="event_type" value={selectedEventType} onChange={(changeEvent) => setSelectedEventType(changeEvent.target.value)}>
                   {eventTypes.map((type) => (
                     <option key={type} value={type}>
                       {type}
@@ -353,6 +357,7 @@ export function EventForm({
             </div>
           </FormSection>
 
+          <div className={showQuinceaniosFields ? "grid" : "hidden"}>
           <FormSection title="Datos de quinceanios" description="Informacion opcional para invitaciones de 15 anos.">
             <div className="grid gap-5 md:grid-cols-2">
               <Field label="Nombre de la quinceanera">
@@ -388,7 +393,9 @@ export function EventForm({
               </div>
             </div>
           </FormSection>
+          </div>
 
+          <div className={showGraduationFields ? "grid" : "hidden"}>
           <FormSection title="Datos de graduacion" description="Informacion opcional para invitaciones de graduacion.">
             <div className="grid gap-5 md:grid-cols-2">
               <Field label="Nombre del graduado">
@@ -443,6 +450,7 @@ export function EventForm({
               </div>
             </div>
           </FormSection>
+          </div>
           </div>
 
           <div className={activeStep === "multimedia" ? "grid gap-6" : "hidden"}>
@@ -709,6 +717,14 @@ function formatParaguayWhatsappLocal(value?: string | null) {
   if (digits.startsWith("0")) return digits.slice(1);
 
   return digits;
+}
+
+function normalizeEventType(value?: string | null) {
+  return String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
 }
 
 function validateUploads(form: HTMLFormElement) {

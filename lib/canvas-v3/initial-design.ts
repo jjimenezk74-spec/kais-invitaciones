@@ -1,6 +1,7 @@
 import type { Event } from "@/lib/types";
 import { createQuinceaniosCanvasV3Design } from "./ceremony-builders/quinceanios";
 import {
+  normalizeCanvasV3EventType,
   type CanvasV3EventType,
   type CeremonySectionKind,
   type CeremonySemanticRole,
@@ -150,5 +151,12 @@ export function resolveInitialCanvasV3Design(event: CanvasV3EventData): CanvasV3
 }
 
 export function createInitialCanvasV3Design(event: CanvasV3EventData): CanvasV3Design {
-  return createQuinceaniosCanvasV3Design(event);
+  const eventType = normalizeCanvasV3EventType(event.event_type);
+
+  switch (eventType) {
+    case "quinceanios":
+      return createQuinceaniosCanvasV3Design(event);
+    default:
+      return createQuinceaniosCanvasV3Design(event);
+  }
 }

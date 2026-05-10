@@ -2833,6 +2833,7 @@ export function CanvasEditorV3({
   const [elementContextMenu, setElementContextMenu] = useState<ElementContextMenuState | null>(null);
   const [topToolbarPopover, setTopToolbarPopover] = useState<"color" | "font" | null>(null);
 
+  const studioRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const elementsRef = useRef<V3Element[]>(elements);
@@ -2881,6 +2882,24 @@ export function CanvasEditorV3({
   useEffect(() => {
     if (!selectedId || preview) setTopToolbarPopover(null);
   }, [preview, selectedId]);
+
+  useEffect(() => {
+    const node = studioRef.current;
+    if (!node) return;
+
+    const onWheel = (event: WheelEvent) => {
+      if (!event.ctrlKey && !event.metaKey) return;
+      event.preventDefault();
+      const direction = event.deltaY > 0 ? -1 : 1;
+      setZoom((current) => {
+        const step = event.shiftKey ? 0.05 : 0.08;
+        return Math.max(0.3, Math.min(2, Number((current + direction * step).toFixed(2))));
+      });
+    };
+
+    node.addEventListener("wheel", onWheel, { passive: false });
+    return () => node.removeEventListener("wheel", onWheel);
+  }, []);
 
   useEffect(() => {
     if (!elementContextMenu) return;
@@ -4338,6 +4357,11 @@ export function CanvasEditorV3({
   const selectedIsTextLike = Boolean(selected && (selected.type === "text" || (selected.content && selected.type !== "app")));
   const selectedIsShapeLike = Boolean(selected && (selected.type === "shape" || selected.type === "decoration"));
   const selectedIsAppLike = Boolean(selected && selected.type === "app");
+  const selectedToolbarColor = selectedIsTextLike
+    ? selected?.color ?? "#4b2735"
+    : selectedIsAppLike
+      ? selected?.config?.primaryColor ?? selected?.background ?? "#b8925a"
+      : selected?.background ?? "#b8925a";
   const topToolbarColors = ["#fff7ef", "#1f1720", "#b8925a", "#c87583", "#7c3aed", "#25d366", "#0f172a", "#ffffff"];
   const topToolbarFonts = [
     { label: "Playfair", value: "'Playfair Display', Georgia, serif" },
@@ -4417,9 +4441,19 @@ export function CanvasEditorV3({
     boxShadow: "0 18px 42px rgba(38,24,30,0.18)",
     backdropFilter: "blur(10px)",
   };
+  const topContextColorSwatchStyle: React.CSSProperties = {
+    width: 18,
+    height: 18,
+    borderRadius: 999,
+    background: selectedToolbarColor,
+    border: "2px solid rgba(255,255,255,0.82)",
+    boxShadow: "0 0 0 1px rgba(75,39,53,0.18), 0 4px 10px rgba(38,24,30,0.16)",
+    display: "inline-block",
+    flexShrink: 0,
+  };
 
   return (
-    <div style={{
+    <div ref={studioRef} style={{
       display: "flex", flexDirection: "column",
       height: "100dvh", width: "100vw", maxWidth: "100vw", minWidth: 0,
       background: "#0f0f17", overflow: "hidden",
@@ -4602,7 +4636,7 @@ export function CanvasEditorV3({
                 <button type="button" title="Reducir tamano" onClick={() => patchElement(selected.id, { fontSize: Math.max(8, (selected.fontSize ?? 14) - 1) })} style={topContextButtonStyle}>-</button>
                 <span style={{ minWidth: 24, textAlign: "center", fontSize: 11, color: "#4b2735", fontWeight: 850 }}>{selected.fontSize ?? 14}</span>
                 <button type="button" title="Aumentar tamano" onClick={() => patchElement(selected.id, { fontSize: Math.min(140, (selected.fontSize ?? 14) + 1) })} style={topContextButtonStyle}>+</button>
-                <button type="button" title="Color" onClick={() => setTopToolbarPopover(topToolbarPopover === "color" ? null : "color")} style={topContextButtonStyle}>●</button>
+                <button type="button" title="Color" onClick={() => setTopToolbarPopover(topToolbarPopover === "color" ? null : "color")} style={{ ...topContextButtonStyle, width: 34, padding: 0 }}><span style={topContextColorSwatchStyle} /></button>
                 <button type="button" title="Negrita" onClick={() => patchElement(selected.id, { fontWeight: selected.fontWeight === "700" || selected.fontWeight === "800" ? "400" : "700" })} style={{ ...topContextButtonStyle, background: selected.fontWeight === "700" || selected.fontWeight === "800" ? "rgba(184,146,90,0.22)" : topContextButtonStyle.background }}>B</button>
                 <button type="button" title="Italic" onClick={() => patchElement(selected.id, { fontStyle: selected.fontStyle === "italic" ? "normal" : "italic" })} style={{ ...topContextButtonStyle, fontStyle: "italic", background: selected.fontStyle === "italic" ? "rgba(184,146,90,0.22)" : topContextButtonStyle.background }}>I</button>
                 <button type="button" title="Subrayado disponible desde propiedades" disabled style={topContextDisabledButtonStyle}>U</button>
@@ -4622,7 +4656,7 @@ export function CanvasEditorV3({
             {(selectedIsShapeLike || selectedLooksLikeImage) && (
               <>
               <span style={topContextGroupStyle}>
-                <button type="button" title="Color o relleno" onClick={() => setTopToolbarPopover(topToolbarPopover === "color" ? null : "color")} style={topContextButtonStyle}>●</button>
+                <button type="button" title="Color o relleno" onClick={() => setTopToolbarPopover(topToolbarPopover === "color" ? null : "color")} style={{ ...topContextButtonStyle, width: 34, padding: 0 }}><span style={topContextColorSwatchStyle} /></button>
                 <button type="button" title="Menos opacidad" onClick={() => patchElement(selected.id, { opacity: Math.max(0.1, Math.round(((selected.opacity ?? 1) - 0.1) * 10) / 10) })} style={topContextButtonStyle}>Op-</button>
                 <button type="button" title="Mas opacidad" onClick={() => patchElement(selected.id, { opacity: Math.min(1, Math.round(((selected.opacity ?? 1) + 0.1) * 10) / 10) })} style={topContextButtonStyle}>Op+</button>
                 <button type="button" title="Borde y contorno" onClick={openSelectedInspector} style={topContextButtonStyle}>Bd</button>
@@ -4645,7 +4679,7 @@ export function CanvasEditorV3({
                     <button type="button" title="Descargar QR" onClick={downloadSelectedQr} style={topContextButtonStyle}>↓</button>
                   </>
                 )}
-                <button type="button" title="Color" onClick={() => setTopToolbarPopover(topToolbarPopover === "color" ? null : "color")} style={topContextButtonStyle}>●</button>
+                <button type="button" title="Color" onClick={() => setTopToolbarPopover(topToolbarPopover === "color" ? null : "color")} style={{ ...topContextButtonStyle, width: 34, padding: 0 }}><span style={topContextColorSwatchStyle} /></button>
                 <button type="button" title="Configurar bloque" onClick={openSelectedInspector} style={topContextButtonStyle}>Cfg</button>
               </span>
             )}

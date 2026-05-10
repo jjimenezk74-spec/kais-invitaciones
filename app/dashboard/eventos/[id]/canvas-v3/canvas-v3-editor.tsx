@@ -600,22 +600,13 @@ function RenderElement({
   el,
   selected,
   highlighted,
-  canvasWidth = CANVAS_W,
   onMouseDown,
   onClick,
   onContextMenu,
   onResizeMouseDown,
-  onDuplicate,
-  onDelete,
-  onToggleLocked,
-  onOpenInspector,
-  onQuickColor,
-  onEditText,
   onInlineTextCommit,
   onReplaceImage,
-  onCropImage,
   onEditQr,
-  onDownloadQr,
   // Section clip values: how many px the element overflows its section top/bottom.
   // Applied only to the visual content layer — handles and toolbar remain unclipped.
   clipTop = 0,
@@ -624,27 +615,17 @@ function RenderElement({
   el: V3Element;
   selected: boolean;
   highlighted?: boolean; // true when part of a multi-selection (no handles, just outline)
-  canvasWidth?: number;
   onMouseDown: (e: React.MouseEvent) => void;
   onClick: (e: React.MouseEvent) => void;
   onContextMenu?: (e: React.MouseEvent) => void;
   onResizeMouseDown: (e: React.MouseEvent, handle: string) => void;
-  onDuplicate?: () => void;
-  onDelete?: () => void;
-  onToggleLocked?: () => void;
-  onOpenInspector?: () => void;
-  onQuickColor?: () => void;
-  onEditText?: () => void;
   onInlineTextCommit?: (content: string) => void;
   onReplaceImage?: () => void;
-  onCropImage?: () => void;
   onEditQr?: () => void;
-  onDownloadQr?: () => void;
   clipTop?: number;
   clipBottom?: number;
 }) {
   const [isHovered, setIsHovered] = useState(false);
-  const [moreOpen, setMoreOpen] = useState(false);
   const [isInlineEditing, setIsInlineEditing] = useState(false);
   const [inlineDraft, setInlineDraft] = useState(el.content ?? "");
   const renderHeight = estimateElementRenderHeight(el);
@@ -731,15 +712,6 @@ function RenderElement({
     bl: { bottom: -handleSize / 2, left: -handleSize / 2,                     cursor: "nesw-resize" },
     l:  { top: "50%", left: -handleSize / 2, marginTop: -handleSize / 2,      cursor: "ew-resize"   },
   };
-  const toolbarLabel = el.type === "text" ? "Texto" : el.type === "app" ? "Bloque" : el.type === "decoration" ? "Decoración" : "Forma";
-  const toolbarHint = el.type === "text" ? "Tipografía" : el.type === "app" ? "Acción" : "Forma";
-  const compactToolbarWidth = canvasWidth <= 420 ? 214 : 236;
-  const toolbarCanSitAbove = el.y >= 64;
-  const compactToolbarTop = toolbarCanSitAbove ? -54 : renderHeight + 16;
-  const compactToolbarLeft = Math.max(
-    -el.x + 10,
-    Math.min((el.width - compactToolbarWidth) / 2, canvasWidth - el.x - compactToolbarWidth - 10)
-  );
   const textVerticalPadding = getTextVerticalPadding(el);
   const effectiveLineHeight = Math.max(el.lineHeight ?? 1.4, isScriptFont(el.fontFamily) ? 1.24 : 1.1);
 
@@ -966,132 +938,6 @@ function RenderElement({
         />
       ))}
 
-      {/* ── Context toolbar — outside clip so it never gets hidden ── */}
-      {selected && !isInlineEditing && (
-        <div
-          style={{
-            position: "absolute",
-            left: 0,
-            top: -32,
-            zIndex: 10000,
-            display: "none",
-            alignItems: "center",
-            gap: 5,
-            padding: "4px 8px",
-            borderRadius: 999,
-            background: "rgba(255,252,247,0.96)",
-            border: "1px solid rgba(184,146,90,0.36)",
-            boxShadow: "0 10px 24px rgba(70,50,35,0.16)",
-            color: "#4b2735",
-            fontFamily: "Inter, system-ui, sans-serif",
-            fontSize: 10,
-            fontWeight: 700,
-            letterSpacing: "0.04em",
-            pointerEvents: "none",
-            whiteSpace: "nowrap",
-          }}
-        >
-          <span style={{ color: "#c8a96a" }}>{toolbarLabel}</span>
-          <span style={{ color: "#6f6b8f" }}>•</span>
-          <span style={{ color: "#a78bfa" }}>{toolbarHint}</span>
-        </div>
-      )}
-
-      {selected && !isInlineEditing && (
-        <div
-          onMouseDown={(event) => {
-            event.stopPropagation();
-            event.preventDefault();
-          }}
-          onClick={(event) => event.stopPropagation()}
-          style={{
-            position: "absolute",
-            left: compactToolbarLeft,
-            top: compactToolbarTop,
-            zIndex: 10001,
-            width: compactToolbarWidth,
-            maxWidth: `calc(${canvasWidth}px - 16px)`,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 6,
-            padding: 4,
-            borderRadius: 13,
-            background: "linear-gradient(180deg,rgba(255,252,247,0.58),rgba(255,246,237,0.38))",
-            border: "1px solid rgba(184,146,90,0.10)",
-            boxShadow: "0 10px 26px rgba(43,27,36,0.10), inset 0 1px 0 rgba(255,255,255,0.38)",
-            backdropFilter: "blur(9px)",
-            fontFamily: "Inter, system-ui, sans-serif",
-            transformOrigin: "center",
-            animation: "kaisContextToolbarIn 180ms cubic-bezier(.2,.8,.2,1)",
-          }}
-        >
-          <style>{`@keyframes kaisContextToolbarIn{from{opacity:0;transform:translateY(3px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}`}</style>
-          {elementIsTextLike && (
-            <button type="button" title="Editar texto" onClick={onEditText} style={floatingToolbarIconButtonStyle}>T</button>
-          )}
-          {(el.type === "text" || el.type === "shape" || el.type === "decoration") && (
-            <button
-              type="button"
-              title="Color rapido"
-              onClick={onQuickColor}
-              style={{
-                ...floatingToolbarButtonStyle,
-                width: 32,
-                minWidth: 32,
-                padding: 0,
-                borderRadius: 10,
-                background: "linear-gradient(135deg,#fff7ef,#3b1721,#b8925a,#f472b6)",
-              }}
-            />
-          )}
-          <span style={{ width: 1, height: 16, background: "rgba(184,146,90,0.12)", flexShrink: 0 }} />
-          <button type="button" title="Duplicar" onClick={onDuplicate} style={floatingToolbarIconButtonStyle}>⧉</button>
-          <button type="button" title={el.locked ? "Desbloquear" : "Bloquear"} onClick={onToggleLocked} style={floatingToolbarIconButtonStyle}>
-            {el.locked ? "🔒" : "🔓"}
-          </button>
-          <button type="button" title="Eliminar" onClick={onDelete} style={{ ...floatingToolbarIconButtonStyle, color: "#9f1d2f" }}>×</button>
-          <div style={{ position: "relative" }}>
-            <button type="button" title="Mas acciones" onClick={() => setMoreOpen((value) => !value)} style={floatingToolbarIconButtonStyle}>
-              ⋯
-            </button>
-            {moreOpen && (
-              <div
-                style={{
-                  position: "absolute",
-                  top: toolbarCanSitAbove ? 34 : undefined,
-                  bottom: toolbarCanSitAbove ? undefined : 34,
-                  right: 0,
-                  minWidth: 138,
-                  padding: 4,
-                  borderRadius: 12,
-                  background: "rgba(255,252,247,0.76)",
-                  border: "1px solid rgba(184,146,90,0.10)",
-                  boxShadow: "0 12px 30px rgba(43,27,36,0.12)",
-                  backdropFilter: "blur(10px)",
-                  display: "grid",
-                  gap: 3,
-                }}
-              >
-                {elementLooksLikeImage && (
-                  <>
-                    <button type="button" onClick={() => { setMoreOpen(false); onReplaceImage?.(); }} style={floatingToolbarMenuButtonStyle}>Reemplazar imagen</button>
-                    <button type="button" onClick={() => { setMoreOpen(false); onCropImage?.(); }} style={floatingToolbarMenuButtonStyle}>Recortar</button>
-                  </>
-                )}
-                {elementIsQr && (
-                  <>
-                    <button type="button" onClick={() => { setMoreOpen(false); onEditQr?.(); }} style={floatingToolbarMenuButtonStyle}>Editar QR</button>
-                    <button type="button" onClick={() => { setMoreOpen(false); onDownloadQr?.(); }} style={floatingToolbarMenuButtonStyle}>Descargar QR</button>
-                  </>
-                )}
-                <button type="button" onClick={() => { setMoreOpen(false); onOpenInspector?.(); }} style={floatingToolbarMenuButtonStyle}>Propiedades</button>
-                <button type="button" onClick={() => { setMoreOpen(false); onOpenInspector?.(); }} style={floatingToolbarMenuButtonStyle}>Capas y orden</button>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -1099,41 +945,6 @@ function RenderElement({
 // ─────────────────────────────────────────────────────────────────────────────
 // Premium templates
 // ─────────────────────────────────────────────────────────────────────────────
-
-const floatingToolbarButtonStyle: React.CSSProperties = {
-  minWidth: 27,
-  height: 27,
-  border: "1px solid rgba(184,146,90,0.09)",
-  borderRadius: 9,
-  background: "rgba(255,255,255,0.28)",
-  color: "#4b2735",
-  cursor: "pointer",
-  display: "inline-flex",
-  alignItems: "center",
-  justifyContent: "center",
-  gap: 5,
-  padding: "0 7px",
-  fontSize: 10,
-  fontWeight: 800,
-  fontFamily: "Inter, system-ui, sans-serif",
-  boxShadow: "inset 0 1px 0 rgba(255,255,255,0.28)",
-  transition: "transform 0.16s ease, background 0.16s ease, border-color 0.16s ease, opacity 0.16s ease",
-  whiteSpace: "nowrap",
-};
-
-const floatingToolbarIconButtonStyle: React.CSSProperties = {
-  ...floatingToolbarButtonStyle,
-  width: 27,
-  minWidth: 27,
-  padding: 0,
-  fontSize: 12,
-};
-
-const floatingToolbarMenuButtonStyle: React.CSSProperties = {
-  ...floatingToolbarButtonStyle,
-  width: "100%",
-  justifyContent: "flex-start",
-};
 
 type PremiumTemplateHydrationContext = {
   eventTitle: string;
@@ -5166,7 +4977,6 @@ export function CanvasEditorV3({
                         clipBottom={clipBottom}
                         selected={el.id === selectedId && !preview}
                         highlighted={selectedIds.length > 1 && selectedIds.includes(el.id) && !preview}
-                        canvasWidth={canvasW}
                         onMouseDown={(e) => !preview && onMoveStart(e, el.id)}
                         onContextMenu={(event) => openElementContextMenu(event, el.id)}
                         onClick={(e) => {
@@ -5188,17 +4998,9 @@ export function CanvasEditorV3({
                           }
                         }}
                         onResizeMouseDown={(e, h) => !preview && onResizeStart(e, el.id, h)}
-                        onDuplicate={duplicateElement}
-                        onDelete={deleteSelected}
-                        onToggleLocked={() => toggleLayerLocked(el.id)}
-                        onOpenInspector={openSelectedInspector}
-                        onQuickColor={quickColorSelected}
-                        onEditText={editSelectedText}
                         onInlineTextCommit={(content) => patchElement(el.id, { content })}
                         onReplaceImage={replaceSelectedImage}
-                        onCropImage={cropSelectedImage}
                         onEditQr={editSelectedQr}
-                        onDownloadQr={downloadSelectedQr}
                       />
                     );
                   })}

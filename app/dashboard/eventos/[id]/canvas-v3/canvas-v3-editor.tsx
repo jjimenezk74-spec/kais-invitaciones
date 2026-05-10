@@ -1770,6 +1770,98 @@ function ExpandedPanel({
   }
 
   if (tool === "templates") {
+    const templateFallbackGradients = [
+      "linear-gradient(155deg,#211323 0%,#6f3a4e 48%,#d7b271 100%)",
+      "linear-gradient(155deg,#111827 0%,#2f3d55 52%,#c8a96a 100%)",
+      "linear-gradient(155deg,#fff8f0 0%,#d8b6a4 48%,#8b5a65 100%)",
+      "linear-gradient(155deg,#171312 0%,#4c3a2d 50%,#b8925a 100%)",
+      "linear-gradient(155deg,#f8f5ef 0%,#b7a98f 50%,#2f3437 100%)",
+    ];
+    const pickTemplateGradient = (seed: string, index = 0) => {
+      const charTotal = seed.split("").reduce((total, char) => total + char.charCodeAt(0), 0);
+      return templateFallbackGradients[(charTotal + index) % templateFallbackGradients.length];
+    };
+    const renderTemplateMockup = ({
+      previewUrl,
+      gradient,
+      initial,
+      isPremium,
+    }: {
+      previewUrl?: string | null;
+      gradient: string;
+      initial: string;
+      isPremium?: boolean;
+    }) => (
+      <span
+        style={{
+          width: 62,
+          height: 92,
+          borderRadius: 18,
+          position: "relative",
+          display: "grid",
+          placeItems: "center",
+          overflow: "hidden",
+          flexShrink: 0,
+          background: previewUrl
+            ? `linear-gradient(rgba(18,14,20,0.12),rgba(18,14,20,0.12)),url(${previewUrl}) center/cover`
+            : gradient,
+          boxShadow: "0 12px 24px rgba(38,21,16,0.18), inset 0 0 0 1px rgba(255,255,255,0.30)",
+        }}
+      >
+        {!previewUrl && (
+          <>
+            <span style={{ position: "absolute", inset: 7, borderRadius: 14, border: "1px solid rgba(255,255,255,0.22)" }} />
+            <span style={{ position: "absolute", top: 12, left: 14, right: 14, height: 1, background: "linear-gradient(90deg,transparent,rgba(255,255,255,0.70),transparent)" }} />
+            <span style={{ position: "absolute", bottom: 13, left: 16, right: 16, height: 18, borderRadius: 999, background: "rgba(255,252,247,0.18)", border: "1px solid rgba(255,255,255,0.18)" }} />
+            <span style={{ position: "absolute", width: 34, height: 34, borderRadius: 999, background: "radial-gradient(circle,rgba(255,255,255,0.46),rgba(255,255,255,0.08),transparent 72%)" }} />
+            <span style={{ color: "#fff7ef", fontSize: 20, fontWeight: 850, fontFamily: "'Playfair Display', Georgia, serif", textShadow: "0 8px 18px rgba(0,0,0,0.28)", zIndex: 1 }}>
+              {initial}
+            </span>
+          </>
+        )}
+        <span style={{
+          position: "absolute",
+          right: 6,
+          top: 6,
+          width: 7,
+          height: 7,
+          borderRadius: 999,
+          background: isPremium ? "#f4d28a" : "rgba(255,255,255,0.76)",
+          boxShadow: "0 0 0 1px rgba(20,14,16,0.12)",
+        }} />
+      </span>
+    );
+    const compactTemplateCardStyle: React.CSSProperties = {
+      marginBottom: 9,
+      padding: 9,
+      borderRadius: 17,
+      border: "1px solid rgba(184,146,90,0.20)",
+      background: "linear-gradient(180deg,rgba(255,252,247,0.94),rgba(246,239,228,0.76))",
+      boxShadow: "0 10px 22px rgba(67,43,30,0.085)",
+      transition: "transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease",
+    };
+    const liftTemplateCard = (element: HTMLDivElement) => {
+      element.style.transform = "translateY(-1px)";
+      element.style.boxShadow = "0 14px 28px rgba(67,43,30,0.14)";
+      element.style.borderColor = "rgba(184,146,90,0.40)";
+    };
+    const settleTemplateCard = (element: HTMLDivElement) => {
+      element.style.transform = "translateY(0)";
+      element.style.boxShadow = "0 10px 22px rgba(67,43,30,0.085)";
+      element.style.borderColor = "rgba(184,146,90,0.20)";
+    };
+    const compactTagStyle: React.CSSProperties = {
+      padding: "2px 5px",
+      borderRadius: 999,
+      background: "rgba(184,146,90,0.10)",
+      color: "#7a5a40",
+      fontSize: 7.8,
+      fontWeight: 850,
+      letterSpacing: "0.045em",
+      textTransform: "uppercase",
+      whiteSpace: "nowrap",
+    };
+
     return (
       <div style={panelShellStyle}>
         <p style={eyebrowStyle}>
@@ -1812,135 +1904,75 @@ function ExpandedPanel({
             </p>
           </div>
         ) : (
-          canvasTemplates.map((template) => {
+          canvasTemplates.map((template, index) => {
             const previewUrl = template.thumbnailUrl || template.previewImageUrl;
             const isApplying = isApplyingTemplate && applyingTemplateId === template.id;
             return (
               <div
                 key={template.id}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = "translateY(-2px)";
-                  e.currentTarget.style.boxShadow = "0 18px 38px rgba(67,43,30,0.16)";
-                  e.currentTarget.style.borderColor = "rgba(184,146,90,0.42)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = "translateY(0)";
-                  e.currentTarget.style.boxShadow = "0 14px 30px rgba(67,43,30,0.10)";
-                  e.currentTarget.style.borderColor = "rgba(184,146,90,0.24)";
-                }}
-                style={{
-                  marginBottom: 12,
-                  borderRadius: 18,
-                  overflow: "hidden",
-                  border: "1px solid rgba(184,146,90,0.24)",
-                  background: "linear-gradient(180deg,rgba(255,252,247,0.94),rgba(255,247,237,0.76))",
-                  boxShadow: "0 14px 30px rgba(67,43,30,0.10)",
-                  transition: "transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease",
-                }}
+                onMouseEnter={(e) => liftTemplateCard(e.currentTarget)}
+                onMouseLeave={(e) => settleTemplateCard(e.currentTarget)}
+                style={compactTemplateCardStyle}
               >
-                <div style={{
-                  width: 92,
-                  height: 154,
-                  margin: "14px auto 10px",
-                  borderRadius: 24,
-                  position: "relative",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  overflow: "hidden",
-                  boxShadow: "0 18px 36px rgba(38,21,16,0.22), inset 0 0 0 1px rgba(255,255,255,0.30)",
-                  background: previewUrl
-                    ? `linear-gradient(rgba(18,14,20,0.18),rgba(18,14,20,0.18)),url(${previewUrl}) center/cover`
-                    : "radial-gradient(circle at 34% 18%,rgba(255,255,255,0.78),transparent 24%),radial-gradient(circle at 70% 78%,rgba(184,146,90,0.45),transparent 30%),linear-gradient(160deg,#211323,#6f3a4e 44%,#d7b271)",
-                }}>
-                  {!previewUrl && (
-                    <span style={{
-                      width: 44,
-                      height: 44,
-                      borderRadius: 22,
-                      display: "grid",
-                      placeItems: "center",
-                      color: "#fff7ef",
-                      fontSize: 20,
-                      fontWeight: 800,
-                      fontFamily: "'Playfair Display', Georgia, serif",
-                      background: "rgba(18,14,20,0.34)",
-                      border: "1px solid rgba(255,255,255,0.24)",
-                    }}>
-                      {template.name.slice(0, 1).toUpperCase()}
-                    </span>
-                  )}
-                  <span style={{
-                    position: "absolute",
-                    top: 9,
-                    right: 9,
-                    padding: "3px 6px",
-                    borderRadius: 999,
-                    background: template.isPremium ? "rgba(184,146,90,0.92)" : "rgba(255,255,255,0.82)",
-                    color: template.isPremium ? "#fff7ef" : "#5a422f",
-                    fontSize: 8,
-                    fontWeight: 900,
-                    letterSpacing: "0.08em",
-                    textTransform: "uppercase",
-                  }}>
-                    {template.isPremium ? "Premium" : "Libre"}
-                  </span>
-                </div>
-                <div style={{ padding: "11px 12px 12px" }}>
-                  <p style={{ color: "#4b2735", fontSize: 13, fontWeight: 800, margin: "0 0 4px", fontFamily: "Inter, system-ui, sans-serif" }}>
-                    {template.name}
-                  </p>
-                  <p style={{ color: "#8a6b58", fontSize: 10, lineHeight: 1.35, margin: "0 0 9px", fontFamily: "Inter, system-ui, sans-serif" }}>
-                    {template.visualCategory || template.description || "Diseno editable"}
-                  </p>
-                  {template.compatibleEventTypes.length > 0 && (
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 10 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "62px 1fr", gap: 10, alignItems: "center" }}>
+                  {renderTemplateMockup({
+                    previewUrl,
+                    gradient: pickTemplateGradient(template.name || template.slug, index),
+                    initial: template.name.slice(0, 1).toUpperCase(),
+                    isPremium: template.isPremium,
+                  })}
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 3 }}>
+                      <p style={{ color: "#4b2735", fontSize: 12.5, fontWeight: 850, margin: 0, fontFamily: "Inter, system-ui, sans-serif", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>
+                        {template.name}
+                      </p>
+                      <span style={{ ...compactTagStyle, background: template.isPremium ? "rgba(184,146,90,0.18)" : "rgba(80,70,60,0.08)", color: template.isPremium ? "#9a6d32" : "#706259" }}>
+                        {template.isPremium ? "Premium" : "Libre"}
+                      </span>
+                    </div>
+                    <p style={{ color: "#8a6b58", fontSize: 9.6, lineHeight: 1.32, margin: "0 0 7px", fontFamily: "Inter, system-ui, sans-serif", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                      {template.description || template.visualCategory || "Composicion editable para KAIS Studio."}
+                    </p>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 8 }}>
+                      {template.visualCategory && (
+                        <span style={compactTagStyle}>
+                          {template.visualCategory}
+                        </span>
+                      )}
                       {template.compatibleEventTypes.slice(0, 3).map((eventType) => (
                         <span
                           key={eventType}
-                          style={{
-                            padding: "3px 6px",
-                            borderRadius: 999,
-                            background: "rgba(184,146,90,0.10)",
-                            color: "#7a5a40",
-                            fontSize: 8.5,
-                            fontWeight: 800,
-                            letterSpacing: "0.05em",
-                            textTransform: "uppercase",
-                          }}
+                          style={compactTagStyle}
                         >
                           {eventType}
                         </span>
                       ))}
                     </div>
-                  )}
-                  <p style={{ color: "#9a7a5c", fontSize: 9.5, lineHeight: 1.35, margin: "0 0 9px", fontFamily: "Inter, system-ui, sans-serif" }}>
-                    Tus datos se conservaran.
-                  </p>
-                  <button
-                    type="button"
-                    disabled={isApplyingTemplate}
-                    onClick={() => onApplyTemplateFromDb(template)}
-                    style={{
-                      width: "100%",
-                      padding: "9px 10px",
-                      borderRadius: 10,
-                      border: "1px solid rgba(184,146,90,0.30)",
-                      background: isApplying
-                        ? "rgba(184,146,90,0.18)"
-                        : "linear-gradient(135deg,#2b1b24,#b8925a)",
-                      color: "#fff7ef",
-                      cursor: isApplyingTemplate ? "wait" : "pointer",
-                      fontSize: 11,
-                      fontWeight: 850,
-                      letterSpacing: "0.04em",
-                      boxShadow: "0 9px 18px rgba(61,35,21,0.18)",
-                      fontFamily: "Inter, system-ui, sans-serif",
-                      opacity: isApplyingTemplate && !isApplying ? 0.58 : 1,
-                    }}
-                  >
-                    {isApplying ? "Aplicando diseno..." : "Usar esta plantilla"}
-                  </button>
+                    <button
+                      type="button"
+                      disabled={isApplyingTemplate}
+                      onClick={() => onApplyTemplateFromDb(template)}
+                      style={{
+                        width: "100%",
+                        padding: "7px 9px",
+                        borderRadius: 10,
+                        border: "1px solid rgba(184,146,90,0.28)",
+                        background: isApplying
+                          ? "rgba(184,146,90,0.18)"
+                          : "linear-gradient(135deg,#2b1b24,#b8925a)",
+                        color: "#fff7ef",
+                        cursor: isApplyingTemplate ? "wait" : "pointer",
+                        fontSize: 10,
+                        fontWeight: 850,
+                        letterSpacing: "0.035em",
+                        boxShadow: "0 8px 16px rgba(61,35,21,0.14)",
+                        fontFamily: "Inter, system-ui, sans-serif",
+                        opacity: isApplyingTemplate && !isApplying ? 0.58 : 1,
+                      }}
+                    >
+                      {isApplying ? "Aplicando..." : "Usar plantilla"}
+                    </button>
+                  </div>
                 </div>
               </div>
             );
@@ -1951,36 +1983,50 @@ function ExpandedPanel({
           Disenos clasicos
         </p>
         {PREMIUM_TEMPLATES.map((tpl) => (
-          <div key={tpl.id} style={{ marginBottom: 12, borderRadius: 16, overflow: "hidden", border: "1px solid rgba(166,135,92,0.20)", background: "linear-gradient(180deg,rgba(255,252,247,0.94),rgba(244,238,228,0.72))", boxShadow: "0 10px 22px rgba(54,42,34,0.075)" }}>
-            {/* Preview swatch */}
-            <div style={{ height: 58, background: "linear-gradient(135deg,#2d2621,#b8925a)", position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <span style={{ fontSize: 22 }}>{tpl.emoji}</span>
-              <span style={{ position: "absolute", top: 6, right: 8, fontSize: 8, fontWeight: 800, letterSpacing: "0.1em", color: "rgba(255,252,247,0.78)", textTransform: "uppercase" }}>
-                {tpl.category}
-              </span>
-            </div>
-            <div style={{ padding: "10px 11px 11px" }}>
-              <p style={{ color: "#4b342d", fontSize: 13, fontWeight: 800, margin: "0 0 4px", fontFamily: "Inter, system-ui, sans-serif" }}>
-                {tpl.label}
-              </p>
-              <p style={{ color: "#7c6658", fontSize: 10, lineHeight: 1.4, margin: "0 0 10px", fontFamily: "Inter, system-ui, sans-serif" }}>
-                {tpl.description}
-              </p>
+          <div
+            key={tpl.id}
+            onMouseEnter={(e) => liftTemplateCard(e.currentTarget)}
+            onMouseLeave={(e) => settleTemplateCard(e.currentTarget)}
+            style={compactTemplateCardStyle}
+          >
+            <div style={{ display: "grid", gridTemplateColumns: "62px 1fr", gap: 10, alignItems: "center" }}>
+              {renderTemplateMockup({
+                gradient: tpl.previewGradient,
+                initial: tpl.emoji,
+                isPremium: true,
+              })}
+              <div style={{ minWidth: 0 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 3 }}>
+                  <p style={{ color: "#4b342d", fontSize: 12.5, fontWeight: 850, margin: 0, fontFamily: "Inter, system-ui, sans-serif", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>
+                    {tpl.label}
+                  </p>
+                  <span style={{ ...compactTagStyle, background: "rgba(184,146,90,0.18)", color: "#9a6d32" }}>
+                    Premium
+                  </span>
+                </div>
+                <p style={{ color: "#7c6658", fontSize: 9.6, lineHeight: 1.32, margin: "0 0 7px", fontFamily: "Inter, system-ui, sans-serif", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                  {tpl.description}
+                </p>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 8 }}>
+                  <span style={compactTagStyle}>{tpl.category}</span>
+                  <span style={compactTagStyle}>Clasico</span>
+                </div>
               <button
                 type="button"
                 onClick={() => onApplyPremiumTemplate(tpl.id)}
                 style={{
-                  width: "100%", padding: "9px 10px", borderRadius: 10,
+                  width: "100%", padding: "7px 9px", borderRadius: 10,
                   border: "none",
                   background: "linear-gradient(135deg,#2d2621,#b8925a)",
                   color: "#fffaf2", cursor: "pointer",
-                  fontSize: 11, fontWeight: 800, letterSpacing: "0.04em",
-                  boxShadow: "0 7px 16px rgba(54,42,34,0.18)",
+                  fontSize: 10, fontWeight: 850, letterSpacing: "0.035em",
+                  boxShadow: "0 8px 16px rgba(54,42,34,0.14)",
                   fontFamily: "Inter, system-ui, sans-serif",
                 }}
               >
-                Generar invitación completa →
+                Usar plantilla
               </button>
+              </div>
             </div>
           </div>
         ))}

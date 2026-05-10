@@ -1481,43 +1481,43 @@ function ExpandedPanel({
     ];
     const decorations: { kind: string; label: string; description: string; preview: React.ReactNode }[] = [
       {
-        kind: "Rectángulo",
+        kind: "soft-card",
         label: "Tarjeta suave",
         description: "Base glass para contenido",
         preview: <span style={{ width: 44, height: 24, borderRadius: 9, background: "rgba(255,252,247,0.86)", border: "1px solid rgba(184,146,90,0.28)", boxShadow: "0 8px 18px rgba(75,39,53,0.10)" }} />,
       },
       {
-        kind: "Círculo",
+        kind: "glow-circle",
         label: "Circulo glow",
         description: "Luz decorativa radial",
         preview: <span style={{ width: 38, height: 38, borderRadius: 999, background: "radial-gradient(circle,rgba(255,252,247,0.95),rgba(199,183,160,0.48),rgba(184,146,90,0.18))", border: "1px solid rgba(184,146,90,0.22)" }} />,
       },
       {
-        kind: "Rosa",
+        kind: "rose-soft",
         label: "Rosa soft",
         description: "Ornamento floral sutil",
         preview: <span style={{ width: 42, height: 42, borderRadius: 999, background: "radial-gradient(circle,rgba(250,247,241,0.92),rgba(184,146,90,0.34),transparent 72%)", border: "1px solid rgba(166,135,92,0.22)" }} />,
       },
       {
-        kind: "Destello",
+        kind: "spark",
         label: "Destello",
         description: "Punto de luz dorado",
         preview: <span style={{ width: 36, height: 36, borderRadius: 999, background: "radial-gradient(circle,rgba(244,210,138,0.90),rgba(184,146,90,0.30),transparent 72%)" }} />,
       },
       {
-        kind: "Resplandor",
+        kind: "soft-glow",
         label: "Resplandor",
         description: "Fondo luminoso suave",
         preview: <span style={{ width: 54, height: 34, borderRadius: 999, background: "radial-gradient(ellipse,rgba(184,146,90,0.30),rgba(59,48,42,0.12),transparent 74%)" }} />,
       },
       {
-        kind: "Línea dorada",
+        kind: "editorial-line",
         label: "Linea editorial",
         description: "Separador fino premium",
         preview: <span style={{ width: 56, height: 2, borderRadius: 999, background: "linear-gradient(90deg,transparent,#b8925a,transparent)" }} />,
       },
       {
-        kind: "Puntos",
+        kind: "dots",
         label: "Puntos",
         description: "Separador minimal",
         preview: <span style={{ display: "flex", gap: 5 }}>{[0, 1, 2, 3].map((dot) => <span key={dot} style={{ width: 7, height: 7, borderRadius: 999, background: dot === 0 || dot === 3 ? "rgba(184,146,90,0.45)" : "#d4aa72" }} />)}</span>,
@@ -3462,6 +3462,58 @@ export function CanvasEditorV3({
     // ── Premium preset library ──────────────────────────────────────────────
     // Each entry is a list of V3Elements with zIndex=0 (remapped on insertion).
     const PRESETS: Record<string, V3Element[]> = {
+      "soft-card": [{
+        id: `deco-soft-card-${stamp}`, type: "decoration",
+        x: cx(300), y: sectionY + 82, width: 300, height: 110,
+        locked: false, visible: true, zIndex: 0,
+        background: "linear-gradient(145deg,rgba(255,252,247,0.88),rgba(255,252,247,0.58))",
+        border: "1px solid rgba(184,146,90,0.34)",
+        borderRadius: 22, opacity: 1,
+      }],
+      "glow-circle": [{
+        id: `deco-glow-circle-${stamp}`, type: "decoration",
+        x: cx(118), y: sectionY + 78, width: 118, height: 118,
+        locked: false, visible: true, zIndex: 0,
+        background: "radial-gradient(circle at 38% 32%,rgba(255,252,247,0.96) 0%,rgba(244,210,138,0.44) 32%,rgba(184,146,90,0.22) 58%,transparent 82%)",
+        border: "1px solid rgba(184,146,90,0.26)",
+        borderRadius: 999, opacity: 0.96,
+      }],
+      "rose-soft": [{
+        id: `deco-rose-soft-${stamp}`, type: "decoration",
+        x: cx(126), y: sectionY + 70, width: 126, height: 126,
+        locked: false, visible: true, zIndex: 0,
+        background: "radial-gradient(circle at 50% 50%,rgba(255,252,247,0.82) 0 10%,transparent 11%),conic-gradient(from 18deg,rgba(212,132,142,0.18),rgba(242,200,206,0.82),rgba(184,146,90,0.20),rgba(242,200,206,0.74),rgba(212,132,142,0.18)),radial-gradient(circle,rgba(242,200,206,0.50),transparent 70%)",
+        border: "1px solid rgba(212,132,142,0.30)",
+        borderRadius: 999, opacity: 0.92,
+      }],
+      "spark": [{
+        id: `deco-spark-${stamp}`, type: "decoration",
+        x: cx(82), y: sectionY + 74, width: 82, height: 82,
+        locked: false, visible: true, zIndex: 0,
+        background: "linear-gradient(90deg,transparent 46%,rgba(255,252,247,0.95) 49%,rgba(255,252,247,0.95) 51%,transparent 54%),linear-gradient(0deg,transparent 46%,rgba(244,210,138,0.96) 49%,rgba(244,210,138,0.96) 51%,transparent 54%),radial-gradient(circle,rgba(244,210,138,0.92) 0%,rgba(184,146,90,0.35) 28%,transparent 64%)",
+        borderRadius: 999, opacity: 0.94,
+      }],
+      "soft-glow": [{
+        id: `deco-soft-glow-${stamp}`, type: "decoration",
+        x: cx(320), y: sectionY + 52, width: 320, height: 210,
+        locked: false, visible: true, zIndex: 0,
+        background: "radial-gradient(ellipse at 50% 50%,rgba(244,210,138,0.32) 0%,rgba(184,146,90,0.18) 38%,rgba(85,58,72,0.10) 68%,transparent 100%)",
+        borderRadius: 999, opacity: 0.95,
+      }],
+      "editorial-line": [{
+        id: `deco-editorial-line-${stamp}`, type: "decoration",
+        x: cx(260), y: sectionY + 92, width: 260, height: 10,
+        locked: false, visible: true, zIndex: 0,
+        background: "linear-gradient(180deg,transparent 0 42%,rgba(255,252,247,0.72) 43%,rgba(184,146,90,0.90) 50%,rgba(255,252,247,0.72) 57%,transparent 58% 100%)",
+        borderRadius: 999, opacity: 1,
+      }],
+      "dots": [{
+        id: `deco-dots-${stamp}`, type: "decoration",
+        x: cx(132), y: sectionY + 86, width: 132, height: 24,
+        locked: false, visible: true, zIndex: 0,
+        background: "radial-gradient(circle at 14% 50%,rgba(184,146,90,0.66) 0 4px,transparent 5px),radial-gradient(circle at 38% 50%,#d4aa72 0 5px,transparent 6px),radial-gradient(circle at 62% 50%,#d4aa72 0 5px,transparent 6px),radial-gradient(circle at 86% 50%,rgba(184,146,90,0.66) 0 4px,transparent 5px)",
+        borderRadius: 999, opacity: 1,
+      }],
 
       // ── FORMAS ─────────────────────────────────────────────────────────────
       "Rectángulo": [{

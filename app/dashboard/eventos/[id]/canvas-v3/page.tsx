@@ -60,7 +60,7 @@ function isUuid(value: string) {
 }
 
 export async function generateMetadata() {
-  return { title: "Canvas V3 · Editor experimental" };
+  return { title: "KAIS Studio" };
 }
 
 export default async function CanvasV3Page({ params }: Props) {

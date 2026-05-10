@@ -1466,8 +1466,14 @@ function ExpandedPanel({
   if (tool === "templates") {
     return (
       <div style={{ padding: "12px 14px" }}>
-        <p style={{ color: "#b8925a", fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", margin: "0 0 10px", fontWeight: 800 }}>
-          Plantillas guardadas
+        <p style={{ color: "#b8925a", fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", margin: "0 0 6px", fontWeight: 900 }}>
+          Galeria KAIS
+        </p>
+        <h3 style={{ color: "#3c2430", fontSize: 18, lineHeight: 1.08, margin: "0 0 6px", fontFamily: "'Playfair Display', Georgia, serif", fontStyle: "italic", fontWeight: 800 }}>
+          Disenos listos para tu evento
+        </h3>
+        <p style={{ color: "#8a6b58", fontSize: 11, lineHeight: 1.45, margin: "0 0 14px", fontFamily: "Inter, system-ui, sans-serif" }}>
+          Aplica una composicion visual y conserva nombres, fechas, ubicacion y mensajes reales.
         </p>
         {templateApplyError && (
           <div style={{
@@ -1493,10 +1499,10 @@ function ExpandedPanel({
             border: "1px solid rgba(184,146,90,0.18)",
           }}>
             <p style={{ color: "#4b2735", fontSize: 12, fontWeight: 800, margin: "0 0 4px", fontFamily: "Inter, system-ui, sans-serif" }}>
-              Aun no hay plantillas activas
+              Todavia no hay disenos activos
             </p>
             <p style={{ color: "#8a6b58", fontSize: 10.5, lineHeight: 1.45, margin: 0, fontFamily: "Inter, system-ui, sans-serif" }}>
-              Cuando actives templates V3 en la galeria interna, apareceran aqui para aplicarlos al evento.
+              Activa plantillas en la galeria interna para usarlas aqui sin salir de KAIS Studio.
             </p>
           </div>
         ) : (
@@ -1506,34 +1512,50 @@ function ExpandedPanel({
             return (
               <div
                 key={template.id}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = "translateY(-2px)";
+                  e.currentTarget.style.boxShadow = "0 18px 38px rgba(67,43,30,0.16)";
+                  e.currentTarget.style.borderColor = "rgba(184,146,90,0.42)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = "translateY(0)";
+                  e.currentTarget.style.boxShadow = "0 14px 30px rgba(67,43,30,0.10)";
+                  e.currentTarget.style.borderColor = "rgba(184,146,90,0.24)";
+                }}
                 style={{
                   marginBottom: 12,
-                  borderRadius: 16,
+                  borderRadius: 18,
                   overflow: "hidden",
                   border: "1px solid rgba(184,146,90,0.24)",
-                  background: "rgba(255,252,247,0.84)",
+                  background: "linear-gradient(180deg,rgba(255,252,247,0.94),rgba(255,247,237,0.76))",
                   boxShadow: "0 14px 30px rgba(67,43,30,0.10)",
+                  transition: "transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease",
                 }}
               >
                 <div style={{
-                  height: 70,
+                  width: 92,
+                  height: 154,
+                  margin: "14px auto 10px",
+                  borderRadius: 24,
                   position: "relative",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
+                  overflow: "hidden",
+                  boxShadow: "0 18px 36px rgba(38,21,16,0.22), inset 0 0 0 1px rgba(255,255,255,0.30)",
                   background: previewUrl
                     ? `linear-gradient(rgba(18,14,20,0.18),rgba(18,14,20,0.18)),url(${previewUrl}) center/cover`
-                    : "radial-gradient(circle at 30% 20%,rgba(255,255,255,0.75),transparent 28%),linear-gradient(135deg,#2a1631,#b8925a 48%,#fff6e8)",
+                    : "radial-gradient(circle at 34% 18%,rgba(255,255,255,0.78),transparent 24%),radial-gradient(circle at 70% 78%,rgba(184,146,90,0.45),transparent 30%),linear-gradient(160deg,#211323,#6f3a4e 44%,#d7b271)",
                 }}>
                   {!previewUrl && (
                     <span style={{
-                      width: 34,
-                      height: 34,
-                      borderRadius: 17,
+                      width: 44,
+                      height: 44,
+                      borderRadius: 22,
                       display: "grid",
                       placeItems: "center",
                       color: "#fff7ef",
-                      fontSize: 17,
+                      fontSize: 20,
                       fontWeight: 800,
                       fontFamily: "'Playfair Display', Georgia, serif",
                       background: "rgba(18,14,20,0.34)",
@@ -1544,18 +1566,18 @@ function ExpandedPanel({
                   )}
                   <span style={{
                     position: "absolute",
-                    top: 7,
-                    right: 8,
+                    top: 9,
+                    right: 9,
                     padding: "3px 6px",
                     borderRadius: 999,
-                    background: template.isPremium ? "rgba(184,146,90,0.86)" : "rgba(255,255,255,0.78)",
-                    color: template.isPremium ? "#fff7ef" : "#6b4f38",
+                    background: template.isPremium ? "rgba(184,146,90,0.92)" : "rgba(255,255,255,0.82)",
+                    color: template.isPremium ? "#fff7ef" : "#5a422f",
                     fontSize: 8,
                     fontWeight: 900,
                     letterSpacing: "0.08em",
                     textTransform: "uppercase",
                   }}>
-                    {template.isPremium ? "Premium" : "Free"}
+                    {template.isPremium ? "Premium" : "Libre"}
                   </span>
                 </div>
                 <div style={{ padding: "11px 12px 12px" }}>
@@ -1563,7 +1585,7 @@ function ExpandedPanel({
                     {template.name}
                   </p>
                   <p style={{ color: "#8a6b58", fontSize: 10, lineHeight: 1.35, margin: "0 0 9px", fontFamily: "Inter, system-ui, sans-serif" }}>
-                    {template.visualCategory || template.description || "Template V3 editable"}
+                    {template.visualCategory || template.description || "Diseno editable"}
                   </p>
                   {template.compatibleEventTypes.length > 0 && (
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 10 }}>
@@ -1586,6 +1608,9 @@ function ExpandedPanel({
                       ))}
                     </div>
                   )}
+                  <p style={{ color: "#9a7a5c", fontSize: 9.5, lineHeight: 1.35, margin: "0 0 9px", fontFamily: "Inter, system-ui, sans-serif" }}>
+                    Tus datos se conservaran.
+                  </p>
                   <button
                     type="button"
                     disabled={isApplyingTemplate}
@@ -1608,7 +1633,7 @@ function ExpandedPanel({
                       opacity: isApplyingTemplate && !isApplying ? 0.58 : 1,
                     }}
                   >
-                    {isApplying ? "Aplicando..." : "Aplicar plantilla"}
+                    {isApplying ? "Aplicando diseno..." : "Usar esta plantilla"}
                   </button>
                 </div>
               </div>
@@ -1616,8 +1641,8 @@ function ExpandedPanel({
           })
         )}
         {/* ── Premium templates ── */}
-        <p style={{ color: "#f472b6", fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", margin: "0 0 10px", fontWeight: 800 }}>
-          ✦ Plantillas premium
+        <p style={{ color: "#a78bfa", fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", margin: "20px 0 10px", fontWeight: 800 }}>
+          Disenos clasicos
         </p>
         {PREMIUM_TEMPLATES.map((tpl) => (
           <div key={tpl.id} style={{ marginBottom: 12, borderRadius: 14, overflow: "hidden", border: "1px solid rgba(244,114,182,0.32)" }}>
@@ -2531,6 +2556,7 @@ export function CanvasEditorV3({
   const [saveError, setSaveError] = useState<string | null>(null);
   const [templateApplyError, setTemplateApplyError] = useState<string | null>(null);
   const [applyingTemplateId, setApplyingTemplateId] = useState<string | null>(null);
+  const [templateToApply, setTemplateToApply] = useState<CanvasV3TemplateGalleryItem | null>(null);
   const [isApplyingTemplate, startApplyTemplateTransition] = useTransition();
   const [preview, setPreview] = useState(false);
   const [snapLines, setSnapLines] = useState<SnapLine[]>([]);
@@ -3766,10 +3792,13 @@ export function CanvasEditorV3({
   };
 
   const applyTemplateFromDb = (template: CanvasV3TemplateGalleryItem) => {
-    const confirmed = window.confirm(
-      `Aplicar "${template.name}" reemplazara el diseno actual con una version hidratada con los datos del evento. Deseas continuar?`
-    );
-    if (!confirmed) return;
+    setTemplateApplyError(null);
+    setTemplateToApply(template);
+  };
+
+  const confirmApplyTemplateFromDb = () => {
+    const template = templateToApply;
+    if (!template || isApplyingTemplate) return;
 
     setTemplateApplyError(null);
     setApplyingTemplateId(template.id);
@@ -3785,6 +3814,7 @@ export function CanvasEditorV3({
         setSaved(true);
         setSaveStatus("saved");
         setActiveTool(null);
+        setTemplateToApply(null);
         setSelectedIds([]);
         router.refresh();
         window.setTimeout(() => {
@@ -3926,7 +3956,7 @@ export function CanvasEditorV3({
           whiteSpace: "nowrap",
           opacity: 0.9,
         }}>
-          {eventTitle} · Editor V3
+          {eventTitle} · KAIS Studio
         </div>
 
         {/* Zoom */}
@@ -4662,6 +4692,99 @@ export function CanvasEditorV3({
           >
             Propiedades
           </button>
+        )}
+
+        {templateToApply && (
+          <div
+            role="dialog"
+            aria-modal="true"
+            style={{
+              position: "absolute",
+              inset: 0,
+              zIndex: 80,
+              display: "grid",
+              placeItems: "center",
+              padding: 18,
+              background: "rgba(21,13,20,0.58)",
+              backdropFilter: "blur(10px)",
+            }}
+            onClick={() => {
+              if (!isApplyingTemplate) setTemplateToApply(null);
+            }}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                width: "min(380px, 100%)",
+                borderRadius: 24,
+                padding: 18,
+                background: "linear-gradient(180deg,rgba(255,252,247,0.98),rgba(255,244,232,0.94))",
+                border: "1px solid rgba(184,146,90,0.28)",
+                boxShadow: "0 28px 80px rgba(16,10,14,0.44)",
+                color: "#3c2430",
+              }}
+            >
+              <div style={{
+                width: 78,
+                height: 124,
+                margin: "0 auto 14px",
+                borderRadius: 22,
+                background: templateToApply.thumbnailUrl || templateToApply.previewImageUrl
+                  ? `linear-gradient(rgba(18,14,20,0.14),rgba(18,14,20,0.14)),url(${templateToApply.thumbnailUrl || templateToApply.previewImageUrl}) center/cover`
+                  : "radial-gradient(circle at 32% 18%,rgba(255,255,255,0.78),transparent 24%),radial-gradient(circle at 70% 78%,rgba(184,146,90,0.45),transparent 30%),linear-gradient(160deg,#211323,#6f3a4e 44%,#d7b271)",
+                boxShadow: "0 18px 36px rgba(38,21,16,0.22), inset 0 0 0 1px rgba(255,255,255,0.34)",
+              }} />
+              <p style={{ color: "#b8925a", fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", margin: "0 0 8px", textAlign: "center", fontWeight: 900 }}>
+                Aplicar diseno
+              </p>
+              <h3 style={{ margin: "0 0 8px", textAlign: "center", fontFamily: "'Playfair Display', Georgia, serif", fontStyle: "italic", fontSize: 25, lineHeight: 1.05, color: "#3c2430" }}>
+                {templateToApply.name}
+              </h3>
+              <p style={{ margin: "0 0 16px", color: "#7c5d4d", fontSize: 12, lineHeight: 1.55, textAlign: "center", fontFamily: "Inter, system-ui, sans-serif" }}>
+                Se reemplazara la composicion visual actual. Los nombres, fechas, ubicacion, mensajes y apps del evento se conservaran.
+              </p>
+              <div style={{ display: "grid", gap: 8 }}>
+                <button
+                  type="button"
+                  disabled={isApplyingTemplate}
+                  onClick={confirmApplyTemplateFromDb}
+                  style={{
+                    width: "100%",
+                    border: "1px solid rgba(184,146,90,0.34)",
+                    borderRadius: 14,
+                    padding: "12px 14px",
+                    background: isApplyingTemplate ? "rgba(184,146,90,0.22)" : "linear-gradient(135deg,#2b1b24,#b8925a)",
+                    color: "#fff7ef",
+                    cursor: isApplyingTemplate ? "wait" : "pointer",
+                    fontSize: 12,
+                    fontWeight: 900,
+                    letterSpacing: "0.04em",
+                    boxShadow: "0 14px 28px rgba(61,35,21,0.18)",
+                  }}
+                >
+                  {isApplyingTemplate ? "Aplicando..." : "Aplicar diseno"}
+                </button>
+                <button
+                  type="button"
+                  disabled={isApplyingTemplate}
+                  onClick={() => setTemplateToApply(null)}
+                  style={{
+                    width: "100%",
+                    border: "1px solid rgba(184,146,90,0.18)",
+                    borderRadius: 14,
+                    padding: "10px 14px",
+                    background: "rgba(255,255,255,0.62)",
+                    color: "#7c5d4d",
+                    cursor: isApplyingTemplate ? "wait" : "pointer",
+                    fontSize: 12,
+                    fontWeight: 800,
+                  }}
+                >
+                  Mantener mi diseno actual
+                </button>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </div>

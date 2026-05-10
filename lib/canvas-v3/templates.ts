@@ -182,7 +182,7 @@ function placeholderForDataKey(dataKey?: keyof CanvasV3EventData) {
     case "package_key":
       return "Confirmacion habilitada";
     default:
-      return "Contenido del evento";
+      return "";
   }
 }
 
@@ -242,7 +242,7 @@ function placeholderForSemanticRole(role?: CeremonySemanticRole) {
     case "package_note":
       return "Confirmacion habilitada";
     default:
-      return "Contenido del evento";
+      return "";
   }
 }
 
@@ -312,6 +312,44 @@ function getEventValueForSemanticRole(event: CanvasV3EventData, role?: CeremonyS
   }
 }
 
+function hasDynamicTemplateMetadata(element: Pick<CanvasV3Element, "type" | "dataKey" | "semanticRole" | "lockedContent">) {
+  if (element.type === "app") return true;
+  return Boolean(element.dataKey || (element.lockedContent === true && element.semanticRole));
+}
+
+function isProtectedEditorialText(value: string) {
+  const text = cleanText(value).toLowerCase();
+  if (!text) return true;
+  if (/^\d{1,2}$/.test(text)) return true;
+  if (/^(xv|xiv|xvi|iv|v|vi|ix|x)$/.test(text)) return true;
+  return new Set([
+    "co",
+    "mis",
+    "15",
+    "xv",
+    "misa",
+    "ubicacion",
+    "ubicación",
+    "recepcion",
+    "recepción",
+    "vestimenta",
+    "dress code",
+    "sello academico",
+    "sello académico",
+    "logro academico",
+    "logro académico",
+    "acto academico",
+    "acto académico",
+    "confirmacion",
+    "confirmación",
+    "confirmar asistencia",
+    "confirma tu asistencia",
+    "confirmá tu asistencia",
+    "falta poco",
+    "nos vemos pronto",
+  ]).has(text);
+}
+
 function inferTemplateMetadata(element: CanvasV3Element): Pick<CanvasV3Element, "dataKey" | "semanticRole" | "lockedContent"> {
   const id = element.id.toLowerCase();
   const content = cleanText(element.content).toLowerCase();
@@ -333,6 +371,8 @@ function inferTemplateMetadata(element: CanvasV3Element): Pick<CanvasV3Element, 
   }
 
   if (element.type !== "text") return metadata;
+  if (element.dataKey || element.semanticRole || element.lockedContent !== undefined) return metadata;
+  if (isProtectedEditorialText(element.content ?? "")) return metadata;
 
   if (id.startsWith("grad-")) {
     if (id.includes("hero-name")) set("graduate_name", "graduate_name");
@@ -499,16 +539,26 @@ function sanitizeElement(element: unknown, mode: "template" | "hydrated", event?
 
   const source = findCurrentElement(currentDesign, typedElement);
 
-  if (mode === "template" && typedElement.type === "text" && (typedElement.dataKey || typedElement.semanticRole || typedElement.lockedContent)) {
-    typedElement.content = placeholderForDataKey(typedElement.dataKey) || placeholderForSemanticRole(typedElement.semanticRole);
+  const hasDynamicMetadata = hasDynamicTemplateMetadata(typedElement);
+
+  if (mode === "template" && typedElement.type === "text" && hasDynamicMetadata) {
+    typedElement.content =
+      placeholderForDataKey(typedElement.dataKey) ||
+      placeholderForSemanticRole(typedElement.semanticRole) ||
+      typedElement.content;
   }
 
-  if (mode === "hydrated" && typedElement.type === "text") {
+  if (mode === "hydrated" && typedElement.type === "text" && hasDynamicMetadata) {
     const eventValue =
       getEventValueForDataKey(event as CanvasV3EventData, typedElement.dataKey) ||
       getEventValueForSemanticRole(event as CanvasV3EventData, typedElement.semanticRole);
     const currentValue = safeString(source?.content);
-    typedElement.content = eventValue || currentValue || placeholderForDataKey(typedElement.dataKey) || placeholderForSemanticRole(typedElement.semanticRole);
+    typedElement.content =
+      eventValue ||
+      currentValue ||
+      placeholderForDataKey(typedElement.dataKey) ||
+      placeholderForSemanticRole(typedElement.semanticRole) ||
+      typedElement.content;
   }
 
   if (typedElement.type === "app") {

@@ -138,28 +138,32 @@ function buildDecorationBackground(el: Pick<V3Element, "background" | "config">)
   if (!effect) return el.background;
   const color = el.config?.color ?? el.config?.primaryColor ?? "#b8925a";
   const accent = el.config?.accentColor ?? "#fffaf2";
-  const c95 = colorWithAlpha(color, 0.95, "rgba(184,146,90,0.95)");
   const c90 = colorWithAlpha(color, 0.90, "rgba(184,146,90,0.90)");
-  const c82 = colorWithAlpha(color, 0.82, "rgba(184,146,90,0.82)");
   const c66 = colorWithAlpha(color, 0.66, "rgba(184,146,90,0.66)");
   const c50 = colorWithAlpha(color, 0.50, "rgba(184,146,90,0.50)");
   const c44 = colorWithAlpha(color, 0.44, "rgba(184,146,90,0.44)");
   const c32 = colorWithAlpha(color, 0.32, "rgba(184,146,90,0.32)");
   const c22 = colorWithAlpha(color, 0.22, "rgba(184,146,90,0.22)");
   const c18 = colorWithAlpha(color, 0.18, "rgba(184,146,90,0.18)");
+  const c14 = colorWithAlpha(color, 0.14, "rgba(184,146,90,0.14)");
   const c10 = colorWithAlpha(color, 0.10, "rgba(184,146,90,0.10)");
-  const a96 = colorWithAlpha(accent, 0.96, "rgba(255,252,247,0.96)");
-  const a88 = colorWithAlpha(accent, 0.88, "rgba(255,252,247,0.88)");
+  const c06 = colorWithAlpha(color, 0.06, "rgba(184,146,90,0.06)");
   const a72 = colorWithAlpha(accent, 0.72, "rgba(255,252,247,0.72)");
 
-  if (effect === "soft-card") return `linear-gradient(145deg,${a88},${c18})`;
-  if (effect === "glow-circle") return `radial-gradient(circle at 38% 32%,${a96} 0%,${c44} 32%,${c22} 58%,transparent 82%)`;
-  if (effect === "rose-soft") return `radial-gradient(circle at 50% 50%,${a72} 0 10%,transparent 11%),conic-gradient(from 18deg,${c18},${c82},${c22},${c66},${c18}),radial-gradient(circle,${c50},transparent 70%)`;
-  if (effect === "spark") return `linear-gradient(90deg,transparent 46%,${a96} 49%,${a96} 51%,transparent 54%),linear-gradient(0deg,transparent 46%,${c95} 49%,${c95} 51%,transparent 54%),radial-gradient(circle,${c90} 0%,${c44} 28%,transparent 64%)`;
-  if (effect === "soft-glow") return `radial-gradient(ellipse at 50% 50%,${c32} 0%,${c18} 38%,${c10} 68%,transparent 100%)`;
-  if (effect === "editorial-line") return `linear-gradient(180deg,transparent 0 42%,${a72} 43%,${c90} 50%,${a72} 57%,transparent 58% 100%)`;
-  if (effect === "dots") return `radial-gradient(circle at 14% 50%,${c66} 0 4px,transparent 5px),radial-gradient(circle at 38% 50%,${c90} 0 5px,transparent 6px),radial-gradient(circle at 62% 50%,${c90} 0 5px,transparent 6px),radial-gradient(circle at 86% 50%,${c66} 0 4px,transparent 5px)`;
+  if (effect === "soft-card") return `radial-gradient(120% 90% at 18% 0%,${a72},transparent 58%),radial-gradient(120% 80% at 92% 100%,${c14},transparent 68%),linear-gradient(145deg,rgba(255,252,247,0.42),${c06})`;
+  if (effect === "glow-circle") return `radial-gradient(circle at 34% 28%,${a72} 0%,${c32} 28%,transparent 58%),radial-gradient(circle at 58% 62%,${c18} 0%,transparent 72%),radial-gradient(circle at 50% 50%,${c10} 0%,transparent 100%)`;
+  if (effect === "rose-soft") return `radial-gradient(circle at 50% 48%,${a72} 0 7%,transparent 9%),conic-gradient(from 18deg,${c06},${c44},${c10},${c32},${c06}),radial-gradient(circle at 44% 38%,${c22},transparent 58%),radial-gradient(circle at 58% 64%,${c18},transparent 70%)`;
+  if (effect === "spark") return `linear-gradient(90deg,transparent 45%,${a72} 49%,${a72} 51%,transparent 55%),linear-gradient(0deg,transparent 45%,${c66} 49%,${c66} 51%,transparent 55%),radial-gradient(circle,${c50} 0%,${c18} 26%,transparent 72%)`;
+  if (effect === "soft-glow") return `radial-gradient(ellipse at 48% 48%,${c22} 0%,${c14} 34%,transparent 72%),radial-gradient(ellipse at 28% 30%,${a72} 0%,transparent 42%),radial-gradient(ellipse at 72% 70%,${c10} 0%,transparent 62%)`;
+  if (effect === "editorial-line") return `linear-gradient(90deg,transparent 0%,${c18} 18%,${c66} 50%,${c18} 82%,transparent 100%),linear-gradient(180deg,transparent 0 36%,${a72} 44%,${c90} 50%,${a72} 56%,transparent 64% 100%)`;
+  if (effect === "dots") return `radial-gradient(circle at 14% 50%,${c44} 0 4px,transparent 6px),radial-gradient(circle at 38% 50%,${c66} 0 5px,transparent 7px),radial-gradient(circle at 62% 50%,${c66} 0 5px,transparent 7px),radial-gradient(circle at 86% 50%,${c44} 0 4px,transparent 6px),radial-gradient(ellipse at 50% 50%,${c10},transparent 72%)`;
   return el.background;
+}
+
+function getDecorationBlendMode(effect?: NonNullable<V3Element["config"]>["effect"]): React.CSSProperties["mixBlendMode"] | undefined {
+  if (!effect) return undefined;
+  if (effect === "soft-card") return "soft-light";
+  return "screen";
 }
 
 function isScriptFont(fontFamily?: string): boolean {
@@ -473,6 +477,7 @@ function PublicElement({
         style={{
           ...boxStyle,
           background: visualBackground,
+          mixBlendMode: getDecorationBlendMode(el.config?.effect),
           backdropFilter: el.blur ? `blur(${el.blur}px)` : undefined,
         }}
       />
@@ -490,6 +495,7 @@ function PublicElement({
               inset: 0,
               background: visualBackground,
               borderRadius: el.borderRadius,
+              mixBlendMode: getDecorationBlendMode(el.config?.effect),
               backdropFilter: el.blur ? `blur(${el.blur}px)` : undefined,
             }}
           />

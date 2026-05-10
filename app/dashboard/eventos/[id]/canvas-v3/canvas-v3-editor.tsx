@@ -40,6 +40,7 @@ interface V3Element {
   fontWeight?: string;
   fontStyle?: string;
   textAlign?: "left" | "center" | "right";
+  verticalAlign?: "top" | "center" | "bottom";
   color?: string;
   textShadow?: string;
   letterSpacing?: number;
@@ -495,16 +496,100 @@ function estimateElementRenderHeight(el: V3Element): number {
   if (!el.content) return 60;
 
   const fontSize = el.fontSize ?? 14;
-  const lineHeight = typeof el.lineHeight === "number" ? el.lineHeight : 1.4;
+  const isScript = isScriptFont(el.fontFamily);
+  const lineHeight = Math.max(typeof el.lineHeight === "number" ? el.lineHeight : 1.4, isScript ? 1.24 : 1.1);
   const approxCharWidth = Math.max(6, fontSize * 0.56);
   const charsPerLine = Math.max(8, Math.floor(el.width / approxCharWidth));
   const visualLines = el.content.split("\n").reduce((total, line) => {
     const clean = line.trim();
     return total + Math.max(1, Math.ceil(clean.length / charsPerLine));
   }, 0);
-  const padding = el.type === "decoration" ? 32 : 6;
+  const padding = el.type === "decoration" ? 32 : getTextVerticalPadding(el) * 2;
 
   return Math.max(24, Math.ceil(visualLines * fontSize * lineHeight + padding));
+}
+
+function isScriptFont(fontFamily?: string): boolean {
+  const family = (fontFamily ?? "").toLowerCase();
+  return ["script", "vibes", "caveat", "dancing", "baloo", "fredoka"].some((token) => family.includes(token));
+}
+
+function getTextVerticalPadding(el: Pick<V3Element, "fontSize" | "fontFamily" | "type">): number {
+  const fontSize = el.fontSize ?? 14;
+  const scriptExtra = isScriptFont(el.fontFamily) ? 0.18 : 0.1;
+  return el.type === "decoration" ? 16 : Math.max(4, Math.ceil(fontSize * scriptExtra));
+}
+
+function getVerticalJustifyContent(value?: V3Element["verticalAlign"]): React.CSSProperties["justifyContent"] {
+  if (value === "bottom") return "flex-end";
+  if (value === "center") return "center";
+  return "flex-start";
+}
+
+type AlignmentIconKind = "left" | "center" | "right" | "top" | "middle" | "bottom";
+
+function AlignmentIcon({ kind }: { kind: AlignmentIconKind }) {
+  const stroke = "currentColor";
+  const line = {
+    stroke,
+    strokeWidth: 1.7,
+    strokeLinecap: "round" as const,
+  };
+  const guide = {
+    stroke,
+    strokeWidth: 1.2,
+    strokeLinecap: "round" as const,
+    opacity: 0.44,
+  };
+
+  if (kind === "left") {
+    return (
+      <svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+        <path d="M3 3.5h9.5M3 6.7h6.8M3 9.9h9.5M3 13.1h5.6" {...line} />
+      </svg>
+    );
+  }
+
+  if (kind === "center") {
+    return (
+      <svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+        <path d="M3.2 3.5h9.6M5 6.7h6M3.2 9.9h9.6M5.8 13.1h4.4" {...line} />
+      </svg>
+    );
+  }
+
+  if (kind === "right") {
+    return (
+      <svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+        <path d="M3.5 3.5H13M6.2 6.7H13M3.5 9.9H13M7.4 13.1H13" {...line} />
+      </svg>
+    );
+  }
+
+  if (kind === "top") {
+    return (
+      <svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+        <path d="M4 3h8" {...guide} />
+        <path d="M5.2 5.3h5.6M6.1 8h3.8M4.6 10.7h6.8" {...line} />
+      </svg>
+    );
+  }
+
+  if (kind === "middle") {
+    return (
+      <svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+        <path d="M3.5 8h9" {...guide} />
+        <path d="M5.4 4.9h5.2M4.7 8h6.6M5.8 11.1h4.4" {...line} />
+      </svg>
+    );
+  }
+
+  return (
+    <svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+      <path d="M4 13h8" {...guide} />
+      <path d="M4.6 5.3h6.8M6.1 8h3.8M5.2 10.7h5.6" {...line} />
+    </svg>
+  );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -655,6 +740,8 @@ function RenderElement({
     -el.x + 10,
     Math.min((el.width - compactToolbarWidth) / 2, canvasWidth - el.x - compactToolbarWidth - 10)
   );
+  const textVerticalPadding = getTextVerticalPadding(el);
+  const effectiveLineHeight = Math.max(el.lineHeight ?? 1.4, isScriptFont(el.fontFamily) ? 1.24 : 1.1);
 
   return (
     <div
@@ -699,24 +786,29 @@ function RenderElement({
         {el.content && el.type !== "app" && !isInlineEditing && (
           <p
             style={{
-              position: "relative",
+              position: "absolute",
+              inset: 0,
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: getVerticalJustifyContent(el.verticalAlign),
               margin: 0,
-              padding: el.type === "decoration" ? "16px 20px" : 0,
+              padding: el.type === "decoration" ? "16px 20px" : `${textVerticalPadding}px 0`,
               fontFamily: el.fontFamily ?? "Inter, system-ui, sans-serif",
               fontSize: el.fontSize ?? 14,
               fontWeight: el.fontWeight ?? "400",
               fontStyle: el.fontStyle ?? "normal",
               textAlign: el.textAlign ?? "center",
               color: el.color ?? "#ffffff",
-              lineHeight: el.lineHeight ?? 1.4,
+              lineHeight: effectiveLineHeight,
               letterSpacing: el.letterSpacing ? `${el.letterSpacing}em` : undefined,
               textShadow: el.textShadow ?? undefined,
               whiteSpace: "pre-wrap",
               wordBreak: "break-word",
               width: "100%",
+              boxSizing: "border-box",
             }}
           >
-            {el.content}
+            <span>{el.content}</span>
           </p>
         )}
 
@@ -745,7 +837,7 @@ function RenderElement({
               width: "100%",
               height: "100%",
               margin: 0,
-              padding: el.type === "decoration" ? "16px 20px" : 0,
+              padding: el.type === "decoration" ? "16px 20px" : `${textVerticalPadding}px 0`,
               border: "1px solid rgba(184,146,90,0.34)",
               outline: "2px solid rgba(184,146,90,0.16)",
               borderRadius: Math.max(6, el.borderRadius ?? 8),
@@ -757,11 +849,11 @@ function RenderElement({
               fontWeight: el.fontWeight ?? "400",
               fontStyle: el.fontStyle ?? "normal",
               textAlign: el.textAlign ?? "center",
-              lineHeight: el.lineHeight ?? 1.4,
+              lineHeight: effectiveLineHeight,
               letterSpacing: el.letterSpacing ? `${el.letterSpacing}em` : undefined,
               textShadow: el.textShadow ?? undefined,
               whiteSpace: "pre-wrap",
-              overflow: "hidden",
+              overflow: "auto",
               boxSizing: "border-box",
             }}
           />
@@ -4476,6 +4568,21 @@ export function CanvasEditorV3({
     boxShadow: "inset 0 1px 0 rgba(255,255,255,0.28)",
     whiteSpace: "nowrap",
   };
+  const topContextIconButtonStyle: React.CSSProperties = {
+    ...topContextButtonStyle,
+    width: 28,
+    minWidth: 28,
+    padding: 0,
+  };
+  const getTopContextIconButtonStyle = (active: boolean): React.CSSProperties => ({
+    ...topContextIconButtonStyle,
+    background: active ? "rgba(184,146,90,0.24)" : topContextIconButtonStyle.background,
+    border: active ? "1px solid rgba(184,146,90,0.36)" : topContextIconButtonStyle.border,
+    color: active ? "#2f1d24" : topContextIconButtonStyle.color,
+    boxShadow: active
+      ? "inset 0 1px 0 rgba(255,255,255,0.34), 0 5px 12px rgba(80,45,30,0.10)"
+      : topContextIconButtonStyle.boxShadow,
+  });
   const topContextDisabledButtonStyle: React.CSSProperties = {
     ...topContextButtonStyle,
     opacity: 0.42,
@@ -4490,7 +4597,7 @@ export function CanvasEditorV3({
   const topContextGroupStyle: React.CSSProperties = {
     display: "inline-flex",
     alignItems: "center",
-    gap: 3,
+    gap: 4,
     padding: 2,
     borderRadius: 12,
     background: "rgba(255,255,255,0.18)",
@@ -4714,9 +4821,13 @@ export function CanvasEditorV3({
 
             {selectedIsTextLike && (
               <span style={topContextGroupStyle}>
-                <button type="button" title="Alinear izquierda" onClick={() => patchElement(selected.id, { textAlign: "left" })} style={topContextButtonStyle}>Izq</button>
-                <button type="button" title="Centrar" onClick={() => patchElement(selected.id, { textAlign: "center" })} style={topContextButtonStyle}>Cen</button>
-                <button type="button" title="Alinear derecha" onClick={() => patchElement(selected.id, { textAlign: "right" })} style={topContextButtonStyle}>Der</button>
+                <button type="button" aria-label="Alinear izquierda" title="Alinear izquierda" onClick={() => patchElement(selected.id, { textAlign: "left" })} style={getTopContextIconButtonStyle((selected.textAlign ?? "left") === "left")}><AlignmentIcon kind="left" /></button>
+                <button type="button" aria-label="Centrar horizontal" title="Centrar horizontal" onClick={() => patchElement(selected.id, { textAlign: "center" })} style={getTopContextIconButtonStyle(selected.textAlign === "center")}><AlignmentIcon kind="center" /></button>
+                <button type="button" aria-label="Alinear derecha" title="Alinear derecha" onClick={() => patchElement(selected.id, { textAlign: "right" })} style={getTopContextIconButtonStyle(selected.textAlign === "right")}><AlignmentIcon kind="right" /></button>
+                <span style={topContextDividerStyle} />
+                <button type="button" aria-label="Alinear arriba" title="Alinear arriba" onClick={() => patchElement(selected.id, { verticalAlign: "top" })} style={getTopContextIconButtonStyle((selected.verticalAlign ?? "top") === "top")}><AlignmentIcon kind="top" /></button>
+                <button type="button" aria-label="Centrar vertical" title="Centrar vertical" onClick={() => patchElement(selected.id, { verticalAlign: "center" })} style={getTopContextIconButtonStyle(selected.verticalAlign === "center")}><AlignmentIcon kind="middle" /></button>
+                <button type="button" aria-label="Alinear abajo" title="Alinear abajo" onClick={() => patchElement(selected.id, { verticalAlign: "bottom" })} style={getTopContextIconButtonStyle(selected.verticalAlign === "bottom")}><AlignmentIcon kind="bottom" /></button>
                 <button type="button" title="Espaciado" onClick={openSelectedInspector} style={topContextButtonStyle}>Esp</button>
                 <button type="button" title="Efectos" onClick={openSelectedInspector} style={topContextButtonStyle}>Fx</button>
               </span>

@@ -25,6 +25,7 @@ export interface V3Element {
   fontWeight?: string;
   fontStyle?: string;
   textAlign?: "left" | "center" | "right";
+  verticalAlign?: "top" | "center" | "bottom";
   color?: string;
   textShadow?: string;
   letterSpacing?: number;
@@ -107,6 +108,23 @@ function computeBorder(el: { border?: string; borderColor?: string; borderWidth?
     return `${w}px ${s} ${c}`;
   }
   return el.border;
+}
+
+function isScriptFont(fontFamily?: string): boolean {
+  const family = (fontFamily ?? "").toLowerCase();
+  return ["script", "vibes", "caveat", "dancing", "baloo", "fredoka"].some((token) => family.includes(token));
+}
+
+function getTextVerticalPadding(el: Pick<V3Element, "fontSize" | "fontFamily" | "type">): number {
+  const fontSize = el.fontSize ?? 14;
+  const scriptExtra = isScriptFont(el.fontFamily) ? 0.18 : 0.1;
+  return el.type === "decoration" ? 16 : Math.max(4, Math.ceil(fontSize * scriptExtra));
+}
+
+function getVerticalJustifyContent(value?: V3Element["verticalAlign"]): React.CSSProperties["justifyContent"] {
+  if (value === "bottom") return "flex-end";
+  if (value === "center") return "center";
+  return "flex-start";
 }
 
 const DEFAULT_SECTION: V3Section = {
@@ -271,6 +289,8 @@ function PublicElement({
     Number.isFinite(Number(v)) ? Number(v) : fallback;
 
   const hasClip = clipTop > 0 || clipBottom > 0;
+  const textVerticalPadding = getTextVerticalPadding(el);
+  const effectiveLineHeight = Math.max(el.lineHeight ?? 1.4, isScriptFont(el.fontFamily) ? 1.24 : 1.1);
 
   const boxStyle: React.CSSProperties = {
     position: "absolute",
@@ -423,24 +443,29 @@ function PublicElement({
         )}
         <p
           style={{
-            position: "relative",
+            position: "absolute",
+            inset: 0,
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: getVerticalJustifyContent(el.verticalAlign),
             margin: 0,
-            padding: el.type === "decoration" ? "16px 20px" : 0,
+            padding: el.type === "decoration" ? "16px 20px" : `${textVerticalPadding}px 0`,
             fontFamily: el.fontFamily ?? "Inter, system-ui, sans-serif",
             fontSize: el.fontSize ?? 14,
             fontWeight: el.fontWeight ?? "400",
             fontStyle: el.fontStyle ?? "normal",
             textAlign: el.textAlign ?? "center",
             color: el.color ?? "#ffffff",
-            lineHeight: el.lineHeight ?? 1.4,
+            lineHeight: effectiveLineHeight,
             letterSpacing: el.letterSpacing ? `${el.letterSpacing}em` : undefined,
             textShadow: el.textShadow ?? undefined,
             whiteSpace: "pre-wrap",
             wordBreak: "break-word",
             width: "100%",
+            boxSizing: "border-box",
           }}
         >
-          {el.content}
+          <span>{el.content}</span>
         </p>
       </div>
     );

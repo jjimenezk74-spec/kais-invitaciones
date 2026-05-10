@@ -3,6 +3,8 @@ import { canEditEventDesign } from "@/lib/permissions";
 import { getCurrentUserProfile } from "@/lib/profiles";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { resolveInitialCanvasV3Design, type CanvasV3EventData } from "@/lib/canvas-v3/initial-design";
+import { normalizeCanvasV3EventType } from "@/lib/canvas-v3/ceremonial-structures";
+import { listCanvasV3Templates } from "@/app/dashboard/canvas-v3/templates/actions";
 import { CanvasEditorV3 } from "./canvas-v3-editor";
 import type { Event } from "@/lib/types";
 
@@ -80,6 +82,28 @@ export default async function CanvasV3Page({ params }: Props) {
   // Single cast — all accesses below are fully typed via EventV3Row.
   const data = rawData as unknown as EventV3Row;
   const initialDesign = resolveInitialCanvasV3Design(data as unknown as CanvasV3EventData);
+  const normalizedEventType = normalizeCanvasV3EventType(data.event_type);
+  const templatesResult = await listCanvasV3Templates({ activeOnly: true, scope: "full" });
+  const canvasTemplates = templatesResult.ok
+    ? templatesResult.data
+        .filter((template) => {
+          if (!normalizedEventType) return true;
+          return template.compatibleEventTypes.length === 0 || template.compatibleEventTypes.includes(normalizedEventType);
+        })
+        .map((template) => ({
+          id: template.id ?? "",
+          name: template.name,
+          slug: template.slug,
+          compatibleEventTypes: template.compatibleEventTypes,
+          visualCategory: template.visualCategory ?? null,
+          description: template.description ?? null,
+          templateScope: template.templateScope,
+          previewImageUrl: template.previewImageUrl ?? null,
+          thumbnailUrl: template.thumbnailUrl ?? null,
+          isPremium: Boolean(template.isPremium),
+        }))
+        .filter((template) => template.id)
+    : [];
 
   return (
     <div className="fixed inset-0 z-[9999] h-dvh w-screen overflow-hidden bg-[#0f0f17]">
@@ -96,6 +120,7 @@ export default async function CanvasV3Page({ params }: Props) {
         whatsappPhone={data.whatsapp_phone ?? null}
         googleMapsLink={data.google_maps_link ?? null}
         musicUrl={data.music_url ?? null}
+        canvasTemplates={canvasTemplates}
       />
     </div>
   );

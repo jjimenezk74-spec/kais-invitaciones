@@ -605,6 +605,16 @@ function RenderElement({
   };
   const toolbarLabel = el.type === "text" ? "Texto" : el.type === "app" ? "Bloque" : el.type === "decoration" ? "Decoración" : "Forma";
   const toolbarHint = el.type === "text" ? "Tipografía" : el.type === "app" ? "Acción" : "Forma";
+  const elementLooksLikeImage = el.type !== "app" && (el.config?.url || /\burl\(/i.test(el.background ?? ""));
+  const elementIsQr = el.type === "app" && normalizeAppType(el) === "qr";
+  const elementIsTextLike = el.type === "text" || Boolean(el.content && el.type !== "app");
+  const compactToolbarWidth = canvasWidth <= 420 ? 222 : 246;
+  const toolbarCanSitAbove = el.y >= 64;
+  const compactToolbarTop = toolbarCanSitAbove ? -54 : renderHeight + 16;
+  const compactToolbarLeft = Math.max(
+    -el.x + 10,
+    Math.min((el.width - compactToolbarWidth) / 2, canvasWidth - el.x - compactToolbarWidth - 10)
+  );
 
   return (
     <div
@@ -800,43 +810,29 @@ function RenderElement({
           onClick={(event) => event.stopPropagation()}
           style={{
             position: "absolute",
-            left: Math.max(
-              -el.x + 8,
-              Math.min((el.width - 300) / 2, canvasWidth - el.x - 300 - 8)
-            ),
-            top: el.y < 54 ? renderHeight + 12 : -48,
+            left: compactToolbarLeft,
+            top: compactToolbarTop,
             zIndex: 10001,
-            width: 300,
+            width: compactToolbarWidth,
             maxWidth: `calc(${canvasWidth}px - 16px)`,
             display: "flex",
             alignItems: "center",
-            gap: 6,
-            padding: 6,
-            borderRadius: 16,
-            background: "linear-gradient(180deg,rgba(255,252,247,0.88),rgba(255,246,237,0.76))",
-            border: "1px solid rgba(184,146,90,0.24)",
-            boxShadow: "0 18px 48px rgba(43,27,36,0.18), inset 0 1px 0 rgba(255,255,255,0.62)",
-            backdropFilter: "blur(18px)",
+            justifyContent: "center",
+            gap: 4,
+            padding: 5,
+            borderRadius: 14,
+            background: "linear-gradient(180deg,rgba(255,252,247,0.74),rgba(255,246,237,0.58))",
+            border: "1px solid rgba(184,146,90,0.18)",
+            boxShadow: "0 12px 32px rgba(43,27,36,0.14), inset 0 1px 0 rgba(255,255,255,0.58)",
+            backdropFilter: "blur(16px)",
             fontFamily: "Inter, system-ui, sans-serif",
             transformOrigin: "center",
             animation: "kaisContextToolbarIn 140ms ease-out",
           }}
         >
           <style>{`@keyframes kaisContextToolbarIn{from{opacity:0;transform:translateY(4px) scale(.96)}to{opacity:1;transform:translateY(0) scale(1)}}`}</style>
-          {(el.type === "text" || (el.content && el.type !== "app")) && (
-            <button type="button" title="Editar texto" onClick={onEditText} style={floatingToolbarButtonStyle}>Editar</button>
-          )}
-          {el.type !== "app" && (el.config?.url || /\burl\(/i.test(el.background ?? "")) && (
-            <>
-              <button type="button" title="Reemplazar imagen" onClick={onReplaceImage} style={floatingToolbarButtonStyle}>Reemplazar</button>
-              <button type="button" title="Recortar imagen" onClick={onCropImage} style={floatingToolbarButtonStyle}>Recortar</button>
-            </>
-          )}
-          {el.type === "app" && normalizeAppType(el) === "qr" && (
-            <>
-              <button type="button" title="Editar QR" onClick={onEditQr} style={floatingToolbarButtonStyle}>Editar QR</button>
-              <button type="button" title="Descargar QR" onClick={onDownloadQr} style={floatingToolbarButtonStyle}>Descargar</button>
-            </>
+          {elementIsTextLike && (
+            <button type="button" title="Editar texto" onClick={onEditText} style={floatingToolbarIconButtonStyle}>T</button>
           )}
           {(el.type === "text" || el.type === "shape" || el.type === "decoration") && (
             <button
@@ -848,37 +844,51 @@ function RenderElement({
                 width: 32,
                 minWidth: 32,
                 padding: 0,
+                borderRadius: 10,
                 background: "linear-gradient(135deg,#fff7ef,#3b1721,#b8925a,#f472b6)",
               }}
             />
           )}
-          <span style={{ width: 1, height: 20, background: "rgba(184,146,90,0.22)", flexShrink: 0 }} />
+          <span style={{ width: 1, height: 18, background: "rgba(184,146,90,0.18)", flexShrink: 0 }} />
           <button type="button" title="Duplicar" onClick={onDuplicate} style={floatingToolbarIconButtonStyle}>⧉</button>
           <button type="button" title={el.locked ? "Desbloquear" : "Bloquear"} onClick={onToggleLocked} style={floatingToolbarIconButtonStyle}>
             {el.locked ? "🔒" : "🔓"}
           </button>
           <button type="button" title="Eliminar" onClick={onDelete} style={{ ...floatingToolbarIconButtonStyle, color: "#9f1d2f" }}>×</button>
-          <div style={{ position: "relative", marginLeft: "auto" }}>
-            <button type="button" title="Mas acciones" onClick={() => setMoreOpen((value) => !value)} style={{ ...floatingToolbarButtonStyle, minWidth: 42 }}>
-              Mas
+          <div style={{ position: "relative" }}>
+            <button type="button" title="Mas acciones" onClick={() => setMoreOpen((value) => !value)} style={floatingToolbarIconButtonStyle}>
+              ⋯
             </button>
             {moreOpen && (
               <div
                 style={{
                   position: "absolute",
-                  top: 36,
+                  top: toolbarCanSitAbove ? 34 : undefined,
+                  bottom: toolbarCanSitAbove ? undefined : 34,
                   right: 0,
-                  minWidth: 168,
-                  padding: 6,
+                  minWidth: 164,
+                  padding: 5,
                   borderRadius: 14,
-                  background: "rgba(255,252,247,0.96)",
-                  border: "1px solid rgba(184,146,90,0.22)",
-                  boxShadow: "0 18px 44px rgba(43,27,36,0.18)",
-                  backdropFilter: "blur(18px)",
+                  background: "rgba(255,252,247,0.92)",
+                  border: "1px solid rgba(184,146,90,0.18)",
+                  boxShadow: "0 16px 38px rgba(43,27,36,0.16)",
+                  backdropFilter: "blur(16px)",
                   display: "grid",
-                  gap: 5,
+                  gap: 4,
                 }}
               >
+                {elementLooksLikeImage && (
+                  <>
+                    <button type="button" onClick={() => { setMoreOpen(false); onReplaceImage?.(); }} style={floatingToolbarMenuButtonStyle}>Reemplazar imagen</button>
+                    <button type="button" onClick={() => { setMoreOpen(false); onCropImage?.(); }} style={floatingToolbarMenuButtonStyle}>Recortar</button>
+                  </>
+                )}
+                {elementIsQr && (
+                  <>
+                    <button type="button" onClick={() => { setMoreOpen(false); onEditQr?.(); }} style={floatingToolbarMenuButtonStyle}>Editar QR</button>
+                    <button type="button" onClick={() => { setMoreOpen(false); onDownloadQr?.(); }} style={floatingToolbarMenuButtonStyle}>Descargar QR</button>
+                  </>
+                )}
                 <button type="button" onClick={() => { setMoreOpen(false); onOpenInspector?.(); }} style={floatingToolbarMenuButtonStyle}>Propiedades</button>
                 <button type="button" onClick={() => { setMoreOpen(false); onOpenInspector?.(); }} style={floatingToolbarMenuButtonStyle}>Capas y orden</button>
               </div>
@@ -895,32 +905,32 @@ function RenderElement({
 // ─────────────────────────────────────────────────────────────────────────────
 
 const floatingToolbarButtonStyle: React.CSSProperties = {
-  minWidth: 30,
-  height: 30,
-  border: "1px solid rgba(184,146,90,0.18)",
-  borderRadius: 10,
-  background: "rgba(255,255,255,0.58)",
+  minWidth: 28,
+  height: 28,
+  border: "1px solid rgba(184,146,90,0.14)",
+  borderRadius: 9,
+  background: "rgba(255,255,255,0.46)",
   color: "#4b2735",
   cursor: "pointer",
   display: "inline-flex",
   alignItems: "center",
   justifyContent: "center",
-  gap: 5,
-  padding: "0 9px",
-  fontSize: 11,
+  gap: 4,
+  padding: "0 8px",
+  fontSize: 10.5,
   fontWeight: 800,
   fontFamily: "Inter, system-ui, sans-serif",
-  boxShadow: "inset 0 1px 0 rgba(255,255,255,0.52)",
+  boxShadow: "inset 0 1px 0 rgba(255,255,255,0.46)",
   transition: "transform 0.14s ease, background 0.14s ease, border-color 0.14s ease",
   whiteSpace: "nowrap",
 };
 
 const floatingToolbarIconButtonStyle: React.CSSProperties = {
   ...floatingToolbarButtonStyle,
-  width: 30,
-  minWidth: 30,
+  width: 28,
+  minWidth: 28,
   padding: 0,
-  fontSize: 13,
+  fontSize: 12,
 };
 
 const floatingToolbarMenuButtonStyle: React.CSSProperties = {

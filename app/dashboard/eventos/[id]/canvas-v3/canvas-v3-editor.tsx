@@ -4587,37 +4587,6 @@ export function CanvasEditorV3({
           Publicar ↗
         </button>
 
-        {/* Inspector toggle */}
-        {inspectorHasContext && (
-          <button
-            type="button"
-            title={inspectorOpen ? "Cerrar inspector" : "Propiedades"}
-            onClick={() => setInspectorOpen(o => !o)}
-            style={{
-              ...topBtnStyle, flexShrink: 0,
-              background: inspectorOpen ? "rgba(149,129,112,0.24)" : "rgba(255,255,255,0.05)",
-              color: inspectorOpen ? "#f0e5db" : "#a19388",
-              borderColor: inspectorOpen ? "rgba(149,129,112,0.40)" : "rgba(149,129,112,0.24)",
-            }}
-          >
-            Propiedades
-          </button>
-        )}
-        {!preview && (
-          <button
-            type="button"
-            title={layersPanelOpen ? "Cerrar capas" : "Capas"}
-            onClick={() => setLayersPanelOpen((open) => !open)}
-            style={{
-              ...topBtnStyle, flexShrink: 0,
-              background: layersPanelOpen ? "rgba(149,129,112,0.24)" : "rgba(255,255,255,0.05)",
-              color: layersPanelOpen ? "#f0e5db" : "#a19388",
-              borderColor: layersPanelOpen ? "rgba(149,129,112,0.40)" : "rgba(149,129,112,0.24)",
-            }}
-          >
-            Capas
-          </button>
-        )}
       </div>
 
       {/* ── BODY ── */}

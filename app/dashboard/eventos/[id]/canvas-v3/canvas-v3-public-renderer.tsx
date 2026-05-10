@@ -47,7 +47,7 @@ export interface V3Element {
     primaryColor?: string;
     color?: string;
     accentColor?: string;
-    effect?: "soft-card" | "glow-circle" | "rose-soft" | "spark" | "soft-glow" | "editorial-line" | "dots";
+    effect?: "soft-card" | "glow-circle" | "rose-soft" | "spark" | "soft-glow" | "editorial-line" | "dots" | "ambient-glow" | "cinematic-haze" | "gold-contamination" | "blue-ambient-light" | "editorial-fog";
     textColor?: string;
     countdownTarget?: string;
     countdownMode?: "event" | "custom";
@@ -148,7 +148,13 @@ function buildDecorationBackground(el: Pick<V3Element, "background" | "config">)
   const c14 = colorWithAlpha(color, 0.14, "rgba(184,146,90,0.14)");
   const c10 = colorWithAlpha(color, 0.10, "rgba(184,146,90,0.10)");
   const c06 = colorWithAlpha(color, 0.06, "rgba(184,146,90,0.06)");
+  const c04 = colorWithAlpha(color, 0.04, "rgba(184,146,90,0.04)");
   const a72 = colorWithAlpha(accent, 0.72, "rgba(255,252,247,0.72)");
+  const a34 = colorWithAlpha(accent, 0.34, "rgba(37,99,235,0.34)");
+  const a22 = colorWithAlpha(accent, 0.22, "rgba(37,99,235,0.22)");
+  const a16 = colorWithAlpha(accent, 0.16, "rgba(37,99,235,0.16)");
+  const a10 = colorWithAlpha(accent, 0.10, "rgba(37,99,235,0.10)");
+  const a06 = colorWithAlpha(accent, 0.06, "rgba(37,99,235,0.06)");
 
   if (effect === "soft-card") return `radial-gradient(120% 90% at 18% 0%,${a72},transparent 58%),radial-gradient(120% 80% at 92% 100%,${c14},transparent 68%),linear-gradient(145deg,rgba(255,252,247,0.42),${c06})`;
   if (effect === "glow-circle") return `radial-gradient(circle at 34% 28%,${a72} 0%,${c32} 28%,transparent 58%),radial-gradient(circle at 58% 62%,${c18} 0%,transparent 72%),radial-gradient(circle at 50% 50%,${c10} 0%,transparent 100%)`;
@@ -157,12 +163,17 @@ function buildDecorationBackground(el: Pick<V3Element, "background" | "config">)
   if (effect === "soft-glow") return `radial-gradient(ellipse at 48% 48%,${c22} 0%,${c14} 34%,transparent 72%),radial-gradient(ellipse at 28% 30%,${a72} 0%,transparent 42%),radial-gradient(ellipse at 72% 70%,${c10} 0%,transparent 62%)`;
   if (effect === "editorial-line") return `linear-gradient(90deg,transparent 0%,${c18} 18%,${c66} 50%,${c18} 82%,transparent 100%),linear-gradient(180deg,transparent 0 36%,${a72} 44%,${c90} 50%,${a72} 56%,transparent 64% 100%)`;
   if (effect === "dots") return `radial-gradient(circle at 14% 50%,${c44} 0 4px,transparent 6px),radial-gradient(circle at 38% 50%,${c66} 0 5px,transparent 7px),radial-gradient(circle at 62% 50%,${c66} 0 5px,transparent 7px),radial-gradient(circle at 86% 50%,${c44} 0 4px,transparent 6px),radial-gradient(ellipse at 50% 50%,${c10},transparent 72%)`;
+  if (effect === "ambient-glow") return `radial-gradient(ellipse at 34% 30%,${c22} 0%,${c10} 34%,transparent 70%),radial-gradient(ellipse at 70% 66%,${a22} 0%,${a10} 38%,transparent 76%),radial-gradient(ellipse at 50% 50%,${c06} 0%,transparent 86%)`;
+  if (effect === "cinematic-haze") return `radial-gradient(120% 64% at 50% 0%,${c14} 0%,transparent 64%),radial-gradient(110% 58% at 50% 100%,${a10} 0%,transparent 68%),linear-gradient(180deg,${c04},transparent 42%,${a06})`;
+  if (effect === "gold-contamination") return `radial-gradient(ellipse at 28% 22%,${c32} 0%,${c14} 32%,transparent 68%),radial-gradient(ellipse at 76% 76%,${c18} 0%,transparent 72%),radial-gradient(ellipse at 52% 52%,${a06} 0%,transparent 86%)`;
+  if (effect === "blue-ambient-light") return `radial-gradient(ellipse at 42% 38%,${a34} 0%,${a16} 34%,transparent 72%),radial-gradient(ellipse at 68% 70%,${c10} 0%,transparent 78%),radial-gradient(ellipse at 18% 84%,${a06} 0%,transparent 72%)`;
+  if (effect === "editorial-fog") return `radial-gradient(140% 76% at 18% 24%,${a10} 0%,transparent 60%),radial-gradient(120% 66% at 88% 72%,${c10} 0%,transparent 68%),linear-gradient(115deg,transparent 0%,${c06} 42%,${a06} 58%,transparent 100%)`;
   return el.background;
 }
 
 function getDecorationBlendMode(effect?: NonNullable<V3Element["config"]>["effect"]): React.CSSProperties["mixBlendMode"] | undefined {
   if (!effect) return undefined;
-  if (effect === "soft-card") return "soft-light";
+  if (effect === "soft-card" || effect === "cinematic-haze" || effect === "editorial-fog") return "soft-light";
   return "screen";
 }
 

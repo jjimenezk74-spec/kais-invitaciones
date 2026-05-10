@@ -65,7 +65,7 @@ interface V3Element {
     primaryColor?: string;
     color?: string;
     accentColor?: string;
-    effect?: "soft-card" | "glow-circle" | "rose-soft" | "spark" | "soft-glow" | "editorial-line" | "dots";
+    effect?: "soft-card" | "glow-circle" | "rose-soft" | "spark" | "soft-glow" | "editorial-line" | "dots" | "ambient-glow" | "cinematic-haze" | "gold-contamination" | "blue-ambient-light" | "editorial-fog";
     textColor?: string;
     countdownTarget?: string;
     countdownMode?: "event" | "custom";
@@ -508,7 +508,13 @@ function buildDecorationBackground(el: Pick<V3Element, "background" | "config">)
   const c14 = colorWithAlpha(color, 0.14, "rgba(184,146,90,0.14)");
   const c10 = colorWithAlpha(color, 0.10, "rgba(184,146,90,0.10)");
   const c06 = colorWithAlpha(color, 0.06, "rgba(184,146,90,0.06)");
+  const c04 = colorWithAlpha(color, 0.04, "rgba(184,146,90,0.04)");
   const a72 = colorWithAlpha(accent, 0.72, "rgba(255,252,247,0.72)");
+  const a34 = colorWithAlpha(accent, 0.34, "rgba(37,99,235,0.34)");
+  const a22 = colorWithAlpha(accent, 0.22, "rgba(37,99,235,0.22)");
+  const a16 = colorWithAlpha(accent, 0.16, "rgba(37,99,235,0.16)");
+  const a10 = colorWithAlpha(accent, 0.10, "rgba(37,99,235,0.10)");
+  const a06 = colorWithAlpha(accent, 0.06, "rgba(37,99,235,0.06)");
 
   if (effect === "soft-card") return `radial-gradient(120% 90% at 18% 0%,${a72},transparent 58%),radial-gradient(120% 80% at 92% 100%,${c14},transparent 68%),linear-gradient(145deg,rgba(255,252,247,0.42),${c06})`;
   if (effect === "glow-circle") return `radial-gradient(circle at 34% 28%,${a72} 0%,${c32} 28%,transparent 58%),radial-gradient(circle at 58% 62%,${c18} 0%,transparent 72%),radial-gradient(circle at 50% 50%,${c10} 0%,transparent 100%)`;
@@ -517,12 +523,17 @@ function buildDecorationBackground(el: Pick<V3Element, "background" | "config">)
   if (effect === "soft-glow") return `radial-gradient(ellipse at 48% 48%,${c22} 0%,${c14} 34%,transparent 72%),radial-gradient(ellipse at 28% 30%,${a72} 0%,transparent 42%),radial-gradient(ellipse at 72% 70%,${c10} 0%,transparent 62%)`;
   if (effect === "editorial-line") return `linear-gradient(90deg,transparent 0%,${c18} 18%,${c66} 50%,${c18} 82%,transparent 100%),linear-gradient(180deg,transparent 0 36%,${a72} 44%,${c90} 50%,${a72} 56%,transparent 64% 100%)`;
   if (effect === "dots") return `radial-gradient(circle at 14% 50%,${c44} 0 4px,transparent 6px),radial-gradient(circle at 38% 50%,${c66} 0 5px,transparent 7px),radial-gradient(circle at 62% 50%,${c66} 0 5px,transparent 7px),radial-gradient(circle at 86% 50%,${c44} 0 4px,transparent 6px),radial-gradient(ellipse at 50% 50%,${c10},transparent 72%)`;
+  if (effect === "ambient-glow") return `radial-gradient(ellipse at 34% 30%,${c22} 0%,${c10} 34%,transparent 70%),radial-gradient(ellipse at 70% 66%,${a22} 0%,${a10} 38%,transparent 76%),radial-gradient(ellipse at 50% 50%,${c06} 0%,transparent 86%)`;
+  if (effect === "cinematic-haze") return `radial-gradient(120% 64% at 50% 0%,${c14} 0%,transparent 64%),radial-gradient(110% 58% at 50% 100%,${a10} 0%,transparent 68%),linear-gradient(180deg,${c04},transparent 42%,${a06})`;
+  if (effect === "gold-contamination") return `radial-gradient(ellipse at 28% 22%,${c32} 0%,${c14} 32%,transparent 68%),radial-gradient(ellipse at 76% 76%,${c18} 0%,transparent 72%),radial-gradient(ellipse at 52% 52%,${a06} 0%,transparent 86%)`;
+  if (effect === "blue-ambient-light") return `radial-gradient(ellipse at 42% 38%,${a34} 0%,${a16} 34%,transparent 72%),radial-gradient(ellipse at 68% 70%,${c10} 0%,transparent 78%),radial-gradient(ellipse at 18% 84%,${a06} 0%,transparent 72%)`;
+  if (effect === "editorial-fog") return `radial-gradient(140% 76% at 18% 24%,${a10} 0%,transparent 60%),radial-gradient(120% 66% at 88% 72%,${c10} 0%,transparent 68%),linear-gradient(115deg,transparent 0%,${c06} 42%,${a06} 58%,transparent 100%)`;
   return el.background;
 }
 
 function getDecorationBlendMode(effect?: NonNullable<V3Element["config"]>["effect"]): React.CSSProperties["mixBlendMode"] | undefined {
   if (!effect) return undefined;
-  if (effect === "soft-card") return "soft-light";
+  if (effect === "soft-card" || effect === "cinematic-haze" || effect === "editorial-fog") return "soft-light";
   return "screen";
 }
 
@@ -1567,6 +1578,36 @@ function ExpandedPanel({
         label: "Resplandor",
         description: "Fondo luminoso suave",
         preview: <span style={{ width: 54, height: 34, borderRadius: 999, background: "radial-gradient(ellipse,rgba(184,146,90,0.30),rgba(59,48,42,0.12),transparent 74%)" }} />,
+      },
+      {
+        kind: "ambient-glow",
+        label: "Ambient glow",
+        description: "Luz azul/dorada envolvente",
+        preview: <span style={{ width: 56, height: 36, borderRadius: 999, background: "radial-gradient(ellipse at 35% 30%,rgba(212,175,55,0.28),transparent 62%),radial-gradient(ellipse at 72% 68%,rgba(37,99,235,0.24),transparent 70%)" }} />,
+      },
+      {
+        kind: "cinematic-haze",
+        label: "Cinematic haze",
+        description: "Velo ambiental suave",
+        preview: <span style={{ width: 56, height: 34, borderRadius: 12, background: "radial-gradient(120% 64% at 50% 0%,rgba(212,175,55,0.16),transparent 64%),linear-gradient(180deg,rgba(37,99,235,0.08),rgba(255,255,255,0.04))" }} />,
+      },
+      {
+        kind: "gold-contamination",
+        label: "Gold contamination",
+        description: "Derrame dorado atmosférico",
+        preview: <span style={{ width: 56, height: 36, borderRadius: 999, background: "radial-gradient(ellipse at 28% 22%,rgba(212,175,55,0.34),rgba(212,175,55,0.12),transparent 70%),radial-gradient(ellipse at 76% 76%,rgba(212,175,55,0.18),transparent 72%)" }} />,
+      },
+      {
+        kind: "blue-ambient-light",
+        label: "Blue ambient light",
+        description: "Luz fría cinematográfica",
+        preview: <span style={{ width: 56, height: 36, borderRadius: 999, background: "radial-gradient(ellipse at 42% 38%,rgba(37,99,235,0.34),rgba(37,99,235,0.14),transparent 72%),radial-gradient(ellipse at 70% 70%,rgba(212,175,55,0.10),transparent 78%)" }} />,
+      },
+      {
+        kind: "editorial-fog",
+        label: "Editorial fog",
+        description: "Niebla editorial integrada",
+        preview: <span style={{ width: 56, height: 34, borderRadius: 12, background: "radial-gradient(140% 76% at 18% 24%,rgba(37,99,235,0.12),transparent 60%),linear-gradient(115deg,transparent,rgba(212,175,55,0.10),rgba(37,99,235,0.08),transparent)" }} />,
       },
       {
         kind: "editorial-line",
@@ -3562,6 +3603,51 @@ export function CanvasEditorV3({
         background: "radial-gradient(ellipse at 48% 48%,rgba(244,210,138,0.22) 0%,rgba(244,210,138,0.14) 34%,transparent 72%),radial-gradient(ellipse at 28% 30%,rgba(255,252,247,0.72) 0%,transparent 42%),radial-gradient(ellipse at 72% 70%,rgba(244,210,138,0.10) 0%,transparent 62%)",
         config: { effect: "soft-glow", color: "#f4d28a", accentColor: "#fffaf2" },
         borderRadius: 999, opacity: 0.78,
+      }],
+      "ambient-glow": [{
+        id: `deco-ambient-glow-${stamp}`, type: "decoration",
+        x: cx(360), y: sectionY + 18, width: 360, height: 280,
+        locked: false, visible: true, zIndex: 0,
+        background: "radial-gradient(ellipse at 34% 30%,rgba(212,175,55,0.22) 0%,rgba(212,175,55,0.10) 34%,transparent 70%),radial-gradient(ellipse at 70% 66%,rgba(37,99,235,0.22) 0%,rgba(37,99,235,0.10) 38%,transparent 76%),radial-gradient(ellipse at 50% 50%,rgba(212,175,55,0.06) 0%,transparent 86%)",
+        config: { effect: "ambient-glow", color: "#d4af37", accentColor: "#2563eb" },
+        border: undefined,
+        borderRadius: 999, opacity: 0.70, blur: 16,
+      }],
+      "cinematic-haze": [{
+        id: `deco-cinematic-haze-${stamp}`, type: "decoration",
+        x: cx(390), y: sectionY + 0, width: 390, height: 360,
+        locked: false, visible: true, zIndex: 0,
+        background: "radial-gradient(120% 64% at 50% 0%,rgba(212,175,55,0.14) 0%,transparent 64%),radial-gradient(110% 58% at 50% 100%,rgba(37,99,235,0.10) 0%,transparent 68%),linear-gradient(180deg,rgba(212,175,55,0.04),transparent 42%,rgba(37,99,235,0.06))",
+        config: { effect: "cinematic-haze", color: "#d4af37", accentColor: "#2563eb" },
+        border: undefined,
+        borderRadius: 28, opacity: 0.66, blur: 8,
+      }],
+      "gold-contamination": [{
+        id: `deco-gold-contamination-${stamp}`, type: "decoration",
+        x: cx(340), y: sectionY + 42, width: 340, height: 250,
+        locked: false, visible: true, zIndex: 0,
+        background: "radial-gradient(ellipse at 28% 22%,rgba(212,175,55,0.32) 0%,rgba(212,175,55,0.14) 32%,transparent 68%),radial-gradient(ellipse at 76% 76%,rgba(212,175,55,0.18) 0%,transparent 72%),radial-gradient(ellipse at 52% 52%,rgba(255,244,198,0.06) 0%,transparent 86%)",
+        config: { effect: "gold-contamination", color: "#d4af37", accentColor: "#fff4c6" },
+        border: undefined,
+        borderRadius: 999, opacity: 0.72, blur: 14,
+      }],
+      "blue-ambient-light": [{
+        id: `deco-blue-ambient-light-${stamp}`, type: "decoration",
+        x: cx(340), y: sectionY + 36, width: 340, height: 260,
+        locked: false, visible: true, zIndex: 0,
+        background: "radial-gradient(ellipse at 42% 38%,rgba(37,99,235,0.34) 0%,rgba(37,99,235,0.16) 34%,transparent 72%),radial-gradient(ellipse at 68% 70%,rgba(212,175,55,0.10) 0%,transparent 78%),radial-gradient(ellipse at 18% 84%,rgba(37,99,235,0.06) 0%,transparent 72%)",
+        config: { effect: "blue-ambient-light", color: "#d4af37", accentColor: "#2563eb" },
+        border: undefined,
+        borderRadius: 999, opacity: 0.72, blur: 14,
+      }],
+      "editorial-fog": [{
+        id: `deco-editorial-fog-${stamp}`, type: "decoration",
+        x: cx(390), y: sectionY + 18, width: 390, height: 300,
+        locked: false, visible: true, zIndex: 0,
+        background: "radial-gradient(140% 76% at 18% 24%,rgba(37,99,235,0.10) 0%,transparent 60%),radial-gradient(120% 66% at 88% 72%,rgba(212,175,55,0.10) 0%,transparent 68%),linear-gradient(115deg,transparent 0%,rgba(212,175,55,0.06) 42%,rgba(37,99,235,0.06) 58%,transparent 100%)",
+        config: { effect: "editorial-fog", color: "#d4af37", accentColor: "#2563eb" },
+        border: undefined,
+        borderRadius: 28, opacity: 0.62, blur: 10,
       }],
       "editorial-line": [{
         id: `deco-editorial-line-${stamp}`, type: "decoration",

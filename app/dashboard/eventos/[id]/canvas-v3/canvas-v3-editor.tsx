@@ -608,7 +608,7 @@ function RenderElement({
   const elementLooksLikeImage = el.type !== "app" && (el.config?.url || /\burl\(/i.test(el.background ?? ""));
   const elementIsQr = el.type === "app" && normalizeAppType(el) === "qr";
   const elementIsTextLike = el.type === "text" || Boolean(el.content && el.type !== "app");
-  const compactToolbarWidth = canvasWidth <= 420 ? 222 : 246;
+  const compactToolbarWidth = canvasWidth <= 420 ? 214 : 236;
   const toolbarCanSitAbove = el.y >= 64;
   const compactToolbarTop = toolbarCanSitAbove ? -54 : renderHeight + 16;
   const compactToolbarLeft = Math.max(
@@ -818,19 +818,19 @@ function RenderElement({
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            gap: 4,
-            padding: 5,
-            borderRadius: 14,
-            background: "linear-gradient(180deg,rgba(255,252,247,0.74),rgba(255,246,237,0.58))",
-            border: "1px solid rgba(184,146,90,0.18)",
-            boxShadow: "0 12px 32px rgba(43,27,36,0.14), inset 0 1px 0 rgba(255,255,255,0.58)",
-            backdropFilter: "blur(16px)",
+            gap: 6,
+            padding: 4,
+            borderRadius: 13,
+            background: "linear-gradient(180deg,rgba(255,252,247,0.58),rgba(255,246,237,0.38))",
+            border: "1px solid rgba(184,146,90,0.10)",
+            boxShadow: "0 10px 26px rgba(43,27,36,0.10), inset 0 1px 0 rgba(255,255,255,0.38)",
+            backdropFilter: "blur(9px)",
             fontFamily: "Inter, system-ui, sans-serif",
             transformOrigin: "center",
-            animation: "kaisContextToolbarIn 140ms ease-out",
+            animation: "kaisContextToolbarIn 180ms cubic-bezier(.2,.8,.2,1)",
           }}
         >
-          <style>{`@keyframes kaisContextToolbarIn{from{opacity:0;transform:translateY(4px) scale(.96)}to{opacity:1;transform:translateY(0) scale(1)}}`}</style>
+          <style>{`@keyframes kaisContextToolbarIn{from{opacity:0;transform:translateY(3px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}`}</style>
           {elementIsTextLike && (
             <button type="button" title="Editar texto" onClick={onEditText} style={floatingToolbarIconButtonStyle}>T</button>
           )}
@@ -849,7 +849,7 @@ function RenderElement({
               }}
             />
           )}
-          <span style={{ width: 1, height: 18, background: "rgba(184,146,90,0.18)", flexShrink: 0 }} />
+          <span style={{ width: 1, height: 16, background: "rgba(184,146,90,0.12)", flexShrink: 0 }} />
           <button type="button" title="Duplicar" onClick={onDuplicate} style={floatingToolbarIconButtonStyle}>⧉</button>
           <button type="button" title={el.locked ? "Desbloquear" : "Bloquear"} onClick={onToggleLocked} style={floatingToolbarIconButtonStyle}>
             {el.locked ? "🔒" : "🔓"}
@@ -866,15 +866,15 @@ function RenderElement({
                   top: toolbarCanSitAbove ? 34 : undefined,
                   bottom: toolbarCanSitAbove ? undefined : 34,
                   right: 0,
-                  minWidth: 164,
-                  padding: 5,
-                  borderRadius: 14,
-                  background: "rgba(255,252,247,0.92)",
-                  border: "1px solid rgba(184,146,90,0.18)",
-                  boxShadow: "0 16px 38px rgba(43,27,36,0.16)",
-                  backdropFilter: "blur(16px)",
+                  minWidth: 138,
+                  padding: 4,
+                  borderRadius: 12,
+                  background: "rgba(255,252,247,0.76)",
+                  border: "1px solid rgba(184,146,90,0.10)",
+                  boxShadow: "0 12px 30px rgba(43,27,36,0.12)",
+                  backdropFilter: "blur(10px)",
                   display: "grid",
-                  gap: 4,
+                  gap: 3,
                 }}
               >
                 {elementLooksLikeImage && (
@@ -905,30 +905,30 @@ function RenderElement({
 // ─────────────────────────────────────────────────────────────────────────────
 
 const floatingToolbarButtonStyle: React.CSSProperties = {
-  minWidth: 28,
-  height: 28,
-  border: "1px solid rgba(184,146,90,0.14)",
+  minWidth: 27,
+  height: 27,
+  border: "1px solid rgba(184,146,90,0.09)",
   borderRadius: 9,
-  background: "rgba(255,255,255,0.46)",
+  background: "rgba(255,255,255,0.28)",
   color: "#4b2735",
   cursor: "pointer",
   display: "inline-flex",
   alignItems: "center",
   justifyContent: "center",
-  gap: 4,
-  padding: "0 8px",
-  fontSize: 10.5,
+  gap: 5,
+  padding: "0 7px",
+  fontSize: 10,
   fontWeight: 800,
   fontFamily: "Inter, system-ui, sans-serif",
-  boxShadow: "inset 0 1px 0 rgba(255,255,255,0.46)",
-  transition: "transform 0.14s ease, background 0.14s ease, border-color 0.14s ease",
+  boxShadow: "inset 0 1px 0 rgba(255,255,255,0.28)",
+  transition: "transform 0.16s ease, background 0.16s ease, border-color 0.16s ease, opacity 0.16s ease",
   whiteSpace: "nowrap",
 };
 
 const floatingToolbarIconButtonStyle: React.CSSProperties = {
   ...floatingToolbarButtonStyle,
-  width: 28,
-  minWidth: 28,
+  width: 27,
+  minWidth: 27,
   padding: 0,
   fontSize: 12,
 };

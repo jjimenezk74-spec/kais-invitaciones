@@ -519,6 +519,7 @@ function RenderElement({
   onOpenInspector,
   onQuickColor,
   onEditText,
+  onInlineTextCommit,
   onReplaceImage,
   onCropImage,
   onEditQr,
@@ -541,6 +542,7 @@ function RenderElement({
   onOpenInspector?: () => void;
   onQuickColor?: () => void;
   onEditText?: () => void;
+  onInlineTextCommit?: (content: string) => void;
   onReplaceImage?: () => void;
   onCropImage?: () => void;
   onEditQr?: () => void;
@@ -550,7 +552,40 @@ function RenderElement({
 }) {
   const [isHovered, setIsHovered] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
+  const [isInlineEditing, setIsInlineEditing] = useState(false);
+  const [inlineDraft, setInlineDraft] = useState(el.content ?? "");
   const renderHeight = estimateElementRenderHeight(el);
+  const elementLooksLikeImage = el.type !== "app" && (el.config?.url || /\burl\(/i.test(el.background ?? ""));
+  const elementIsQr = el.type === "app" && normalizeAppType(el) === "qr";
+  const elementIsTextLike = el.type === "text" || Boolean(el.content && el.type !== "app");
+
+  useEffect(() => {
+    if (!isInlineEditing) setInlineDraft(el.content ?? "");
+  }, [el.content, isInlineEditing]);
+
+  const commitInlineEditing = () => {
+    if (!isInlineEditing) return;
+    const next = inlineDraft;
+    setIsInlineEditing(false);
+    if (next !== (el.content ?? "")) onInlineTextCommit?.(next);
+  };
+
+  const cancelInlineEditing = () => {
+    setInlineDraft(el.content ?? "");
+    setIsInlineEditing(false);
+  };
+
+  const runContextualDoubleAction = () => {
+    if (el.locked) return;
+    if (elementIsTextLike) {
+      setInlineDraft(el.content ?? "");
+      setIsInlineEditing(true);
+    } else if (elementLooksLikeImage) {
+      onReplaceImage?.();
+    } else if (elementIsQr) {
+      onEditQr?.();
+    }
+  };
 
   // ── Outer positioning div ─────────────────────────────────────────────────
   // Always overflow: visible so resize handles (-4px) and toolbar (-32px) show.
@@ -605,9 +640,6 @@ function RenderElement({
   };
   const toolbarLabel = el.type === "text" ? "Texto" : el.type === "app" ? "Bloque" : el.type === "decoration" ? "Decoración" : "Forma";
   const toolbarHint = el.type === "text" ? "Tipografía" : el.type === "app" ? "Acción" : "Forma";
-  const elementLooksLikeImage = el.type !== "app" && (el.config?.url || /\burl\(/i.test(el.background ?? ""));
-  const elementIsQr = el.type === "app" && normalizeAppType(el) === "qr";
-  const elementIsTextLike = el.type === "text" || Boolean(el.content && el.type !== "app");
   const compactToolbarWidth = canvasWidth <= 420 ? 214 : 236;
   const toolbarCanSitAbove = el.y >= 64;
   const compactToolbarTop = toolbarCanSitAbove ? -54 : renderHeight + 16;
@@ -621,8 +653,21 @@ function RenderElement({
       style={outerStyle}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      onMouseDown={(e) => { e.stopPropagation(); onMouseDown(e); }}
+      onMouseDown={(e) => {
+        e.stopPropagation();
+        if (e.button === 0 && e.detail >= 2) {
+          e.preventDefault();
+          runContextualDoubleAction();
+          return;
+        }
+        onMouseDown(e);
+      }}
       onClick={(e) => { e.stopPropagation(); onClick(e); }}
+      onDoubleClick={(e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        runContextualDoubleAction();
+      }}
     >
       {/* ── Visual content — clipped to section boundaries ── */}
       <div style={contentStyle}>
@@ -639,7 +684,7 @@ function RenderElement({
         )}
 
         {/* Text content */}
-        {el.content && el.type !== "app" && (
+        {el.content && el.type !== "app" && !isInlineEditing && (
           <p
             style={{
               position: "relative",
@@ -661,6 +706,53 @@ function RenderElement({
           >
             {el.content}
           </p>
+        )}
+
+        {isInlineEditing && elementIsTextLike && (
+          <textarea
+            autoFocus
+            value={inlineDraft}
+            onMouseDown={(event) => event.stopPropagation()}
+            onClick={(event) => event.stopPropagation()}
+            onDoubleClick={(event) => event.stopPropagation()}
+            onChange={(event) => setInlineDraft(event.target.value)}
+            onBlur={commitInlineEditing}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && !event.shiftKey) {
+                event.preventDefault();
+                commitInlineEditing();
+              }
+              if (event.key === "Escape") {
+                event.preventDefault();
+                cancelInlineEditing();
+              }
+            }}
+            style={{
+              position: "absolute",
+              inset: 0,
+              width: "100%",
+              height: "100%",
+              margin: 0,
+              padding: el.type === "decoration" ? "16px 20px" : 0,
+              border: "1px solid rgba(184,146,90,0.34)",
+              outline: "2px solid rgba(184,146,90,0.16)",
+              borderRadius: Math.max(6, el.borderRadius ?? 8),
+              resize: "none",
+              background: "rgba(255,252,247,0.14)",
+              color: el.color ?? "#ffffff",
+              fontFamily: el.fontFamily ?? "Inter, system-ui, sans-serif",
+              fontSize: el.fontSize ?? 14,
+              fontWeight: el.fontWeight ?? "400",
+              fontStyle: el.fontStyle ?? "normal",
+              textAlign: el.textAlign ?? "center",
+              lineHeight: el.lineHeight ?? 1.4,
+              letterSpacing: el.letterSpacing ? `${el.letterSpacing}em` : undefined,
+              textShadow: el.textShadow ?? undefined,
+              whiteSpace: "pre-wrap",
+              overflow: "hidden",
+              boxSizing: "border-box",
+            }}
+          />
         )}
 
         {/* App block content */}
@@ -771,7 +863,7 @@ function RenderElement({
       ))}
 
       {/* ── Context toolbar — outside clip so it never gets hidden ── */}
-      {selected && (
+      {selected && !isInlineEditing && (
         <div
           style={{
             position: "absolute",
@@ -801,7 +893,7 @@ function RenderElement({
         </div>
       )}
 
-      {selected && (
+      {selected && !isInlineEditing && (
         <div
           onMouseDown={(event) => {
             event.stopPropagation();
@@ -4532,6 +4624,7 @@ export function CanvasEditorV3({
                         onOpenInspector={openSelectedInspector}
                         onQuickColor={quickColorSelected}
                         onEditText={editSelectedText}
+                        onInlineTextCommit={(content) => patchElement(el.id, { content })}
                         onReplaceImage={replaceSelectedImage}
                         onCropImage={cropSelectedImage}
                         onEditQr={editSelectedQr}

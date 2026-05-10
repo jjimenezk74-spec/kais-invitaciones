@@ -66,6 +66,8 @@ interface V3Element {
     color?: string;
     accentColor?: string;
     effect?: "soft-card" | "glow-circle" | "rose-soft" | "spark" | "soft-glow" | "editorial-line" | "dots" | "ambient-glow" | "cinematic-haze" | "gold-contamination" | "blue-ambient-light" | "editorial-fog";
+    intensity?: number;
+    darkness?: number;
     textColor?: string;
     countdownTarget?: string;
     countdownMode?: "event" | "custom";
@@ -120,6 +122,7 @@ type InspectorGroup =
   | "content"
   | "typography"
   | "fill"
+  | "atmosphere"
   | "stroke"
   | "shadow"
   | "spacing"
@@ -493,41 +496,53 @@ function colorWithAlpha(color: string | undefined, alpha: number, fallback: stri
   return `rgba(${rgb.r},${rgb.g},${rgb.b},${alpha})`;
 }
 
+function clamp01(value: unknown, fallback = 1): number {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.min(1, Math.max(0, n));
+}
+
 function buildDecorationBackground(el: Pick<V3Element, "background" | "config">): string | undefined {
   const effect = el.config?.effect;
   if (!effect) return el.background;
   const color = el.config?.color ?? el.config?.primaryColor ?? "#b8925a";
   const accent = el.config?.accentColor ?? "#fffaf2";
-  const c90 = colorWithAlpha(color, 0.90, "rgba(184,146,90,0.90)");
-  const c66 = colorWithAlpha(color, 0.66, "rgba(184,146,90,0.66)");
-  const c50 = colorWithAlpha(color, 0.50, "rgba(184,146,90,0.50)");
-  const c44 = colorWithAlpha(color, 0.44, "rgba(184,146,90,0.44)");
-  const c32 = colorWithAlpha(color, 0.32, "rgba(184,146,90,0.32)");
-  const c22 = colorWithAlpha(color, 0.22, "rgba(184,146,90,0.22)");
-  const c18 = colorWithAlpha(color, 0.18, "rgba(184,146,90,0.18)");
-  const c14 = colorWithAlpha(color, 0.14, "rgba(184,146,90,0.14)");
-  const c10 = colorWithAlpha(color, 0.10, "rgba(184,146,90,0.10)");
-  const c06 = colorWithAlpha(color, 0.06, "rgba(184,146,90,0.06)");
-  const c04 = colorWithAlpha(color, 0.04, "rgba(184,146,90,0.04)");
-  const a72 = colorWithAlpha(accent, 0.72, "rgba(255,252,247,0.72)");
-  const a34 = colorWithAlpha(accent, 0.34, "rgba(37,99,235,0.34)");
-  const a22 = colorWithAlpha(accent, 0.22, "rgba(37,99,235,0.22)");
-  const a16 = colorWithAlpha(accent, 0.16, "rgba(37,99,235,0.16)");
-  const a10 = colorWithAlpha(accent, 0.10, "rgba(37,99,235,0.10)");
-  const a06 = colorWithAlpha(accent, 0.06, "rgba(37,99,235,0.06)");
+  const intensity = clamp01(el.config?.intensity, 1);
+  const darkness = clamp01(el.config?.darkness, 0);
+  const alpha = (value: number) => Math.min(1, Math.max(0, value * intensity * (1 - darkness * 0.22)));
+  const c90 = colorWithAlpha(color, alpha(0.90), "rgba(184,146,90,0.90)");
+  const c66 = colorWithAlpha(color, alpha(0.66), "rgba(184,146,90,0.66)");
+  const c50 = colorWithAlpha(color, alpha(0.50), "rgba(184,146,90,0.50)");
+  const c44 = colorWithAlpha(color, alpha(0.44), "rgba(184,146,90,0.44)");
+  const c32 = colorWithAlpha(color, alpha(0.32), "rgba(184,146,90,0.32)");
+  const c22 = colorWithAlpha(color, alpha(0.22), "rgba(184,146,90,0.22)");
+  const c18 = colorWithAlpha(color, alpha(0.18), "rgba(184,146,90,0.18)");
+  const c14 = colorWithAlpha(color, alpha(0.14), "rgba(184,146,90,0.14)");
+  const c10 = colorWithAlpha(color, alpha(0.10), "rgba(184,146,90,0.10)");
+  const c06 = colorWithAlpha(color, alpha(0.06), "rgba(184,146,90,0.06)");
+  const c04 = colorWithAlpha(color, alpha(0.04), "rgba(184,146,90,0.04)");
+  const a72 = colorWithAlpha(accent, alpha(0.72), "rgba(255,252,247,0.72)");
+  const a34 = colorWithAlpha(accent, alpha(0.34), "rgba(37,99,235,0.34)");
+  const a22 = colorWithAlpha(accent, alpha(0.22), "rgba(37,99,235,0.22)");
+  const a16 = colorWithAlpha(accent, alpha(0.16), "rgba(37,99,235,0.16)");
+  const a10 = colorWithAlpha(accent, alpha(0.10), "rgba(37,99,235,0.10)");
+  const a06 = colorWithAlpha(accent, alpha(0.06), "rgba(37,99,235,0.06)");
+  const d28 = colorWithAlpha("#000000", darkness * 0.28, "rgba(0,0,0,0)");
+  const d14 = colorWithAlpha("#000000", darkness * 0.14, "rgba(0,0,0,0)");
+  const darkOverlay = darkness > 0 ? `linear-gradient(180deg,${d28},${d14}),` : "";
 
-  if (effect === "soft-card") return `radial-gradient(120% 90% at 18% 0%,${a72},transparent 58%),radial-gradient(120% 80% at 92% 100%,${c14},transparent 68%),linear-gradient(145deg,rgba(255,252,247,0.42),${c06})`;
-  if (effect === "glow-circle") return `radial-gradient(circle at 34% 28%,${a72} 0%,${c32} 28%,transparent 58%),radial-gradient(circle at 58% 62%,${c18} 0%,transparent 72%),radial-gradient(circle at 50% 50%,${c10} 0%,transparent 100%)`;
-  if (effect === "rose-soft") return `radial-gradient(circle at 50% 48%,${a72} 0 7%,transparent 9%),conic-gradient(from 18deg,${c06},${c44},${c10},${c32},${c06}),radial-gradient(circle at 44% 38%,${c22},transparent 58%),radial-gradient(circle at 58% 64%,${c18},transparent 70%)`;
-  if (effect === "spark") return `linear-gradient(90deg,transparent 45%,${a72} 49%,${a72} 51%,transparent 55%),linear-gradient(0deg,transparent 45%,${c66} 49%,${c66} 51%,transparent 55%),radial-gradient(circle,${c50} 0%,${c18} 26%,transparent 72%)`;
-  if (effect === "soft-glow") return `radial-gradient(ellipse at 48% 48%,${c22} 0%,${c14} 34%,transparent 72%),radial-gradient(ellipse at 28% 30%,${a72} 0%,transparent 42%),radial-gradient(ellipse at 72% 70%,${c10} 0%,transparent 62%)`;
-  if (effect === "editorial-line") return `linear-gradient(90deg,transparent 0%,${c18} 18%,${c66} 50%,${c18} 82%,transparent 100%),linear-gradient(180deg,transparent 0 36%,${a72} 44%,${c90} 50%,${a72} 56%,transparent 64% 100%)`;
-  if (effect === "dots") return `radial-gradient(circle at 14% 50%,${c44} 0 4px,transparent 6px),radial-gradient(circle at 38% 50%,${c66} 0 5px,transparent 7px),radial-gradient(circle at 62% 50%,${c66} 0 5px,transparent 7px),radial-gradient(circle at 86% 50%,${c44} 0 4px,transparent 6px),radial-gradient(ellipse at 50% 50%,${c10},transparent 72%)`;
-  if (effect === "ambient-glow") return `radial-gradient(ellipse at 34% 30%,${c22} 0%,${c10} 34%,transparent 70%),radial-gradient(ellipse at 70% 66%,${a22} 0%,${a10} 38%,transparent 76%),radial-gradient(ellipse at 50% 50%,${c06} 0%,transparent 86%)`;
-  if (effect === "cinematic-haze") return `radial-gradient(120% 64% at 50% 0%,${c14} 0%,transparent 64%),radial-gradient(110% 58% at 50% 100%,${a10} 0%,transparent 68%),linear-gradient(180deg,${c04},transparent 42%,${a06})`;
-  if (effect === "gold-contamination") return `radial-gradient(ellipse at 28% 22%,${c32} 0%,${c14} 32%,transparent 68%),radial-gradient(ellipse at 76% 76%,${c18} 0%,transparent 72%),radial-gradient(ellipse at 52% 52%,${a06} 0%,transparent 86%)`;
-  if (effect === "blue-ambient-light") return `radial-gradient(ellipse at 42% 38%,${a34} 0%,${a16} 34%,transparent 72%),radial-gradient(ellipse at 68% 70%,${c10} 0%,transparent 78%),radial-gradient(ellipse at 18% 84%,${a06} 0%,transparent 72%)`;
-  if (effect === "editorial-fog") return `radial-gradient(140% 76% at 18% 24%,${a10} 0%,transparent 60%),radial-gradient(120% 66% at 88% 72%,${c10} 0%,transparent 68%),linear-gradient(115deg,transparent 0%,${c06} 42%,${a06} 58%,transparent 100%)`;
+  if (effect === "soft-card") return `${darkOverlay}radial-gradient(120% 90% at 18% 0%,${a72},transparent 58%),radial-gradient(120% 80% at 92% 100%,${c14},transparent 68%),linear-gradient(145deg,rgba(255,252,247,${0.42 * intensity * (1 - darkness * 0.35)}),${c06})`;
+  if (effect === "glow-circle") return `${darkOverlay}radial-gradient(circle at 34% 28%,${a72} 0%,${c32} 28%,transparent 58%),radial-gradient(circle at 58% 62%,${c18} 0%,transparent 72%),radial-gradient(circle at 50% 50%,${c10} 0%,transparent 100%)`;
+  if (effect === "rose-soft") return `${darkOverlay}radial-gradient(circle at 50% 48%,${a72} 0 7%,transparent 9%),conic-gradient(from 18deg,${c06},${c44},${c10},${c32},${c06}),radial-gradient(circle at 44% 38%,${c22},transparent 58%),radial-gradient(circle at 58% 64%,${c18},transparent 70%)`;
+  if (effect === "spark") return `${darkOverlay}linear-gradient(90deg,transparent 45%,${a72} 49%,${a72} 51%,transparent 55%),linear-gradient(0deg,transparent 45%,${c66} 49%,${c66} 51%,transparent 55%),radial-gradient(circle,${c50} 0%,${c18} 26%,transparent 72%)`;
+  if (effect === "soft-glow") return `${darkOverlay}radial-gradient(ellipse at 48% 48%,${c22} 0%,${c14} 34%,transparent 72%),radial-gradient(ellipse at 28% 30%,${a72} 0%,transparent 42%),radial-gradient(ellipse at 72% 70%,${c10} 0%,transparent 62%)`;
+  if (effect === "editorial-line") return `${darkOverlay}linear-gradient(90deg,transparent 0%,${c18} 18%,${c66} 50%,${c18} 82%,transparent 100%),linear-gradient(180deg,transparent 0 36%,${a72} 44%,${c90} 50%,${a72} 56%,transparent 64% 100%)`;
+  if (effect === "dots") return `${darkOverlay}radial-gradient(circle at 14% 50%,${c44} 0 4px,transparent 6px),radial-gradient(circle at 38% 50%,${c66} 0 5px,transparent 7px),radial-gradient(circle at 62% 50%,${c66} 0 5px,transparent 7px),radial-gradient(circle at 86% 50%,${c44} 0 4px,transparent 6px),radial-gradient(ellipse at 50% 50%,${c10},transparent 72%)`;
+  if (effect === "ambient-glow") return `${darkOverlay}radial-gradient(ellipse at 34% 30%,${c22} 0%,${c10} 34%,transparent 70%),radial-gradient(ellipse at 70% 66%,${a22} 0%,${a10} 38%,transparent 76%),radial-gradient(ellipse at 50% 50%,${c06} 0%,transparent 86%)`;
+  if (effect === "cinematic-haze") return `${darkOverlay}radial-gradient(120% 64% at 50% 0%,${c14} 0%,transparent 64%),radial-gradient(110% 58% at 50% 100%,${a10} 0%,transparent 68%),linear-gradient(180deg,${c04},transparent 42%,${a06})`;
+  if (effect === "gold-contamination") return `${darkOverlay}radial-gradient(ellipse at 28% 22%,${c32} 0%,${c14} 32%,transparent 68%),radial-gradient(ellipse at 76% 76%,${c18} 0%,transparent 72%),radial-gradient(ellipse at 52% 52%,${a06} 0%,transparent 86%)`;
+  if (effect === "blue-ambient-light") return `${darkOverlay}radial-gradient(ellipse at 42% 38%,${a34} 0%,${a16} 34%,transparent 72%),radial-gradient(ellipse at 68% 70%,${c10} 0%,transparent 78%),radial-gradient(ellipse at 18% 84%,${a06} 0%,transparent 72%)`;
+  if (effect === "editorial-fog") return `${darkOverlay}radial-gradient(140% 76% at 18% 24%,${a10} 0%,transparent 60%),radial-gradient(120% 66% at 88% 72%,${c10} 0%,transparent 68%),linear-gradient(115deg,transparent 0%,${c06} 42%,${a06} 58%,transparent 100%)`;
   return el.background;
 }
 
@@ -2394,6 +2409,11 @@ function RightPanel({
     </div>
   );
   const hasEffectControls = element ? (element.type !== "app" || Boolean(normalizeAppType(element))) : false;
+  const hasAtmosphereControls = element?.type === "decoration" && Boolean(element.config?.effect);
+  const updateEffectConfig = (patch: Partial<NonNullable<V3Element["config"]>>) => {
+    if (!element) return;
+    onChange(element.id, { config: { ...(element.config ?? {}), ...patch } });
+  };
   const effectPresetBtnStyle: React.CSSProperties = {
     ...actionBtnStyle,
     textAlign: "center",
@@ -2791,6 +2811,42 @@ function RightPanel({
         ), true, element.type === "text" ? "Texto" : element.type === "app" ? "Bloque" : "Forma")}
         {renderGroup("typography", "Tipografía", <><div><span style={labelStyle}>Color de texto</span>{renderSwatches(element.color ?? "#4b2735", (next) => onChange(element.id, { color: next }))}</div><button type="button" onClick={() => setShowHexEditors((v) => !v)} style={{ ...actionBtnStyle, width: "auto", padding: "6px 10px", alignSelf: "flex-start" }}>{showHexEditors ? "Ocultar HEX" : "Editar HEX"}</button>{showHexEditors && <input type="text" value={element.color ?? "#ffffff"} onChange={(e) => onChange(element.id, { color: e.target.value })} style={{ ...inputStyle, flex: 1 }} />}<div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}><div><span style={labelStyle}>Tamaño</span><input type="number" min={8} max={120} value={element.fontSize ?? 16} onChange={(e) => onChange(element.id, { fontSize: Number(e.target.value) })} style={inputStyle} /></div><div><span style={labelStyle}>Peso</span><input type="text" value={element.fontWeight ?? "400"} onChange={(e) => onChange(element.id, { fontWeight: e.target.value })} style={inputStyle} /></div></div><div><span style={labelStyle}>Fuente</span><select value={element.fontFamily ?? "Inter, system-ui, sans-serif"} onChange={(e) => onChange(element.id, { fontFamily: e.target.value })} style={{ ...inputStyle, cursor: "pointer" }}><option value="Inter, system-ui, sans-serif">Inter</option><option value="'Playfair Display', Georgia, serif">Playfair Display</option><option value="Georgia, serif">Georgia</option><option value="'Dancing Script', cursive">Dancing Script</option></select></div></>, element.type === "text", "Aa")}
         {renderGroup("fill", "Color", <><div><span style={labelStyle}>Relleno</span>{renderSwatches(element.config?.primaryColor ?? element.background ?? "#fff8f0", (next) => onChange(element.id, { background: next, config: element.type === "app" ? { ...(element.config ?? {}), primaryColor: next } : element.config }))}</div>{element.type === "app" && <div><span style={labelStyle}>Color de texto</span>{renderSwatches(element.color ?? element.config?.textColor ?? "#4b2735", (next) => onChange(element.id, { color: next, config: { ...(element.config ?? {}), textColor: next } }))}</div>}<button type="button" onClick={() => setShowHexEditors((v) => !v)} style={{ ...actionBtnStyle, width: "auto", padding: "6px 10px", alignSelf: "flex-start" }}>{showHexEditors ? "Ocultar HEX" : "Editar HEX"}</button>{showHexEditors && <><div><span style={labelStyle}>Fondo (HEX/valor)</span><input type="text" value={element.config?.primaryColor ?? element.background ?? ""} placeholder="Color, rgba(...) o linear-gradient(...)" onChange={(e) => onChange(element.id, { background: e.target.value, config: element.type === "app" ? { ...(element.config ?? {}), primaryColor: e.target.value } : element.config })} style={inputStyle} /></div>{element.type === "app" && <div><span style={labelStyle}>Texto (HEX)</span><input type="text" value={element.color ?? element.config?.textColor ?? ""} onChange={(e) => onChange(element.id, { color: e.target.value, config: { ...(element.config ?? {}), textColor: e.target.value } })} style={inputStyle} /></div>}</>}<div><span style={labelStyle}>Opacidad {Math.round((element.opacity ?? 1) * 100)}%</span><input type="range" min={0} max={1} step={0.01} value={element.opacity ?? 1} onChange={(e) => onChange(element.id, { opacity: Number(e.target.value) })} style={{ width: "100%", accentColor: "#b8925a" }} /></div></>, element.type !== "text", "Color")}
+        {renderGroup("atmosphere", "Atmósfera", (
+          <>
+            <div>
+              <span style={labelStyle}>Color principal</span>
+              {renderSwatches(element.config?.color ?? element.config?.primaryColor ?? "#d4af37", (next) => updateEffectConfig({ color: next }))}
+            </div>
+            <div>
+              <span style={labelStyle}>Color secundario</span>
+              {renderSwatches(element.config?.accentColor ?? "#2563eb", (next) => updateEffectConfig({ accentColor: next }))}
+            </div>
+            {showHexEditors && (
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                <div>
+                  <span style={labelStyle}>Principal HEX</span>
+                  <input type="text" value={element.config?.color ?? ""} placeholder="#d4af37" onChange={(e) => updateEffectConfig({ color: e.target.value })} style={inputStyle} />
+                </div>
+                <div>
+                  <span style={labelStyle}>Acento HEX</span>
+                  <input type="text" value={element.config?.accentColor ?? ""} placeholder="#2563eb" onChange={(e) => updateEffectConfig({ accentColor: e.target.value })} style={inputStyle} />
+                </div>
+              </div>
+            )}
+            <div>
+              <span style={labelStyle}>Intensidad {Math.round(clamp01(element.config?.intensity, 1) * 100)}%</span>
+              <input type="range" min={0} max={1} step={0.01} value={clamp01(element.config?.intensity, 1)} onChange={(e) => updateEffectConfig({ intensity: Number(e.target.value) })} style={{ width: "100%", accentColor: "#b8925a" }} />
+            </div>
+            <div>
+              <span style={labelStyle}>Oscuridad {Math.round(clamp01(element.config?.darkness, 0) * 100)}%</span>
+              <input type="range" min={0} max={1} step={0.01} value={clamp01(element.config?.darkness, 0)} onChange={(e) => updateEffectConfig({ darkness: Number(e.target.value) })} style={{ width: "100%", accentColor: "#4b2735" }} />
+            </div>
+            <div>
+              <span style={labelStyle}>Transparencia general {Math.round((1 - (element.opacity ?? 1)) * 100)}%</span>
+              <input type="range" min={0.05} max={1} step={0.01} value={element.opacity ?? 1} onChange={(e) => onChange(element.id, { opacity: Number(e.target.value) })} style={{ width: "100%", accentColor: "#8ea7c8" }} />
+            </div>
+          </>
+        ), hasAtmosphereControls, "FX")}
         {renderGroup("spacing", "Espaciado básico", <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>{(["x", "y", "width", "height"] as const).map((k) => <div key={k}><span style={{ ...labelStyle, fontSize: 9 }}>{k === "x" ? "Posición X" : k === "y" ? "Posición Y" : k === "width" ? "Ancho" : "Alto"}</span><input type="number" value={Math.round(element[k] as number) || 0} disabled={element.locked} onChange={(e) => onChange(element.id, { [k]: Number(e.target.value) })} style={{ ...inputStyle, opacity: element.locked ? 0.5 : 1 }} /></div>)}</div>, true, "Ajustes")}
         <button
           type="button"

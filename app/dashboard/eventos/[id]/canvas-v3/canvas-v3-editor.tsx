@@ -1409,8 +1409,6 @@ function ExpandedPanel({
   if (tool === "elements") {
     const basics: { id: InvitationBlockKind; icon: string; label: string; description: string; preview: string }[] = [
       { id: "date", icon: "12", label: "Fecha", description: "Dia, mes, ano y hora", preview: "linear-gradient(135deg,rgba(255,252,247,0.95),rgba(184,146,90,0.22))" },
-      { id: "countdown", icon: "00", label: "Cuenta regresiva", description: "Tiempo restante del evento", preview: "linear-gradient(135deg,rgba(59,23,33,0.95),rgba(184,146,90,0.38))" },
-      { id: "location", icon: "⌖", label: "Ubicacion", description: "Lugar, direccion y mapa", preview: "linear-gradient(135deg,rgba(236,246,239,0.95),rgba(105,145,116,0.28))" },
       { id: "dresscode", icon: "◐", label: "Vestimenta", description: "Tenida y gama de colores", preview: "linear-gradient(135deg,rgba(255,241,245,0.95),rgba(200,117,131,0.28))" },
       { id: "message", icon: "❞", label: "Mensaje", description: "Texto editorial para invitados", preview: "linear-gradient(135deg,rgba(255,252,247,0.95),rgba(242,200,206,0.34))" },
     ];
@@ -1457,11 +1455,6 @@ function ExpandedPanel({
         description: "Separador minimal",
         preview: <span style={{ display: "flex", gap: 5 }}>{[0, 1, 2, 3].map((dot) => <span key={dot} style={{ width: 7, height: 7, borderRadius: 999, background: dot === 0 || dot === 3 ? "rgba(184,146,90,0.45)" : "#d4aa72" }} />)}</span>,
       },
-    ];
-    const components: { id: string; label: string; description: string; icon: string }[] = [
-      { id: "rsvp", label: "RSVP", description: "Boton de confirmacion", icon: "✓" },
-      { id: "qr", label: "Codigo QR", description: "Acceso rapido escaneable", icon: "QR" },
-      { id: "maps", label: "Mapa", description: "Enlace a ubicacion", icon: "⌖" },
     ];
     const sectionTitleStyle: React.CSSProperties = {
       color: "#8a6f61",
@@ -1553,48 +1546,29 @@ function ExpandedPanel({
           ))}
         </div>
 
-        <p style={sectionTitleStyle}>Componentes</p>
-        <div style={{ display: "grid", gap: 8 }}>
-          {components.map((component) => (
-            <button
-              key={component.id}
-              type="button"
-              onClick={() => onAddApp(component.id)}
-              style={{ ...cardStyle, display: "grid", gridTemplateColumns: "42px 1fr", gap: 10, alignItems: "center", padding: "10px 11px" }}
-              onMouseEnter={(e) => liftCard(e.currentTarget)}
-              onMouseLeave={(e) => settleCard(e.currentTarget)}
-            >
-              <span style={{ width: 42, height: 38, borderRadius: 12, display: "grid", placeItems: "center", background: "linear-gradient(135deg,rgba(75,39,53,0.92),rgba(184,146,90,0.44))", color: "#fff7ef", fontSize: 12, fontWeight: 900 }}>
-                {component.icon}
-              </span>
-              <span>
-                <span style={{ display: "block", color: "#4b2735", fontSize: 12, fontWeight: 850, fontFamily: "Inter, system-ui, sans-serif" }}>
-                  {component.label}
-                </span>
-                <span style={{ display: "block", marginTop: 2, color: "#8a6b58", fontSize: 10, lineHeight: 1.3, fontFamily: "Inter, system-ui, sans-serif" }}>
-                  {component.description}
-                </span>
-              </span>
-            </button>
-          ))}
-        </div>
       </div>
     );
   }
 
   if (tool === "apps") {
-    const appList: Array<{ id: string; icon: string; label: string }> = [
-      { id: "rsvp",   icon: "✓",  label: "Confirmar asistencia" },
-      { id: "countdown", icon: "⏱", label: "Cuenta regresiva" },
-      { id: "whatsapp",  icon: "💬", label: "WhatsApp" },
-      { id: "album",  icon: "📸", label: "Álbum en vivo" },
-      { id: "live",   icon: "🖥",  label: "Pantalla en vivo" },
-      { id: "maps",   icon: "📍", label: "Google Maps" },
-      { id: "qr",     icon: "▦",  label: "Código QR" },
+    const appList: Array<{ id: string; icon: string; label: string; description: string; accent: string }> = [
+      { id: "countdown", icon: "00", label: "Cuenta regresiva", description: "Dias, horas y minutos en vivo", accent: "linear-gradient(135deg,#3b1721,#b8925a)" },
+      { id: "rsvp", icon: "✓", label: "RSVP", description: "Confirmacion de asistencia", accent: "linear-gradient(135deg,#b8925a,#8f6f52)" },
+      { id: "whatsapp", icon: "WA", label: "WhatsApp", description: "Contacto directo con invitados", accent: "linear-gradient(135deg,#0f5132,#25d366)" },
+      { id: "maps", icon: "⌖", label: "Google Maps", description: "Boton funcional de ubicacion", accent: "linear-gradient(135deg,#2f5d46,#9fb99f)" },
+      { id: "qr", icon: "QR", label: "Codigo QR", description: "Acceso escaneable al evento", accent: "linear-gradient(135deg,#1f1720,#c8a96a)" },
+      { id: "album", icon: "AL", label: "Album en vivo", description: "Fotos compartidas en tiempo real", accent: "linear-gradient(135deg,#3b1d4f,#c084fc)" },
+      { id: "live", icon: "TV", label: "Pantalla en vivo", description: "Visual para recepcion o salon", accent: "linear-gradient(135deg,#111827,#22d3ee)" },
     ];
 
     return (
-      <div style={{ padding: "12px 14px" }}>
+      <div style={{ padding: "12px 14px", overflowY: "auto", maxHeight: "calc(100vh - 56px)" }}>
+        <p style={{ color: "#4b2735", fontSize: 16, lineHeight: 1.1, margin: "2px 0 5px", fontFamily: "'Playfair Display', Georgia, serif", fontStyle: "italic", fontWeight: 800 }}>
+          Apps interactivas
+        </p>
+        <p style={{ color: "#8a6b58", fontSize: 10.5, lineHeight: 1.45, margin: "0 0 14px", fontFamily: "Inter, system-ui, sans-serif" }}>
+          Bloques con accion real para tus invitados.
+        </p>
         <p style={{
           color: "#8a6f61", fontSize: 10, letterSpacing: "0.1em",
           textTransform: "uppercase", margin: "0 0 10px", fontWeight: 800,
@@ -1613,23 +1587,28 @@ function ExpandedPanel({
               <div
                 key={app.id}
                 style={{
-                  display: "flex", alignItems: "center", gap: 10,
+                  display: "grid", gridTemplateColumns: "42px 1fr auto", alignItems: "center", gap: 10,
                   width: "100%", marginBottom: 6,
                   padding: "10px 14px",
-                  background: "rgba(248,245,240,0.55)",
+                  background: "linear-gradient(180deg,rgba(248,245,240,0.58),rgba(255,252,247,0.36))",
                   border: "1px solid rgba(184,146,90,0.14)",
-                  borderRadius: 10,
+                  borderRadius: 14,
                   cursor: "default",
                   boxSizing: "border-box",
                   position: "relative",
                 }}
               >
                 {/* Icon + label — muted */}
-                <span style={{ fontSize: 16, width: 24, textAlign: "center", opacity: 0.28 }}>
+                <span style={{ width: 42, height: 38, borderRadius: 12, display: "grid", placeItems: "center", background: app.accent, color: "#fff7ef", fontSize: 10, fontWeight: 900, opacity: 0.28 }}>
                   {app.icon}
                 </span>
-                <span style={{ color: "#8a6f61", fontSize: 12, fontFamily: "Inter, system-ui, sans-serif", opacity: 0.5, flex: 1 }}>
-                  {app.label}
+                <span style={{ minWidth: 0, opacity: 0.55 }}>
+                  <span style={{ display: "block", color: "#4b2735", fontSize: 12, fontFamily: "Inter, system-ui, sans-serif", fontWeight: 850 }}>
+                    {app.label}
+                  </span>
+                  <span style={{ display: "block", marginTop: 2, color: "#8a6b58", fontSize: 10, lineHeight: 1.3, fontFamily: "Inter, system-ui, sans-serif" }}>
+                    {app.description}
+                  </span>
                 </span>
                 {/* Right side: lock + plan badge */}
                 <span style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
@@ -1658,34 +1637,47 @@ function ExpandedPanel({
               type="button"
               onClick={() => onAddApp(app.id)}
               style={{
-                display: "flex", alignItems: "center", gap: 10,
+                display: "grid", gridTemplateColumns: "42px 1fr", alignItems: "center", gap: 10,
                 width: "100%", marginBottom: 6,
-                padding: "10px 14px",
-                background: "rgba(255,252,247,0.78)",
+                padding: "10px 12px",
+                background: "linear-gradient(180deg,rgba(255,252,247,0.92),rgba(255,247,237,0.68))",
                 border: "1px solid rgba(184,146,90,0.22)",
-                borderRadius: 10, cursor: "pointer", textAlign: "left",
-                transition: "border-color 0.15s, background 0.15s",
+                borderRadius: 14, cursor: "pointer", textAlign: "left",
+                transition: "border-color 0.15s, background 0.15s, transform 0.15s, box-shadow 0.15s",
                 boxSizing: "border-box",
+                boxShadow: "0 10px 22px rgba(67,43,30,0.08)",
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.borderColor = "rgba(184,146,90,0.55)";
-                e.currentTarget.style.background = "rgba(255,252,247,1)";
+                e.currentTarget.style.background = "linear-gradient(180deg,rgba(255,252,247,1),rgba(255,247,237,0.82))";
+                e.currentTarget.style.transform = "translateY(-1px)";
+                e.currentTarget.style.boxShadow = "0 14px 28px rgba(67,43,30,0.13)";
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.borderColor = "rgba(184,146,90,0.22)";
-                e.currentTarget.style.background = "rgba(255,252,247,0.78)";
+                e.currentTarget.style.background = "linear-gradient(180deg,rgba(255,252,247,0.92),rgba(255,247,237,0.68))";
+                e.currentTarget.style.transform = "translateY(0)";
+                e.currentTarget.style.boxShadow = "0 10px 22px rgba(67,43,30,0.08)";
               }}
             >
               <span style={{
-                width: 28, height: 28, borderRadius: 8, flexShrink: 0,
+                width: 42, height: 38, borderRadius: 12, flexShrink: 0,
                 display: "grid", placeItems: "center",
-                background: "rgba(184,146,90,0.10)",
-                fontSize: 14,
+                background: app.accent,
+                color: "#fff7ef",
+                fontSize: 10,
+                fontWeight: 900,
+                boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.18)",
               }}>
                 {app.icon}
               </span>
-              <span style={{ color: "#4b2735", fontSize: 12, fontFamily: "Inter, system-ui, sans-serif", fontWeight: 600 }}>
-                {app.label}
+              <span style={{ minWidth: 0 }}>
+                <span style={{ display: "block", color: "#4b2735", fontSize: 12, fontFamily: "Inter, system-ui, sans-serif", fontWeight: 850 }}>
+                  {app.label}
+                </span>
+                <span style={{ display: "block", marginTop: 2, color: "#8a6b58", fontSize: 10, lineHeight: 1.3, fontFamily: "Inter, system-ui, sans-serif" }}>
+                  {app.description}
+                </span>
               </span>
             </button>
           );

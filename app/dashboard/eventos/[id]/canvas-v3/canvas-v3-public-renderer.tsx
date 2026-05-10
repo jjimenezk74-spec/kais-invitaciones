@@ -50,6 +50,7 @@ export interface V3Element {
     effect?: "soft-card" | "glow-circle" | "rose-soft" | "spark" | "soft-glow" | "editorial-line" | "dots" | "ambient-glow" | "cinematic-haze" | "gold-contamination" | "blue-ambient-light" | "editorial-fog";
     intensity?: number;
     darkness?: number;
+    blendWithBackground?: boolean;
     textColor?: string;
     countdownTarget?: string;
     countdownMode?: "event" | "custom";
@@ -141,6 +142,10 @@ function clamp01(value: unknown, fallback = 1): number {
   return Math.min(1, Math.max(0, n));
 }
 
+function shouldBlendDecoration(el: Pick<V3Element, "type" | "config">): boolean {
+  return el.type === "decoration" && Boolean(el.config?.effect && el.config.blendWithBackground);
+}
+
 function buildDecorationBackground(el: Pick<V3Element, "background" | "config">): string | undefined {
   const effect = el.config?.effect;
   if (!effect) return el.background;
@@ -148,7 +153,8 @@ function buildDecorationBackground(el: Pick<V3Element, "background" | "config">)
   const accent = el.config?.accentColor ?? "#fffaf2";
   const intensity = clamp01(el.config?.intensity, 1);
   const darkness = clamp01(el.config?.darkness, 0);
-  const alpha = (value: number) => Math.min(1, Math.max(0, value * intensity * (1 - darkness * 0.22)));
+  const blend = el.config?.blendWithBackground === true;
+  const alpha = (value: number) => Math.min(1, Math.max(0, value * intensity * (blend ? 0.68 : 1) * (1 - darkness * 0.22)));
   const c90 = colorWithAlpha(color, alpha(0.90), "rgba(184,146,90,0.90)");
   const c66 = colorWithAlpha(color, alpha(0.66), "rgba(184,146,90,0.66)");
   const c50 = colorWithAlpha(color, alpha(0.50), "rgba(184,146,90,0.50)");
@@ -169,19 +175,20 @@ function buildDecorationBackground(el: Pick<V3Element, "background" | "config">)
   const d28 = colorWithAlpha("#000000", darkness * 0.28, "rgba(0,0,0,0)");
   const d14 = colorWithAlpha("#000000", darkness * 0.14, "rgba(0,0,0,0)");
   const darkOverlay = darkness > 0 ? `linear-gradient(180deg,${d28},${d14}),` : "";
+  const blendHaze = blend ? `radial-gradient(ellipse at 50% 50%,${c04} 0%,transparent 96%),radial-gradient(ellipse at 50% 50%,${a06} 0%,transparent 92%),` : "";
 
-  if (effect === "soft-card") return `${darkOverlay}radial-gradient(120% 90% at 18% 0%,${a72},transparent 58%),radial-gradient(120% 80% at 92% 100%,${c14},transparent 68%),linear-gradient(145deg,rgba(255,252,247,${0.42 * intensity * (1 - darkness * 0.35)}),${c06})`;
-  if (effect === "glow-circle") return `${darkOverlay}radial-gradient(circle at 34% 28%,${a72} 0%,${c32} 28%,transparent 58%),radial-gradient(circle at 58% 62%,${c18} 0%,transparent 72%),radial-gradient(circle at 50% 50%,${c10} 0%,transparent 100%)`;
-  if (effect === "rose-soft") return `${darkOverlay}radial-gradient(circle at 50% 48%,${a72} 0 7%,transparent 9%),conic-gradient(from 18deg,${c06},${c44},${c10},${c32},${c06}),radial-gradient(circle at 44% 38%,${c22},transparent 58%),radial-gradient(circle at 58% 64%,${c18},transparent 70%)`;
-  if (effect === "spark") return `${darkOverlay}linear-gradient(90deg,transparent 45%,${a72} 49%,${a72} 51%,transparent 55%),linear-gradient(0deg,transparent 45%,${c66} 49%,${c66} 51%,transparent 55%),radial-gradient(circle,${c50} 0%,${c18} 26%,transparent 72%)`;
-  if (effect === "soft-glow") return `${darkOverlay}radial-gradient(ellipse at 48% 48%,${c22} 0%,${c14} 34%,transparent 72%),radial-gradient(ellipse at 28% 30%,${a72} 0%,transparent 42%),radial-gradient(ellipse at 72% 70%,${c10} 0%,transparent 62%)`;
-  if (effect === "editorial-line") return `${darkOverlay}linear-gradient(90deg,transparent 0%,${c18} 18%,${c66} 50%,${c18} 82%,transparent 100%),linear-gradient(180deg,transparent 0 36%,${a72} 44%,${c90} 50%,${a72} 56%,transparent 64% 100%)`;
-  if (effect === "dots") return `${darkOverlay}radial-gradient(circle at 14% 50%,${c44} 0 4px,transparent 6px),radial-gradient(circle at 38% 50%,${c66} 0 5px,transparent 7px),radial-gradient(circle at 62% 50%,${c66} 0 5px,transparent 7px),radial-gradient(circle at 86% 50%,${c44} 0 4px,transparent 6px),radial-gradient(ellipse at 50% 50%,${c10},transparent 72%)`;
-  if (effect === "ambient-glow") return `${darkOverlay}radial-gradient(ellipse at 34% 30%,${c22} 0%,${c10} 34%,transparent 70%),radial-gradient(ellipse at 70% 66%,${a22} 0%,${a10} 38%,transparent 76%),radial-gradient(ellipse at 50% 50%,${c06} 0%,transparent 86%)`;
-  if (effect === "cinematic-haze") return `${darkOverlay}radial-gradient(120% 64% at 50% 0%,${c14} 0%,transparent 64%),radial-gradient(110% 58% at 50% 100%,${a10} 0%,transparent 68%),linear-gradient(180deg,${c04},transparent 42%,${a06})`;
-  if (effect === "gold-contamination") return `${darkOverlay}radial-gradient(ellipse at 28% 22%,${c32} 0%,${c14} 32%,transparent 68%),radial-gradient(ellipse at 76% 76%,${c18} 0%,transparent 72%),radial-gradient(ellipse at 52% 52%,${a06} 0%,transparent 86%)`;
-  if (effect === "blue-ambient-light") return `${darkOverlay}radial-gradient(ellipse at 42% 38%,${a34} 0%,${a16} 34%,transparent 72%),radial-gradient(ellipse at 68% 70%,${c10} 0%,transparent 78%),radial-gradient(ellipse at 18% 84%,${a06} 0%,transparent 72%)`;
-  if (effect === "editorial-fog") return `${darkOverlay}radial-gradient(140% 76% at 18% 24%,${a10} 0%,transparent 60%),radial-gradient(120% 66% at 88% 72%,${c10} 0%,transparent 68%),linear-gradient(115deg,transparent 0%,${c06} 42%,${a06} 58%,transparent 100%)`;
+  if (effect === "soft-card") return `${darkOverlay}${blendHaze}radial-gradient(120% 90% at 18% 0%,${a72},transparent ${blend ? 72 : 58}%),radial-gradient(120% 80% at 92% 100%,${c14},transparent ${blend ? 82 : 68}%),linear-gradient(145deg,rgba(255,252,247,${0.42 * intensity * (blend ? 0.5 : 1) * (1 - darkness * 0.35)}),${c06})`;
+  if (effect === "glow-circle") return `${darkOverlay}${blendHaze}radial-gradient(circle at 34% 28%,${a72} 0%,${c32} ${blend ? 20 : 28}%,transparent ${blend ? 76 : 58}%),radial-gradient(circle at 58% 62%,${c18} 0%,transparent ${blend ? 88 : 72}%),radial-gradient(circle at 50% 50%,${c10} 0%,transparent 100%)`;
+  if (effect === "rose-soft") return `${darkOverlay}${blendHaze}radial-gradient(circle at 50% 48%,${a72} 0 ${blend ? 4 : 7}%,transparent ${blend ? 14 : 9}%),conic-gradient(from 18deg,${c06},${c44},${c10},${c32},${c06}),radial-gradient(circle at 44% 38%,${c22},transparent ${blend ? 74 : 58}%),radial-gradient(circle at 58% 64%,${c18},transparent ${blend ? 86 : 70}%)`;
+  if (effect === "spark") return `${darkOverlay}${blendHaze}linear-gradient(90deg,transparent 45%,${a72} 49%,${a72} 51%,transparent 55%),linear-gradient(0deg,transparent 45%,${c66} 49%,${c66} 51%,transparent 55%),radial-gradient(circle,${c50} 0%,${c18} 26%,transparent ${blend ? 88 : 72}%)`;
+  if (effect === "soft-glow") return `${darkOverlay}${blendHaze}radial-gradient(ellipse at 48% 48%,${c22} 0%,${c14} ${blend ? 26 : 34}%,transparent ${blend ? 88 : 72}%),radial-gradient(ellipse at 28% 30%,${a72} 0%,transparent ${blend ? 58 : 42}%),radial-gradient(ellipse at 72% 70%,${c10} 0%,transparent ${blend ? 78 : 62}%)`;
+  if (effect === "editorial-line") return `${darkOverlay}${blendHaze}linear-gradient(90deg,transparent 0%,${c18} 18%,${c66} 50%,${c18} 82%,transparent 100%),linear-gradient(180deg,transparent 0 36%,${a72} 44%,${c90} 50%,${a72} 56%,transparent 64% 100%)`;
+  if (effect === "dots") return `${darkOverlay}${blendHaze}radial-gradient(circle at 14% 50%,${c44} 0 4px,transparent ${blend ? 9 : 6}px),radial-gradient(circle at 38% 50%,${c66} 0 5px,transparent ${blend ? 10 : 7}px),radial-gradient(circle at 62% 50%,${c66} 0 5px,transparent ${blend ? 10 : 7}px),radial-gradient(circle at 86% 50%,${c44} 0 4px,transparent ${blend ? 9 : 6}px),radial-gradient(ellipse at 50% 50%,${c10},transparent ${blend ? 88 : 72}%)`;
+  if (effect === "ambient-glow") return `${darkOverlay}${blendHaze}radial-gradient(ellipse at 34% 30%,${c22} 0%,${c10} ${blend ? 24 : 34}%,transparent ${blend ? 86 : 70}%),radial-gradient(ellipse at 70% 66%,${a22} 0%,${a10} ${blend ? 28 : 38}%,transparent ${blend ? 90 : 76}%),radial-gradient(ellipse at 50% 50%,${c06} 0%,transparent 96%)`;
+  if (effect === "cinematic-haze") return `${darkOverlay}${blendHaze}radial-gradient(120% 64% at 50% 0%,${c14} 0%,transparent ${blend ? 78 : 64}%),radial-gradient(110% 58% at 50% 100%,${a10} 0%,transparent ${blend ? 82 : 68}%),linear-gradient(180deg,${c04},transparent 42%,${a06})`;
+  if (effect === "gold-contamination") return `${darkOverlay}${blendHaze}radial-gradient(ellipse at 28% 22%,${c32} 0%,${c14} ${blend ? 24 : 32}%,transparent ${blend ? 84 : 68}%),radial-gradient(ellipse at 76% 76%,${c18} 0%,transparent ${blend ? 88 : 72}%),radial-gradient(ellipse at 52% 52%,${a06} 0%,transparent 96%)`;
+  if (effect === "blue-ambient-light") return `${darkOverlay}${blendHaze}radial-gradient(ellipse at 42% 38%,${a34} 0%,${a16} ${blend ? 24 : 34}%,transparent ${blend ? 88 : 72}%),radial-gradient(ellipse at 68% 70%,${c10} 0%,transparent ${blend ? 90 : 78}%),radial-gradient(ellipse at 18% 84%,${a06} 0%,transparent 88%)`;
+  if (effect === "editorial-fog") return `${darkOverlay}${blendHaze}radial-gradient(140% 76% at 18% 24%,${a10} 0%,transparent ${blend ? 76 : 60}%),radial-gradient(120% 66% at 88% 72%,${c10} 0%,transparent ${blend ? 82 : 68}%),linear-gradient(115deg,transparent 0%,${c06} 42%,${a06} 58%,transparent 100%)`;
   return el.background;
 }
 
@@ -373,6 +380,7 @@ function PublicElement({
   const textVerticalPadding = getTextVerticalPadding(el);
   const effectiveLineHeight = Math.max(el.lineHeight ?? 1.4, isScriptFont(el.fontFamily) ? 1.24 : 1.1);
   const visualBackground = buildDecorationBackground(el);
+  const blendDecoration = shouldBlendDecoration(el);
 
   const boxStyle: React.CSSProperties = {
     position: "absolute",
@@ -385,7 +393,7 @@ function PublicElement({
     zIndex: safeNum(el.zIndex, 0),
     opacity: Math.min(1, Math.max(0, safeNum(el.opacity, 1))),
     borderRadius: el.borderRadius != null ? safeNum(el.borderRadius, 0) : undefined,
-    border: computeBorder(el),
+    border: blendDecoration ? undefined : computeBorder(el),
     overflow: "hidden",
     // Section clip — same logic as the editor's inner content wrapper
     clipPath: hasClip ? `inset(${clipTop}px 0px ${clipBottom}px 0px)` : undefined,
@@ -503,6 +511,7 @@ function PublicElement({
           ...boxStyle,
           background: visualBackground,
           mixBlendMode: getDecorationBlendMode(el.config?.effect),
+          opacity: blendDecoration ? 0.92 : undefined,
           backdropFilter: el.blur ? `blur(${el.blur}px)` : undefined,
         }}
       />
@@ -521,6 +530,7 @@ function PublicElement({
               background: visualBackground,
               borderRadius: el.borderRadius,
               mixBlendMode: getDecorationBlendMode(el.config?.effect),
+              opacity: blendDecoration ? 0.92 : undefined,
               backdropFilter: el.blur ? `blur(${el.blur}px)` : undefined,
             }}
           />

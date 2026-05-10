@@ -1849,39 +1849,6 @@ function ExpandedPanel({
             </div>
           </div>
         ))}
-
-        {/* ── Theme palettes ── */}
-        <p style={{ color: "#8884a8", fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", margin: "18px 0 10px" }}>
-          Paletas de color
-        </p>
-        {CANVAS_V3_THEMES.map((theme) => (
-          <div
-            key={theme.id}
-            style={{
-              marginBottom: 10, padding: 10,
-              background: activeThemeId === theme.id ? "rgba(124,58,237,0.18)" : "#1e1e2d",
-              border: activeThemeId === theme.id ? "1px solid #7c3aed" : "1px solid #2a2a3d",
-              borderRadius: 12
-            }}
-          >
-            <div style={{ height: 48, borderRadius: 10, marginBottom: 9, background: theme.sectionBackgrounds.hero, boxShadow: `inset 0 0 0 1px ${theme.colors.accent}44` }} />
-            <p style={{ color: "#e8e6ff", fontSize: 12, fontWeight: 700, margin: "0 0 4px", fontFamily: "Inter, system-ui, sans-serif" }}>{theme.name}</p>
-            <p style={{ color: "#8884a8", fontSize: 10, lineHeight: 1.35, margin: "0 0 9px", fontFamily: "Inter, system-ui, sans-serif" }}>{theme.description}</p>
-            <button
-              type="button"
-              onClick={() => onApplyTheme(theme)}
-              style={{
-                width: "100%", padding: "8px 10px", borderRadius: 9,
-                border: "1px solid rgba(200,169,106,0.36)",
-                background: activeThemeId === theme.id ? "rgba(200,169,106,0.22)" : "rgba(200,169,106,0.10)",
-                color: activeThemeId === theme.id ? "#f4d28a" : "#c8c4f0",
-                cursor: "pointer", fontSize: 11, fontWeight: 700
-              }}
-            >
-              {activeThemeId === theme.id ? "Aplicado" : "Aplicar paleta"}
-            </button>
-          </div>
-        ))}
       </div>
     );
   }

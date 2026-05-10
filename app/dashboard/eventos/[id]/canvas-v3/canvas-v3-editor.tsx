@@ -1918,6 +1918,7 @@ function RightPanel({
   onLayerMoveDown,
   onReorderLayers,
   eventDate,
+  panelMode = "properties",
 }: {
   element: V3Element | null;
   onChange: (id: string, patch: Partial<V3Element>) => void;
@@ -1940,6 +1941,7 @@ function RightPanel({
   onLayerMoveDown: (id: string) => void;
   onReorderLayers: (orderedIds: string[]) => void;
   eventDate?: string;
+  panelMode?: "properties" | "layers";
 }) {
   const [pendingDelete, setPendingDelete] = React.useState<"element" | "section" | null>(null);
   const [openGroup, setOpenGroup] = React.useState<InspectorGroup>("content");
@@ -2316,6 +2318,31 @@ function RightPanel({
     </div>
   ) : null;
 
+  if (panelMode === "layers") {
+    return (
+      <div style={s}>
+        <div style={{ padding: "16px", borderBottom: "1px solid rgba(184,146,90,0.14)" }}>
+          <p style={{ color: "#8a6f61", fontSize: 10, letterSpacing: "0.08em", fontFamily: "Inter, system-ui, sans-serif", margin: 0, textTransform: "uppercase", fontWeight: 850 }}>
+            Capas
+          </p>
+          <p style={{ color: "#4b2735", fontSize: 17, fontWeight: 750, fontFamily: "Inter, system-ui, sans-serif", margin: "5px 0 0" }}>
+            Orden del lienzo
+          </p>
+          <p style={{ color: "#9a8a80", fontSize: 11, margin: "6px 0 0", lineHeight: 1.45 }}>
+            Selecciona, oculta, bloquea o arrastra elementos de la seccion activa.
+          </p>
+        </div>
+        {LayersPanel ?? (
+          <div style={{ flex: 1, display: "grid", placeItems: "center", padding: 20 }}>
+            <p style={{ color: "#8884a8", fontSize: 12, fontFamily: "Inter, system-ui, sans-serif", textAlign: "center", margin: 0 }}>
+              Esta seccion todavia no tiene elementos.
+            </p>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   const renderGroup = (
     id: InspectorGroup,
     title: string,
@@ -2368,7 +2395,6 @@ function RightPanel({
     if (section) {
       return (
         <div style={s}>
-          {LayersPanel}
           <div style={{ padding: "16px", borderBottom: "1px solid rgba(184,146,90,0.14)" }}>
             <span style={{ ...panelBadgeStyle, color: "#f4d28a", background: "rgba(200,169,106,0.12)", border: "1px solid rgba(200,169,106,0.24)" }}>
               Sección
@@ -2405,7 +2431,6 @@ function RightPanel({
     }
     return (
       <div style={s}>
-        {LayersPanel}
         <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 10, padding: "0 20px" }}>
           <span style={{ fontSize: 28, opacity: 0.25 }}>◻</span>
           <p style={{ color: "#8884a8", fontSize: 12, fontFamily: "Inter, system-ui, sans-serif", textAlign: "center", margin: 0, lineHeight: 1.6 }}>
@@ -2418,7 +2443,6 @@ function RightPanel({
 
   return (
     <div style={s}>
-      {LayersPanel}
       {/* Element header */}
       <div style={{ padding: "16px 16px 12px", borderBottom: "1px solid rgba(184,146,90,0.14)" }}>
         <p style={{ color: "#8a6f61", fontSize: 10, letterSpacing: "0.06em", fontFamily: "Inter, system-ui, sans-serif", margin: 0, textTransform: "uppercase", opacity: 0.9 }}>Elemento</p>
@@ -4169,6 +4193,7 @@ export function CanvasEditorV3({
   const [inspectorOpen, setInspectorOpen] = useState(() =>
     false
   );
+  const [layersPanelOpen, setLayersPanelOpen] = useState(false);
 
   useEffect(() => {
     const onResize = () => {
@@ -4195,6 +4220,7 @@ export function CanvasEditorV3({
   // Inspector width: 320px on wide screens, 280px on laptop
   const INSPECTOR_W = vw >= 1600 ? 320 : 280;
   const showInspector = inspectorOpen && inspectorHasContext;
+  const showLayersPanel = layersPanelOpen && !preview;
 
   useEffect(() => {
     if (!inspectorHasContext) setInspectorOpen(false);
@@ -4575,6 +4601,21 @@ export function CanvasEditorV3({
             }}
           >
             Propiedades
+          </button>
+        )}
+        {!preview && (
+          <button
+            type="button"
+            title={layersPanelOpen ? "Cerrar capas" : "Capas"}
+            onClick={() => setLayersPanelOpen((open) => !open)}
+            style={{
+              ...topBtnStyle, flexShrink: 0,
+              background: layersPanelOpen ? "rgba(149,129,112,0.24)" : "rgba(255,255,255,0.05)",
+              color: layersPanelOpen ? "#f0e5db" : "#a19388",
+              borderColor: layersPanelOpen ? "rgba(149,129,112,0.40)" : "rgba(149,129,112,0.24)",
+            }}
+          >
+            Capas
           </button>
         )}
       </div>
@@ -5315,6 +5356,92 @@ export function CanvasEditorV3({
           </div>
         </div>
 
+        {/* ── LAYERS PANEL — floating overlay, independent from properties ── */}
+        {showLayersPanel && (
+          <div
+            data-canvas-control="true"
+            onMouseDown={(event) => event.stopPropagation()}
+            style={{
+              position: "absolute",
+              top: 10,
+              right: showInspector ? INSPECTOR_W + 22 : 10,
+              bottom: 10,
+              width: Math.min(300, INSPECTOR_W),
+              minWidth: Math.min(300, INSPECTOR_W),
+              height: "auto",
+              flexShrink: 0,
+              zIndex: 49,
+              borderRadius: 18,
+              overflow: "hidden",
+              boxShadow: "-18px 20px 48px rgba(24,16,22,0.20)",
+              transform: "translateX(0)",
+              opacity: 1,
+              transition: "opacity 180ms ease, transform 180ms ease",
+            }}
+          >
+            <button
+              type="button"
+              title="Cerrar capas"
+              onClick={() => setLayersPanelOpen(false)}
+              style={{
+                position: "absolute",
+                right: 10,
+                top: 12,
+                zIndex: 2,
+                width: 32,
+                height: 32,
+                borderRadius: 999,
+                border: "1px solid rgba(184,146,90,0.18)",
+                background: "rgba(255,252,247,0.72)",
+                color: "#4b2735",
+                cursor: "pointer",
+                boxShadow: "0 10px 24px rgba(38,24,30,0.14)",
+                backdropFilter: "blur(8px)",
+                fontSize: 16,
+                lineHeight: 1,
+              }}
+            >
+              ×
+            </button>
+            <RightPanel
+              element={null}
+              onChange={patchElement}
+              onDuplicate={duplicateElement}
+              onDelete={deleteSelected}
+              onBringToFront={bringToFront}
+              onSendToBack={sendToBack}
+              section={null}
+              onDuplicateSection={() => duplicateSection(activeSectionId)}
+              onDeleteSection={() => deleteSection(activeSectionId)}
+              onMoveSectionUp={() => moveSectionUp(activeSectionId)}
+              onMoveSectionDown={() => moveSectionDown(activeSectionId)}
+              sectionElements={preview ? [] : getSectionElements(activeSectionId)}
+              selectedIds={selectedIds}
+              onSelectLayer={(id, shift) => {
+                const expanded = expandSelectionWithGroups([id]);
+                if (shift) {
+                  setSelectedIds((prev) => {
+                    const expandedSet = new Set(expanded);
+                    const allSelected = expanded.every((expandedId) => prev.includes(expandedId));
+                    return allSelected
+                      ? prev.filter((sid) => !expandedSet.has(sid))
+                      : Array.from(new Set([...prev, ...expanded]));
+                  });
+                } else {
+                  setSelectedIds(expanded);
+                }
+              }}
+              onToggleVisible={toggleLayerVisible}
+              onToggleLocked={toggleLayerLocked}
+              onLayerMoveUp={layerMoveUp}
+              onLayerMoveDown={layerMoveDown}
+              onReorderLayers={reorderLayers}
+              eventDate={eventDate}
+              panelMode="layers"
+            />
+          </div>
+        )}
+
         {/* ── RIGHT INSPECTOR — floating overlay, never shifts the canvas ── */}
         {showInspector && (
           <div
@@ -5394,6 +5521,7 @@ export function CanvasEditorV3({
               onLayerMoveDown={layerMoveDown}
               onReorderLayers={reorderLayers}
               eventDate={eventDate}
+              panelMode="properties"
             />
           </div>
         )}
@@ -5417,6 +5545,27 @@ export function CanvasEditorV3({
             onMouseLeave={(e) => { e.currentTarget.style.color = "#8884a8"; e.currentTarget.style.borderColor = "#2a2a3d"; }}
           >
             Propiedades
+          </button>
+        )}
+
+        {!preview && !layersPanelOpen && (
+          <button
+            type="button"
+            title="Abrir capas"
+            onClick={() => setLayersPanelOpen(true)}
+            style={{
+              position: "absolute", right: 12, top: inspectorHasContext ? "calc(50% + 76px)" : "50%", transform: "translateY(-50%)",
+              zIndex: 45, width: 28, height: 64, borderRadius: 8,
+              background: "#1e1e2d", border: "1px solid #2a2a3d",
+              cursor: "pointer", color: "#8884a8", fontSize: 10,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              writingMode: "vertical-rl",
+              transition: "all 0.15s",
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = "#f4d28a"; e.currentTarget.style.borderColor = "#b8925a"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = "#8884a8"; e.currentTarget.style.borderColor = "#2a2a3d"; }}
+          >
+            Capas
           </button>
         )}
 

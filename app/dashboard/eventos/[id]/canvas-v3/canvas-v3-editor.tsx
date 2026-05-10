@@ -2892,6 +2892,7 @@ export function CanvasEditorV3({
   const selectedId = selectedIds.length === 1 ? selectedIds[0] : null;
   const [activeTool, setActiveTool] = useState<ToolId | null>(null);
   const [sidebarHovered, setSidebarHovered] = useState(false);
+  const [pinnedLibraryTool, setPinnedLibraryTool] = useState<ToolId | null>(null);
   const [zoom, setZoom] = useState(0.75);
   const [viewportMode, setViewportMode] = useState<"mobile" | "desktop">("mobile");
   const [saved, setSaved] = useState(false);
@@ -4375,11 +4376,10 @@ export function CanvasEditorV3({
   }, [inspectorHasContext]);
 
   useEffect(() => {
-    const activePanelWidth = activeTool && sidebarHovered ? EXPANDED_PANEL_W : 0;
-    const availableWidth = vw - ICON_SIDEBAR_W - activePanelWidth - 96;
+    const availableWidth = vw - ICON_SIDEBAR_W - 96;
     const nextZoom = Math.max(0.3, Math.min(1, Math.floor((availableWidth / canvasW) * 100) / 100));
     setZoom((current) => Math.abs(current - nextZoom) > 0.03 ? nextZoom : current);
-  }, [activeTool, canvasW, sidebarHovered, vw]);
+  }, [canvasW, vw]);
 
   // ── Keyboard shortcuts ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -4921,6 +4921,10 @@ export function CanvasEditorV3({
           </div>
         )}
 
+        {(() => {
+          const visibleLibraryTool = sidebarHovered && activeTool ? activeTool : pinnedLibraryTool;
+
+          return (
         <div
           onMouseEnter={() => setSidebarHovered(true)}
           onMouseLeave={() => setSidebarHovered(false)}
@@ -4928,6 +4932,8 @@ export function CanvasEditorV3({
             display: "flex",
             flexShrink: 0,
             position: "relative",
+            alignSelf: "stretch",
+            height: "100%",
             zIndex: 40,
           }}
         >
@@ -4950,12 +4956,16 @@ export function CanvasEditorV3({
           </p>
           <div style={{ display: "flex", flexDirection: "column", gap: 7, alignItems: "center", width: "100%" }}>
             {TOOLS.filter((tool) => tool.id !== "projects").map((tool) => {
-              const active = activeTool === tool.id;
+              const active = visibleLibraryTool === tool.id;
               return (
                 <button
                   key={tool.id}
                   type="button"
-                  onClick={() => setActiveTool(active ? null : tool.id)}
+                  onMouseEnter={() => setActiveTool(tool.id)}
+                  onClick={() => {
+                    setActiveTool(tool.id);
+                    setPinnedLibraryTool((current) => current === tool.id ? null : tool.id);
+                  }}
                   title={tool.label}
                   style={{
                     width: 58,
@@ -4984,14 +4994,20 @@ export function CanvasEditorV3({
         </div>
 
         {/* ── EXPANDED PANEL ── */}
-        {activeTool && sidebarHovered && (
+        {visibleLibraryTool && (
           <div style={{
-            width: EXPANDED_PANEL_W, maxWidth: EXPANDED_PANEL_W, minWidth: 0, flexShrink: 0,
+            position: "absolute",
+            left: ICON_SIDEBAR_W,
+            top: 0,
+            bottom: 0,
+            width: EXPANDED_PANEL_W, maxWidth: EXPANDED_PANEL_W, minWidth: 0,
             background: "rgba(255,252,247,0.98)",
             borderRight: "1px solid rgba(184,146,90,0.18)",
-            overflow: "hidden", zIndex: 40,
+            borderLeft: "1px solid rgba(255,255,255,0.72)",
+            overflow: "hidden", zIndex: 55,
             display: "flex", flexDirection: "column",
-            boxShadow: "12px 0 30px rgba(70,50,35,0.08)",
+            boxShadow: "18px 0 40px rgba(70,50,35,0.14)",
+            backdropFilter: "blur(18px)",
           }}>
             <div style={{
               padding: "14px 14px 10px", flexShrink: 0,
@@ -4999,11 +5015,15 @@ export function CanvasEditorV3({
               display: "flex", justifyContent: "space-between", alignItems: "center",
             }}>
               <span style={{ color: "#4b2735", fontSize: 13, fontWeight: "700" }}>
-                {TOOLS.find(t => t.id === activeTool)?.label}
+                {TOOLS.find(t => t.id === visibleLibraryTool)?.label}
               </span>
               <button
                 type="button"
-                onClick={() => setActiveTool(null)}
+                onClick={() => {
+                  setPinnedLibraryTool(null);
+                  setActiveTool(null);
+                  setSidebarHovered(false);
+                }}
                 style={{ background: "none", border: "none", color: "#8884a8", cursor: "pointer", fontSize: 14, padding: 0 }}
               >
                 ✕
@@ -5011,7 +5031,7 @@ export function CanvasEditorV3({
             </div>
             <div style={{ flex: 1, overflowY: "auto" }}>
               <ExpandedPanel
-                tool={activeTool}
+                tool={visibleLibraryTool}
                 onAddText={addText}
                 onAddElement={addElement}
                 onAddApp={addApp}
@@ -5030,6 +5050,8 @@ export function CanvasEditorV3({
           </div>
         )}
         </div>
+          );
+        })()}
 
         {/* -- CANVAS WORKSPACE -- */}
         <div style={{

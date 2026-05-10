@@ -1374,32 +1374,99 @@ function ExpandedPanel({
   templateApplyError?: string | null;
   eventFeatureSource?: V3FeatureSource | null;
 }) {
+  const panelShellStyle: React.CSSProperties = { padding: "14px 14px 18px" };
+  const eyebrowStyle: React.CSSProperties = {
+    color: "#8a6f61",
+    fontSize: 10,
+    letterSpacing: "0.11em",
+    textTransform: "uppercase",
+    margin: "0 0 7px",
+    fontWeight: 900,
+    fontFamily: "Inter, system-ui, sans-serif",
+  };
+  const panelTitleStyle: React.CSSProperties = {
+    color: "#3d2d27",
+    fontSize: 17,
+    lineHeight: 1.08,
+    margin: "0 0 6px",
+    fontFamily: "'Playfair Display', Georgia, serif",
+    fontStyle: "italic",
+    fontWeight: 800,
+  };
+  const panelCopyStyle: React.CSSProperties = {
+    color: "#7c6658",
+    fontSize: 10.5,
+    lineHeight: 1.45,
+    margin: "0 0 14px",
+    fontFamily: "Inter, system-ui, sans-serif",
+  };
+  const libraryCardStyle: React.CSSProperties = {
+    width: "100%",
+    border: "1px solid rgba(166,135,92,0.18)",
+    borderRadius: 14,
+    background: "linear-gradient(180deg,rgba(255,252,247,0.94),rgba(244,238,228,0.72))",
+    cursor: "pointer",
+    textAlign: "left",
+    boxShadow: "0 10px 22px rgba(54,42,34,0.075)",
+    transition: "transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease, background 0.16s ease",
+  };
+  const liftLibraryCard = (element: HTMLButtonElement) => {
+    element.style.transform = "translateY(-1px)";
+    element.style.borderColor = "rgba(166,135,92,0.40)";
+    element.style.boxShadow = "0 14px 28px rgba(54,42,34,0.12)";
+  };
+  const settleLibraryCard = (element: HTMLButtonElement) => {
+    element.style.transform = "translateY(0)";
+    element.style.borderColor = "rgba(166,135,92,0.18)";
+    element.style.boxShadow = "0 10px 22px rgba(54,42,34,0.075)";
+  };
+
   if (tool === "text") {
+    const textPresets: Array<{
+      id: "title" | "subtitle" | "paragraph";
+      label: string;
+      description: string;
+      sample: string;
+      fontFamily: string;
+      fontSize: number;
+      fontStyle?: string;
+    }> = [
+      { id: "title", label: "Titulo editorial", description: "Hero o nombre principal", sample: "Kenia", fontFamily: "'Playfair Display', Georgia, serif", fontSize: 24, fontStyle: "italic" },
+      { id: "subtitle", label: "Subtitulo", description: "Linea elegante de apoyo", sample: "Una noche especial", fontFamily: "Inter, system-ui, sans-serif", fontSize: 14 },
+      { id: "paragraph", label: "Parrafo", description: "Mensaje breve o detalle", sample: "Celebremos juntos", fontFamily: "Inter, system-ui, sans-serif", fontSize: 12 },
+    ];
+
     return (
-      <div style={{ padding: "12px 14px" }}>
-        <p style={{ color: "#8884a8", fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", margin: "0 0 10px" }}>
+      <div style={panelShellStyle}>
+        <p style={eyebrowStyle}>
           Texto
         </p>
-        {(["title", "subtitle", "paragraph"] as const).map((k) => (
+        <h3 style={panelTitleStyle}>Presets tipograficos</h3>
+        <p style={panelCopyStyle}>Agrega textos limpios para titular, acompanar o narrar la invitacion.</p>
+        {textPresets.map((preset) => (
           <button
-            key={k}
+            key={preset.id}
             type="button"
-            onClick={() => onAddText(k)}
+            onClick={() => onAddText(preset.id)}
             style={{
-              display: "block", width: "100%", marginBottom: 8,
-              padding: "10px 14px",
-              background: "#1e1e2d", border: "1px solid #2a2a3d",
-              borderRadius: 10, cursor: "pointer", textAlign: "left",
-              color: k === "title" ? "#e8e6ff" : k === "subtitle" ? "#c8c4f0" : "#9898b8",
-              fontSize: k === "title" ? 18 : k === "subtitle" ? 14 : 12,
-              fontFamily: k === "title" ? "'Playfair Display', Georgia, serif" : "Inter, system-ui, sans-serif",
-              fontStyle: k === "title" ? "italic" : "normal",
-              transition: "border-color 0.15s",
+              ...libraryCardStyle,
+              display: "grid",
+              gap: 6,
+              marginBottom: 8,
+              padding: "11px 12px",
             }}
-            onMouseEnter={(e) => (e.currentTarget.style.borderColor = "#7c3aed")}
-            onMouseLeave={(e) => (e.currentTarget.style.borderColor = "#2a2a3d")}
+            onMouseEnter={(e) => liftLibraryCard(e.currentTarget)}
+            onMouseLeave={(e) => settleLibraryCard(e.currentTarget)}
           >
-            {k === "title" ? "Agregar título" : k === "subtitle" ? "Agregar subtítulo" : "Agregar párrafo"}
+            <span style={{ color: "#4b342d", fontSize: 12, fontWeight: 850, fontFamily: "Inter, system-ui, sans-serif" }}>
+              {preset.label}
+            </span>
+            <span style={{ color: "#7c6658", fontSize: 9.8, fontFamily: "Inter, system-ui, sans-serif" }}>
+              {preset.description}
+            </span>
+            <span style={{ color: "#342620", fontSize: preset.fontSize, fontFamily: preset.fontFamily, fontStyle: preset.fontStyle, lineHeight: 1.12 }}>
+              {preset.sample}
+            </span>
           </button>
         ))}
       </div>
@@ -1408,9 +1475,9 @@ function ExpandedPanel({
 
   if (tool === "elements") {
     const basics: { id: InvitationBlockKind; icon: string; label: string; description: string; preview: string }[] = [
-      { id: "date", icon: "12", label: "Fecha", description: "Dia, mes, ano y hora", preview: "linear-gradient(135deg,rgba(255,252,247,0.95),rgba(184,146,90,0.22))" },
-      { id: "dresscode", icon: "◐", label: "Vestimenta", description: "Tenida y gama de colores", preview: "linear-gradient(135deg,rgba(255,241,245,0.95),rgba(200,117,131,0.28))" },
-      { id: "message", icon: "❞", label: "Mensaje", description: "Texto editorial para invitados", preview: "linear-gradient(135deg,rgba(255,252,247,0.95),rgba(242,200,206,0.34))" },
+      { id: "date", icon: "12", label: "Fecha", description: "Dia, mes, ano y hora", preview: "linear-gradient(135deg,rgba(255,252,247,0.96),rgba(184,146,90,0.20))" },
+      { id: "dresscode", icon: "◐", label: "Vestimenta", description: "Tenida y gama de colores", preview: "linear-gradient(135deg,rgba(250,247,241,0.96),rgba(94,79,69,0.16))" },
+      { id: "message", icon: "❞", label: "Mensaje", description: "Texto editorial para invitados", preview: "linear-gradient(135deg,rgba(255,252,247,0.96),rgba(199,183,160,0.24))" },
     ];
     const decorations: { kind: string; label: string; description: string; preview: React.ReactNode }[] = [
       {
@@ -1423,13 +1490,13 @@ function ExpandedPanel({
         kind: "Círculo",
         label: "Circulo glow",
         description: "Luz decorativa radial",
-        preview: <span style={{ width: 38, height: 38, borderRadius: 999, background: "radial-gradient(circle,rgba(255,252,247,0.95),rgba(242,200,206,0.64),rgba(184,146,90,0.18))", border: "1px solid rgba(184,146,90,0.22)" }} />,
+        preview: <span style={{ width: 38, height: 38, borderRadius: 999, background: "radial-gradient(circle,rgba(255,252,247,0.95),rgba(199,183,160,0.48),rgba(184,146,90,0.18))", border: "1px solid rgba(184,146,90,0.22)" }} />,
       },
       {
         kind: "Rosa",
         label: "Rosa soft",
         description: "Ornamento floral sutil",
-        preview: <span style={{ width: 42, height: 42, borderRadius: 999, background: "radial-gradient(circle,rgba(242,200,206,0.92),rgba(200,117,131,0.50),transparent 72%)", border: "1px solid rgba(200,117,131,0.22)" }} />,
+        preview: <span style={{ width: 42, height: 42, borderRadius: 999, background: "radial-gradient(circle,rgba(250,247,241,0.92),rgba(184,146,90,0.34),transparent 72%)", border: "1px solid rgba(166,135,92,0.22)" }} />,
       },
       {
         kind: "Destello",
@@ -1441,7 +1508,7 @@ function ExpandedPanel({
         kind: "Resplandor",
         label: "Resplandor",
         description: "Fondo luminoso suave",
-        preview: <span style={{ width: 54, height: 34, borderRadius: 999, background: "radial-gradient(ellipse,rgba(200,117,131,0.34),rgba(167,139,250,0.18),transparent 74%)" }} />,
+        preview: <span style={{ width: 54, height: 34, borderRadius: 999, background: "radial-gradient(ellipse,rgba(184,146,90,0.30),rgba(59,48,42,0.12),transparent 74%)" }} />,
       },
       {
         kind: "Línea dorada",
@@ -1486,11 +1553,11 @@ function ExpandedPanel({
       element.style.boxShadow = "0 10px 22px rgba(67,43,30,0.08)";
     };
     return (
-      <div style={{ padding: "12px 14px", overflowY: "auto", maxHeight: "calc(100vh - 56px)" }}>
-        <p style={{ color: "#4b2735", fontSize: 16, lineHeight: 1.1, margin: "2px 0 5px", fontFamily: "'Playfair Display', Georgia, serif", fontStyle: "italic", fontWeight: 800 }}>
+      <div style={panelShellStyle}>
+        <p style={panelTitleStyle}>
           Elementos curados
         </p>
-        <p style={{ color: "#8a6b58", fontSize: 10.5, lineHeight: 1.45, margin: "0 0 14px", fontFamily: "Inter, system-ui, sans-serif" }}>
+        <p style={panelCopyStyle}>
           Bloques y detalles listos para componer tu invitacion.
         </p>
 
@@ -1552,27 +1619,24 @@ function ExpandedPanel({
 
   if (tool === "apps") {
     const appList: Array<{ id: string; icon: string; label: string; description: string; accent: string }> = [
-      { id: "countdown", icon: "00", label: "Cuenta regresiva", description: "Dias, horas y minutos en vivo", accent: "linear-gradient(135deg,#3b1721,#b8925a)" },
-      { id: "rsvp", icon: "✓", label: "RSVP", description: "Confirmacion de asistencia", accent: "linear-gradient(135deg,#b8925a,#8f6f52)" },
-      { id: "whatsapp", icon: "WA", label: "WhatsApp", description: "Contacto directo con invitados", accent: "linear-gradient(135deg,#0f5132,#25d366)" },
-      { id: "maps", icon: "⌖", label: "Google Maps", description: "Boton funcional de ubicacion", accent: "linear-gradient(135deg,#2f5d46,#9fb99f)" },
-      { id: "qr", icon: "QR", label: "Codigo QR", description: "Acceso escaneable al evento", accent: "linear-gradient(135deg,#1f1720,#c8a96a)" },
-      { id: "album", icon: "AL", label: "Album en vivo", description: "Fotos compartidas en tiempo real", accent: "linear-gradient(135deg,#3b1d4f,#c084fc)" },
-      { id: "live", icon: "TV", label: "Pantalla en vivo", description: "Visual para recepcion o salon", accent: "linear-gradient(135deg,#111827,#22d3ee)" },
+      { id: "countdown", icon: "00", label: "Cuenta regresiva", description: "Dias, horas y minutos en vivo", accent: "linear-gradient(135deg,#2d2621,#b8925a)" },
+      { id: "rsvp", icon: "✓", label: "RSVP", description: "Confirmacion de asistencia", accent: "linear-gradient(135deg,#4b3a2e,#b8925a)" },
+      { id: "whatsapp", icon: "WA", label: "WhatsApp", description: "Contacto directo con invitados", accent: "linear-gradient(135deg,#26352d,#9fb99f)" },
+      { id: "maps", icon: "⌖", label: "Google Maps", description: "Boton funcional de ubicacion", accent: "linear-gradient(135deg,#2f3437,#b7a98f)" },
+      { id: "qr", icon: "QR", label: "Codigo QR", description: "Acceso escaneable al evento", accent: "linear-gradient(135deg,#191716,#c8a96a)" },
+      { id: "album", icon: "AL", label: "Album en vivo", description: "Fotos compartidas en tiempo real", accent: "linear-gradient(135deg,#2e2930,#b7a98f)" },
+      { id: "live", icon: "TV", label: "Pantalla en vivo", description: "Visual para recepcion o salon", accent: "linear-gradient(135deg,#111827,#9ca3af)" },
     ];
 
     return (
-      <div style={{ padding: "12px 14px", overflowY: "auto", maxHeight: "calc(100vh - 56px)" }}>
-        <p style={{ color: "#4b2735", fontSize: 16, lineHeight: 1.1, margin: "2px 0 5px", fontFamily: "'Playfair Display', Georgia, serif", fontStyle: "italic", fontWeight: 800 }}>
+      <div style={panelShellStyle}>
+        <p style={panelTitleStyle}>
           Apps interactivas
         </p>
-        <p style={{ color: "#8a6b58", fontSize: 10.5, lineHeight: 1.45, margin: "0 0 14px", fontFamily: "Inter, system-ui, sans-serif" }}>
+        <p style={panelCopyStyle}>
           Bloques con accion real para tus invitados.
         </p>
-        <p style={{
-          color: "#8a6f61", fontSize: 10, letterSpacing: "0.1em",
-          textTransform: "uppercase", margin: "0 0 10px", fontWeight: 800,
-        }}>
+        <p style={eyebrowStyle}>
           Bloques interactivos
         </p>
         {appList.map((app) => {
@@ -1707,14 +1771,14 @@ function ExpandedPanel({
 
   if (tool === "templates") {
     return (
-      <div style={{ padding: "12px 14px" }}>
-        <p style={{ color: "#b8925a", fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", margin: "0 0 6px", fontWeight: 900 }}>
+      <div style={panelShellStyle}>
+        <p style={eyebrowStyle}>
           Galeria KAIS
         </p>
-        <h3 style={{ color: "#3c2430", fontSize: 18, lineHeight: 1.08, margin: "0 0 6px", fontFamily: "'Playfair Display', Georgia, serif", fontStyle: "italic", fontWeight: 800 }}>
+        <h3 style={panelTitleStyle}>
           Disenos listos para tu evento
         </h3>
-        <p style={{ color: "#8a6b58", fontSize: 11, lineHeight: 1.45, margin: "0 0 14px", fontFamily: "Inter, system-ui, sans-serif" }}>
+        <p style={panelCopyStyle}>
           Aplica una composicion visual y conserva nombres, fechas, ubicacion y mensajes reales.
         </p>
         {templateApplyError && (
@@ -1883,23 +1947,23 @@ function ExpandedPanel({
           })
         )}
         {/* ── Premium templates ── */}
-        <p style={{ color: "#a78bfa", fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", margin: "20px 0 10px", fontWeight: 800 }}>
+        <p style={{ ...eyebrowStyle, marginTop: 20, marginBottom: 10 }}>
           Disenos clasicos
         </p>
         {PREMIUM_TEMPLATES.map((tpl) => (
-          <div key={tpl.id} style={{ marginBottom: 12, borderRadius: 14, overflow: "hidden", border: "1px solid rgba(244,114,182,0.32)" }}>
+          <div key={tpl.id} style={{ marginBottom: 12, borderRadius: 16, overflow: "hidden", border: "1px solid rgba(166,135,92,0.20)", background: "linear-gradient(180deg,rgba(255,252,247,0.94),rgba(244,238,228,0.72))", boxShadow: "0 10px 22px rgba(54,42,34,0.075)" }}>
             {/* Preview swatch */}
-            <div style={{ height: 56, background: tpl.previewGradient, position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <div style={{ height: 58, background: "linear-gradient(135deg,#2d2621,#b8925a)", position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}>
               <span style={{ fontSize: 22 }}>{tpl.emoji}</span>
-              <span style={{ position: "absolute", top: 6, right: 8, fontSize: 8, fontWeight: 800, letterSpacing: "0.1em", color: "rgba(244,114,182,0.8)", textTransform: "uppercase" }}>
+              <span style={{ position: "absolute", top: 6, right: 8, fontSize: 8, fontWeight: 800, letterSpacing: "0.1em", color: "rgba(255,252,247,0.78)", textTransform: "uppercase" }}>
                 {tpl.category}
               </span>
             </div>
-            <div style={{ padding: "10px 11px 11px", background: "rgba(244,114,182,0.06)" }}>
-              <p style={{ color: "#fff7ef", fontSize: 13, fontWeight: 700, margin: "0 0 4px", fontFamily: "Inter, system-ui, sans-serif" }}>
+            <div style={{ padding: "10px 11px 11px" }}>
+              <p style={{ color: "#4b342d", fontSize: 13, fontWeight: 800, margin: "0 0 4px", fontFamily: "Inter, system-ui, sans-serif" }}>
                 {tpl.label}
               </p>
-              <p style={{ color: "#c084fc", fontSize: 10, lineHeight: 1.4, margin: "0 0 10px", fontFamily: "Inter, system-ui, sans-serif" }}>
+              <p style={{ color: "#7c6658", fontSize: 10, lineHeight: 1.4, margin: "0 0 10px", fontFamily: "Inter, system-ui, sans-serif" }}>
                 {tpl.description}
               </p>
               <button
@@ -1908,10 +1972,10 @@ function ExpandedPanel({
                 style={{
                   width: "100%", padding: "9px 10px", borderRadius: 10,
                   border: "none",
-                  background: "linear-gradient(135deg,#f472b6,#c026d3)",
-                  color: "#fff", cursor: "pointer",
+                  background: "linear-gradient(135deg,#2d2621,#b8925a)",
+                  color: "#fffaf2", cursor: "pointer",
                   fontSize: 11, fontWeight: 800, letterSpacing: "0.04em",
-                  boxShadow: "0 4px 16px rgba(244,114,182,0.38)",
+                  boxShadow: "0 7px 16px rgba(54,42,34,0.18)",
                   fontFamily: "Inter, system-ui, sans-serif",
                 }}
               >
@@ -1924,8 +1988,54 @@ function ExpandedPanel({
     );
   }
 
+  if (tool === "uploaded") {
+    return (
+      <div style={panelShellStyle}>
+        <p style={eyebrowStyle}>Subidos</p>
+        <h3 style={panelTitleStyle}>Recursos del evento</h3>
+        <p style={panelCopyStyle}>Proximamente podras cargar imagenes, audios y recursos para usarlos en KAIS Studio.</p>
+        <div
+          aria-disabled="true"
+          style={{
+            borderRadius: 18,
+            border: "1px dashed rgba(166,135,92,0.32)",
+            background: "linear-gradient(180deg,rgba(255,252,247,0.92),rgba(244,238,228,0.66))",
+            padding: 16,
+            minHeight: 180,
+            display: "grid",
+            placeItems: "center",
+            textAlign: "center",
+            boxShadow: "0 12px 28px rgba(54,42,34,0.08)",
+          }}
+        >
+          <span style={{
+            width: 72,
+            height: 96,
+            borderRadius: 22,
+            display: "grid",
+            placeItems: "center",
+            marginBottom: 12,
+            background: "radial-gradient(circle at 35% 20%,rgba(255,252,247,0.92),transparent 28%),linear-gradient(160deg,#2d2621,#b8925a)",
+            color: "#fffaf2",
+            fontSize: 22,
+            fontWeight: 900,
+            boxShadow: "0 18px 32px rgba(54,42,34,0.18), inset 0 0 0 1px rgba(255,255,255,0.22)",
+          }}>
+            +
+          </span>
+          <span style={{ display: "block", color: "#4b342d", fontSize: 12, fontWeight: 850, fontFamily: "Inter, system-ui, sans-serif", marginBottom: 5 }}>
+            Biblioteca personal
+          </span>
+          <span style={{ display: "block", color: "#7c6658", fontSize: 10.5, lineHeight: 1.45, fontFamily: "Inter, system-ui, sans-serif" }}>
+            Este espacio se activara cuando integremos uploads seguros.
+          </span>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div style={{ padding: 20, color: "#8884a8", fontSize: 12, textAlign: "center" }}>
+    <div style={{ ...panelShellStyle, color: "#7c6658", fontSize: 12, textAlign: "center" }}>
       Próximamente
     </div>
   );
@@ -4879,7 +4989,7 @@ export function CanvasEditorV3({
             width: EXPANDED_PANEL_W, maxWidth: EXPANDED_PANEL_W, minWidth: 0, flexShrink: 0,
             background: "rgba(255,252,247,0.98)",
             borderRight: "1px solid rgba(184,146,90,0.18)",
-            overflowY: "auto", zIndex: 40,
+            overflow: "hidden", zIndex: 40,
             display: "flex", flexDirection: "column",
             boxShadow: "12px 0 30px rgba(70,50,35,0.08)",
           }}>

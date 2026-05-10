@@ -4362,13 +4362,82 @@ export function CanvasEditorV3({
     : selectedIsAppLike
       ? selected?.config?.primaryColor ?? selected?.background ?? "#b8925a"
       : selected?.background ?? "#b8925a";
-  const topToolbarColors = ["#fff7ef", "#1f1720", "#b8925a", "#c87583", "#7c3aed", "#25d366", "#0f172a", "#ffffff"];
-  const topToolbarFonts = [
-    { label: "Playfair", value: "'Playfair Display', Georgia, serif" },
-    { label: "Cormorant", value: "'Cormorant Garamond', Georgia, serif" },
-    { label: "Inter", value: "Inter, system-ui, sans-serif" },
-    { label: "Georgia", value: "Georgia, serif" },
+  const topToolbarColorPalettes = [
+    { label: "Boda", colors: ["#fffaf2", "#e7d8c4", "#c9a96a", "#8b6f47", "#2f2a26", "#ffffff"] },
+    { label: "Quince", colors: ["#fff1f5", "#f8c8dc", "#d67b9a", "#b8925a", "#7c3aed", "#3b1721"] },
+    { label: "Infantil", colors: ["#fff7b2", "#ffd6e7", "#a7f3d0", "#93c5fd", "#c4b5fd", "#f97316"] },
+    { label: "Luxury", colors: ["#0f0f17", "#1f1720", "#c8a96a", "#f4d28a", "#ffffff", "#5b4636"] },
+    { label: "Rose gold", colors: ["#fff7ef", "#f2c8ce", "#c87583", "#b8925a", "#8f6f52", "#4b2735"] },
+    { label: "Dark neon", colors: ["#030712", "#111827", "#22d3ee", "#a78bfa", "#f472b6", "#25d366"] },
+    { label: "Pastel", colors: ["#fef3c7", "#fde2e4", "#d8f3dc", "#dbeafe", "#ede9fe", "#ffffff"] },
   ];
+  const topToolbarFonts = [
+    {
+      category: "Elegantes",
+      fonts: [
+        { label: "Playfair", value: "'Playfair Display', Georgia, serif" },
+        { label: "Cormorant", value: "'Cormorant Garamond', Georgia, serif" },
+        { label: "Lora", value: "'Lora', Georgia, serif" },
+      ],
+    },
+    {
+      category: "Serif",
+      fonts: [
+        { label: "Merriweather", value: "'Merriweather', Georgia, serif" },
+        { label: "Libre Baskerville", value: "'Libre Baskerville', Georgia, serif" },
+        { label: "EB Garamond", value: "'EB Garamond', Georgia, serif" },
+      ],
+    },
+    {
+      category: "Script",
+      fonts: [
+        { label: "Dancing Script", value: "'Dancing Script', cursive" },
+        { label: "Great Vibes", value: "'Great Vibes', cursive" },
+        { label: "Caveat", value: "'Caveat', cursive" },
+      ],
+    },
+    {
+      category: "Modernas",
+      fonts: [
+        { label: "Montserrat", value: "'Montserrat', Inter, system-ui, sans-serif" },
+        { label: "Poppins", value: "'Poppins', Inter, system-ui, sans-serif" },
+        { label: "Raleway", value: "'Raleway', Inter, system-ui, sans-serif" },
+      ],
+    },
+    {
+      category: "Minimal",
+      fonts: [
+        { label: "Inter", value: "Inter, system-ui, sans-serif" },
+        { label: "Nunito", value: "'Nunito', Inter, system-ui, sans-serif" },
+        { label: "Quicksand", value: "'Quicksand', Inter, system-ui, sans-serif" },
+      ],
+    },
+    {
+      category: "Infantiles",
+      fonts: [
+        { label: "Fredoka", value: "'Fredoka', Inter, system-ui, sans-serif" },
+        { label: "Baloo 2", value: "'Baloo 2', Inter, system-ui, sans-serif" },
+        { label: "Nunito", value: "'Nunito', Inter, system-ui, sans-serif" },
+      ],
+    },
+    {
+      category: "Formales",
+      fonts: [
+        { label: "Cinzel", value: "'Cinzel', Georgia, serif" },
+        { label: "Cormorant", value: "'Cormorant Garamond', Georgia, serif" },
+        { label: "Libre Baskerville", value: "'Libre Baskerville', Georgia, serif" },
+      ],
+    },
+    {
+      category: "Luxury",
+      fonts: [
+        { label: "Bodoni Moda", value: "'Bodoni Moda', Georgia, serif" },
+        { label: "Playfair", value: "'Playfair Display', Georgia, serif" },
+        { label: "Cinzel", value: "'Cinzel', Georgia, serif" },
+      ],
+    },
+  ];
+  const topToolbarFontPreview = "Quinceañera Ñandutí, José, María, corazón, ilusión";
   const applyTopToolbarColor = (color: string) => {
     if (!selected) return;
     if (selectedIsTextLike) {
@@ -4697,52 +4766,74 @@ export function CanvasEditorV3({
             </span>
 
             {topToolbarPopover === "color" && (
-              <div style={topContextPopoverStyle}>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 28px)", gap: 6, justifyContent: "center" }}>
-                  {topToolbarColors.map((color) => (
-                    <button
-                      key={color}
-                      type="button"
-                      title={color}
-                      onClick={() => applyTopToolbarColor(color)}
-                      style={{
-                        width: 28,
-                        height: 28,
-                        borderRadius: 999,
-                        border: "1px solid rgba(75,39,53,0.16)",
-                        background: color,
-                        cursor: "pointer",
-                        boxShadow: "inset 0 0 0 2px rgba(255,255,255,0.36), 0 6px 14px rgba(38,24,30,0.10)",
-                      }}
-                    />
+              <div style={{ ...topContextPopoverStyle, width: 254 }}>
+                <div style={{ display: "grid", gap: 7 }}>
+                  {topToolbarColorPalettes.map((palette) => (
+                    <div key={palette.label} style={{ display: "grid", gap: 4 }}>
+                      <span style={{ color: "#8a6f61", fontSize: 9, fontWeight: 900, letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                        {palette.label}
+                      </span>
+                      <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+                        {palette.colors.map((color) => (
+                          <button
+                            key={`${palette.label}-${color}`}
+                            type="button"
+                            title={`${palette.label} ${color}`}
+                            onClick={() => applyTopToolbarColor(color)}
+                            style={{
+                              width: 24,
+                              height: 24,
+                              borderRadius: 999,
+                              border: "1px solid rgba(75,39,53,0.16)",
+                              background: color,
+                              cursor: "pointer",
+                              boxShadow: "inset 0 0 0 2px rgba(255,255,255,0.34), 0 5px 12px rgba(38,24,30,0.10)",
+                            }}
+                          />
+                        ))}
+                      </div>
+                    </div>
                   ))}
                 </div>
               </div>
             )}
 
             {topToolbarPopover === "font" && selectedIsTextLike && (
-              <div style={topContextPopoverStyle}>
-                <div style={{ display: "grid", gap: 4 }}>
-                  {topToolbarFonts.map((font) => (
-                    <button
-                      key={font.value}
-                      type="button"
-                      onClick={() => applyTopToolbarFont(font.value)}
-                      style={{
-                        height: 28,
-                        border: "none",
-                        borderRadius: 9,
-                        background: selected.fontFamily === font.value ? "rgba(184,146,90,0.16)" : "transparent",
-                        color: "#4b2735",
-                        cursor: "pointer",
-                        textAlign: "left",
-                        padding: "0 9px",
-                        fontFamily: font.value,
-                        fontSize: 14,
-                      }}
-                    >
-                      {font.label}
-                    </button>
+              <div style={{ ...topContextPopoverStyle, width: 330, maxHeight: "min(62vh, 460px)", overflowY: "auto" }}>
+                <div style={{ display: "grid", gap: 8 }}>
+                  {topToolbarFonts.map((group) => (
+                    <div key={group.category} style={{ display: "grid", gap: 4 }}>
+                      <span style={{ color: "#8a6f61", fontSize: 9, fontWeight: 900, letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                        {group.category}
+                      </span>
+                      <div style={{ display: "grid", gap: 3 }}>
+                        {group.fonts.map((font) => (
+                          <button
+                            key={`${group.category}-${font.value}`}
+                            type="button"
+                            onClick={() => applyTopToolbarFont(font.value)}
+                            style={{
+                              minHeight: 42,
+                              border: "none",
+                              borderRadius: 10,
+                              background: selected.fontFamily === font.value ? "rgba(184,146,90,0.16)" : "rgba(255,255,255,0.34)",
+                              color: "#4b2735",
+                              cursor: "pointer",
+                              textAlign: "left",
+                              padding: "5px 9px",
+                              fontFamily: "Inter, system-ui, sans-serif",
+                            }}
+                          >
+                            <span style={{ display: "block", fontSize: 11, fontWeight: 850, marginBottom: 2 }}>
+                              {font.label}
+                            </span>
+                            <span style={{ display: "block", fontFamily: font.value, fontSize: 14, lineHeight: 1.25, color: "#3c2430" }}>
+                              {topToolbarFontPreview}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   ))}
                 </div>
               </div>

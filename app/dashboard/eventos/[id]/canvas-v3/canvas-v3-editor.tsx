@@ -4267,21 +4267,18 @@ export function CanvasEditorV3({
   const EXPANDED_PANEL_W = 260;
   // Inspector width: 320px on wide screens, 280px on laptop
   const INSPECTOR_W = vw >= 1600 ? 320 : 280;
-  // On laptop and smaller screens inspector renders as overlay drawer
-  const inspectorIsOverlay = vw < 1400;
   const showInspector = inspectorOpen && inspectorHasContext;
 
   useEffect(() => {
-    setInspectorOpen(inspectorHasContext);
-  }, [inspectorHasContext, selectedId]);
+    if (!inspectorHasContext) setInspectorOpen(false);
+  }, [inspectorHasContext]);
 
   useEffect(() => {
-    const inlineInspectorWidth = !inspectorIsOverlay && inspectorOpen && inspectorHasContext ? INSPECTOR_W : 0;
     const activePanelWidth = activeTool && sidebarHovered ? EXPANDED_PANEL_W : 0;
-    const availableWidth = vw - ICON_SIDEBAR_W - activePanelWidth - inlineInspectorWidth - 96;
+    const availableWidth = vw - ICON_SIDEBAR_W - activePanelWidth - 96;
     const nextZoom = Math.max(0.3, Math.min(1, Math.floor((availableWidth / canvasW) * 100) / 100));
     setZoom((current) => Math.abs(current - nextZoom) > 0.03 ? nextZoom : current);
-  }, [activeTool, canvasW, inspectorHasContext, inspectorIsOverlay, inspectorOpen, sidebarHovered, vw]);
+  }, [activeTool, canvasW, sidebarHovered, vw]);
 
   // ── Keyboard shortcuts ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -4454,8 +4451,8 @@ export function CanvasEditorV3({
           Publicar ↗
         </button>
 
-        {/* Inspector toggle (always visible in top bar for small screens) */}
-        {vw < 1400 && inspectorHasContext && (
+        {/* Inspector toggle */}
+        {inspectorHasContext && (
           <button
             type="button"
             title={inspectorOpen ? "Cerrar inspector" : "Propiedades"}
@@ -5036,31 +5033,51 @@ export function CanvasEditorV3({
           </div>
         </div>
 
-        {/* ── RIGHT INSPECTOR — inline on ≥1400px, overlay drawer on laptop/mobile ── */}
-        {showInspector && inspectorIsOverlay && (
-          /* Backdrop for drawer */
-          <div
-            style={{
-              position: "absolute", inset: 0, zIndex: 49,
-              background: "rgba(0,0,0,0.45)",
-            }}
-            onClick={() => setInspectorOpen(false)}
-          />
-        )}
-
+        {/* ── RIGHT INSPECTOR — floating overlay, never shifts the canvas ── */}
         {showInspector && (
-          <div style={{
-            position: inspectorIsOverlay ? "absolute" : "relative",
-            top: inspectorIsOverlay ? 0 : undefined,
-            right: inspectorIsOverlay ? 0 : undefined,
-            bottom: inspectorIsOverlay ? 0 : undefined,
+          <div
+            data-canvas-control="true"
+            onMouseDown={(event) => event.stopPropagation()}
+            style={{
+            position: "absolute",
+            top: 10,
+            right: 10,
+            bottom: 10,
             width: INSPECTOR_W,
             minWidth: INSPECTOR_W,
-            height: "100%",
+            height: "auto",
             flexShrink: 0, zIndex: 50,
-            boxShadow: inspectorIsOverlay ? "-24px 0 60px rgba(0,0,0,0.45)" : undefined,
-            transition: "width 0.2s",
+            borderRadius: 18,
+            overflow: "hidden",
+            boxShadow: "-18px 20px 48px rgba(24,16,22,0.24)",
+            transform: "translateX(0)",
+            opacity: 1,
+            transition: "opacity 180ms ease, transform 180ms ease",
           }}>
+            <button
+              type="button"
+              title="Cerrar propiedades"
+              onClick={() => setInspectorOpen(false)}
+              style={{
+                position: "absolute",
+                right: 10,
+                top: 12,
+                zIndex: 2,
+                width: 32,
+                height: 32,
+                borderRadius: 999,
+                border: "1px solid rgba(184,146,90,0.18)",
+                background: "rgba(255,252,247,0.72)",
+                color: "#4b2735",
+                cursor: "pointer",
+                boxShadow: "0 10px 24px rgba(38,24,30,0.14)",
+                backdropFilter: "blur(8px)",
+                fontSize: 16,
+                lineHeight: 1,
+              }}
+            >
+              ×
+            </button>
             <RightPanel
               element={selected && !preview ? selected : null}
               onChange={patchElement}
@@ -5099,8 +5116,8 @@ export function CanvasEditorV3({
           </div>
         )}
 
-        {/* Floating toggle when inspector is closed (≥1400px) */}
-        {inspectorHasContext && !inspectorOpen && !inspectorIsOverlay && (
+        {/* Floating toggle when inspector is closed */}
+        {inspectorHasContext && !inspectorOpen && (
           <button
             type="button"
             title="Abrir propiedades"

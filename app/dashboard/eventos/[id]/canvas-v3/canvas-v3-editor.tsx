@@ -509,9 +509,20 @@ function RenderElement({
   el,
   selected,
   highlighted,
+  canvasWidth = CANVAS_W,
   onMouseDown,
   onClick,
   onResizeMouseDown,
+  onDuplicate,
+  onDelete,
+  onToggleLocked,
+  onOpenInspector,
+  onQuickColor,
+  onEditText,
+  onReplaceImage,
+  onCropImage,
+  onEditQr,
+  onDownloadQr,
   // Section clip values: how many px the element overflows its section top/bottom.
   // Applied only to the visual content layer — handles and toolbar remain unclipped.
   clipTop = 0,
@@ -520,13 +531,25 @@ function RenderElement({
   el: V3Element;
   selected: boolean;
   highlighted?: boolean; // true when part of a multi-selection (no handles, just outline)
+  canvasWidth?: number;
   onMouseDown: (e: React.MouseEvent) => void;
   onClick: (e: React.MouseEvent) => void;
   onResizeMouseDown: (e: React.MouseEvent, handle: string) => void;
+  onDuplicate?: () => void;
+  onDelete?: () => void;
+  onToggleLocked?: () => void;
+  onOpenInspector?: () => void;
+  onQuickColor?: () => void;
+  onEditText?: () => void;
+  onReplaceImage?: () => void;
+  onCropImage?: () => void;
+  onEditQr?: () => void;
+  onDownloadQr?: () => void;
   clipTop?: number;
   clipBottom?: number;
 }) {
   const [isHovered, setIsHovered] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
   const renderHeight = estimateElementRenderHeight(el);
 
   // ── Outer positioning div ─────────────────────────────────────────────────
@@ -745,7 +768,7 @@ function RenderElement({
             left: 0,
             top: -32,
             zIndex: 10000,
-            display: "flex",
+            display: "none",
             alignItems: "center",
             gap: 5,
             padding: "4px 8px",
@@ -767,6 +790,102 @@ function RenderElement({
           <span style={{ color: "#a78bfa" }}>{toolbarHint}</span>
         </div>
       )}
+
+      {selected && (
+        <div
+          onMouseDown={(event) => {
+            event.stopPropagation();
+            event.preventDefault();
+          }}
+          onClick={(event) => event.stopPropagation()}
+          style={{
+            position: "absolute",
+            left: Math.max(
+              -el.x + 8,
+              Math.min((el.width - 300) / 2, canvasWidth - el.x - 300 - 8)
+            ),
+            top: el.y < 54 ? renderHeight + 12 : -48,
+            zIndex: 10001,
+            width: 300,
+            maxWidth: `calc(${canvasWidth}px - 16px)`,
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            padding: 6,
+            borderRadius: 16,
+            background: "linear-gradient(180deg,rgba(255,252,247,0.88),rgba(255,246,237,0.76))",
+            border: "1px solid rgba(184,146,90,0.24)",
+            boxShadow: "0 18px 48px rgba(43,27,36,0.18), inset 0 1px 0 rgba(255,255,255,0.62)",
+            backdropFilter: "blur(18px)",
+            fontFamily: "Inter, system-ui, sans-serif",
+            transformOrigin: "center",
+            animation: "kaisContextToolbarIn 140ms ease-out",
+          }}
+        >
+          <style>{`@keyframes kaisContextToolbarIn{from{opacity:0;transform:translateY(4px) scale(.96)}to{opacity:1;transform:translateY(0) scale(1)}}`}</style>
+          {(el.type === "text" || (el.content && el.type !== "app")) && (
+            <button type="button" title="Editar texto" onClick={onEditText} style={floatingToolbarButtonStyle}>Editar</button>
+          )}
+          {el.type !== "app" && (el.config?.url || /\burl\(/i.test(el.background ?? "")) && (
+            <>
+              <button type="button" title="Reemplazar imagen" onClick={onReplaceImage} style={floatingToolbarButtonStyle}>Reemplazar</button>
+              <button type="button" title="Recortar imagen" onClick={onCropImage} style={floatingToolbarButtonStyle}>Recortar</button>
+            </>
+          )}
+          {el.type === "app" && normalizeAppType(el) === "qr" && (
+            <>
+              <button type="button" title="Editar QR" onClick={onEditQr} style={floatingToolbarButtonStyle}>Editar QR</button>
+              <button type="button" title="Descargar QR" onClick={onDownloadQr} style={floatingToolbarButtonStyle}>Descargar</button>
+            </>
+          )}
+          {(el.type === "text" || el.type === "shape" || el.type === "decoration") && (
+            <button
+              type="button"
+              title="Color rapido"
+              onClick={onQuickColor}
+              style={{
+                ...floatingToolbarButtonStyle,
+                width: 32,
+                minWidth: 32,
+                padding: 0,
+                background: "linear-gradient(135deg,#fff7ef,#3b1721,#b8925a,#f472b6)",
+              }}
+            />
+          )}
+          <span style={{ width: 1, height: 20, background: "rgba(184,146,90,0.22)", flexShrink: 0 }} />
+          <button type="button" title="Duplicar" onClick={onDuplicate} style={floatingToolbarIconButtonStyle}>⧉</button>
+          <button type="button" title={el.locked ? "Desbloquear" : "Bloquear"} onClick={onToggleLocked} style={floatingToolbarIconButtonStyle}>
+            {el.locked ? "🔒" : "🔓"}
+          </button>
+          <button type="button" title="Eliminar" onClick={onDelete} style={{ ...floatingToolbarIconButtonStyle, color: "#9f1d2f" }}>×</button>
+          <div style={{ position: "relative", marginLeft: "auto" }}>
+            <button type="button" title="Mas acciones" onClick={() => setMoreOpen((value) => !value)} style={{ ...floatingToolbarButtonStyle, minWidth: 42 }}>
+              Mas
+            </button>
+            {moreOpen && (
+              <div
+                style={{
+                  position: "absolute",
+                  top: 36,
+                  right: 0,
+                  minWidth: 168,
+                  padding: 6,
+                  borderRadius: 14,
+                  background: "rgba(255,252,247,0.96)",
+                  border: "1px solid rgba(184,146,90,0.22)",
+                  boxShadow: "0 18px 44px rgba(43,27,36,0.18)",
+                  backdropFilter: "blur(18px)",
+                  display: "grid",
+                  gap: 5,
+                }}
+              >
+                <button type="button" onClick={() => { setMoreOpen(false); onOpenInspector?.(); }} style={floatingToolbarMenuButtonStyle}>Propiedades</button>
+                <button type="button" onClick={() => { setMoreOpen(false); onOpenInspector?.(); }} style={floatingToolbarMenuButtonStyle}>Capas y orden</button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -774,6 +893,41 @@ function RenderElement({
 // ─────────────────────────────────────────────────────────────────────────────
 // Premium templates
 // ─────────────────────────────────────────────────────────────────────────────
+
+const floatingToolbarButtonStyle: React.CSSProperties = {
+  minWidth: 30,
+  height: 30,
+  border: "1px solid rgba(184,146,90,0.18)",
+  borderRadius: 10,
+  background: "rgba(255,255,255,0.58)",
+  color: "#4b2735",
+  cursor: "pointer",
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: 5,
+  padding: "0 9px",
+  fontSize: 11,
+  fontWeight: 800,
+  fontFamily: "Inter, system-ui, sans-serif",
+  boxShadow: "inset 0 1px 0 rgba(255,255,255,0.52)",
+  transition: "transform 0.14s ease, background 0.14s ease, border-color 0.14s ease",
+  whiteSpace: "nowrap",
+};
+
+const floatingToolbarIconButtonStyle: React.CSSProperties = {
+  ...floatingToolbarButtonStyle,
+  width: 30,
+  minWidth: 30,
+  padding: 0,
+  fontSize: 13,
+};
+
+const floatingToolbarMenuButtonStyle: React.CSSProperties = {
+  ...floatingToolbarButtonStyle,
+  width: "100%",
+  justifyContent: "flex-start",
+};
 
 type PremiumTemplateHydrationContext = {
   eventTitle: string;
@@ -3403,6 +3557,72 @@ export function CanvasEditorV3({
     setSelectedIds([newEl.id]);
   };
 
+  const openSelectedInspector = () => {
+    if (!selectedId) return;
+    setInspectorOpen(true);
+  };
+
+  const editSelectedText = () => {
+    if (!selectedId) return;
+    const el = elements.find((item) => item.id === selectedId);
+    if (!el) return;
+    const next = window.prompt("Editar texto", el.content ?? "");
+    if (next === null || next === el.content) return;
+    patchElement(selectedId, { content: next });
+  };
+
+  const quickColorSelected = () => {
+    if (!selectedId) return;
+    const el = elements.find((item) => item.id === selectedId);
+    if (!el) return;
+    const palette = ["#fff7ef", "#3b1721", "#b8925a", "#f472b6", "#111827"];
+    const current = el.type === "text" || el.content ? el.color : el.background;
+    const index = Math.max(0, palette.indexOf(current ?? ""));
+    const nextColor = palette[(index + 1) % palette.length];
+    if (el.type === "text" || el.content) {
+      patchElement(selectedId, { color: nextColor });
+    } else {
+      patchElement(selectedId, { background: nextColor });
+    }
+  };
+
+  const replaceSelectedImage = () => {
+    if (!selectedId) return;
+    const next = window.prompt("Pegar URL de imagen", "");
+    if (!next) return;
+    patchElement(selectedId, {
+      background: `url(${next.trim()}) center/cover no-repeat`,
+      config: { ...(selected?.config ?? {}), url: next.trim() },
+    });
+  };
+
+  const cropSelectedImage = () => {
+    if (!selectedId) return;
+    setInspectorOpen(true);
+  };
+
+  const editSelectedQr = () => {
+    if (!selectedId) return;
+    setInspectorOpen(true);
+  };
+
+  const downloadSelectedQr = () => {
+    const el = selected;
+    if (!el || normalizeAppType(el) !== "qr") return;
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="220" height="220" viewBox="0 0 220 220"><rect width="220" height="220" rx="20" fill="#fffaf0"/><g fill="#1a0a18">${Array.from({ length: 25 }).map((_, index) => {
+      const x = 38 + (index % 5) * 28;
+      const y = 38 + Math.floor(index / 5) * 28;
+      return index % 3 === 0 || index % 7 === 0 ? `<rect x="${x}" y="${y}" width="20" height="20" rx="3"/>` : "";
+    }).join("")}</g><text x="110" y="196" text-anchor="middle" font-family="Arial" font-size="12" fill="#1a0a18">${el.content ?? "QR del evento"}</text></svg>`;
+    const blob = new Blob([svg], { type: "image/svg+xml" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "kais-qr.svg";
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   const bringToFront = () => {
     if (!selectedId) return;
     pushHistory(snapshot());
@@ -4275,6 +4495,7 @@ export function CanvasEditorV3({
                         clipBottom={clipBottom}
                         selected={el.id === selectedId && !preview}
                         highlighted={selectedIds.length > 1 && selectedIds.includes(el.id) && !preview}
+                        canvasWidth={canvasW}
                         onMouseDown={(e) => !preview && onMoveStart(e, el.id)}
                         onClick={(e) => {
                           if (preview) return;
@@ -4295,6 +4516,16 @@ export function CanvasEditorV3({
                           }
                         }}
                         onResizeMouseDown={(e, h) => !preview && onResizeStart(e, el.id, h)}
+                        onDuplicate={duplicateElement}
+                        onDelete={deleteSelected}
+                        onToggleLocked={() => toggleLayerLocked(el.id)}
+                        onOpenInspector={openSelectedInspector}
+                        onQuickColor={quickColorSelected}
+                        onEditText={editSelectedText}
+                        onReplaceImage={replaceSelectedImage}
+                        onCropImage={cropSelectedImage}
+                        onEditQr={editSelectedQr}
+                        onDownloadQr={downloadSelectedQr}
                       />
                     );
                   })}

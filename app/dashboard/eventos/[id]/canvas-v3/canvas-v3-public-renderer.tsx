@@ -45,6 +45,9 @@ export interface V3Element {
   config?: {
     url?: string;
     primaryColor?: string;
+    color?: string;
+    accentColor?: string;
+    effect?: "soft-card" | "glow-circle" | "rose-soft" | "spark" | "soft-glow" | "editorial-line" | "dots";
     textColor?: string;
     countdownTarget?: string;
     countdownMode?: "event" | "custom";
@@ -108,6 +111,55 @@ function computeBorder(el: { border?: string; borderColor?: string; borderWidth?
     return `${w}px ${s} ${c}`;
   }
   return el.border;
+}
+
+function hexToRgb(color: string): { r: number; g: number; b: number } | null {
+  const raw = color.trim().replace("#", "");
+  const normalized = raw.length === 3
+    ? raw.split("").map((part) => part + part).join("")
+    : raw.slice(0, 6);
+  if (!/^[0-9a-fA-F]{6}$/.test(normalized)) return null;
+  return {
+    r: parseInt(normalized.slice(0, 2), 16),
+    g: parseInt(normalized.slice(2, 4), 16),
+    b: parseInt(normalized.slice(4, 6), 16),
+  };
+}
+
+function colorWithAlpha(color: string | undefined, alpha: number, fallback: string): string {
+  if (!color) return fallback;
+  const rgb = hexToRgb(color);
+  if (!rgb) return fallback;
+  return `rgba(${rgb.r},${rgb.g},${rgb.b},${alpha})`;
+}
+
+function buildDecorationBackground(el: Pick<V3Element, "background" | "config">): string | undefined {
+  const effect = el.config?.effect;
+  if (!effect) return el.background;
+  const color = el.config?.color ?? el.config?.primaryColor ?? "#b8925a";
+  const accent = el.config?.accentColor ?? "#fffaf2";
+  const c95 = colorWithAlpha(color, 0.95, "rgba(184,146,90,0.95)");
+  const c90 = colorWithAlpha(color, 0.90, "rgba(184,146,90,0.90)");
+  const c82 = colorWithAlpha(color, 0.82, "rgba(184,146,90,0.82)");
+  const c66 = colorWithAlpha(color, 0.66, "rgba(184,146,90,0.66)");
+  const c50 = colorWithAlpha(color, 0.50, "rgba(184,146,90,0.50)");
+  const c44 = colorWithAlpha(color, 0.44, "rgba(184,146,90,0.44)");
+  const c32 = colorWithAlpha(color, 0.32, "rgba(184,146,90,0.32)");
+  const c22 = colorWithAlpha(color, 0.22, "rgba(184,146,90,0.22)");
+  const c18 = colorWithAlpha(color, 0.18, "rgba(184,146,90,0.18)");
+  const c10 = colorWithAlpha(color, 0.10, "rgba(184,146,90,0.10)");
+  const a96 = colorWithAlpha(accent, 0.96, "rgba(255,252,247,0.96)");
+  const a88 = colorWithAlpha(accent, 0.88, "rgba(255,252,247,0.88)");
+  const a72 = colorWithAlpha(accent, 0.72, "rgba(255,252,247,0.72)");
+
+  if (effect === "soft-card") return `linear-gradient(145deg,${a88},${c18})`;
+  if (effect === "glow-circle") return `radial-gradient(circle at 38% 32%,${a96} 0%,${c44} 32%,${c22} 58%,transparent 82%)`;
+  if (effect === "rose-soft") return `radial-gradient(circle at 50% 50%,${a72} 0 10%,transparent 11%),conic-gradient(from 18deg,${c18},${c82},${c22},${c66},${c18}),radial-gradient(circle,${c50},transparent 70%)`;
+  if (effect === "spark") return `linear-gradient(90deg,transparent 46%,${a96} 49%,${a96} 51%,transparent 54%),linear-gradient(0deg,transparent 46%,${c95} 49%,${c95} 51%,transparent 54%),radial-gradient(circle,${c90} 0%,${c44} 28%,transparent 64%)`;
+  if (effect === "soft-glow") return `radial-gradient(ellipse at 50% 50%,${c32} 0%,${c18} 38%,${c10} 68%,transparent 100%)`;
+  if (effect === "editorial-line") return `linear-gradient(180deg,transparent 0 42%,${a72} 43%,${c90} 50%,${a72} 57%,transparent 58% 100%)`;
+  if (effect === "dots") return `radial-gradient(circle at 14% 50%,${c66} 0 4px,transparent 5px),radial-gradient(circle at 38% 50%,${c90} 0 5px,transparent 6px),radial-gradient(circle at 62% 50%,${c90} 0 5px,transparent 6px),radial-gradient(circle at 86% 50%,${c66} 0 4px,transparent 5px)`;
+  return el.background;
 }
 
 function isScriptFont(fontFamily?: string): boolean {
@@ -291,6 +343,7 @@ function PublicElement({
   const hasClip = clipTop > 0 || clipBottom > 0;
   const textVerticalPadding = getTextVerticalPadding(el);
   const effectiveLineHeight = Math.max(el.lineHeight ?? 1.4, isScriptFont(el.fontFamily) ? 1.24 : 1.1);
+  const visualBackground = buildDecorationBackground(el);
 
   const boxStyle: React.CSSProperties = {
     position: "absolute",
@@ -414,12 +467,12 @@ function PublicElement({
   }
 
   // Shape / decoration with background but no text content
-  if (!el.content && el.background) {
+  if (!el.content && visualBackground) {
     return (
       <div
         style={{
           ...boxStyle,
-          background: el.background,
+          background: visualBackground,
           backdropFilter: el.blur ? `blur(${el.blur}px)` : undefined,
         }}
       />
@@ -430,12 +483,12 @@ function PublicElement({
   if (el.content) {
     return (
       <div style={boxStyle}>
-        {el.background && (
+        {visualBackground && (
           <div
             style={{
               position: "absolute",
               inset: 0,
-              background: el.background,
+              background: visualBackground,
               borderRadius: el.borderRadius,
               backdropFilter: el.blur ? `blur(${el.blur}px)` : undefined,
             }}

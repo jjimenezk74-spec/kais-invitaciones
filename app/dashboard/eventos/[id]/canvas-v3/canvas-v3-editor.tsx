@@ -63,6 +63,9 @@ interface V3Element {
   config?: {
     url?: string;
     primaryColor?: string;
+    color?: string;
+    accentColor?: string;
+    effect?: "soft-card" | "glow-circle" | "rose-soft" | "spark" | "soft-glow" | "editorial-line" | "dots";
     textColor?: string;
     countdownTarget?: string;
     countdownMode?: "event" | "custom";
@@ -470,6 +473,55 @@ function computeBorder(el: { border?: string; borderColor?: string; borderWidth?
   return el.border; // legacy
 }
 
+function hexToRgb(color: string): { r: number; g: number; b: number } | null {
+  const raw = color.trim().replace("#", "");
+  const normalized = raw.length === 3
+    ? raw.split("").map((part) => part + part).join("")
+    : raw.slice(0, 6);
+  if (!/^[0-9a-fA-F]{6}$/.test(normalized)) return null;
+  return {
+    r: parseInt(normalized.slice(0, 2), 16),
+    g: parseInt(normalized.slice(2, 4), 16),
+    b: parseInt(normalized.slice(4, 6), 16),
+  };
+}
+
+function colorWithAlpha(color: string | undefined, alpha: number, fallback: string): string {
+  if (!color) return fallback;
+  const rgb = hexToRgb(color);
+  if (!rgb) return fallback;
+  return `rgba(${rgb.r},${rgb.g},${rgb.b},${alpha})`;
+}
+
+function buildDecorationBackground(el: Pick<V3Element, "background" | "config">): string | undefined {
+  const effect = el.config?.effect;
+  if (!effect) return el.background;
+  const color = el.config?.color ?? el.config?.primaryColor ?? "#b8925a";
+  const accent = el.config?.accentColor ?? "#fffaf2";
+  const c95 = colorWithAlpha(color, 0.95, "rgba(184,146,90,0.95)");
+  const c90 = colorWithAlpha(color, 0.90, "rgba(184,146,90,0.90)");
+  const c82 = colorWithAlpha(color, 0.82, "rgba(184,146,90,0.82)");
+  const c66 = colorWithAlpha(color, 0.66, "rgba(184,146,90,0.66)");
+  const c50 = colorWithAlpha(color, 0.50, "rgba(184,146,90,0.50)");
+  const c44 = colorWithAlpha(color, 0.44, "rgba(184,146,90,0.44)");
+  const c32 = colorWithAlpha(color, 0.32, "rgba(184,146,90,0.32)");
+  const c22 = colorWithAlpha(color, 0.22, "rgba(184,146,90,0.22)");
+  const c18 = colorWithAlpha(color, 0.18, "rgba(184,146,90,0.18)");
+  const c10 = colorWithAlpha(color, 0.10, "rgba(184,146,90,0.10)");
+  const a96 = colorWithAlpha(accent, 0.96, "rgba(255,252,247,0.96)");
+  const a88 = colorWithAlpha(accent, 0.88, "rgba(255,252,247,0.88)");
+  const a72 = colorWithAlpha(accent, 0.72, "rgba(255,252,247,0.72)");
+
+  if (effect === "soft-card") return `linear-gradient(145deg,${a88},${c18})`;
+  if (effect === "glow-circle") return `radial-gradient(circle at 38% 32%,${a96} 0%,${c44} 32%,${c22} 58%,transparent 82%)`;
+  if (effect === "rose-soft") return `radial-gradient(circle at 50% 50%,${a72} 0 10%,transparent 11%),conic-gradient(from 18deg,${c18},${c82},${c22},${c66},${c18}),radial-gradient(circle,${c50},transparent 70%)`;
+  if (effect === "spark") return `linear-gradient(90deg,transparent 46%,${a96} 49%,${a96} 51%,transparent 54%),linear-gradient(0deg,transparent 46%,${c95} 49%,${c95} 51%,transparent 54%),radial-gradient(circle,${c90} 0%,${c44} 28%,transparent 64%)`;
+  if (effect === "soft-glow") return `radial-gradient(ellipse at 50% 50%,${c32} 0%,${c18} 38%,${c10} 68%,transparent 100%)`;
+  if (effect === "editorial-line") return `linear-gradient(180deg,transparent 0 42%,${a72} 43%,${c90} 50%,${a72} 57%,transparent 58% 100%)`;
+  if (effect === "dots") return `radial-gradient(circle at 14% 50%,${c66} 0 4px,transparent 5px),radial-gradient(circle at 38% 50%,${c90} 0 5px,transparent 6px),radial-gradient(circle at 62% 50%,${c90} 0 5px,transparent 6px),radial-gradient(circle at 86% 50%,${c66} 0 4px,transparent 5px)`;
+  return el.background;
+}
+
 function isHexColor(v: string): boolean {
   return /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(v.trim());
 }
@@ -632,6 +684,7 @@ function RenderElement({
   const elementLooksLikeImage = el.type !== "app" && (el.config?.url || /\burl\(/i.test(el.background ?? ""));
   const elementIsQr = el.type === "app" && normalizeAppType(el) === "qr";
   const elementIsTextLike = el.type === "text" || Boolean(el.content && el.type !== "app");
+  const visualBackground = buildDecorationBackground(el);
 
   useEffect(() => {
     if (!isInlineEditing) setInlineDraft(el.content ?? "");
@@ -743,11 +796,11 @@ function RenderElement({
       {/* ── Visual content — clipped to section boundaries ── */}
       <div style={contentStyle}>
         {/* Background fill */}
-        {el.background && (
+        {visualBackground && (
           <div
             style={{
               position: "absolute", inset: 0,
-              background: el.background,
+              background: visualBackground,
               borderRadius: el.borderRadius,
               backdropFilter: el.blur ? `blur(${el.blur}px)` : undefined,
             }}
@@ -3467,6 +3520,7 @@ export function CanvasEditorV3({
         x: cx(300), y: sectionY + 82, width: 300, height: 110,
         locked: false, visible: true, zIndex: 0,
         background: "linear-gradient(145deg,rgba(255,252,247,0.88),rgba(255,252,247,0.58))",
+        config: { effect: "soft-card", color: "#b8925a", accentColor: "#fffaf2" },
         border: "1px solid rgba(184,146,90,0.34)",
         borderRadius: 22, opacity: 1,
       }],
@@ -3475,6 +3529,7 @@ export function CanvasEditorV3({
         x: cx(118), y: sectionY + 78, width: 118, height: 118,
         locked: false, visible: true, zIndex: 0,
         background: "radial-gradient(circle at 38% 32%,rgba(255,252,247,0.96) 0%,rgba(244,210,138,0.44) 32%,rgba(184,146,90,0.22) 58%,transparent 82%)",
+        config: { effect: "glow-circle", color: "#b8925a", accentColor: "#fffaf2" },
         border: "1px solid rgba(184,146,90,0.26)",
         borderRadius: 999, opacity: 0.96,
       }],
@@ -3483,6 +3538,7 @@ export function CanvasEditorV3({
         x: cx(126), y: sectionY + 70, width: 126, height: 126,
         locked: false, visible: true, zIndex: 0,
         background: "radial-gradient(circle at 50% 50%,rgba(255,252,247,0.82) 0 10%,transparent 11%),conic-gradient(from 18deg,rgba(212,132,142,0.18),rgba(242,200,206,0.82),rgba(184,146,90,0.20),rgba(242,200,206,0.74),rgba(212,132,142,0.18)),radial-gradient(circle,rgba(242,200,206,0.50),transparent 70%)",
+        config: { effect: "rose-soft", color: "#d67b9a", accentColor: "#fffaf2" },
         border: "1px solid rgba(212,132,142,0.30)",
         borderRadius: 999, opacity: 0.92,
       }],
@@ -3491,6 +3547,7 @@ export function CanvasEditorV3({
         x: cx(82), y: sectionY + 74, width: 82, height: 82,
         locked: false, visible: true, zIndex: 0,
         background: "linear-gradient(90deg,transparent 46%,rgba(255,252,247,0.95) 49%,rgba(255,252,247,0.95) 51%,transparent 54%),linear-gradient(0deg,transparent 46%,rgba(244,210,138,0.96) 49%,rgba(244,210,138,0.96) 51%,transparent 54%),radial-gradient(circle,rgba(244,210,138,0.92) 0%,rgba(184,146,90,0.35) 28%,transparent 64%)",
+        config: { effect: "spark", color: "#f4d28a", accentColor: "#fffaf2" },
         borderRadius: 999, opacity: 0.94,
       }],
       "soft-glow": [{
@@ -3498,6 +3555,7 @@ export function CanvasEditorV3({
         x: cx(320), y: sectionY + 52, width: 320, height: 210,
         locked: false, visible: true, zIndex: 0,
         background: "radial-gradient(ellipse at 50% 50%,rgba(244,210,138,0.32) 0%,rgba(184,146,90,0.18) 38%,rgba(85,58,72,0.10) 68%,transparent 100%)",
+        config: { effect: "soft-glow", color: "#f4d28a", accentColor: "#fffaf2" },
         borderRadius: 999, opacity: 0.95,
       }],
       "editorial-line": [{
@@ -3505,6 +3563,7 @@ export function CanvasEditorV3({
         x: cx(260), y: sectionY + 92, width: 260, height: 10,
         locked: false, visible: true, zIndex: 0,
         background: "linear-gradient(180deg,transparent 0 42%,rgba(255,252,247,0.72) 43%,rgba(184,146,90,0.90) 50%,rgba(255,252,247,0.72) 57%,transparent 58% 100%)",
+        config: { effect: "editorial-line", color: "#b8925a", accentColor: "#fffaf2" },
         borderRadius: 999, opacity: 1,
       }],
       "dots": [{
@@ -3512,6 +3571,7 @@ export function CanvasEditorV3({
         x: cx(132), y: sectionY + 86, width: 132, height: 24,
         locked: false, visible: true, zIndex: 0,
         background: "radial-gradient(circle at 14% 50%,rgba(184,146,90,0.66) 0 4px,transparent 5px),radial-gradient(circle at 38% 50%,#d4aa72 0 5px,transparent 6px),radial-gradient(circle at 62% 50%,#d4aa72 0 5px,transparent 6px),radial-gradient(circle at 86% 50%,rgba(184,146,90,0.66) 0 4px,transparent 5px)",
+        config: { effect: "dots", color: "#b8925a", accentColor: "#fffaf2" },
         borderRadius: 999, opacity: 1,
       }],
 
@@ -3929,11 +3989,14 @@ export function CanvasEditorV3({
     const el = elements.find((item) => item.id === selectedId);
     if (!el) return;
     const palette = ["#fff7ef", "#3b1721", "#b8925a", "#f472b6", "#111827"];
-    const current = el.type === "text" || el.content ? el.color : el.background;
+    const current = el.type === "decoration" ? el.config?.color ?? el.config?.primaryColor : el.type === "text" || el.content ? el.color : el.background;
     const index = Math.max(0, palette.indexOf(current ?? ""));
     const nextColor = palette[(index + 1) % palette.length];
     if (el.type === "text" || el.content) {
       patchElement(selectedId, { color: nextColor });
+    } else if (el.type === "decoration") {
+      const nextConfig = { ...(el.config ?? {}), color: nextColor, primaryColor: nextColor };
+      patchElement(selectedId, { config: nextConfig, background: buildDecorationBackground({ ...el, config: nextConfig }) });
     } else {
       patchElement(selectedId, { background: nextColor });
     }
@@ -4536,7 +4599,9 @@ export function CanvasEditorV3({
     ? selected?.color ?? "#4b2735"
     : selectedIsAppLike
       ? selected?.config?.primaryColor ?? selected?.background ?? "#b8925a"
-      : selected?.background ?? "#b8925a";
+      : selected?.type === "decoration"
+        ? selected?.config?.color ?? selected?.config?.primaryColor ?? "#b8925a"
+        : selected?.background ?? "#b8925a";
   const topToolbarColorPalettes = [
     { label: "Boda", colors: ["#fffaf2", "#e7d8c4", "#c9a96a", "#8b6f47", "#2f2a26", "#ffffff"] },
     { label: "Quince", colors: ["#fff1f5", "#f8c8dc", "#d67b9a", "#b8925a", "#7c3aed", "#3b1721"] },
@@ -4621,6 +4686,12 @@ export function CanvasEditorV3({
       patchElement(selected.id, {
         background: color,
         config: { ...(selected.config ?? {}), primaryColor: color },
+      });
+    } else if (selected.type === "decoration") {
+      const nextConfig = { ...(selected.config ?? {}), color, primaryColor: color };
+      patchElement(selected.id, {
+        config: nextConfig,
+        background: buildDecorationBackground({ ...selected, config: nextConfig }),
       });
     } else {
       patchElement(selected.id, { background: color });

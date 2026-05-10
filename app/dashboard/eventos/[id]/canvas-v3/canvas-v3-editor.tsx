@@ -1407,98 +1407,177 @@ function ExpandedPanel({
   }
 
   if (tool === "elements") {
-    const invitationBlocks: { id: InvitationBlockKind; icon: string; label: string; description: string }[] = [
-      { id: "date", icon: "◇", label: "Fecha", description: "Día, mes, año y hora" },
-      { id: "countdown", icon: "⏱", label: "Cuenta regresiva", description: "Días, horas y minutos" },
-      { id: "location", icon: "⌖", label: "Ubicación", description: "Lugar, dirección y mapa" },
-      { id: "dresscode", icon: "◐", label: "Vestimenta", description: "Tenida y paleta de colores" },
-      { id: "message", icon: "❞", label: "Mensaje", description: "Frase elegante para invitados" },
+    const basics: { id: InvitationBlockKind; icon: string; label: string; description: string; preview: string }[] = [
+      { id: "date", icon: "12", label: "Fecha", description: "Dia, mes, ano y hora", preview: "linear-gradient(135deg,rgba(255,252,247,0.95),rgba(184,146,90,0.22))" },
+      { id: "countdown", icon: "00", label: "Cuenta regresiva", description: "Tiempo restante del evento", preview: "linear-gradient(135deg,rgba(59,23,33,0.95),rgba(184,146,90,0.38))" },
+      { id: "location", icon: "⌖", label: "Ubicacion", description: "Lugar, direccion y mapa", preview: "linear-gradient(135deg,rgba(236,246,239,0.95),rgba(105,145,116,0.28))" },
+      { id: "dresscode", icon: "◐", label: "Vestimenta", description: "Tenida y gama de colores", preview: "linear-gradient(135deg,rgba(255,241,245,0.95),rgba(200,117,131,0.28))" },
+      { id: "message", icon: "❞", label: "Mensaje", description: "Texto editorial para invitados", preview: "linear-gradient(135deg,rgba(255,252,247,0.95),rgba(242,200,206,0.34))" },
     ];
-    const cats = [
-      { label: "Formas", items: ["Rectángulo", "Círculo", "Línea"] },
-      { label: "Flores", items: ["Rosa", "Flor 1", "Flor 2"] },
-      { label: "Brillos", items: ["Destello", "Resplandor", "Polvo"] },
-      { label: "Separadores", items: ["Línea dorada", "Ola", "Puntos"] },
-      { label: "Botones", items: ["Primario", "Contorno", "Sutil"] },
+    const decorations: { kind: string; label: string; description: string; preview: React.ReactNode }[] = [
+      {
+        kind: "Rectángulo",
+        label: "Tarjeta suave",
+        description: "Base glass para contenido",
+        preview: <span style={{ width: 44, height: 24, borderRadius: 9, background: "rgba(255,252,247,0.86)", border: "1px solid rgba(184,146,90,0.28)", boxShadow: "0 8px 18px rgba(75,39,53,0.10)" }} />,
+      },
+      {
+        kind: "Círculo",
+        label: "Circulo glow",
+        description: "Luz decorativa radial",
+        preview: <span style={{ width: 38, height: 38, borderRadius: 999, background: "radial-gradient(circle,rgba(255,252,247,0.95),rgba(242,200,206,0.64),rgba(184,146,90,0.18))", border: "1px solid rgba(184,146,90,0.22)" }} />,
+      },
+      {
+        kind: "Rosa",
+        label: "Rosa soft",
+        description: "Ornamento floral sutil",
+        preview: <span style={{ width: 42, height: 42, borderRadius: 999, background: "radial-gradient(circle,rgba(242,200,206,0.92),rgba(200,117,131,0.50),transparent 72%)", border: "1px solid rgba(200,117,131,0.22)" }} />,
+      },
+      {
+        kind: "Destello",
+        label: "Destello",
+        description: "Punto de luz dorado",
+        preview: <span style={{ width: 36, height: 36, borderRadius: 999, background: "radial-gradient(circle,rgba(244,210,138,0.90),rgba(184,146,90,0.30),transparent 72%)" }} />,
+      },
+      {
+        kind: "Resplandor",
+        label: "Resplandor",
+        description: "Fondo luminoso suave",
+        preview: <span style={{ width: 54, height: 34, borderRadius: 999, background: "radial-gradient(ellipse,rgba(200,117,131,0.34),rgba(167,139,250,0.18),transparent 74%)" }} />,
+      },
+      {
+        kind: "Línea dorada",
+        label: "Linea editorial",
+        description: "Separador fino premium",
+        preview: <span style={{ width: 56, height: 2, borderRadius: 999, background: "linear-gradient(90deg,transparent,#b8925a,transparent)" }} />,
+      },
+      {
+        kind: "Puntos",
+        label: "Puntos",
+        description: "Separador minimal",
+        preview: <span style={{ display: "flex", gap: 5 }}>{[0, 1, 2, 3].map((dot) => <span key={dot} style={{ width: 7, height: 7, borderRadius: 999, background: dot === 0 || dot === 3 ? "rgba(184,146,90,0.45)" : "#d4aa72" }} />)}</span>,
+      },
     ];
+    const components: { id: string; label: string; description: string; icon: string }[] = [
+      { id: "rsvp", label: "RSVP", description: "Boton de confirmacion", icon: "✓" },
+      { id: "qr", label: "Codigo QR", description: "Acceso rapido escaneable", icon: "QR" },
+      { id: "maps", label: "Mapa", description: "Enlace a ubicacion", icon: "⌖" },
+    ];
+    const sectionTitleStyle: React.CSSProperties = {
+      color: "#8a6f61",
+      fontSize: 10,
+      letterSpacing: "0.11em",
+      textTransform: "uppercase",
+      margin: "18px 0 9px",
+      fontWeight: 900,
+      fontFamily: "Inter, system-ui, sans-serif",
+    };
+    const cardStyle: React.CSSProperties = {
+      width: "100%",
+      border: "1px solid rgba(184,146,90,0.18)",
+      borderRadius: 14,
+      background: "linear-gradient(180deg,rgba(255,252,247,0.90),rgba(255,247,237,0.66))",
+      cursor: "pointer",
+      textAlign: "left",
+      boxShadow: "0 10px 22px rgba(67,43,30,0.08)",
+      transition: "transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease",
+    };
+    const liftCard = (element: HTMLButtonElement) => {
+      element.style.transform = "translateY(-1px)";
+      element.style.borderColor = "rgba(184,146,90,0.42)";
+      element.style.boxShadow = "0 14px 28px rgba(67,43,30,0.13)";
+    };
+    const settleCard = (element: HTMLButtonElement) => {
+      element.style.transform = "translateY(0)";
+      element.style.borderColor = "rgba(184,146,90,0.18)";
+      element.style.boxShadow = "0 10px 22px rgba(67,43,30,0.08)";
+    };
     return (
       <div style={{ padding: "12px 14px", overflowY: "auto", maxHeight: "calc(100vh - 56px)" }}>
-        <div style={{ marginBottom: 16 }}>
-          <p style={{ color: "#c8a96a", fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", margin: "0 0 8px", fontWeight: 800 }}>
-            Bloques de invitación
-          </p>
-          <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
-            {invitationBlocks.map((block) => (
-              <button
-                key={block.id}
-                type="button"
-                onClick={() => onAddInvitationBlock(block.id)}
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "30px 1fr",
-                  gap: 10,
-                  alignItems: "center",
-                  width: "100%",
-                  padding: "10px 12px",
-                  background: "linear-gradient(135deg,rgba(124,58,237,0.16),rgba(200,169,106,0.08))",
-                  border: "1px solid rgba(200,169,106,0.24)",
-                  borderRadius: 12,
-                  cursor: "pointer",
-                  textAlign: "left",
-                  transition: "border-color 0.15s, transform 0.15s",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = "rgba(200,169,106,0.55)";
-                  e.currentTarget.style.transform = "translateY(-1px)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = "rgba(200,169,106,0.24)";
-                  e.currentTarget.style.transform = "translateY(0)";
-                }}
-              >
-                <span style={{ width: 30, height: 30, borderRadius: 10, display: "grid", placeItems: "center", background: "rgba(200,169,106,0.14)", color: "#f4d28a", fontSize: 15 }}>
-                  {block.icon}
+        <p style={{ color: "#4b2735", fontSize: 16, lineHeight: 1.1, margin: "2px 0 5px", fontFamily: "'Playfair Display', Georgia, serif", fontStyle: "italic", fontWeight: 800 }}>
+          Elementos curados
+        </p>
+        <p style={{ color: "#8a6b58", fontSize: 10.5, lineHeight: 1.45, margin: "0 0 14px", fontFamily: "Inter, system-ui, sans-serif" }}>
+          Bloques y detalles listos para componer tu invitacion.
+        </p>
+
+        <p style={{ ...sectionTitleStyle, marginTop: 0 }}>Basicos</p>
+        <div style={{ display: "grid", gap: 8 }}>
+          {basics.map((block) => (
+            <button
+              key={block.id}
+              type="button"
+              onClick={() => onAddInvitationBlock(block.id)}
+              style={{ ...cardStyle, display: "grid", gridTemplateColumns: "48px 1fr", gap: 10, alignItems: "center", padding: 10 }}
+              onMouseEnter={(e) => liftCard(e.currentTarget)}
+              onMouseLeave={(e) => settleCard(e.currentTarget)}
+            >
+              <span style={{ width: 48, height: 44, borderRadius: 13, display: "grid", placeItems: "center", background: block.preview, color: "#4b2735", fontSize: 12, fontWeight: 900, boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.42)" }}>
+                {block.icon}
+              </span>
+              <span style={{ minWidth: 0 }}>
+                <span style={{ display: "block", color: "#4b2735", fontSize: 12, fontWeight: 850, fontFamily: "Inter, system-ui, sans-serif" }}>
+                  {block.label}
                 </span>
-                <span>
-                  <span style={{ display: "block", color: "#e8e6ff", fontSize: 12, fontWeight: 800, fontFamily: "Inter, system-ui, sans-serif" }}>
-                    {block.label}
-                  </span>
-                  <span style={{ display: "block", marginTop: 2, color: "#8884a8", fontSize: 10, lineHeight: 1.25, fontFamily: "Inter, system-ui, sans-serif" }}>
-                    {block.description}
-                  </span>
+                <span style={{ display: "block", marginTop: 2, color: "#8a6b58", fontSize: 10, lineHeight: 1.3, fontFamily: "Inter, system-ui, sans-serif" }}>
+                  {block.description}
                 </span>
-              </button>
-            ))}
-          </div>
+              </span>
+            </button>
+          ))}
         </div>
-        {cats.map((cat) => (
-          <div key={cat.label} style={{ marginBottom: 14 }}>
-            <p style={{ color: "#8884a8", fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", margin: "0 0 8px" }}>
-              {cat.label}
-            </p>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
-              {cat.items.map((item) => (
-                <button
-                  key={item}
-                  type="button"
-                  onClick={() => onAddElement(item)}
-                  style={{
-                    padding: "8px 10px",
-                    background: "#1e1e2d", border: "1px solid #2a2a3d",
-                    borderRadius: 8, cursor: "pointer",
-                    color: "#c8c4f0", fontSize: 11,
-                    fontFamily: "Inter, system-ui, sans-serif",
-                    transition: "border-color 0.15s",
-                  }}
-                  onMouseEnter={(e) => (e.currentTarget.style.borderColor = "#7c3aed")}
-                  onMouseLeave={(e) => (e.currentTarget.style.borderColor = "#2a2a3d")}
-                >
-                  {item}
-                </button>
-              ))}
-            </div>
-          </div>
-        ))}
+
+        <p style={sectionTitleStyle}>Decoraciones</p>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+          {decorations.map((item) => (
+            <button
+              key={item.kind}
+              type="button"
+              onClick={() => onAddElement(item.kind)}
+              style={{ ...cardStyle, minHeight: 112, padding: 10, display: "grid", gridTemplateRows: "42px auto", gap: 8, justifyItems: "start" }}
+              onMouseEnter={(e) => liftCard(e.currentTarget)}
+              onMouseLeave={(e) => settleCard(e.currentTarget)}
+            >
+              <span style={{ width: "100%", height: 42, borderRadius: 12, display: "grid", placeItems: "center", background: "linear-gradient(135deg,rgba(255,252,247,0.80),rgba(184,146,90,0.10))", overflow: "hidden" }}>
+                {item.preview}
+              </span>
+              <span>
+                <span style={{ display: "block", color: "#4b2735", fontSize: 11.5, fontWeight: 850, fontFamily: "Inter, system-ui, sans-serif" }}>
+                  {item.label}
+                </span>
+                <span style={{ display: "block", marginTop: 2, color: "#8a6b58", fontSize: 9.5, lineHeight: 1.28, fontFamily: "Inter, system-ui, sans-serif" }}>
+                  {item.description}
+                </span>
+              </span>
+            </button>
+          ))}
+        </div>
+
+        <p style={sectionTitleStyle}>Componentes</p>
+        <div style={{ display: "grid", gap: 8 }}>
+          {components.map((component) => (
+            <button
+              key={component.id}
+              type="button"
+              onClick={() => onAddApp(component.id)}
+              style={{ ...cardStyle, display: "grid", gridTemplateColumns: "42px 1fr", gap: 10, alignItems: "center", padding: "10px 11px" }}
+              onMouseEnter={(e) => liftCard(e.currentTarget)}
+              onMouseLeave={(e) => settleCard(e.currentTarget)}
+            >
+              <span style={{ width: 42, height: 38, borderRadius: 12, display: "grid", placeItems: "center", background: "linear-gradient(135deg,rgba(75,39,53,0.92),rgba(184,146,90,0.44))", color: "#fff7ef", fontSize: 12, fontWeight: 900 }}>
+                {component.icon}
+              </span>
+              <span>
+                <span style={{ display: "block", color: "#4b2735", fontSize: 12, fontWeight: 850, fontFamily: "Inter, system-ui, sans-serif" }}>
+                  {component.label}
+                </span>
+                <span style={{ display: "block", marginTop: 2, color: "#8a6b58", fontSize: 10, lineHeight: 1.3, fontFamily: "Inter, system-ui, sans-serif" }}>
+                  {component.description}
+                </span>
+              </span>
+            </button>
+          ))}
+        </div>
       </div>
     );
   }

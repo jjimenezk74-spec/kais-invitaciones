@@ -3131,7 +3131,7 @@ export function CanvasEditorV3({
   const [selectionBox, setSelectionBox] = useState<SelectionBox | null>(null);
   const [multiToolbarMenuOpen, setMultiToolbarMenuOpen] = useState(false);
   const [elementContextMenu, setElementContextMenu] = useState<ElementContextMenuState | null>(null);
-  const [topToolbarPopover, setTopToolbarPopover] = useState<"color" | "font" | null>(null);
+  const [topToolbarPopover, setTopToolbarPopover] = useState<"color" | "accentColor" | "font" | null>(null);
 
   const studioRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -4765,6 +4765,8 @@ export function CanvasEditorV3({
   const selectedIsTextLike = Boolean(selected && (selected.type === "text" || (selected.content && selected.type !== "app")));
   const selectedIsShapeLike = Boolean(selected && (selected.type === "shape" || selected.type === "decoration"));
   const selectedIsAppLike = Boolean(selected && selected.type === "app");
+  const selectedHasAtmosphere = Boolean(selected?.type === "decoration" && selected.config?.effect);
+  const selectedAccentColor = selected?.config?.accentColor ?? "#2563eb";
   const selectedToolbarColor = selectedIsTextLike
     ? selected?.color ?? "#4b2735"
     : selectedIsAppLike
@@ -4848,9 +4850,15 @@ export function CanvasEditorV3({
     },
   ];
   const topToolbarFontPreview = "Quinceañera Ñandutí, José, María, corazón, ilusión";
-  const applyTopToolbarColor = (color: string) => {
+  const applyTopToolbarColor = (color: string, target: "primary" | "accent" = "primary") => {
     if (!selected) return;
-    if (selectedIsTextLike) {
+    if (target === "accent" && selected.type === "decoration") {
+      const nextConfig = { ...(selected.config ?? {}), accentColor: color };
+      patchElement(selected.id, {
+        config: nextConfig,
+        background: buildDecorationBackground({ ...selected, config: nextConfig }),
+      });
+    } else if (selectedIsTextLike) {
       patchElement(selected.id, { color });
     } else if (selectedIsAppLike) {
       patchElement(selected.id, {
@@ -4950,6 +4958,25 @@ export function CanvasEditorV3({
     boxShadow: "0 0 0 1px rgba(75,39,53,0.18), 0 4px 10px rgba(38,24,30,0.16)",
     display: "inline-block",
     flexShrink: 0,
+  };
+  const topContextAccentSwatchStyle: React.CSSProperties = {
+    ...topContextColorSwatchStyle,
+    width: 16,
+    height: 16,
+    background: selectedAccentColor,
+  };
+  const topContextTinyRangeStyle: React.CSSProperties = {
+    width: 62,
+    accentColor: "#b8925a",
+    cursor: "pointer",
+  };
+  const patchSelectedEffectConfig = (patch: Partial<NonNullable<V3Element["config"]>>) => {
+    if (!selected || selected.type !== "decoration") return;
+    const nextConfig = { ...(selected.config ?? {}), ...patch };
+    patchElement(selected.id, {
+      config: nextConfig,
+      background: buildDecorationBackground({ ...selected, config: nextConfig }),
+    });
   };
 
   return (
@@ -5111,7 +5138,7 @@ export function CanvasEditorV3({
           >
             <style>{`@keyframes kaisTopContextIn{from{opacity:0;transform:translateX(-50%) translateY(-4px) scale(.985)}to{opacity:1;transform:translateX(-50%) translateY(0) scale(1)}}`}</style>
             <span style={{ color: "#8a6f61", fontSize: 9, fontWeight: 900, letterSpacing: "0.08em", textTransform: "uppercase", padding: "0 5px", whiteSpace: "nowrap" }}>
-              {selectedIsTextLike ? "Texto" : selectedIsAppLike ? "App" : selectedLooksLikeImage ? "Imagen" : "Elemento"}
+              {selectedIsTextLike ? "Texto" : selectedHasAtmosphere ? "Atmósfera" : selectedIsAppLike ? "App" : selectedLooksLikeImage ? "Imagen" : "Elemento"}
             </span>
 
             {selectedIsTextLike && (
@@ -5141,7 +5168,37 @@ export function CanvasEditorV3({
               </span>
             )}
 
-            {(selectedIsShapeLike || selectedLooksLikeImage) && (
+            {selectedHasAtmosphere && selected && (
+              <span style={topContextGroupStyle}>
+                <button type="button" title="Color principal" onClick={() => setTopToolbarPopover(topToolbarPopover === "color" ? null : "color")} style={{ ...topContextButtonStyle, width: 34, padding: 0 }}><span style={topContextColorSwatchStyle} /></button>
+                <button type="button" title="Color secundario" onClick={() => setTopToolbarPopover(topToolbarPopover === "accentColor" ? null : "accentColor")} style={{ ...topContextButtonStyle, width: 32, padding: 0 }}><span style={topContextAccentSwatchStyle} /></button>
+                <span title="Intensidad" style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "0 5px", color: "#6f564e", fontSize: 9, fontWeight: 850 }}>
+                  Int
+                  <input
+                    type="range"
+                    min={0}
+                    max={1}
+                    step={0.05}
+                    value={clamp01(selected.config?.intensity, 1)}
+                    onChange={(event) => patchSelectedEffectConfig({ intensity: Number(event.target.value) })}
+                    style={topContextTinyRangeStyle}
+                  />
+                </span>
+                <button
+                  type="button"
+                  title="Mezclar con fondo"
+                  onClick={() => patchSelectedEffectConfig({ blendWithBackground: !selected.config?.blendWithBackground })}
+                  style={{ ...topContextButtonStyle, background: selected.config?.blendWithBackground ? "rgba(184,146,90,0.24)" : topContextButtonStyle.background }}
+                >
+                  Mix
+                </button>
+                <button type="button" title="Menos transparencia" onClick={() => patchElement(selected.id, { opacity: Math.min(1, Math.round(((selected.opacity ?? 1) + 0.1) * 10) / 10) })} style={topContextButtonStyle}>Op+</button>
+                <button type="button" title="Más transparencia" onClick={() => patchElement(selected.id, { opacity: Math.max(0.05, Math.round(((selected.opacity ?? 1) - 0.1) * 10) / 10) })} style={topContextButtonStyle}>Op-</button>
+                <button type="button" title="Más ajustes" onClick={openSelectedInspector} style={topContextButtonStyle}>Fx</button>
+              </span>
+            )}
+
+            {(selectedIsShapeLike || selectedLooksLikeImage) && !selectedHasAtmosphere && (
               <>
               <span style={topContextGroupStyle}>
                 <button type="button" title="Color o relleno" onClick={() => setTopToolbarPopover(topToolbarPopover === "color" ? null : "color")} style={{ ...topContextButtonStyle, width: 34, padding: 0 }}><span style={topContextColorSwatchStyle} /></button>
@@ -5184,8 +5241,11 @@ export function CanvasEditorV3({
             </button>
             </span>
 
-            {topToolbarPopover === "color" && (
+            {(topToolbarPopover === "color" || topToolbarPopover === "accentColor") && (
               <div style={{ ...topContextPopoverStyle, width: 254 }}>
+                <p style={{ margin: "0 0 6px", color: "#8a6f61", fontSize: 10, fontWeight: 900, letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                  {topToolbarPopover === "accentColor" ? "Color secundario" : "Color principal"}
+                </p>
                 <div style={{ display: "grid", gap: 7 }}>
                   {topToolbarColorPalettes.map((palette) => (
                     <div key={palette.label} style={{ display: "grid", gap: 4 }}>
@@ -5198,7 +5258,7 @@ export function CanvasEditorV3({
                             key={`${palette.label}-${color}`}
                             type="button"
                             title={`${palette.label} ${color}`}
-                            onClick={() => applyTopToolbarColor(color)}
+                            onClick={() => applyTopToolbarColor(color, topToolbarPopover === "accentColor" ? "accent" : "primary")}
                             style={{
                               width: 24,
                               height: 24,

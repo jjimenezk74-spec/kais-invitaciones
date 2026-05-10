@@ -139,6 +139,12 @@ type SelectionBox = {
   height: number;
 };
 
+type ElementContextMenuState = {
+  elementId: string;
+  x: number;
+  y: number;
+};
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants & initial design
 // ─────────────────────────────────────────────────────────────────────────────
@@ -512,6 +518,7 @@ function RenderElement({
   canvasWidth = CANVAS_W,
   onMouseDown,
   onClick,
+  onContextMenu,
   onResizeMouseDown,
   onDuplicate,
   onDelete,
@@ -535,6 +542,7 @@ function RenderElement({
   canvasWidth?: number;
   onMouseDown: (e: React.MouseEvent) => void;
   onClick: (e: React.MouseEvent) => void;
+  onContextMenu?: (e: React.MouseEvent) => void;
   onResizeMouseDown: (e: React.MouseEvent, handle: string) => void;
   onDuplicate?: () => void;
   onDelete?: () => void;
@@ -663,6 +671,10 @@ function RenderElement({
         onMouseDown(e);
       }}
       onClick={(e) => { e.stopPropagation(); onClick(e); }}
+      onContextMenu={(e) => {
+        e.stopPropagation();
+        onContextMenu?.(e);
+      }}
       onDoubleClick={(e) => {
         e.stopPropagation();
         e.preventDefault();
@@ -2818,6 +2830,7 @@ export function CanvasEditorV3({
   const [snapLines, setSnapLines] = useState<SnapLine[]>([]);
   const [selectionBox, setSelectionBox] = useState<SelectionBox | null>(null);
   const [multiToolbarMenuOpen, setMultiToolbarMenuOpen] = useState(false);
+  const [elementContextMenu, setElementContextMenu] = useState<ElementContextMenuState | null>(null);
 
   const canvasRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -2859,6 +2872,31 @@ export function CanvasEditorV3({
   useEffect(() => {
     if (selectedIds.length <= 1 || preview) setMultiToolbarMenuOpen(false);
   }, [selectedIds.length, preview]);
+
+  useEffect(() => {
+    if (preview) setElementContextMenu(null);
+  }, [preview]);
+
+  useEffect(() => {
+    if (!elementContextMenu) return;
+
+    const closeMenu = () => setElementContextMenu(null);
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") closeMenu();
+    };
+
+    window.addEventListener("mousedown", closeMenu);
+    window.addEventListener("scroll", closeMenu, true);
+    window.addEventListener("resize", closeMenu);
+    window.addEventListener("keydown", onKeyDown);
+
+    return () => {
+      window.removeEventListener("mousedown", closeMenu);
+      window.removeEventListener("scroll", closeMenu, true);
+      window.removeEventListener("resize", closeMenu);
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [elementContextMenu]);
 
   const sectionsRef = useRef<V3Section[]>(sections);
   useEffect(() => { sectionsRef.current = sections; }, [sections]);
@@ -3649,9 +3687,24 @@ export function CanvasEditorV3({
     setSelectedIds([]);
   };
 
+  const deleteElementById = (id: string) => {
+    pushHistory(snapshot());
+    setElements((prev) => prev.filter((el) => el.id !== id));
+    setSelectedIds((prev) => prev.filter((selected) => selected !== id));
+  };
+
   const duplicateElement = () => {
     if (!selectedId) return;
     const el = elements.find((e) => e.id === selectedId);
+    if (!el) return;
+    pushHistory(snapshot());
+    const newEl: V3Element = { ...el, id: `el-${Date.now()}`, x: el.x + 14, y: el.y + 14, zIndex: elements.length };
+    setElements((prev) => [...prev, newEl]);
+    setSelectedIds([newEl.id]);
+  };
+
+  const duplicateElementById = (id: string) => {
+    const el = elements.find((item) => item.id === id);
     if (!el) return;
     pushHistory(snapshot());
     const newEl: V3Element = { ...el, id: `el-${Date.now()}`, x: el.x + 14, y: el.y + 14, zIndex: elements.length };
@@ -3732,11 +3785,27 @@ export function CanvasEditorV3({
     setElements((prev) => prev.map((e) => e.id === selectedId ? { ...e, zIndex: maxZ + 1 } : e));
   };
 
+  const bringElementToFront = (id: string) => {
+    pushHistory(snapshot());
+    const maxZ = Math.max(...elements.map((e) => e.zIndex));
+    setElements((prev) => prev.map((e) => e.id === id ? { ...e, zIndex: maxZ + 1 } : e));
+  };
+
   const sendToBack = () => {
     if (!selectedId) return;
     pushHistory(snapshot());
     const minZ = Math.min(...elements.map((e) => e.zIndex));
     setElements((prev) => prev.map((e) => e.id === selectedId ? { ...e, zIndex: minZ - 1 } : e));
+  };
+
+  const sendElementToBack = (id: string) => {
+    pushHistory(snapshot());
+    const minZ = Math.min(...elements.map((e) => e.zIndex));
+    setElements((prev) => prev.map((e) => e.id === id ? { ...e, zIndex: minZ - 1 } : e));
+  };
+
+  const toggleElementLocked = (id: string) => {
+    patchElement(id, { locked: !(elements.find((el) => el.id === id)?.locked ?? false) });
   };
 
   const getSelectedGroupBounds = useCallback((ids: string[], source = elementsRef.current) => {
@@ -4219,6 +4288,10 @@ export function CanvasEditorV3({
     const handler = (e: KeyboardEvent) => {
       const ctrl = e.ctrlKey || e.metaKey;
       if (e.key === "Escape") {
+        if (elementContextMenu) {
+          setElementContextMenu(null);
+          return;
+        }
         if (selectedIds.length > 0) {
           setSelectedIds([]);
           setSelectionBox(null);
@@ -4232,13 +4305,32 @@ export function CanvasEditorV3({
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [undo, redo, selectedIds.length]);
+  }, [elementContextMenu, undo, redo, selectedIds.length]);
 
   // ─────────────────────────────────────────────────────────────────────────────
   // Render
   // ─────────────────────────────────────────────────────────────────────────────
   const countSectionElements = (section: V3Section) =>
     elements.filter((el) => el.y >= section.y && el.y < section.y + section.height).length;
+
+  const openElementContextMenu = (event: React.MouseEvent, elementId: string) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (preview) return;
+    if (!selectedIds.includes(elementId)) {
+      setSelectedIds(expandSelectionWithGroups([elementId]));
+    }
+
+    const MENU_W = 176;
+    const MENU_H = 198;
+    const GAP = 10;
+    const x = Math.max(8, Math.min(window.innerWidth - MENU_W - 8, event.clientX + GAP));
+    const y = Math.max(8, Math.min(window.innerHeight - MENU_H - 8, event.clientY + GAP));
+    setElementContextMenu({ elementId, x, y });
+  };
+  const contextMenuElement = elementContextMenu
+    ? elements.find((element) => element.id === elementContextMenu.elementId) ?? null
+    : null;
 
   return (
     <div style={{
@@ -4599,6 +4691,7 @@ export function CanvasEditorV3({
                         highlighted={selectedIds.length > 1 && selectedIds.includes(el.id) && !preview}
                         canvasWidth={canvasW}
                         onMouseDown={(e) => !preview && onMoveStart(e, el.id)}
+                        onContextMenu={(event) => openElementContextMenu(event, el.id)}
                         onClick={(e) => {
                           if (preview) return;
                           e.stopPropagation();
@@ -5026,6 +5119,96 @@ export function CanvasEditorV3({
           >
             Propiedades
           </button>
+        )}
+
+        {elementContextMenu && contextMenuElement && !preview && (
+          <div
+            role="menu"
+            aria-label="Acciones del elemento"
+            onMouseDown={(event) => {
+              event.stopPropagation();
+              event.preventDefault();
+            }}
+            onClick={(event) => event.stopPropagation()}
+            style={{
+              position: "fixed",
+              left: elementContextMenu.x,
+              top: elementContextMenu.y,
+              zIndex: 90,
+              width: 176,
+              padding: 5,
+              borderRadius: 14,
+              background: "rgba(255,252,247,0.82)",
+              border: "1px solid rgba(184,146,90,0.16)",
+              boxShadow: "0 16px 38px rgba(38,24,30,0.16)",
+              backdropFilter: "blur(8px)",
+              display: "grid",
+              gap: 3,
+              fontFamily: "Inter, system-ui, sans-serif",
+              animation: "kaisContextMenuIn 120ms ease-out",
+            }}
+          >
+            <style>{`@keyframes kaisContextMenuIn{from{opacity:0;transform:translateY(-2px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}`}</style>
+            {[
+              {
+                label: "Duplicar",
+                action: () => duplicateElementById(contextMenuElement.id),
+              },
+              {
+                label: contextMenuElement.locked ? "Desbloquear" : "Bloquear",
+                action: () => toggleElementLocked(contextMenuElement.id),
+              },
+              {
+                label: "Traer adelante",
+                action: () => bringElementToFront(contextMenuElement.id),
+              },
+              {
+                label: "Enviar atras",
+                action: () => sendElementToBack(contextMenuElement.id),
+              },
+              {
+                label: "Eliminar",
+                danger: true,
+                action: () => deleteElementById(contextMenuElement.id),
+              },
+            ].map((item) => (
+              <button
+                key={item.label}
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  setElementContextMenu(null);
+                  item.action();
+                }}
+                style={{
+                  height: 30,
+                  border: "none",
+                  borderRadius: 10,
+                  background: "transparent",
+                  color: item.danger ? "#9f1d2f" : "#49313b",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "0 9px",
+                  fontSize: 11,
+                  fontWeight: 750,
+                  letterSpacing: "0.01em",
+                  textAlign: "left",
+                }}
+                onMouseEnter={(event) => {
+                  event.currentTarget.style.background = item.danger
+                    ? "rgba(159,29,47,0.08)"
+                    : "rgba(184,146,90,0.10)";
+                }}
+                onMouseLeave={(event) => {
+                  event.currentTarget.style.background = "transparent";
+                }}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
         )}
 
         {templateToApply && (

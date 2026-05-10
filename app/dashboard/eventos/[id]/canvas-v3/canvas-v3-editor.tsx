@@ -4328,6 +4328,41 @@ export function CanvasEditorV3({
   const contextMenuElement = elementContextMenu
     ? elements.find((element) => element.id === elementContextMenu.elementId) ?? null
     : null;
+  const selectedAppType = selected ? normalizeAppType(selected) : null;
+  const selectedLooksLikeImage = Boolean(selected && selected.type !== "app" && (selected.config?.url || /\burl\(/i.test(selected.background ?? "")));
+  const selectedIsTextLike = Boolean(selected && (selected.type === "text" || (selected.content && selected.type !== "app")));
+  const selectedIsShapeLike = Boolean(selected && (selected.type === "shape" || selected.type === "decoration"));
+  const selectedIsAppLike = Boolean(selected && selected.type === "app");
+  const topContextButtonStyle: React.CSSProperties = {
+    height: 28,
+    minWidth: 30,
+    border: "1px solid rgba(184,146,90,0.12)",
+    borderRadius: 10,
+    background: "rgba(255,252,247,0.54)",
+    color: "#4b2735",
+    cursor: "pointer",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 5,
+    padding: "0 9px",
+    fontSize: 11,
+    fontWeight: 800,
+    fontFamily: "Inter, system-ui, sans-serif",
+    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.28)",
+    whiteSpace: "nowrap",
+  };
+  const topContextDisabledButtonStyle: React.CSSProperties = {
+    ...topContextButtonStyle,
+    opacity: 0.42,
+    cursor: "not-allowed",
+  };
+  const topContextDividerStyle: React.CSSProperties = {
+    width: 1,
+    height: 18,
+    background: "rgba(184,146,90,0.16)",
+    flexShrink: 0,
+  };
 
   return (
     <div style={{
@@ -4471,6 +4506,98 @@ export function CanvasEditorV3({
 
       {/* ── BODY ── */}
       <div style={{ flex: 1, display: "flex", overflow: "hidden", minWidth: 0, position: "relative" }}>
+        {selected && !preview && (
+          <div
+            data-canvas-control="true"
+            onMouseDown={(event) => {
+              event.stopPropagation();
+              event.preventDefault();
+            }}
+            onClick={(event) => event.stopPropagation()}
+            style={{
+              position: "absolute",
+              top: 10,
+              left: "50%",
+              transform: "translateX(-50%)",
+              zIndex: 48,
+              maxWidth: "min(820px, calc(100vw - 112px))",
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              padding: 5,
+              borderRadius: 16,
+              background: "linear-gradient(180deg,rgba(255,252,247,0.76),rgba(255,244,232,0.54))",
+              border: "1px solid rgba(184,146,90,0.14)",
+              boxShadow: "0 16px 40px rgba(38,24,30,0.14), inset 0 1px 0 rgba(255,255,255,0.44)",
+              backdropFilter: "blur(10px)",
+              overflowX: "auto",
+              fontFamily: "Inter, system-ui, sans-serif",
+              animation: "kaisTopContextIn 140ms ease-out",
+            }}
+          >
+            <style>{`@keyframes kaisTopContextIn{from{opacity:0;transform:translateX(-50%) translateY(-4px) scale(.985)}to{opacity:1;transform:translateX(-50%) translateY(0) scale(1)}}`}</style>
+            <span style={{ color: "#8a6f61", fontSize: 10, fontWeight: 900, letterSpacing: "0.08em", textTransform: "uppercase", padding: "0 7px", whiteSpace: "nowrap" }}>
+              {selectedIsTextLike ? "Texto" : selectedIsAppLike ? "App" : selectedLooksLikeImage ? "Imagen" : "Elemento"}
+            </span>
+
+            {selectedIsTextLike && (
+              <>
+                <button type="button" title="Fuente" onClick={openSelectedInspector} style={topContextButtonStyle}>Fuente</button>
+                <button type="button" title="Reducir tamano" onClick={() => patchElement(selected.id, { fontSize: Math.max(8, (selected.fontSize ?? 14) - 1) })} style={topContextButtonStyle}>-</button>
+                <span style={{ minWidth: 24, textAlign: "center", fontSize: 11, color: "#4b2735", fontWeight: 850 }}>{selected.fontSize ?? 14}</span>
+                <button type="button" title="Aumentar tamano" onClick={() => patchElement(selected.id, { fontSize: Math.min(140, (selected.fontSize ?? 14) + 1) })} style={topContextButtonStyle}>+</button>
+                <button type="button" title="Color" onClick={quickColorSelected} style={topContextButtonStyle}>Color</button>
+                <button type="button" title="Negrita" onClick={() => patchElement(selected.id, { fontWeight: selected.fontWeight === "700" || selected.fontWeight === "800" ? "400" : "700" })} style={{ ...topContextButtonStyle, background: selected.fontWeight === "700" || selected.fontWeight === "800" ? "rgba(184,146,90,0.22)" : topContextButtonStyle.background }}>B</button>
+                <button type="button" title="Italic" onClick={() => patchElement(selected.id, { fontStyle: selected.fontStyle === "italic" ? "normal" : "italic" })} style={{ ...topContextButtonStyle, fontStyle: "italic", background: selected.fontStyle === "italic" ? "rgba(184,146,90,0.22)" : topContextButtonStyle.background }}>I</button>
+                <button type="button" title="Subrayado disponible desde propiedades" disabled style={topContextDisabledButtonStyle}>U</button>
+                <button type="button" title="Alinear izquierda" onClick={() => patchElement(selected.id, { textAlign: "left" })} style={topContextButtonStyle}>Izq</button>
+                <button type="button" title="Centrar" onClick={() => patchElement(selected.id, { textAlign: "center" })} style={topContextButtonStyle}>Cen</button>
+                <button type="button" title="Alinear derecha" onClick={() => patchElement(selected.id, { textAlign: "right" })} style={topContextButtonStyle}>Der</button>
+                <button type="button" title="Espaciado" onClick={openSelectedInspector} style={topContextButtonStyle}>Espaciado</button>
+                <button type="button" title="Efectos" onClick={openSelectedInspector} style={topContextButtonStyle}>Efectos</button>
+              </>
+            )}
+
+            {(selectedIsShapeLike || selectedLooksLikeImage) && (
+              <>
+                <button type="button" title="Color o relleno" onClick={quickColorSelected} style={topContextButtonStyle}>Relleno</button>
+                <button type="button" title="Menos opacidad" onClick={() => patchElement(selected.id, { opacity: Math.max(0.1, Math.round(((selected.opacity ?? 1) - 0.1) * 10) / 10) })} style={topContextButtonStyle}>Op-</button>
+                <button type="button" title="Mas opacidad" onClick={() => patchElement(selected.id, { opacity: Math.min(1, Math.round(((selected.opacity ?? 1) + 0.1) * 10) / 10) })} style={topContextButtonStyle}>Op+</button>
+                <button type="button" title="Borde y contorno" onClick={openSelectedInspector} style={topContextButtonStyle}>Borde</button>
+                <button type="button" title="Sombra y efectos" onClick={openSelectedInspector} style={topContextButtonStyle}>Efectos</button>
+                {selectedLooksLikeImage && (
+                  <>
+                    <button type="button" title="Reemplazar imagen" onClick={replaceSelectedImage} style={topContextButtonStyle}>Reemplazar</button>
+                    <button type="button" title="Recortar" onClick={cropSelectedImage} style={topContextButtonStyle}>Recorte</button>
+                  </>
+                )}
+              </>
+            )}
+
+            {selectedIsAppLike && (
+              <>
+                {selectedAppType === "qr" && (
+                  <>
+                    <button type="button" title="Editar QR" onClick={editSelectedQr} style={topContextButtonStyle}>Editar QR</button>
+                    <button type="button" title="Descargar QR" onClick={downloadSelectedQr} style={topContextButtonStyle}>Descargar</button>
+                  </>
+                )}
+                <button type="button" title="Color" onClick={quickColorSelected} style={topContextButtonStyle}>Color</button>
+                <button type="button" title="Configurar bloque" onClick={openSelectedInspector} style={topContextButtonStyle}>Configurar</button>
+              </>
+            )}
+
+            <span style={topContextDividerStyle} />
+            <button type="button" title="Animar" disabled style={topContextDisabledButtonStyle}>Animar</button>
+            <button type="button" title="Posicion y tamano" onClick={openSelectedInspector} style={topContextButtonStyle}>Posicion</button>
+            <button type="button" title="Traer adelante" onClick={bringToFront} style={topContextButtonStyle}>Arriba</button>
+            <button type="button" title="Enviar atras" onClick={sendToBack} style={topContextButtonStyle}>Atras</button>
+            <button type="button" title="Duplicar" onClick={duplicateElement} style={topContextButtonStyle}>Duplicar</button>
+            <button type="button" title={selected.locked ? "Desbloquear" : "Bloquear"} onClick={() => toggleLayerLocked(selected.id)} style={topContextButtonStyle}>
+              {selected.locked ? "Desbloquear" : "Bloquear"}
+            </button>
+          </div>
+        )}
 
         <div
           onMouseEnter={() => setSidebarHovered(true)}

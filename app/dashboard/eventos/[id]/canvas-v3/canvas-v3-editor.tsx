@@ -2831,6 +2831,7 @@ export function CanvasEditorV3({
   const [selectionBox, setSelectionBox] = useState<SelectionBox | null>(null);
   const [multiToolbarMenuOpen, setMultiToolbarMenuOpen] = useState(false);
   const [elementContextMenu, setElementContextMenu] = useState<ElementContextMenuState | null>(null);
+  const [topToolbarPopover, setTopToolbarPopover] = useState<"color" | "font" | null>(null);
 
   const canvasRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -2876,6 +2877,10 @@ export function CanvasEditorV3({
   useEffect(() => {
     if (preview) setElementContextMenu(null);
   }, [preview]);
+
+  useEffect(() => {
+    if (!selectedId || preview) setTopToolbarPopover(null);
+  }, [preview, selectedId]);
 
   useEffect(() => {
     if (!elementContextMenu) return;
@@ -4333,20 +4338,46 @@ export function CanvasEditorV3({
   const selectedIsTextLike = Boolean(selected && (selected.type === "text" || (selected.content && selected.type !== "app")));
   const selectedIsShapeLike = Boolean(selected && (selected.type === "shape" || selected.type === "decoration"));
   const selectedIsAppLike = Boolean(selected && selected.type === "app");
+  const topToolbarColors = ["#fff7ef", "#1f1720", "#b8925a", "#c87583", "#7c3aed", "#25d366", "#0f172a", "#ffffff"];
+  const topToolbarFonts = [
+    { label: "Playfair", value: "'Playfair Display', Georgia, serif" },
+    { label: "Cormorant", value: "'Cormorant Garamond', Georgia, serif" },
+    { label: "Inter", value: "Inter, system-ui, sans-serif" },
+    { label: "Georgia", value: "Georgia, serif" },
+  ];
+  const applyTopToolbarColor = (color: string) => {
+    if (!selected) return;
+    if (selectedIsTextLike) {
+      patchElement(selected.id, { color });
+    } else if (selectedIsAppLike) {
+      patchElement(selected.id, {
+        background: color,
+        config: { ...(selected.config ?? {}), primaryColor: color },
+      });
+    } else {
+      patchElement(selected.id, { background: color });
+    }
+    setTopToolbarPopover(null);
+  };
+  const applyTopToolbarFont = (fontFamily: string) => {
+    if (!selected || !selectedIsTextLike) return;
+    patchElement(selected.id, { fontFamily });
+    setTopToolbarPopover(null);
+  };
   const topContextButtonStyle: React.CSSProperties = {
-    height: 28,
-    minWidth: 30,
+    height: 26,
+    minWidth: 28,
     border: "1px solid rgba(184,146,90,0.12)",
-    borderRadius: 10,
+    borderRadius: 9,
     background: "rgba(255,252,247,0.54)",
     color: "#4b2735",
     cursor: "pointer",
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
-    gap: 5,
-    padding: "0 9px",
-    fontSize: 11,
+    gap: 4,
+    padding: "0 7px",
+    fontSize: 10,
     fontWeight: 800,
     fontFamily: "Inter, system-ui, sans-serif",
     boxShadow: "inset 0 1px 0 rgba(255,255,255,0.28)",
@@ -4359,9 +4390,32 @@ export function CanvasEditorV3({
   };
   const topContextDividerStyle: React.CSSProperties = {
     width: 1,
-    height: 18,
+    height: 16,
     background: "rgba(184,146,90,0.16)",
     flexShrink: 0,
+  };
+  const topContextGroupStyle: React.CSSProperties = {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 3,
+    padding: 2,
+    borderRadius: 12,
+    background: "rgba(255,255,255,0.18)",
+    flexShrink: 0,
+  };
+  const topContextPopoverStyle: React.CSSProperties = {
+    position: "absolute",
+    top: 38,
+    left: "50%",
+    transform: "translateX(-50%)",
+    zIndex: 2,
+    minWidth: 164,
+    padding: 6,
+    borderRadius: 14,
+    background: "rgba(255,252,247,0.94)",
+    border: "1px solid rgba(184,146,90,0.18)",
+    boxShadow: "0 18px 42px rgba(38,24,30,0.18)",
+    backdropFilter: "blur(10px)",
   };
 
   return (
@@ -4520,82 +4574,145 @@ export function CanvasEditorV3({
               left: "50%",
               transform: "translateX(-50%)",
               zIndex: 48,
-              maxWidth: "min(820px, calc(100vw - 112px))",
+              maxWidth: "min(760px, calc(100vw - 112px))",
               display: "flex",
               alignItems: "center",
-              gap: 6,
-              padding: 5,
-              borderRadius: 16,
+              justifyContent: "center",
+              flexWrap: "wrap",
+              gap: 4,
+              padding: 4,
+              borderRadius: 15,
               background: "linear-gradient(180deg,rgba(255,252,247,0.76),rgba(255,244,232,0.54))",
               border: "1px solid rgba(184,146,90,0.14)",
               boxShadow: "0 16px 40px rgba(38,24,30,0.14), inset 0 1px 0 rgba(255,255,255,0.44)",
               backdropFilter: "blur(10px)",
-              overflowX: "auto",
+              overflow: "visible",
               fontFamily: "Inter, system-ui, sans-serif",
               animation: "kaisTopContextIn 140ms ease-out",
             }}
           >
             <style>{`@keyframes kaisTopContextIn{from{opacity:0;transform:translateX(-50%) translateY(-4px) scale(.985)}to{opacity:1;transform:translateX(-50%) translateY(0) scale(1)}}`}</style>
-            <span style={{ color: "#8a6f61", fontSize: 10, fontWeight: 900, letterSpacing: "0.08em", textTransform: "uppercase", padding: "0 7px", whiteSpace: "nowrap" }}>
+            <span style={{ color: "#8a6f61", fontSize: 9, fontWeight: 900, letterSpacing: "0.08em", textTransform: "uppercase", padding: "0 5px", whiteSpace: "nowrap" }}>
               {selectedIsTextLike ? "Texto" : selectedIsAppLike ? "App" : selectedLooksLikeImage ? "Imagen" : "Elemento"}
             </span>
 
             {selectedIsTextLike && (
-              <>
-                <button type="button" title="Fuente" onClick={openSelectedInspector} style={topContextButtonStyle}>Fuente</button>
+              <span style={topContextGroupStyle}>
+                <button type="button" title="Fuente" onClick={() => setTopToolbarPopover(topToolbarPopover === "font" ? null : "font")} style={topContextButtonStyle}>Aa</button>
                 <button type="button" title="Reducir tamano" onClick={() => patchElement(selected.id, { fontSize: Math.max(8, (selected.fontSize ?? 14) - 1) })} style={topContextButtonStyle}>-</button>
                 <span style={{ minWidth: 24, textAlign: "center", fontSize: 11, color: "#4b2735", fontWeight: 850 }}>{selected.fontSize ?? 14}</span>
                 <button type="button" title="Aumentar tamano" onClick={() => patchElement(selected.id, { fontSize: Math.min(140, (selected.fontSize ?? 14) + 1) })} style={topContextButtonStyle}>+</button>
-                <button type="button" title="Color" onClick={quickColorSelected} style={topContextButtonStyle}>Color</button>
+                <button type="button" title="Color" onClick={() => setTopToolbarPopover(topToolbarPopover === "color" ? null : "color")} style={topContextButtonStyle}>●</button>
                 <button type="button" title="Negrita" onClick={() => patchElement(selected.id, { fontWeight: selected.fontWeight === "700" || selected.fontWeight === "800" ? "400" : "700" })} style={{ ...topContextButtonStyle, background: selected.fontWeight === "700" || selected.fontWeight === "800" ? "rgba(184,146,90,0.22)" : topContextButtonStyle.background }}>B</button>
                 <button type="button" title="Italic" onClick={() => patchElement(selected.id, { fontStyle: selected.fontStyle === "italic" ? "normal" : "italic" })} style={{ ...topContextButtonStyle, fontStyle: "italic", background: selected.fontStyle === "italic" ? "rgba(184,146,90,0.22)" : topContextButtonStyle.background }}>I</button>
                 <button type="button" title="Subrayado disponible desde propiedades" disabled style={topContextDisabledButtonStyle}>U</button>
+              </span>
+            )}
+
+            {selectedIsTextLike && (
+              <span style={topContextGroupStyle}>
                 <button type="button" title="Alinear izquierda" onClick={() => patchElement(selected.id, { textAlign: "left" })} style={topContextButtonStyle}>Izq</button>
                 <button type="button" title="Centrar" onClick={() => patchElement(selected.id, { textAlign: "center" })} style={topContextButtonStyle}>Cen</button>
                 <button type="button" title="Alinear derecha" onClick={() => patchElement(selected.id, { textAlign: "right" })} style={topContextButtonStyle}>Der</button>
-                <button type="button" title="Espaciado" onClick={openSelectedInspector} style={topContextButtonStyle}>Espaciado</button>
-                <button type="button" title="Efectos" onClick={openSelectedInspector} style={topContextButtonStyle}>Efectos</button>
-              </>
+                <button type="button" title="Espaciado" onClick={openSelectedInspector} style={topContextButtonStyle}>Esp</button>
+                <button type="button" title="Efectos" onClick={openSelectedInspector} style={topContextButtonStyle}>Fx</button>
+              </span>
             )}
 
             {(selectedIsShapeLike || selectedLooksLikeImage) && (
               <>
-                <button type="button" title="Color o relleno" onClick={quickColorSelected} style={topContextButtonStyle}>Relleno</button>
+              <span style={topContextGroupStyle}>
+                <button type="button" title="Color o relleno" onClick={() => setTopToolbarPopover(topToolbarPopover === "color" ? null : "color")} style={topContextButtonStyle}>●</button>
                 <button type="button" title="Menos opacidad" onClick={() => patchElement(selected.id, { opacity: Math.max(0.1, Math.round(((selected.opacity ?? 1) - 0.1) * 10) / 10) })} style={topContextButtonStyle}>Op-</button>
                 <button type="button" title="Mas opacidad" onClick={() => patchElement(selected.id, { opacity: Math.min(1, Math.round(((selected.opacity ?? 1) + 0.1) * 10) / 10) })} style={topContextButtonStyle}>Op+</button>
-                <button type="button" title="Borde y contorno" onClick={openSelectedInspector} style={topContextButtonStyle}>Borde</button>
-                <button type="button" title="Sombra y efectos" onClick={openSelectedInspector} style={topContextButtonStyle}>Efectos</button>
+                <button type="button" title="Borde y contorno" onClick={openSelectedInspector} style={topContextButtonStyle}>Bd</button>
+                <button type="button" title="Sombra y efectos" onClick={openSelectedInspector} style={topContextButtonStyle}>Fx</button>
+              </span>
                 {selectedLooksLikeImage && (
-                  <>
-                    <button type="button" title="Reemplazar imagen" onClick={replaceSelectedImage} style={topContextButtonStyle}>Reemplazar</button>
-                    <button type="button" title="Recortar" onClick={cropSelectedImage} style={topContextButtonStyle}>Recorte</button>
-                  </>
+                  <span style={topContextGroupStyle}>
+                    <button type="button" title="Reemplazar imagen" onClick={replaceSelectedImage} style={topContextButtonStyle}>Img</button>
+                    <button type="button" title="Recortar" onClick={cropSelectedImage} style={topContextButtonStyle}>Crop</button>
+                  </span>
                 )}
               </>
             )}
 
             {selectedIsAppLike && (
-              <>
+              <span style={topContextGroupStyle}>
                 {selectedAppType === "qr" && (
                   <>
-                    <button type="button" title="Editar QR" onClick={editSelectedQr} style={topContextButtonStyle}>Editar QR</button>
-                    <button type="button" title="Descargar QR" onClick={downloadSelectedQr} style={topContextButtonStyle}>Descargar</button>
+                    <button type="button" title="Editar QR" onClick={editSelectedQr} style={topContextButtonStyle}>QR</button>
+                    <button type="button" title="Descargar QR" onClick={downloadSelectedQr} style={topContextButtonStyle}>↓</button>
                   </>
                 )}
-                <button type="button" title="Color" onClick={quickColorSelected} style={topContextButtonStyle}>Color</button>
-                <button type="button" title="Configurar bloque" onClick={openSelectedInspector} style={topContextButtonStyle}>Configurar</button>
-              </>
+                <button type="button" title="Color" onClick={() => setTopToolbarPopover(topToolbarPopover === "color" ? null : "color")} style={topContextButtonStyle}>●</button>
+                <button type="button" title="Configurar bloque" onClick={openSelectedInspector} style={topContextButtonStyle}>Cfg</button>
+              </span>
             )}
 
             <span style={topContextDividerStyle} />
-            <button type="button" title="Animar" disabled style={topContextDisabledButtonStyle}>Animar</button>
-            <button type="button" title="Posicion y tamano" onClick={openSelectedInspector} style={topContextButtonStyle}>Posicion</button>
-            <button type="button" title="Traer adelante" onClick={bringToFront} style={topContextButtonStyle}>Arriba</button>
-            <button type="button" title="Enviar atras" onClick={sendToBack} style={topContextButtonStyle}>Atras</button>
-            <button type="button" title="Duplicar" onClick={duplicateElement} style={topContextButtonStyle}>Duplicar</button>
+            <span style={topContextGroupStyle}>
+            <button type="button" title="Animar" disabled style={topContextDisabledButtonStyle}>Ani</button>
+            <button type="button" title="Posicion y tamano" onClick={openSelectedInspector} style={topContextButtonStyle}>Pos</button>
+            <button type="button" title="Traer adelante" onClick={bringToFront} style={topContextButtonStyle}>↑</button>
+            <button type="button" title="Enviar atras" onClick={sendToBack} style={topContextButtonStyle}>↓</button>
+            <button type="button" title="Duplicar" onClick={duplicateElement} style={topContextButtonStyle}>⧉</button>
             <button type="button" title={selected.locked ? "Desbloquear" : "Bloquear"} onClick={() => toggleLayerLocked(selected.id)} style={topContextButtonStyle}>
-              {selected.locked ? "Desbloquear" : "Bloquear"}
+              {selected.locked ? "🔒" : "🔓"}
             </button>
+            </span>
+
+            {topToolbarPopover === "color" && (
+              <div style={topContextPopoverStyle}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 28px)", gap: 6, justifyContent: "center" }}>
+                  {topToolbarColors.map((color) => (
+                    <button
+                      key={color}
+                      type="button"
+                      title={color}
+                      onClick={() => applyTopToolbarColor(color)}
+                      style={{
+                        width: 28,
+                        height: 28,
+                        borderRadius: 999,
+                        border: "1px solid rgba(75,39,53,0.16)",
+                        background: color,
+                        cursor: "pointer",
+                        boxShadow: "inset 0 0 0 2px rgba(255,255,255,0.36), 0 6px 14px rgba(38,24,30,0.10)",
+                      }}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {topToolbarPopover === "font" && selectedIsTextLike && (
+              <div style={topContextPopoverStyle}>
+                <div style={{ display: "grid", gap: 4 }}>
+                  {topToolbarFonts.map((font) => (
+                    <button
+                      key={font.value}
+                      type="button"
+                      onClick={() => applyTopToolbarFont(font.value)}
+                      style={{
+                        height: 28,
+                        border: "none",
+                        borderRadius: 9,
+                        background: selected.fontFamily === font.value ? "rgba(184,146,90,0.16)" : "transparent",
+                        color: "#4b2735",
+                        cursor: "pointer",
+                        textAlign: "left",
+                        padding: "0 9px",
+                        fontFamily: font.value,
+                        fontSize: 14,
+                      }}
+                    >
+                      {font.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 

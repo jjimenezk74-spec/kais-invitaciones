@@ -176,19 +176,20 @@ function buildDecorationBackground(el: Pick<V3Element, "background" | "config">)
   const d14 = colorWithAlpha("#000000", darkness * 0.14, "rgba(0,0,0,0)");
   const darkOverlay = darkness > 0 ? `linear-gradient(180deg,${d28},${d14}),` : "";
   const blendHaze = blend ? `radial-gradient(118% 92% at 18% 28%,${c04} 0%,transparent 84%),radial-gradient(96% 108% at 82% 64%,${a06} 0%,transparent 88%),` : "";
+  const texture = "repeating-linear-gradient(180deg,rgba(255,255,255,0.018) 0 1px,transparent 1px 3px)";
 
-  if (effect === "soft-card") return `${darkOverlay}${blendHaze}radial-gradient(132% 86% at 14% -6%,${a72},transparent ${blend ? 76 : 62}%),radial-gradient(116% 94% at 94% 108%,${c14},transparent ${blend ? 88 : 72}%),radial-gradient(82% 56% at 64% 22%,${c06},transparent 82%),linear-gradient(145deg,rgba(255,252,247,${0.32 * intensity * (blend ? 0.42 : 1) * (1 - darkness * 0.35)}),${c04})`;
-  if (effect === "glow-circle") return `${darkOverlay}${blendHaze}radial-gradient(112% 82% at 27% 19%,${a72} 0%,${c22} ${blend ? 18 : 26}%,transparent ${blend ? 82 : 66}%),radial-gradient(86% 116% at 72% 68%,${c18} 0%,transparent ${blend ? 92 : 76}%),radial-gradient(74% 54% at 43% 82%,${c10} 0%,transparent 86%),radial-gradient(126% 104% at 88% 16%,${a06} 0%,transparent 94%)`;
-  if (effect === "rose-soft") return `${darkOverlay}${blendHaze}radial-gradient(68% 48% at 41% 32%,${a72} 0 ${blend ? 3 : 5}%,transparent ${blend ? 20 : 15}%),conic-gradient(from 23deg at 47% 53%,${c06},${c32},transparent 24%,${c18},${c04},transparent 72%,${c22}),radial-gradient(96% 78% at 32% 28%,${c18},transparent ${blend ? 78 : 62}%),radial-gradient(72% 108% at 68% 76%,${c14},transparent ${blend ? 88 : 72}%)`;
-  if (effect === "spark") return `${darkOverlay}${blendHaze}linear-gradient(93deg,transparent 44%,${a72} 49%,${a72} 51%,transparent 57%),linear-gradient(-8deg,transparent 43%,${c66} 49%,${c66} 51%,transparent 58%),radial-gradient(86% 72% at 43% 48%,${c44} 0%,${c14} 30%,transparent ${blend ? 90 : 76}%),radial-gradient(126% 96% at 76% 22%,${a06},transparent 88%)`;
-  if (effect === "soft-glow") return `${darkOverlay}${blendHaze}radial-gradient(132% 74% at 38% 42%,${c18} 0%,${c10} ${blend ? 22 : 30}%,transparent ${blend ? 90 : 76}%),radial-gradient(78% 94% at 22% 21%,${a72} 0%,transparent ${blend ? 64 : 48}%),radial-gradient(104% 84% at 81% 73%,${c10} 0%,transparent ${blend ? 86 : 70}%),radial-gradient(70% 42% at 58% 12%,${c06},transparent 80%)`;
+  if (effect === "soft-card") return `${darkOverlay}${blendHaze}radial-gradient(110% 72% at 78% 92%,${a10} 0%,transparent 70%),radial-gradient(92% 64% at 42% 18%,rgba(255,255,255,${0.055 * intensity}) 0%,transparent 58%),linear-gradient(180deg,rgba(34,36,42,${0.62 * intensity}),rgba(8,12,27,${0.92 - darkness * 0.12})),${texture}`;
+  if (effect === "glow-circle") return `${darkOverlay}${blendHaze}radial-gradient(36% 28% at 30% 23%,${a72} 0%,rgba(255,255,255,${0.20 * intensity}) 18%,transparent 38%),radial-gradient(84% 84% at 48% 48%,rgba(255,255,255,${0.045 * intensity}) 0%,transparent 48%),radial-gradient(116% 116% at 50% 50%,${c22} 0%,rgba(31,32,37,${0.78 + darkness * 0.14}) 58%,rgba(5,8,18,0.96) 100%),${texture}`;
+  if (effect === "rose-soft") return `${darkOverlay}${blendHaze}radial-gradient(18% 12% at 45% 25%,${a72} 0%,rgba(255,255,255,${0.18 * intensity}) 34%,transparent 58%),conic-gradient(from 18deg at 50% 50%,rgba(17,18,30,0.94),${c22},rgba(96,55,94,${0.42 * intensity}),rgba(18,18,31,0.86),${c14},rgba(9,11,21,0.96)),radial-gradient(112% 112% at 50% 50%,transparent 42%,rgba(0,0,0,${0.40 + darkness * 0.18}) 100%),${texture}`;
+  if (effect === "spark") return `${darkOverlay}${blendHaze}linear-gradient(86deg,transparent 0 42%,rgba(255,255,255,${0.52 * intensity}) 48%,rgba(255,255,255,${0.18 * intensity}) 52%,transparent 59%),linear-gradient(82deg,transparent 0 36%,${c50} 47%,${c18} 55%,transparent 68%),radial-gradient(96% 96% at 50% 50%,rgba(255,255,255,${0.055 * intensity}) 0%,rgba(13,16,25,0.84) 58%,rgba(3,6,15,0.97) 100%),${texture}`;
+  if (effect === "soft-glow") return `${darkOverlay}${blendHaze}radial-gradient(44% 58% at 28% 25%,${a72} 0%,rgba(255,255,255,${0.18 * intensity}) 22%,transparent 46%),radial-gradient(94% 112% at 50% 52%,${c18} 0%,rgba(23,27,37,0.76) 54%,rgba(4,8,18,0.96) 100%),radial-gradient(82% 104% at 76% 72%,${a06} 0%,transparent 78%),${texture}`;
   if (effect === "editorial-line") return `${darkOverlay}${blendHaze}linear-gradient(90deg,transparent 0%,${c18} 18%,${c66} 50%,${c18} 82%,transparent 100%),linear-gradient(180deg,transparent 0 36%,${a72} 44%,${c90} 50%,${a72} 56%,transparent 64% 100%)`;
   if (effect === "dots") return `${darkOverlay}${blendHaze}radial-gradient(circle at 14% 50%,${c44} 0 4px,transparent ${blend ? 9 : 6}px),radial-gradient(circle at 38% 50%,${c66} 0 5px,transparent ${blend ? 10 : 7}px),radial-gradient(circle at 62% 50%,${c66} 0 5px,transparent ${blend ? 10 : 7}px),radial-gradient(circle at 86% 50%,${c44} 0 4px,transparent ${blend ? 9 : 6}px),radial-gradient(ellipse at 50% 50%,${c10},transparent ${blend ? 88 : 72}%)`;
-  if (effect === "ambient-glow") return `${darkOverlay}${blendHaze}radial-gradient(118% 74% at 24% 22%,${c22} 0%,${c10} ${blend ? 20 : 30}%,transparent ${blend ? 88 : 72}%),radial-gradient(88% 118% at 76% 67%,${a22} 0%,${a10} ${blend ? 24 : 34}%,transparent ${blend ? 94 : 80}%),radial-gradient(74% 52% at 48% 78%,${c06} 0%,transparent 90%),radial-gradient(128% 96% at 92% 10%,${a06} 0%,transparent 96%)`;
-  if (effect === "cinematic-haze") return `${darkOverlay}${blendHaze}radial-gradient(142% 58% at 44% -8%,${c14} 0%,transparent ${blend ? 82 : 68}%),radial-gradient(92% 64% at 18% 96%,${a10} 0%,transparent ${blend ? 86 : 72}%),radial-gradient(110% 50% at 92% 74%,${c06} 0%,transparent 82%),linear-gradient(173deg,${c04},transparent 38%,${a06})`;
-  if (effect === "gold-contamination") return `${darkOverlay}${blendHaze}radial-gradient(104% 72% at 23% 18%,${c32} 0%,${c14} ${blend ? 20 : 30}%,transparent ${blend ? 86 : 70}%),radial-gradient(76% 118% at 83% 78%,${c18} 0%,transparent ${blend ? 92 : 76}%),radial-gradient(90% 58% at 52% 46%,${a06} 0%,transparent 92%),radial-gradient(46% 34% at 72% 18%,${c10},transparent 78%)`;
-  if (effect === "blue-ambient-light") return `${darkOverlay}${blendHaze}radial-gradient(150% 118% at 50% 48%,${a22} 0%,${a16} 34%,${a06} 66%,transparent 100%),radial-gradient(92% 76% at 48% 45%,${a34} 0%,${a16} 38%,${a06} 72%,transparent 100%),radial-gradient(130% 96% at 54% 54%,${c10} 0%,transparent 92%),linear-gradient(180deg,rgba(4,8,20,${0.10 * darkness}),transparent 42%,rgba(2,5,14,${0.16 * darkness}))`;
-  if (effect === "editorial-fog") return `${darkOverlay}${blendHaze}radial-gradient(146% 70% at 12% 20%,${a10} 0%,transparent ${blend ? 82 : 66}%),radial-gradient(102% 76% at 92% 78%,${c10} 0%,transparent ${blend ? 86 : 72}%),radial-gradient(84% 42% at 52% 36%,${a06},transparent 80%),linear-gradient(111deg,transparent 0%,${c04} 38%,${a06} 61%,transparent 100%)`;
+  if (effect === "ambient-glow") return `${darkOverlay}${blendHaze}radial-gradient(86% 70% at 27% 20%,${c18} 0%,rgba(56,51,35,${0.22 * intensity}) 34%,transparent 76%),radial-gradient(72% 86% at 72% 72%,${a16} 0%,transparent 84%),radial-gradient(116% 106% at 50% 50%,rgba(13,17,28,0.78) 0%,rgba(4,8,18,0.95) 100%),${texture}`;
+  if (effect === "cinematic-haze") return `${darkOverlay}${blendHaze}radial-gradient(76% 64% at 52% 48%,${a16} 0%,${a06} 42%,transparent 78%),radial-gradient(118% 94% at 50% 52%,rgba(15,29,74,${0.36 * intensity}) 0%,rgba(8,13,31,0.72) 70%,rgba(3,6,15,0.92) 100%),${texture}`;
+  if (effect === "gold-contamination") return `${darkOverlay}${blendHaze}radial-gradient(74% 58% at 28% 20%,${c22} 0%,rgba(70,61,35,${0.20 * intensity}) 38%,transparent 78%),radial-gradient(92% 96% at 50% 50%,rgba(25,24,22,0.78) 0%,rgba(6,9,18,0.96) 100%),radial-gradient(58% 44% at 72% 70%,${a06} 0%,transparent 82%),${texture}`;
+  if (effect === "blue-ambient-light") return `${darkOverlay}${blendHaze}radial-gradient(82% 76% at 58% 55%,${a22} 0%,${a16} 38%,${a06} 68%,transparent 100%),radial-gradient(108% 104% at 50% 50%,rgba(18,26,57,${0.72 * intensity}) 0%,rgba(7,11,25,0.92) 72%,rgba(3,6,16,0.98) 100%),${texture}`;
+  if (effect === "editorial-fog") return `${darkOverlay}${blendHaze}radial-gradient(110% 78% at 54% 72%,${a10} 0%,transparent 74%),radial-gradient(92% 72% at 22% 18%,rgba(255,255,255,${0.035 * intensity}) 0%,transparent 60%),linear-gradient(180deg,rgba(30,33,39,0.58),rgba(8,13,29,0.90)),${texture}`;
   return el.background;
 }
 
@@ -510,7 +511,7 @@ function PublicElement({
         style={{
           ...boxStyle,
           background: visualBackground,
-          mixBlendMode: getDecorationBlendMode(el.config?.effect),
+          mixBlendMode: blendDecoration ? getDecorationBlendMode(el.config?.effect) : undefined,
           opacity: blendDecoration ? 0.92 : undefined,
           backdropFilter: el.blur ? `blur(${el.blur}px)` : undefined,
         }}
@@ -529,7 +530,7 @@ function PublicElement({
               inset: 0,
               background: visualBackground,
               borderRadius: el.borderRadius,
-              mixBlendMode: getDecorationBlendMode(el.config?.effect),
+              mixBlendMode: blendDecoration ? getDecorationBlendMode(el.config?.effect) : undefined,
               opacity: blendDecoration ? 0.92 : undefined,
               backdropFilter: el.blur ? `blur(${el.blur}px)` : undefined,
             }}

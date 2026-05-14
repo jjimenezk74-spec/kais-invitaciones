@@ -546,11 +546,11 @@ function buildDecorationBackground(el: Pick<V3Element, "background" | "config">)
   if (effect === "soft-glow") return `${darkOverlay}${blendHaze}radial-gradient(44% 58% at 28% 25%,${a72} 0%,rgba(255,255,255,${0.18 * intensity}) 22%,transparent 46%),radial-gradient(94% 112% at 50% 52%,${c18} 0%,rgba(23,27,37,0.76) 54%,rgba(4,8,18,0.96) 100%),radial-gradient(82% 104% at 76% 72%,${a06} 0%,transparent 78%),${texture}`;
   if (effect === "editorial-line") return `${darkOverlay}${blendHaze}linear-gradient(90deg,transparent 0%,${c18} 18%,${c66} 50%,${c18} 82%,transparent 100%),linear-gradient(180deg,transparent 0 36%,${a72} 44%,${c90} 50%,${a72} 56%,transparent 64% 100%)`;
   if (effect === "dots") return `${darkOverlay}${blendHaze}radial-gradient(circle at 14% 50%,${c44} 0 4px,transparent ${blend ? 9 : 6}px),radial-gradient(circle at 38% 50%,${c66} 0 5px,transparent ${blend ? 10 : 7}px),radial-gradient(circle at 62% 50%,${c66} 0 5px,transparent ${blend ? 10 : 7}px),radial-gradient(circle at 86% 50%,${c44} 0 4px,transparent ${blend ? 9 : 6}px),radial-gradient(ellipse at 50% 50%,${c10},transparent ${blend ? 88 : 72}%)`;
-  if (effect === "ambient-glow") return `${darkOverlay}${blendHaze}radial-gradient(86% 70% at 27% 20%,${c18} 0%,rgba(56,51,35,${0.22 * intensity}) 34%,transparent 76%),radial-gradient(72% 86% at 72% 72%,${a16} 0%,transparent 84%),radial-gradient(116% 106% at 50% 50%,rgba(13,17,28,0.78) 0%,rgba(4,8,18,0.95) 100%),${texture}`;
-  if (effect === "cinematic-haze") return `${darkOverlay}${blendHaze}radial-gradient(76% 64% at 52% 48%,${a16} 0%,${a06} 42%,transparent 78%),radial-gradient(118% 94% at 50% 52%,rgba(15,29,74,${0.36 * intensity}) 0%,rgba(8,13,31,0.72) 70%,rgba(3,6,15,0.92) 100%),${texture}`;
-  if (effect === "gold-contamination") return `${darkOverlay}${blendHaze}radial-gradient(74% 58% at 28% 20%,${c22} 0%,rgba(70,61,35,${0.20 * intensity}) 38%,transparent 78%),radial-gradient(92% 96% at 50% 50%,rgba(25,24,22,0.78) 0%,rgba(6,9,18,0.96) 100%),radial-gradient(58% 44% at 72% 70%,${a06} 0%,transparent 82%),${texture}`;
-  if (effect === "blue-ambient-light") return `${darkOverlay}${blendHaze}radial-gradient(82% 76% at 58% 55%,${a22} 0%,${a16} 38%,${a06} 68%,transparent 100%),radial-gradient(108% 104% at 50% 50%,rgba(18,26,57,${0.72 * intensity}) 0%,rgba(7,11,25,0.92) 72%,rgba(3,6,16,0.98) 100%),${texture}`;
-  if (effect === "editorial-fog") return `${darkOverlay}${blendHaze}radial-gradient(110% 78% at 54% 72%,${a10} 0%,transparent 74%),radial-gradient(92% 72% at 22% 18%,rgba(255,255,255,${0.035 * intensity}) 0%,transparent 60%),linear-gradient(180deg,rgba(30,33,39,0.58),rgba(8,13,29,0.90)),${texture}`;
+  if (effect === "ambient-glow") return `radial-gradient(70% 62% at 42% 46%,${c18} 0%,${c10} 24%,transparent 58%),radial-gradient(92% 82% at 58% 52%,${a10} 0%,transparent 70%),radial-gradient(118% 112% at 50% 50%,rgba(13,17,28,${0.18 * intensity}) 0%,transparent 82%)`;
+  if (effect === "cinematic-haze") return `radial-gradient(76% 64% at 52% 48%,${a16} 0%,${a06} 42%,transparent 78%),radial-gradient(112% 96% at 48% 52%,rgba(15,29,74,${0.28 * intensity}) 0%,rgba(8,13,31,${0.12 * intensity}) 58%,transparent 86%)`;
+  if (effect === "gold-contamination") return `radial-gradient(74% 58% at 34% 28%,${c22} 0%,${c10} 34%,transparent 76%),radial-gradient(96% 82% at 50% 50%,rgba(99,82,33,${0.10 * intensity}) 0%,transparent 82%),radial-gradient(58% 44% at 72% 70%,${a06} 0%,transparent 84%)`;
+  if (effect === "blue-ambient-light") return `radial-gradient(62% 58% at 44% 46%,rgba(185,156,77,${0.10 * intensity}) 0%,rgba(185,156,77,${0.055 * intensity}) 28%,transparent 58%),radial-gradient(86% 78% at 56% 52%,${a22} 0%,${a16} 38%,${a06} 66%,transparent 88%),radial-gradient(122% 104% at 50% 50%,rgba(28,41,92,${0.24 * intensity}) 0%,rgba(19,28,67,${0.14 * intensity}) 48%,transparent 82%)`;
+  if (effect === "editorial-fog") return `radial-gradient(110% 78% at 54% 72%,${a10} 0%,transparent 72%),radial-gradient(92% 72% at 22% 18%,rgba(255,255,255,${0.028 * intensity}) 0%,transparent 62%),radial-gradient(120% 90% at 52% 50%,rgba(10,15,31,${0.16 * intensity}) 0%,transparent 84%)`;
   return el.background;
 }
 
@@ -3686,48 +3686,48 @@ export function CanvasEditorV3({
       }],
       "ambient-glow": [{
         id: `deco-ambient-glow-${stamp}`, type: "decoration",
-        x: cx(180), y: sectionY + 68, width: 180, height: 166,
+        x: cx(380), y: sectionY - 10, width: 380, height: 420,
         locked: false, visible: true, zIndex: 0,
-        background: "radial-gradient(86% 70% at 27% 20%,rgba(212,175,55,0.18) 0%,rgba(56,51,35,0.22) 34%,transparent 76%),radial-gradient(116% 106% at 50% 50%,rgba(13,17,28,0.78) 0%,rgba(4,8,18,0.95) 100%)",
-        config: { effect: "ambient-glow", color: "#8a7a42", accentColor: "#111827", intensity: 0.9, darkness: 0.32, blendWithBackground: false },
+        background: "radial-gradient(70% 62% at 42% 46%,rgba(138,122,66,0.16) 0%,rgba(138,122,66,0.09) 24%,transparent 58%),radial-gradient(92% 82% at 58% 52%,rgba(37,99,235,0.09) 0%,transparent 70%)",
+        config: { effect: "ambient-glow", color: "#8a7a42", accentColor: "#2563eb", intensity: 0.82, darkness: 0, blendWithBackground: true },
         border: undefined,
-        borderRadius: 999, opacity: 0.90, blur: 0,
+        borderRadius: 0, opacity: 0.92, blur: 0,
       }],
       "cinematic-haze": [{
         id: `deco-cinematic-haze-${stamp}`, type: "decoration",
-        x: cx(176), y: sectionY + 70, width: 176, height: 176,
+        x: cx(390), y: sectionY - 12, width: 390, height: 460,
         locked: false, visible: true, zIndex: 0,
-        background: "radial-gradient(76% 64% at 52% 48%,rgba(37,99,235,0.16) 0%,rgba(37,99,235,0.06) 42%,transparent 78%),radial-gradient(118% 94% at 50% 52%,rgba(15,29,74,0.36) 0%,rgba(8,13,31,0.72) 70%,rgba(3,6,15,0.92) 100%)",
-        config: { effect: "cinematic-haze", color: "#0f1d4a", accentColor: "#2563eb", intensity: 0.88, darkness: 0.18, blendWithBackground: false },
+        background: "radial-gradient(76% 64% at 52% 48%,rgba(37,99,235,0.14) 0%,rgba(37,99,235,0.05) 42%,transparent 78%),radial-gradient(112% 96% at 48% 52%,rgba(15,29,74,0.22) 0%,rgba(8,13,31,0.10) 58%,transparent 86%)",
+        config: { effect: "cinematic-haze", color: "#0f1d4a", accentColor: "#2563eb", intensity: 0.8, darkness: 0, blendWithBackground: true },
         border: undefined,
         borderRadius: 0, opacity: 0.86, blur: 0,
       }],
       "gold-contamination": [{
         id: `deco-gold-contamination-${stamp}`, type: "decoration",
-        x: cx(180), y: sectionY + 68, width: 180, height: 166,
+        x: cx(380), y: sectionY - 8, width: 380, height: 420,
         locked: false, visible: true, zIndex: 0,
-        background: "radial-gradient(74% 58% at 28% 20%,rgba(212,175,55,0.22) 0%,rgba(70,61,35,0.20) 38%,transparent 78%),radial-gradient(92% 96% at 50% 50%,rgba(25,24,22,0.78) 0%,rgba(6,9,18,0.96) 100%)",
-        config: { effect: "gold-contamination", color: "#d4af37", accentColor: "#fff4c6", intensity: 0.9, darkness: 0.35, blendWithBackground: false },
+        background: "radial-gradient(74% 58% at 34% 28%,rgba(212,175,55,0.18) 0%,rgba(212,175,55,0.08) 34%,transparent 76%),radial-gradient(96% 82% at 50% 50%,rgba(99,82,33,0.08) 0%,transparent 82%)",
+        config: { effect: "gold-contamination", color: "#d4af37", accentColor: "#fff4c6", intensity: 0.82, darkness: 0, blendWithBackground: true },
         border: undefined,
-        borderRadius: 999, opacity: 0.90, blur: 0,
+        borderRadius: 0, opacity: 0.92, blur: 0,
       }],
       "blue-ambient-light": [{
         id: `deco-blue-ambient-light-${stamp}`, type: "decoration",
-        x: cx(166), y: sectionY + 64, width: 166, height: 154,
+        x: cx(390), y: sectionY - 18, width: 390, height: 520,
         locked: false, visible: true, zIndex: 0,
-        background: "radial-gradient(82% 76% at 58% 55%,rgba(37,99,235,0.22) 0%,rgba(37,99,235,0.16) 38%,rgba(37,99,235,0.06) 68%,transparent 100%),radial-gradient(108% 104% at 50% 50%,rgba(18,26,57,0.72) 0%,rgba(7,11,25,0.92) 72%,rgba(3,6,16,0.98) 100%)",
-        config: { effect: "blue-ambient-light", color: "#111827", accentColor: "#2563eb", intensity: 0.92, darkness: 0.22, blendWithBackground: false },
+        background: "radial-gradient(62% 58% at 44% 46%,rgba(185,156,77,0.08) 0%,rgba(185,156,77,0.04) 28%,transparent 58%),radial-gradient(86% 78% at 56% 52%,rgba(37,99,235,0.18) 0%,rgba(37,99,235,0.11) 38%,rgba(37,99,235,0.04) 66%,transparent 88%),radial-gradient(122% 104% at 50% 50%,rgba(28,41,92,0.20) 0%,rgba(19,28,67,0.11) 48%,transparent 82%)",
+        config: { effect: "blue-ambient-light", color: "#111827", accentColor: "#2563eb", intensity: 0.86, darkness: 0, blendWithBackground: true },
         border: undefined,
-        borderRadius: 999, opacity: 0.92, blur: 0,
+        borderRadius: 0, opacity: 0.94, blur: 0,
       }],
       "editorial-fog": [{
         id: `deco-editorial-fog-${stamp}`, type: "decoration",
-        x: cx(194), y: sectionY + 78, width: 194, height: 150,
+        x: cx(390), y: sectionY - 10, width: 390, height: 430,
         locked: false, visible: true, zIndex: 0,
-        background: "radial-gradient(110% 78% at 54% 72%,rgba(37,99,235,0.10) 0%,transparent 74%),radial-gradient(92% 72% at 22% 18%,rgba(255,255,255,0.03) 0%,transparent 60%),linear-gradient(180deg,rgba(30,33,39,0.58),rgba(8,13,29,0.90))",
-        config: { effect: "editorial-fog", color: "#111827", accentColor: "#2563eb", intensity: 0.9, darkness: 0.22, blendWithBackground: false },
+        background: "radial-gradient(110% 78% at 54% 72%,rgba(37,99,235,0.08) 0%,transparent 72%),radial-gradient(92% 72% at 22% 18%,rgba(255,255,255,0.02) 0%,transparent 62%),radial-gradient(120% 90% at 52% 50%,rgba(10,15,31,0.12) 0%,transparent 84%)",
+        config: { effect: "editorial-fog", color: "#111827", accentColor: "#2563eb", intensity: 0.78, darkness: 0, blendWithBackground: true },
         border: undefined,
-        borderRadius: 34, opacity: 0.88, blur: 0,
+        borderRadius: 0, opacity: 0.90, blur: 0,
       }],
       "editorial-line": [{
         id: `deco-editorial-line-${stamp}`, type: "decoration",

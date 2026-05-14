@@ -548,7 +548,7 @@ function buildDecorationBackground(el: Pick<V3Element, "background" | "config">)
   if (effect === "ambient-glow") return `${darkOverlay}${blendHaze}radial-gradient(118% 74% at 24% 22%,${c22} 0%,${c10} ${blend ? 20 : 30}%,transparent ${blend ? 88 : 72}%),radial-gradient(88% 118% at 76% 67%,${a22} 0%,${a10} ${blend ? 24 : 34}%,transparent ${blend ? 94 : 80}%),radial-gradient(74% 52% at 48% 78%,${c06} 0%,transparent 90%),radial-gradient(128% 96% at 92% 10%,${a06} 0%,transparent 96%)`;
   if (effect === "cinematic-haze") return `${darkOverlay}${blendHaze}radial-gradient(142% 58% at 44% -8%,${c14} 0%,transparent ${blend ? 82 : 68}%),radial-gradient(92% 64% at 18% 96%,${a10} 0%,transparent ${blend ? 86 : 72}%),radial-gradient(110% 50% at 92% 74%,${c06} 0%,transparent 82%),linear-gradient(173deg,${c04},transparent 38%,${a06})`;
   if (effect === "gold-contamination") return `${darkOverlay}${blendHaze}radial-gradient(104% 72% at 23% 18%,${c32} 0%,${c14} ${blend ? 20 : 30}%,transparent ${blend ? 86 : 70}%),radial-gradient(76% 118% at 83% 78%,${c18} 0%,transparent ${blend ? 92 : 76}%),radial-gradient(90% 58% at 52% 46%,${a06} 0%,transparent 92%),radial-gradient(46% 34% at 72% 18%,${c10},transparent 78%)`;
-  if (effect === "blue-ambient-light") return `${darkOverlay}${blendHaze}radial-gradient(108% 82% at 38% 31%,${a34} 0%,${a16} ${blend ? 20 : 30}%,transparent ${blend ? 90 : 74}%),radial-gradient(80% 116% at 75% 78%,${c10} 0%,transparent ${blend ? 94 : 82}%),radial-gradient(64% 90% at 14% 84%,${a06} 0%,transparent 88%),radial-gradient(118% 42% at 90% 12%,${a10},transparent 90%)`;
+  if (effect === "blue-ambient-light") return `${darkOverlay}${blendHaze}radial-gradient(150% 118% at 50% 48%,${a22} 0%,${a16} 34%,${a06} 66%,transparent 100%),radial-gradient(92% 76% at 48% 45%,${a34} 0%,${a16} 38%,${a06} 72%,transparent 100%),radial-gradient(130% 96% at 54% 54%,${c10} 0%,transparent 92%),linear-gradient(180deg,rgba(4,8,20,${0.10 * darkness}),transparent 42%,rgba(2,5,14,${0.16 * darkness}))`;
   if (effect === "editorial-fog") return `${darkOverlay}${blendHaze}radial-gradient(146% 70% at 12% 20%,${a10} 0%,transparent ${blend ? 82 : 66}%),radial-gradient(102% 76% at 92% 78%,${c10} 0%,transparent ${blend ? 86 : 72}%),radial-gradient(84% 42% at 52% 36%,${a06},transparent 80%),linear-gradient(111deg,transparent 0%,${c04} 38%,${a06} 61%,transparent 100%)`;
   return el.background;
 }
@@ -3712,12 +3712,12 @@ export function CanvasEditorV3({
       }],
       "blue-ambient-light": [{
         id: `deco-blue-ambient-light-${stamp}`, type: "decoration",
-        x: cx(340), y: sectionY + 36, width: 340, height: 260,
+        x: cx(390), y: sectionY + 0, width: 390, height: 520,
         locked: false, visible: true, zIndex: 0,
-        background: "radial-gradient(ellipse at 42% 38%,rgba(37,99,235,0.34) 0%,rgba(37,99,235,0.16) 34%,transparent 72%),radial-gradient(ellipse at 68% 70%,rgba(212,175,55,0.10) 0%,transparent 78%),radial-gradient(ellipse at 18% 84%,rgba(37,99,235,0.06) 0%,transparent 72%)",
-        config: { effect: "blue-ambient-light", color: "#d4af37", accentColor: "#2563eb" },
+        background: "radial-gradient(150% 118% at 50% 48%,rgba(37,99,235,0.22) 0%,rgba(37,99,235,0.16) 34%,rgba(37,99,235,0.06) 66%,transparent 100%),radial-gradient(92% 76% at 48% 45%,rgba(37,99,235,0.34) 0%,rgba(37,99,235,0.16) 38%,rgba(37,99,235,0.06) 72%,transparent 100%)",
+        config: { effect: "blue-ambient-light", color: "#111827", accentColor: "#2563eb", intensity: 0.82, darkness: 0.18, blendWithBackground: true },
         border: undefined,
-        borderRadius: 999, opacity: 0.72, blur: 14,
+        borderRadius: 0, opacity: 0.88, blur: 18,
       }],
       "editorial-fog": [{
         id: `deco-editorial-fog-${stamp}`, type: "decoration",

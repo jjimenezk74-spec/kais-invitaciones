@@ -752,6 +752,21 @@ function RenderElement({
       onEditQr?.();
     }
   };
+  const isAppElement = el.type === "app";
+  const isTextElement = el.type === "text" || (Boolean(el.content) && el.type !== "app");
+  const isAtmosphericDecoration = el.type === "decoration" && blendDecoration;
+  const selectionColor = isAppElement
+    ? "rgba(96,116,255,0.72)"
+    : isTextElement
+    ? "rgba(184,146,90,0.78)"
+    : isAtmosphericDecoration
+    ? "rgba(255,255,255,0.22)"
+    : "rgba(184,146,90,0.58)";
+  const hoverColor = isAppElement
+    ? "rgba(96,116,255,0.30)"
+    : isAtmosphericDecoration
+    ? "rgba(255,255,255,0.12)"
+    : "rgba(184,146,90,0.28)";
 
   // ── Outer positioning div ─────────────────────────────────────────────────
   // Always overflow: visible so resize handles (-4px) and toolbar (-32px) show.
@@ -769,14 +784,25 @@ function RenderElement({
     overflow: "visible",
     // selection / hover ring — stays on outer so it's always fully visible
     outline: selected
-      ? "1.5px solid #b8925a"
+      ? `${isAtmosphericDecoration ? 1 : 1.2}px solid ${selectionColor}`
       : isHovered
-      ? "1px solid rgba(184,146,90,0.46)"
+      ? `1px solid ${hoverColor}`
       : undefined,
-    outlineOffset: "2px",
+    outlineOffset: isAtmosphericDecoration ? "7px" : "3px",
     boxShadow: highlighted && !selected
-      ? "inset 0 0 0 1px rgba(184,146,90,0.72), 0 0 0 3px rgba(184,146,90,0.12)"
+      ? "0 0 0 1px rgba(184,146,90,0.42), 0 0 0 5px rgba(184,146,90,0.08)"
+      : selected
+      ? isAppElement
+        ? "0 0 0 4px rgba(96,116,255,0.08), 0 10px 26px rgba(8,12,28,0.12)"
+        : isAtmosphericDecoration
+        ? "0 0 0 10px rgba(255,255,255,0.025), 0 0 32px rgba(255,255,255,0.055)"
+        : "0 0 0 4px rgba(184,146,90,0.075), 0 8px 22px rgba(45,28,18,0.10)"
+      : isHovered
+      ? isAtmosphericDecoration
+        ? "0 0 24px rgba(255,255,255,0.045)"
+        : "0 8px 18px rgba(42,28,18,0.055)"
       : undefined,
+    transition: "outline-color 0.16s ease, outline-offset 0.16s ease, box-shadow 0.16s ease",
   };
 
   // ── Inner content wrapper — clipped to section boundaries ─────────────────
@@ -792,17 +818,18 @@ function RenderElement({
     clipPath: hasClip ? `inset(${clipTop}px 0px ${clipBottom}px 0px)` : undefined,
   };
 
-  const handleSize = 8;
+  const handleSize = isAtmosphericDecoration ? 5 : 6;
+  const handleOffset = isAtmosphericDecoration ? 9 : 6;
   const handles = ["tl", "t", "tr", "r", "br", "b", "bl", "l"];
   const handlePositions: Record<string, React.CSSProperties> = {
-    tl: { top: -handleSize / 2, left: -handleSize / 2,                        cursor: "nwse-resize" },
-    t:  { top: -handleSize / 2, left: "50%", marginLeft: -handleSize / 2,     cursor: "ns-resize"   },
-    tr: { top: -handleSize / 2, right: -handleSize / 2,                       cursor: "nesw-resize" },
-    r:  { top: "50%", right: -handleSize / 2, marginTop: -handleSize / 2,     cursor: "ew-resize"   },
-    br: { bottom: -handleSize / 2, right: -handleSize / 2,                    cursor: "nwse-resize" },
-    b:  { bottom: -handleSize / 2, left: "50%", marginLeft: -handleSize / 2,  cursor: "ns-resize"   },
-    bl: { bottom: -handleSize / 2, left: -handleSize / 2,                     cursor: "nesw-resize" },
-    l:  { top: "50%", left: -handleSize / 2, marginTop: -handleSize / 2,      cursor: "ew-resize"   },
+    tl: { top: -handleOffset, left: -handleOffset,                        cursor: "nwse-resize" },
+    t:  { top: -handleOffset, left: "50%", marginLeft: -handleSize / 2,     cursor: "ns-resize"   },
+    tr: { top: -handleOffset, right: -handleOffset,                       cursor: "nesw-resize" },
+    r:  { top: "50%", right: -handleOffset, marginTop: -handleSize / 2,     cursor: "ew-resize"   },
+    br: { bottom: -handleOffset, right: -handleOffset,                    cursor: "nwse-resize" },
+    b:  { bottom: -handleOffset, left: "50%", marginLeft: -handleSize / 2,  cursor: "ns-resize"   },
+    bl: { bottom: -handleOffset, left: -handleOffset,                     cursor: "nesw-resize" },
+    l:  { top: "50%", left: -handleOffset, marginTop: -handleSize / 2,      cursor: "ew-resize"   },
   };
   const textVerticalPadding = getTextVerticalPadding(el);
   const effectiveLineHeight = Math.max(el.lineHeight ?? 1.4, isScriptFont(el.fontFamily) ? 1.24 : 1.1);
@@ -1009,24 +1036,29 @@ function RenderElement({
           onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); onResizeMouseDown(e, h); }}
           onMouseEnter={(e) => {
             const d = e.currentTarget as HTMLDivElement;
-            d.style.transform = "scale(1.28)";
-            d.style.background = "#fff7e8";
+            d.style.transform = "scale(1.38)";
+            d.style.background = isAppElement ? "#eef1ff" : "#fff9ee";
+            d.style.borderColor = isAppElement ? "rgba(96,116,255,0.82)" : "rgba(184,146,90,0.82)";
           }}
           onMouseLeave={(e) => {
             const d = e.currentTarget as HTMLDivElement;
             d.style.transform = "scale(1)";
-            d.style.background = "#ffffff";
+            d.style.background = "rgba(255,255,255,0.92)";
+            d.style.borderColor = selectionColor;
           }}
           style={{
             position: "absolute",
             width: handleSize,
             height: handleSize,
-            background: "#ffffff",
-            border: "1px solid #b8925a",
+            background: "rgba(255,255,255,0.92)",
+            border: `1px solid ${selectionColor}`,
             borderRadius: 999,
-            boxShadow: "0 2px 8px rgba(70,50,35,0.20), 0 0 0 2px rgba(255,255,255,0.9)",
+            boxShadow: isAtmosphericDecoration
+              ? "0 0 0 2px rgba(5,8,18,0.34), 0 0 14px rgba(255,255,255,0.16)"
+              : "0 1px 7px rgba(36,24,18,0.16), 0 0 0 2px rgba(255,255,255,0.72)",
             zIndex: 9999,
-            transition: "transform 0.1s, background 0.1s",
+            transition: "transform 0.14s ease, background 0.14s ease, border-color 0.14s ease, box-shadow 0.14s ease",
+            opacity: isAtmosphericDecoration ? 0.76 : 0.94,
             ...handlePositions[h],
           }}
         />

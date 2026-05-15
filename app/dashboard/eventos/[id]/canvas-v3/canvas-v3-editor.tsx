@@ -2310,7 +2310,7 @@ function RightPanel({
   onReorderLayersRef.current = onReorderLayers;
 
   React.useEffect(() => {
-    const ROW_H = 29; // row height + gap in px
+    const ROW_H = 54; // row height + gap in px
     const onMove = (e: PointerEvent) => {
       if (!layerDragRef.current || !layerListRef.current) return;
       const rect = layerListRef.current.getBoundingClientRect();
@@ -2556,6 +2556,74 @@ function RightPanel({
   };
 
   // ── Layers panel (always visible when sectionElements present) ─────────────
+  const getPremiumLayerIcon = (el: V3Element): string => {
+    if (el.type === "text") return "T";
+    if (el.type === "app") {
+      const app = el.appKind ?? el.appType ?? "";
+      if (app === "whatsapp") return "WA";
+      if (app === "rsvp") return "RS";
+      if (app === "countdown") return "CD";
+      if (app === "maps") return "MP";
+      if (app === "live-album" || app === "album") return "AL";
+      if (app === "live-screen" || app === "live") return "LV";
+      if (app === "qr") return "QR";
+      return "AP";
+    }
+    if (el.type === "decoration") return "D";
+    if (el.config?.url || /\burl\(/i.test(el.background ?? "")) return "IMG";
+    return "F";
+  };
+  const getPremiumLayerType = (el: V3Element): string => {
+    if (el.type === "text") return "Texto";
+    if (el.type === "app") return "App";
+    if (el.type === "decoration") return "Decoracion";
+    if (el.config?.url || /\burl\(/i.test(el.background ?? "")) return "Imagen";
+    return "Forma";
+  };
+  const getPremiumLayerName = (el: V3Element): string => {
+    if (el.type === "text") {
+      const txt = (el.content ?? "").trim();
+      return txt.length > 30 ? `${txt.slice(0, 30)}...` : txt || "Texto";
+    }
+    if (el.type === "app") {
+      const app = el.appKind ?? el.appType ?? "";
+      if (app === "whatsapp") return "WhatsApp";
+      if (app === "rsvp") return "RSVP";
+      if (app === "countdown") return "Cuenta regresiva";
+      if (app === "maps") return "Mapa";
+      if (app === "live-album" || app === "album") return "Album";
+      if (app === "live-screen" || app === "live") return "Pantalla en vivo";
+      if (app === "qr") return "Codigo QR";
+      return el.content || "Aplicacion";
+    }
+    if (el.type === "decoration") {
+      const effect = el.config?.effect;
+      if (effect === "blue-ambient-light") return "Luz azul ambiental";
+      if (effect === "gold-contamination") return "Contaminacion dorada";
+      if (effect === "cinematic-haze") return "Haze cinematografico";
+      if (effect === "editorial-fog") return "Niebla editorial";
+      if (effect === "ambient-glow") return "Glow ambiental";
+      return el.content || "Decoracion";
+    }
+    if (el.config?.url || /\burl\(/i.test(el.background ?? "")) return el.content || "Imagen";
+    return "Forma";
+  };
+  const layerActionButtonStyle: React.CSSProperties = {
+    width: 24,
+    height: 24,
+    border: "1px solid rgba(184,146,90,0.14)",
+    background: "rgba(255,255,255,0.54)",
+    color: "#7c5d4d",
+    cursor: "pointer",
+    borderRadius: 9,
+    fontSize: 10,
+    fontWeight: 800,
+    display: "grid",
+    placeItems: "center",
+    padding: 0,
+    lineHeight: 1,
+  };
+
   const sortedLayers = [...sectionElements].sort((a, b) => b.zIndex - a.zIndex);
   sortedLayersRef.current = sortedLayers; // keep ref current for drag handler
   const isDragging = dropAt >= 0;
@@ -2570,13 +2638,13 @@ function RightPanel({
   );
 
   const LayersPanel = sectionElements.length > 0 ? (
-    <div style={{ background: "rgba(255,255,255,0.54)", borderBottom: "1px solid rgba(184,146,90,0.16)" }}>
+    <div style={{ background: "linear-gradient(180deg,rgba(255,252,247,0.78),rgba(255,255,255,0.54))", borderBottom: "1px solid rgba(184,146,90,0.12)" }}>
       {/* header */}
       <button
         type="button"
         onClick={() => setLayersOpen((v) => !v)}
         style={{
-          width: "100%", padding: "10px 14px", border: "none", background: "transparent",
+          width: "100%", padding: "12px 14px 10px", border: "none", background: "transparent",
           cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between",
           fontFamily: "Inter, system-ui, sans-serif",
         }}
@@ -2589,7 +2657,7 @@ function RightPanel({
         <span style={{ fontSize: 9, color: "#9a8a80" }}>{layersOpen ? "−" : "+"}</span>
       </button>
       {layersOpen && (
-        <div ref={layerListRef} style={{ display: "flex", flexDirection: "column", padding: "2px 8px 8px" }}>
+        <div ref={layerListRef} style={{ display: "flex", flexDirection: "column", gap: 7, padding: "4px 10px 12px" }}>
           {sortedLayers.map((el, idx) => {
             const isSel = selectedIds.includes(el.id);
             const isHid = el.visible === false;
@@ -2601,18 +2669,21 @@ function RightPanel({
                 {isDragging && dropAt === idx && DropLine}
                 <div
                   style={{
-                    display: "flex", alignItems: "center", gap: 4,
-                    padding: "5px 4px 5px 2px",
-                    borderRadius: 7,
+                    display: "grid",
+                    gridTemplateColumns: "16px 34px minmax(0, 1fr) auto",
+                    alignItems: "center",
+                    gap: 8,
+                    padding: "8px 8px 8px 6px",
+                    borderRadius: 14,
                     background: isDragSrc
-                      ? "rgba(124,58,237,0.08)"
-                      : isSel ? "rgba(184,146,90,0.14)" : "transparent",
-                    border: isSel ? "1px solid rgba(184,146,90,0.34)" : "1px solid transparent",
+                      ? "rgba(184,146,90,0.10)"
+                      : isSel ? "linear-gradient(135deg,rgba(255,252,247,0.94),rgba(244,232,212,0.72))" : "rgba(255,255,255,0.42)",
+                    border: isSel ? "1px solid rgba(184,146,90,0.32)" : "1px solid rgba(184,146,90,0.10)",
+                    boxShadow: isSel ? "0 12px 28px rgba(62,42,30,0.10), inset 0 0 0 1px rgba(255,255,255,0.38)" : "0 6px 16px rgba(62,42,30,0.045)",
                     opacity: isHid ? 0.42 : isDragSrc ? 0.55 : 1,
                     cursor: isDragging ? "grabbing" : "pointer",
-                    transition: "background 0.1s, opacity 0.1s",
+                    transition: "background 0.14s ease, opacity 0.14s ease, border-color 0.14s ease, box-shadow 0.14s ease",
                     userSelect: "none",
-                    marginBottom: 1,
                   }}
                   onClick={(e) => { if (!isDragging) onSelectLayer(el.id, e.shiftKey); }}
                 >
@@ -2626,9 +2697,9 @@ function RightPanel({
                       setDropAt(idx);
                     }}
                     style={{
-                      fontSize: 11, width: 12, flexShrink: 0,
+                      fontSize: 12, width: 14, flexShrink: 0,
                       cursor: "grab",
-                      color: "#3e3b60",
+                      color: "rgba(138,111,97,0.54)",
                       display: "flex", alignItems: "center", justifyContent: "center",
                       userSelect: "none",
                       lineHeight: 1,
@@ -2637,28 +2708,62 @@ function RightPanel({
                     ⠿
                   </span>
                   {/* type icon */}
-                  <span style={{ fontSize: 10, width: 14, textAlign: "center", flexShrink: 0, color: isSel ? "#c4b5fd" : "#8884a8" }}>
-                    {getLayerIcon(el)}
+                  <span style={{
+                    width: 34,
+                    height: 34,
+                    borderRadius: 12,
+                    display: "grid",
+                    placeItems: "center",
+                    textAlign: "center",
+                    flexShrink: 0,
+                    color: isSel ? "#4b2735" : "#8a6f61",
+                    background: isSel ? "rgba(184,146,90,0.18)" : "rgba(255,252,247,0.74)",
+                    border: "1px solid rgba(184,146,90,0.16)",
+                    fontSize: getPremiumLayerIcon(el).length > 1 ? 8 : 12,
+                    fontWeight: 900,
+                    letterSpacing: "0.02em",
+                    fontFamily: "Inter, system-ui, sans-serif",
+                  }}>
+                    {getPremiumLayerIcon(el)}
                   </span>
                   {/* name */}
-                  <span style={{
-                    flex: 1, fontSize: 11, fontFamily: "Inter, system-ui, sans-serif",
-                    color: isSel ? "#e8e6ff" : "#c8c4f0",
-                    whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-                    minWidth: 0,
-                  }}>
-                    {getLayerName(el)}
-                  </span>
+                  <div style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 3 }}>
+                    <span style={{
+                      fontSize: 12,
+                      fontFamily: "Inter, system-ui, sans-serif",
+                      color: isSel ? "#4b2735" : "#5c4a43",
+                      fontWeight: isSel ? 850 : 720,
+                      whiteSpace: "nowrap",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      minWidth: 0,
+                    }}>
+                      {getPremiumLayerName(el)}
+                    </span>
+                    <span style={{ fontSize: 9, color: "#a18b7e", letterSpacing: "0.06em", textTransform: "uppercase", fontWeight: 800 }}>
+                      {getPremiumLayerType(el)} - z {el.zIndex}
+                    </span>
+                  </div>
                   {/* controls: eye + lock */}
-                  <div style={{ display: "flex", gap: 2, flexShrink: 0 }} onClick={(e) => e.stopPropagation()}>
+                  <div style={{ display: "flex", gap: 4, flexShrink: 0 }} onClick={(e) => e.stopPropagation()}>
+                    <button type="button" title="Subir capa"
+                      onClick={() => onLayerMoveUp(el.id)}
+                      style={layerActionButtonStyle}>
+                      UP
+                    </button>
+                    <button type="button" title="Bajar capa"
+                      onClick={() => onLayerMoveDown(el.id)}
+                      style={layerActionButtonStyle}>
+                      DN
+                    </button>
                     <button type="button" title={isHid ? "Mostrar" : "Ocultar"}
                       onClick={() => onToggleVisible(el.id)}
-                      style={{ width: 18, height: 18, border: "none", background: "none", cursor: "pointer", color: isHid ? "#4a4870" : "#7878a8", fontSize: 10, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 4, padding: 0 }}>
+                      style={{ ...layerActionButtonStyle, opacity: isHid ? 0.58 : 1 }}>
                     {isHid ? "🙈" : "👁"}
                     </button>
                     <button type="button" title={isLocked ? "Desbloquear" : "Bloquear"}
                       onClick={() => onToggleLocked(el.id)}
-                      style={{ width: 18, height: 18, border: "none", background: "none", cursor: "pointer", color: isLocked ? "#c8a96a" : "#4a4870", fontSize: 10, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 4, padding: 0 }}>
+                      style={{ ...layerActionButtonStyle, color: isLocked ? "#9f6f2f" : "#7c5d4d", background: isLocked ? "rgba(184,146,90,0.16)" : layerActionButtonStyle.background }}>
                       {isLocked ? "🔒" : "🔓"}
                     </button>
                   </div>

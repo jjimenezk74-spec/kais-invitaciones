@@ -284,10 +284,7 @@ export const CONCEPTUAL_CEREMONY_STRUCTURES: Record<CanvasV3EventType, CeremonyS
   graduation: GRADUATION_CEREMONY_STRUCTURE,
 };
 
-// Fase 2A: keep only quinceanios connected to the current builder.
-export const CEREMONY_STRUCTURES: Partial<Record<CanvasV3EventType, CeremonyStructure>> = {
-  quinceanios: QUINCEANOS_CEREMONY_STRUCTURE,
-};
+export const CEREMONY_STRUCTURES: Partial<Record<CanvasV3EventType, CeremonyStructure>> = CONCEPTUAL_CEREMONY_STRUCTURES;
 
 export function normalizeCanvasV3EventType(value?: string | null): CanvasV3EventType | null {
   const normalized = (value ?? "")

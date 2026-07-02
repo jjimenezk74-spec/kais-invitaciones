@@ -752,7 +752,7 @@ function estimateElementRenderHeight(el: V3Element): number {
 
   const fontSize = el.fontSize ?? 14;
   const isScript = isScriptFont(el.fontFamily);
-  const lineHeight = Math.max(typeof el.lineHeight === "number" ? el.lineHeight : 1.4, isScript ? 1.24 : 1.1);
+  const lineHeight = Math.max(typeof el.lineHeight === "number" ? el.lineHeight : 1.4, isScript ? 1.34 : 1.16);
   const approxCharWidth = Math.max(6, fontSize * 0.56);
   const charsPerLine = Math.max(8, Math.floor(el.width / approxCharWidth));
   const visualLines = el.content.split("\n").reduce((total, line) => {
@@ -766,13 +766,13 @@ function estimateElementRenderHeight(el: V3Element): number {
 
 function isScriptFont(fontFamily?: string): boolean {
   const family = (fontFamily ?? "").toLowerCase();
-  return ["script", "vibes", "caveat", "dancing", "baloo", "fredoka"].some((token) => family.includes(token));
+  return ["script", "vibes", "caveat", "dancing", "baloo", "fredoka", "playfair", "cormorant"].some((token) => family.includes(token));
 }
 
 function getTextVerticalPadding(el: Pick<V3Element, "fontSize" | "fontFamily" | "type">): number {
   const fontSize = el.fontSize ?? 14;
-  const scriptExtra = isScriptFont(el.fontFamily) ? 0.18 : 0.1;
-  return el.type === "decoration" ? 16 : Math.max(4, Math.ceil(fontSize * scriptExtra));
+  const scriptExtra = isScriptFont(el.fontFamily) ? 0.24 : 0.12;
+  return el.type === "decoration" ? 16 : Math.max(6, Math.ceil(fontSize * scriptExtra));
 }
 
 function getVerticalJustifyContent(value?: V3Element["verticalAlign"]): React.CSSProperties["justifyContent"] {
@@ -997,7 +997,7 @@ function RenderElement({
     l:  { top: "50%", left: -handleOffset, marginTop: -handleSize / 2,      cursor: "ew-resize"   },
   };
   const textVerticalPadding = getTextVerticalPadding(el);
-  const effectiveLineHeight = Math.max(el.lineHeight ?? 1.4, isScriptFont(el.fontFamily) ? 1.24 : 1.1);
+  const effectiveLineHeight = Math.max(el.lineHeight ?? 1.4, isScriptFont(el.fontFamily) ? 1.34 : 1.16);
 
   return (
     <div
@@ -1837,19 +1837,19 @@ function makeSemanticPremiumTemplate(spec: SemanticPremiumTemplateSpec, variant:
       elements.push(mkShape("hero-atmosphere", -98, y.hero + 34, 584, 548, `radial-gradient(ellipse at 42% 38%,${spec.accent}36 0%,${spec.accent2}1f 28%,transparent 72%),radial-gradient(ellipse at 74% 62%,${spec.accent2}22 0%,transparent 64%),radial-gradient(ellipse at 18% 78%,${spec.dark}34 0%,transparent 62%)`, { opacity: isDark ? 0.84 : 0.46, blur: 10, config: { effect: "ambient-glow", color: spec.accent, accentColor: spec.accent2, intensity: 0.46, blendWithBackground: true } }));
       elements.push(mkShape("hero-line", cx(250), y.hero + 72, 250, 1, `linear-gradient(90deg,transparent,${spec.accent},transparent)`, { borderRadius: 0, opacity: 0.72 }));
       elements.push(mkText("hero-kicker", spec.eventTypeLabel.toUpperCase(), cx(240), y.hero + 104, 240, 28, { fontSize: 10, fontWeight: "800", letterSpacing: 0.32, color: spec.accent }));
-      elements.push(mkText("hero-title", "Nombre del evento", cx(338), y.hero + 158, 338, 142, { dataKey: spec.heroDataKey, semanticRole: spec.heroRole, lockedContent: true, fontSize: type.heroSize, fontFamily: type.display, fontStyle: type.italic ? "italic" : "normal", fontWeight: spec.id === "corporate" ? "800" : "700", lineHeight: spec.id === "quinceanios" ? 1.02 : 1.12, textShadow: titleShadow }));
+      elements.push(mkText("hero-title", "Nombre del evento", cx(338), y.hero + 150, 338, 164, { dataKey: spec.heroDataKey, semanticRole: spec.heroRole, lockedContent: true, fontSize: type.heroSize, fontFamily: type.display, fontStyle: type.italic ? "italic" : "normal", fontWeight: spec.id === "corporate" ? "800" : "700", lineHeight: spec.id === "quinceanios" ? 1.18 : 1.22, textShadow: titleShadow }));
       elements.push(mkText("hero-date", "Fecha por confirmar", cx(286), y.hero + 310, 286, 42, { dataKey: "event_date", semanticRole: "event_date", lockedContent: true, fontSize: 13, fontWeight: "700", color: spec.accent, lineHeight: 1.35 }));
       elements.push(mkShape("hero-card", cx(322), y.hero + 414, 322, 136, card, { border: `1px solid ${cardBorder}`, borderRadius: 24, opacity: isDark ? 1 : 0.92 }));
       elements.push(mkText("hero-message", "Mensaje principal del evento.", cx(270), y.hero + 442, 270, 92, { dataKey: "main_message", semanticRole: "main_message", lockedContent: true, fontSize: 16, fontFamily: type.title, fontStyle: type.italic ? "italic" : "normal", color: muted, lineHeight: 1.5 }));
       elements.push(mkApp("hero-countdown", "countdown", "", cx(298), y.hero + 594, 298, 62, { background: isDark ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.82)", color: text, border: `1px solid ${cardBorder}` }));
 
       elements.push(mkText("intro-kicker", "PRESENTACIÓN", cx(210), y.intro + 46, 210, 26, { fontSize: 10, fontWeight: "800", letterSpacing: 0.30, color: spec.accent }));
-      elements.push(mkText("intro-title", "Nombre del evento", cx(318), y.intro + 88, 318, 94, { dataKey: spec.heroDataKey, semanticRole: spec.heroRole, lockedContent: true, fontSize: type.titleSize, fontFamily: type.title, fontStyle: type.italic ? "italic" : "normal", fontWeight: "700", lineHeight: 1.18, textShadow: titleShadow }));
+      elements.push(mkText("intro-title", "Nombre del evento", cx(318), y.intro + 84, 318, 112, { dataKey: spec.heroDataKey, semanticRole: spec.heroRole, lockedContent: true, fontSize: type.titleSize, fontFamily: type.title, fontStyle: type.italic ? "italic" : "normal", fontWeight: "700", lineHeight: 1.28, textShadow: titleShadow }));
       elements.push(mkShape("intro-card", cx(318), y.intro + 204, 318, 160, card, { border: `1px solid ${cardBorder}`, borderRadius: 22 }));
       elements.push(mkText("intro-copy", "Una invitación pensada para compartir este momento con las personas importantes.", cx(266), y.intro + 232, 266, 94, { fontSize: 15, color: muted, lineHeight: 1.48 }));
       elements.push(mkText("intro-style", "Temática del evento", cx(252), y.intro + 386, 252, 42, { dataKey: "theme", semanticRole: "theme", lockedContent: true, fontSize: 13, color: spec.accent, lineHeight: 1.35 }));
 
-      elements.push(mkText("details-title", spec.ceremonyLabel, cx(304), y.details + 54, 304, 66, { fontSize: type.titleSize, fontFamily: type.title, fontStyle: type.italic ? "italic" : "normal", fontWeight: "700", lineHeight: 1.16, textShadow: titleShadow }));
+      elements.push(mkText("details-title", spec.ceremonyLabel, cx(304), y.details + 48, 304, 88, { fontSize: type.titleSize, fontFamily: type.title, fontStyle: type.italic ? "italic" : "normal", fontWeight: "700", lineHeight: 1.3, textShadow: titleShadow }));
       elements.push(mkShape("details-rule", cx(190), y.details + 126, 190, 1, `linear-gradient(90deg,transparent,${spec.accent},transparent)`, { borderRadius: 0, opacity: 0.78 }));
       elements.push(mkText("details-place", "Lugar por confirmar", cx(308), y.details + 158, 308, 72, { dataKey: spec.ceremonyDataKey, semanticRole: spec.ceremonyRole, lockedContent: true, fontSize: 18, fontFamily: type.title, fontStyle: type.italic ? "italic" : "normal", color: muted, lineHeight: 1.38 }));
       elements.push(mkText("details-address", "Dirección por confirmar", cx(306), y.details + 232, 306, 54, { dataKey: "address", semanticRole: "event_address", lockedContent: true, fontSize: 13, color: muted, lineHeight: 1.42 }));
@@ -1860,9 +1860,9 @@ function makeSemanticPremiumTemplate(spec: SemanticPremiumTemplateSpec, variant:
       elements.push(mkText("message-copy", "Mensaje principal del evento.", cx(312), y.message + 88, 312, 168, { dataKey: spec.messageDataKey, semanticRole: spec.messageRole, lockedContent: true, fontSize: 21, fontFamily: type.title, fontStyle: type.italic ? "italic" : "normal", color: text, lineHeight: 1.44, textShadow: isDark ? "0 6px 22px rgba(0,0,0,0.42)" : undefined }));
       elements.push(mkText("message-family", "Mensaje de la familia.", cx(292), y.message + 276, 292, 84, { dataKey: spec.id === "graduation" ? "family_message" : "parents_message", semanticRole: "parents_message", lockedContent: true, fontSize: 14, color: muted, lineHeight: 1.46 }));
 
-      elements.push(mkText("rsvp-title", "Confirmar asistencia", cx(304), y.rsvp + 46, 304, 64, { fontSize: type.titleSize, fontFamily: type.title, fontStyle: type.italic ? "italic" : "normal", fontWeight: "700", lineHeight: 1.16, textShadow: titleShadow }));
-      elements.push(mkApp("rsvp-action", "rsvp", "Confirmar asistencia", cx(300), y.rsvp + 126, 300, 60));
-      elements.push(mkApp("rsvp-whatsapp", "whatsapp", "Enviar WhatsApp", cx(250), y.rsvp + 206, 250, 58));
+      elements.push(mkText("rsvp-title", "Confirmar asistencia", cx(318), y.rsvp + 38, 318, 112, { fontSize: type.titleSize, fontFamily: type.title, fontStyle: type.italic ? "italic" : "normal", fontWeight: "700", lineHeight: 1.32, textShadow: titleShadow }));
+      elements.push(mkApp("rsvp-action", "rsvp", "Confirmar asistencia", cx(300), y.rsvp + 164, 300, 60));
+      elements.push(mkApp("rsvp-whatsapp", "whatsapp", "Enviar WhatsApp", cx(250), y.rsvp + 244, 250, 58));
 
       elements.push(mkText("footer-title", spec.footerLine, cx(318), y.footer + 74, 318, 86, { fontSize: 25, fontFamily: type.title, fontStyle: type.italic ? "italic" : "normal", fontWeight: "700", lineHeight: 1.24, textShadow: titleShadow }));
       elements.push(mkText("footer-name", "Nombre del evento", cx(250), y.footer + 162, 250, 42, { dataKey: spec.heroDataKey, semanticRole: spec.heroRole, lockedContent: true, fontSize: 16, color: spec.accent, lineHeight: 1.32 }));

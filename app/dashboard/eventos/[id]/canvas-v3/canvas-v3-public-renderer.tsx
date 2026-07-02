@@ -201,13 +201,13 @@ function getDecorationBlendMode(effect?: NonNullable<V3Element["config"]>["effec
 
 function isScriptFont(fontFamily?: string): boolean {
   const family = (fontFamily ?? "").toLowerCase();
-  return ["script", "vibes", "caveat", "dancing", "baloo", "fredoka"].some((token) => family.includes(token));
+  return ["script", "vibes", "caveat", "dancing", "baloo", "fredoka", "playfair", "cormorant"].some((token) => family.includes(token));
 }
 
 function getTextVerticalPadding(el: Pick<V3Element, "fontSize" | "fontFamily" | "type">): number {
   const fontSize = el.fontSize ?? 14;
-  const scriptExtra = isScriptFont(el.fontFamily) ? 0.18 : 0.1;
-  return el.type === "decoration" ? 16 : Math.max(4, Math.ceil(fontSize * scriptExtra));
+  const scriptExtra = isScriptFont(el.fontFamily) ? 0.24 : 0.12;
+  return el.type === "decoration" ? 16 : Math.max(6, Math.ceil(fontSize * scriptExtra));
 }
 
 function getVerticalJustifyContent(value?: V3Element["verticalAlign"]): React.CSSProperties["justifyContent"] {
@@ -379,7 +379,7 @@ function PublicElement({
 
   const hasClip = clipTop > 0 || clipBottom > 0;
   const textVerticalPadding = getTextVerticalPadding(el);
-  const effectiveLineHeight = Math.max(el.lineHeight ?? 1.4, isScriptFont(el.fontFamily) ? 1.24 : 1.1);
+  const effectiveLineHeight = Math.max(el.lineHeight ?? 1.4, isScriptFont(el.fontFamily) ? 1.34 : 1.16);
   const visualBackground = buildDecorationBackground(el);
   const blendDecoration = shouldBlendDecoration(el);
 

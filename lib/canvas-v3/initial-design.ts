@@ -1,5 +1,6 @@
 import type { Event } from "@/lib/types";
 import { createGraduationCanvasV3Design } from "./ceremony-builders/graduation";
+import { createGenericCeremonyCanvasV3Design } from "./ceremony-builders/generic";
 import { createQuinceaniosCanvasV3Design } from "./ceremony-builders/quinceanios";
 import {
   normalizeCanvasV3EventType,
@@ -27,6 +28,7 @@ export type CanvasV3Element = {
   fontWeight?: string;
   fontStyle?: string;
   textAlign?: "left" | "center" | "right";
+  verticalAlign?: "top" | "center" | "bottom";
   color?: string;
   textShadow?: string;
   letterSpacing?: number;
@@ -50,6 +52,12 @@ export type CanvasV3Element = {
     textColor?: string;
     countdownTarget?: string;
     countdownMode?: "event" | "custom";
+    effect?: string;
+    color?: string;
+    accentColor?: string;
+    intensity?: number;
+    darkness?: number;
+    blendWithBackground?: boolean;
   };
 };
 
@@ -171,6 +179,13 @@ export function createInitialCanvasV3Design(event: CanvasV3EventData): CanvasV3D
       return createGraduationCanvasV3Design(event);
     case "quinceanios":
       return createQuinceaniosCanvasV3Design(event);
+    case "wedding":
+    case "baptism":
+    case "kids_birthday":
+    case "birthday":
+    case "baby_shower":
+    case "corporate":
+      return createGenericCeremonyCanvasV3Design(event, eventType);
     default:
       return createQuinceaniosCanvasV3Design(event);
   }

@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { getD1EventByIdOrSlug, updateD1CanvasDesign } from "@/lib/cloudflare/public-events";
 import { canEditEventDesign } from "@/lib/permissions";
 import { getCurrentUserProfile } from "@/lib/profiles";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -40,6 +41,30 @@ export async function regenerateCanvasDesignV3(eventId: string) {
   const { profile } = await getCurrentUserProfile();
   if (!canEditEventDesign(profile)) {
     redirect("/dashboard?error=Tu rol no tiene permisos para editar el diseno del evento.");
+  }
+
+  if (process.env.USE_CLOUDFLARE_AUTH === "1") {
+    if (!/^[a-zA-Z0-9_-]{3,80}$/.test(eventId)) {
+      redirect("/dashboard?error=Evento invalido.");
+    }
+
+    const event = await getD1EventByIdOrSlug(eventId);
+    if (!event) {
+      redirect(`/dashboard/eventos/${eventId}?tab=diseno-v3&error=No se pudo cargar el evento.`);
+    }
+
+    const design = createInitialCanvasV3Design(event as CanvasV3EventData);
+    try {
+      await updateD1CanvasDesign(event.id, design);
+    } catch {
+      redirect(`/dashboard/eventos/${eventId}?tab=diseno-v3&error=No se pudo regenerar el diseno V3.`);
+    }
+
+    revalidatePath(`/dashboard/eventos/${event.id}`);
+    revalidatePath(`/dashboard/eventos/${event.id}/canvas-v3`);
+    revalidatePath(`/evento/${event.slug}/preview-v3`);
+
+    redirect(`/dashboard/eventos/${event.id}/canvas-v3`);
   }
 
   if (!isUuid(eventId)) {

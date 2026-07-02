@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { resolveInitialCanvasV3Design, type CanvasV3EventData } from "@/lib/canvas-v3/initial-design";
 import { CanvasV3PublicRenderer } from "@/app/dashboard/eventos/[id]/canvas-v3/canvas-v3-public-renderer";
+import { getD1PublicEventBySlug } from "@/lib/cloudflare/public-events";
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -81,12 +82,21 @@ export default async function PreviewV3Page({ params }: Props) {
   const { slug } = await params;
 
   try {
-    const admin = createAdminClient();
-    const { data, error: dbError } = await admin
-      .from("events")
-      .select("id, slug, event_type, hosts_names, title, canvas_design, event_date, event_time, address, google_maps_link, main_message, quinceanera_name, parents_names, church_name, church_time, dress_code, color_palette, theme, quince_message, parents_message, graduate_name, graduation_type, institution_name, academic_program, degree_title, promotion_name, academic_ceremony_place, academic_ceremony_time, reception_place, reception_time, family_message, graduate_message, package_key, whatsapp_phone")
-      .eq("slug", slug)
-      .maybeSingle();
+    const isCloudflareMode = process.env.USE_CLOUDFLARE_AUTH === "1";
+    const d1Data = isCloudflareMode ? await getD1PublicEventBySlug(slug) : null;
+    let data = d1Data as CanvasV3EventData | null;
+    let dbError: { message?: string } | null = null;
+
+    if (!data && !isCloudflareMode) {
+      const admin = createAdminClient();
+      const result = await admin
+        .from("events")
+        .select("id, slug, event_type, hosts_names, title, canvas_design, event_date, event_time, address, google_maps_link, main_message, quinceanera_name, parents_names, church_name, church_time, dress_code, color_palette, theme, quince_message, parents_message, graduate_name, graduation_type, institution_name, academic_program, degree_title, promotion_name, academic_ceremony_place, academic_ceremony_time, reception_place, reception_time, family_message, graduate_message, package_key, whatsapp_phone")
+        .eq("slug", slug)
+        .maybeSingle();
+      data = result.data as unknown as CanvasV3EventData | null;
+      dbError = result.error;
+    }
 
     if (dbError) {
       console.error("[preview-v3] db error", dbError);

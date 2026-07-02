@@ -1,17 +1,28 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import {
   extractCanvasV3TemplateFromEventDesign,
   getCompatibleCanvasV3EventTypes,
+  hydrateCanvasV3Template,
   sanitizeCanvasV3TemplateDesign,
   type CanvasV3Template,
   type CanvasV3TemplateScope,
 } from "@/lib/canvas-v3/templates";
 import {
+  isValidCanvasV3Design,
+  type CanvasV3EventData,
+} from "@/lib/canvas-v3/initial-design";
+import {
   normalizeCanvasV3EventType,
   type CanvasV3EventType,
 } from "@/lib/canvas-v3/ceremonial-structures";
+import { canEditEventDesign } from "@/lib/permissions";
+import { getCurrentUserProfile } from "@/lib/profiles";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { getD1CanvasV3TemplateById, getD1EventByIdOrSlug, updateD1CanvasDesign } from "@/lib/cloudflare/public-events";
+import { isCloudflareAuthEnabled } from "@/lib/cloudflare/auth";
 
 type ActionResult<T> =
   | { ok: true; data: T }
@@ -81,6 +92,43 @@ const TEMPLATE_SELECT = [
   "created_by",
   "created_at",
   "updated_at",
+].join(", ");
+
+const CANVAS_V3_EVENT_SELECT = [
+  "id",
+  "slug",
+  "event_type",
+  "hosts_names",
+  "title",
+  "canvas_design",
+  "event_date",
+  "event_time",
+  "address",
+  "google_maps_link",
+  "main_message",
+  "quinceanera_name",
+  "parents_names",
+  "church_name",
+  "church_time",
+  "dress_code",
+  "color_palette",
+  "theme",
+  "quince_message",
+  "parents_message",
+  "graduate_name",
+  "graduation_type",
+  "institution_name",
+  "academic_program",
+  "degree_title",
+  "promotion_name",
+  "academic_ceremony_place",
+  "academic_ceremony_time",
+  "reception_place",
+  "reception_time",
+  "family_message",
+  "graduate_message",
+  "package_key",
+  "whatsapp_phone",
 ].join(", ");
 
 const MAX_TEMPLATE_JSON_BYTES = 500_000;
@@ -387,4 +435,110 @@ export async function createCanvasV3TemplateFromEvent(
     design,
     sourceEventId: eventId,
   });
+}
+
+export async function applyCanvasV3TemplateToEvent(
+  eventId: string,
+  templateId: string
+): Promise<ActionResult<{ eventId: string; eventSlug: string | null; templateId: string }>> {
+  const { profile } = await getCurrentUserProfile();
+  if (!canEditEventDesign(profile)) {
+    return { ok: false, error: "Tu rol no tiene permisos para editar el diseno del evento." };
+  }
+  if (!isUuid(eventId)) return { ok: false, error: "ID de evento invalido." };
+  if (!isUuid(templateId)) return { ok: false, error: "ID de plantilla invalido." };
+
+  if (isCloudflareAuthEnabled()) {
+    const [template, event] = await Promise.all([
+      getD1CanvasV3TemplateById(templateId),
+      getD1EventByIdOrSlug(eventId)
+    ]);
+
+    if (!template) return { ok: false, error: "Plantilla Canvas V3 no encontrada." };
+    if (template.templateScope !== "full") {
+      return { ok: false, error: "Solo se pueden aplicar plantillas completas a un evento." };
+    }
+    if (!event) return { ok: false, error: "Evento no encontrado." };
+
+    const eventType = normalizeCanvasV3EventType(event.event_type);
+    if (template.compatibleEventTypes.length > 0 && eventType && !template.compatibleEventTypes.includes(eventType)) {
+      return { ok: false, error: `La plantilla no es compatible con eventos ${eventType}.` };
+    }
+
+    const currentDesign = isValidCanvasV3Design(event.canvas_design) ? event.canvas_design : undefined;
+    const hydratedDesign = hydrateCanvasV3Template(template.design, event as unknown as CanvasV3EventData, currentDesign);
+    if (!hydratedDesign) {
+      return { ok: false, error: "No se pudo hidratar la plantilla con los datos del evento." };
+    }
+
+    await updateD1CanvasDesign(eventId, hydratedDesign);
+
+    revalidatePath(`/dashboard/eventos/${eventId}`);
+    revalidatePath(`/dashboard/eventos/${eventId}/canvas-v3`);
+    if (event.slug) {
+      revalidatePath(`/evento/${event.slug}`);
+      revalidatePath(`/evento/${event.slug}/preview-v3`);
+    }
+
+    return { ok: true, data: { eventId, eventSlug: event.slug ?? null, templateId } };
+  }
+
+  const auth = await getAuthenticatedClient();
+  if (!auth.ok) return auth;
+
+  const { data: templateRow, error: templateError } = await auth.data.supabase
+    .from("canvas_v3_templates")
+    .select(TEMPLATE_SELECT)
+    .eq("id", templateId)
+    .maybeSingle();
+
+  if (templateError) return { ok: false, error: templateError.message };
+  if (!templateRow) return { ok: false, error: "Plantilla Canvas V3 no encontrada." };
+
+  const template = templateRow as unknown as CanvasV3TemplateRow;
+  if (template.template_scope !== "full") {
+    return { ok: false, error: "Solo se pueden aplicar plantillas de scope full a un evento completo." };
+  }
+
+  const admin = createAdminClient();
+  const { data: eventRow, error: eventError } = await admin
+    .from("events")
+    .select(CANVAS_V3_EVENT_SELECT)
+    .eq("id", eventId)
+    .maybeSingle();
+
+  if (eventError) return { ok: false, error: eventError.message };
+  if (!eventRow) return { ok: false, error: "Evento no encontrado." };
+
+  const event = eventRow as unknown as CanvasV3EventData;
+  const eventType = normalizeCanvasV3EventType(event.event_type);
+  const compatibleTypes = getCompatibleEventTypes(template.compatible_event_types);
+  if (compatibleTypes.length > 0 && eventType && !compatibleTypes.includes(eventType)) {
+    return { ok: false, error: `La plantilla no es compatible con eventos ${eventType}.` };
+  }
+
+  const currentDesign = isValidCanvasV3Design(event.canvas_design) ? event.canvas_design : undefined;
+  const hydratedDesign = hydrateCanvasV3Template(template.design, event, currentDesign);
+  if (!hydratedDesign) {
+    return { ok: false, error: "No se pudo hidratar la plantilla con los datos del evento." };
+  }
+
+  const { error: updateError } = await admin
+    .from("events")
+    .update({
+      canvas_design: hydratedDesign,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", eventId);
+
+  if (updateError) return { ok: false, error: updateError.message };
+
+  revalidatePath(`/dashboard/eventos/${eventId}`);
+  revalidatePath(`/dashboard/eventos/${eventId}/canvas-v3`);
+  if (event.slug) {
+    revalidatePath(`/evento/${event.slug}`);
+    revalidatePath(`/evento/${event.slug}/preview-v3`);
+  }
+
+  return { ok: true, data: { eventId, eventSlug: event.slug ?? null, templateId } };
 }

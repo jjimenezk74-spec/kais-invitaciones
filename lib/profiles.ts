@@ -2,6 +2,7 @@ import "server-only";
 
 import { cache } from "react";
 import type { User } from "@supabase/supabase-js";
+import { getCurrentD1UserProfile, isCloudflareAuthEnabled } from "@/lib/cloudflare/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { perfEnd, perfStart } from "@/lib/perf";
@@ -36,6 +37,13 @@ export function canModerateEvents(role?: string | null) {
 
 export const getCurrentUserProfile = cache(async function getCurrentUserProfile() {
   const totalLabel = perfStart("profile-total");
+
+  if (isCloudflareAuthEnabled()) {
+    const d1Profile = await getCurrentD1UserProfile();
+    perfEnd(totalLabel);
+    return d1Profile;
+  }
+
   const supabase = await createClient();
   const authLabel = perfStart("profile-auth-getUser");
   const {

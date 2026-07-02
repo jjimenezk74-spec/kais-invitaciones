@@ -4,6 +4,13 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { canManagePhotos } from "@/lib/permissions";
 import { getCurrentUserProfile } from "@/lib/profiles";
+import {
+  deleteD1AllLivePhotos,
+  deleteD1LivePhoto,
+  listD1AllLivePhotos,
+  listD1ApprovedLivePhotos,
+  updateD1LivePhotoStatus
+} from "@/lib/cloudflare/public-events";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { canUploadEventPhotos } from "@/lib/event-time";
 import type { LivePhoto } from "@/lib/types";
@@ -20,6 +27,10 @@ async function requireModerator() {
 
 /** All photos for an event (admin view — all statuses). */
 export async function getAllLivePhotos(eventId: string): Promise<LivePhoto[]> {
+  if (process.env.USE_CLOUDFLARE_AUTH === "1") {
+    return listD1AllLivePhotos(eventId);
+  }
+
   const admin = createAdminClient();
   const { data } = await admin
     .from("live_photos")
@@ -31,6 +42,10 @@ export async function getAllLivePhotos(eventId: string): Promise<LivePhoto[]> {
 
 /** Approved, non-rejected photos (public live screen + album). */
 export async function getApprovedLivePhotos(eventId: string): Promise<LivePhoto[]> {
+  if (process.env.USE_CLOUDFLARE_AUTH === "1") {
+    return listD1ApprovedLivePhotos(eventId);
+  }
+
   const admin = createAdminClient();
   const { data } = await admin
     .from("live_photos")
@@ -51,6 +66,13 @@ export async function getApprovedLivePhotosJson(eventId: string) {
 
 export async function approveLivePhoto(photoId: string, eventId: string) {
   await requireModerator();
+  if (process.env.USE_CLOUDFLARE_AUTH === "1") {
+    await updateD1LivePhotoStatus(photoId, eventId, { approved: true, rejected: false });
+    revalidatePath(`/dashboard/eventos`);
+    revalidatePath(`/dashboard/eventos/${eventId}/fotos`);
+    return;
+  }
+
   const admin = createAdminClient();
   await admin
     .from("live_photos")
@@ -62,6 +84,13 @@ export async function approveLivePhoto(photoId: string, eventId: string) {
 
 export async function rejectLivePhoto(photoId: string, eventId: string) {
   await requireModerator();
+  if (process.env.USE_CLOUDFLARE_AUTH === "1") {
+    await updateD1LivePhotoStatus(photoId, eventId, { approved: false, rejected: true });
+    revalidatePath(`/dashboard/eventos`);
+    revalidatePath(`/dashboard/eventos/${eventId}/fotos`);
+    return;
+  }
+
   const admin = createAdminClient();
   await admin
     .from("live_photos")
@@ -73,6 +102,12 @@ export async function rejectLivePhoto(photoId: string, eventId: string) {
 
 export async function featureLivePhoto(photoId: string, eventId: string, featured: boolean) {
   await requireModerator();
+  if (process.env.USE_CLOUDFLARE_AUTH === "1") {
+    await updateD1LivePhotoStatus(photoId, eventId, { featured });
+    revalidatePath(`/dashboard/eventos/${eventId}/fotos`);
+    return;
+  }
+
   const admin = createAdminClient();
   await admin
     .from("live_photos")
@@ -83,6 +118,17 @@ export async function featureLivePhoto(photoId: string, eventId: string, feature
 
 export async function deleteLivePhoto(photoId: string, eventId: string) {
   await requireModerator();
+  if (process.env.USE_CLOUDFLARE_AUTH === "1") {
+    try {
+      await deleteD1LivePhoto(photoId, eventId);
+      revalidatePath(`/dashboard/eventos/${eventId}/fotos`);
+      revalidatePath(`/dashboard/eventos/${eventId}`);
+      return { error: null };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : "No se pudo eliminar la foto." };
+    }
+  }
+
   const admin = createAdminClient();
 
   const { data: photo, error: photoError } = await admin
@@ -136,6 +182,17 @@ export async function deleteLivePhoto(photoId: string, eventId: string) {
 
 export async function deleteAllLivePhotos(eventId: string) {
   await requireModerator();
+  if (process.env.USE_CLOUDFLARE_AUTH === "1") {
+    try {
+      await deleteD1AllLivePhotos(eventId);
+      revalidatePath(`/dashboard/eventos/${eventId}/fotos`);
+      revalidatePath(`/dashboard/eventos/${eventId}`);
+      return { error: null };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : "No se pudieron eliminar las fotos." };
+    }
+  }
+
   const admin = createAdminClient();
 
   const { data: photos, error: photosError } = await admin

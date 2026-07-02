@@ -9,7 +9,6 @@ function roleOf(profileOrRole: ProfileLike | Role) {
   if (typeof profileOrRole === "string" || profileOrRole == null) {
     return profileOrRole ?? null;
   }
-
   return profileOrRole.role;
 }
 
@@ -17,8 +16,11 @@ function isActive(profileOrRole: ProfileLike | Role) {
   if (typeof profileOrRole === "string" || profileOrRole == null) {
     return true;
   }
-
   return profileOrRole.is_active !== false;
+}
+
+function isDesignerRole(role: Role) {
+  return role === "diseñador" || role === "diseÃ±ador" || role === "diseÃƒÂ±ador" || role === "disenador";
 }
 
 export function isLegacyAdmin(role?: Role) {
@@ -79,13 +81,10 @@ export function canManageEventAccess(profileOrRole: ProfileLike | Role) {
 
 export function canEditEventDesign(profileOrRole: ProfileLike | Role) {
   const role = roleOf(profileOrRole);
-  return isAdminLike(profileOrRole) || (isActive(profileOrRole) && role === "diseñador");
+  return isAdminLike(profileOrRole) || (isActive(profileOrRole) && isDesignerRole(role));
 }
 
 export function canViewEventDetail(profileOrRole: ProfileLike | Role) {
   const role = roleOf(profileOrRole);
-  return (
-    isAdminLike(profileOrRole) ||
-    (isActive(profileOrRole) && (role === "diseñador" || role === "soporte_evento"))
-  );
+  return isAdminLike(profileOrRole) || (isActive(profileOrRole) && (isDesignerRole(role) || role === "soporte_evento"));
 }

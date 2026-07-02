@@ -15,6 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { listD1Clients, listD1CommercialPlans, listD1DashboardEvents } from "@/lib/cloudflare/public-events";
 import { perfEnd, perfStart, timed } from "@/lib/perf";
 import { canManageClients } from "@/lib/permissions";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -44,29 +45,36 @@ export default async function ClientsPage({
     redirect("/dashboard?error=Tu rol no tiene permisos para gestionar clientes.");
   }
 
-  const admin = createAdminClient();
   const pagePerf = perfStart("dashboard-clientes");
-  const [{ data: clientsData }, { data: eventsData }, { data: plansData }] = await Promise.all([
-    timed(
-      "clientes-list",
-      admin
-        .from("clients")
-        .select("id,name,contact_name,plan_id,phone,whatsapp,email,notes,status,created_at,created_by")
-        .order("created_at", { ascending: false })
-    ),
-    timed(
-      "clientes-events-summary",
-      admin.from("events").select("id,title,status,client_id,event_date").order("created_at", { ascending: false })
-    ),
-    timed(
-      "clientes-plans",
-      admin
-        .from("commercial_plans")
-        .select("id,name,slug,price_label,features,active,created_at")
-        .eq("active", true)
-        .order("created_at", { ascending: true })
-    ),
-  ]);
+  const isCloudflareMode = process.env.USE_CLOUDFLARE_AUTH === "1";
+  const admin = isCloudflareMode ? null : createAdminClient();
+  const [{ data: clientsData }, { data: eventsData }, { data: plansData }] = isCloudflareMode
+    ? await Promise.all([
+        timed("clientes-list-d1", listD1Clients()).then((data) => ({ data })),
+        timed("clientes-events-summary-d1", listD1DashboardEvents()).then((data) => ({ data })),
+        timed("clientes-plans-d1", listD1CommercialPlans()).then((data) => ({ data })),
+      ])
+    : await Promise.all([
+        timed(
+          "clientes-list",
+          admin!
+            .from("clients")
+            .select("id,name,contact_name,plan_id,phone,whatsapp,email,notes,status,created_at,created_by")
+            .order("created_at", { ascending: false })
+        ),
+        timed(
+          "clientes-events-summary",
+          admin!.from("events").select("id,title,status,client_id,event_date").order("created_at", { ascending: false })
+        ),
+        timed(
+          "clientes-plans",
+          admin!
+            .from("commercial_plans")
+            .select("id,name,slug,price_label,features,active,created_at")
+            .eq("active", true)
+            .order("created_at", { ascending: true })
+        ),
+      ]);
   perfEnd(pagePerf);
 
   const clients = (clientsData ?? []) as Client[];
@@ -81,13 +89,13 @@ export default async function ClientsPage({
   const showCreate = query.create === "1";
 
   return (
-    <div className="grid gap-7">
-      <section className="rounded-2xl border border-[#eadfd2] bg-[linear-gradient(135deg,#fffaf2,#f7efe4)] p-6 shadow-[0_28px_90px_-64px_rgba(17,24,39,0.75)] md:p-8">
-        <div className="flex flex-col justify-between gap-5 md:flex-row md:items-end">
+    <div className="grid h-full min-h-0 grid-rows-[auto_auto_minmax(0,1fr)] gap-4">
+      <section className="rounded-2xl border border-[#eadfd2] bg-[linear-gradient(135deg,#fffaf2,#f7efe4)] px-6 py-5 shadow-[0_22px_72px_-58px_rgba(17,24,39,0.75)]">
+        <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.22em] text-[#7b1631]">KAIS</p>
-            <h1 className="mt-2 font-display text-4xl font-bold text-[#1f1215]">Clientes</h1>
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
+            <h1 className="mt-2 font-display text-3xl font-bold text-[#1f1215] md:text-4xl">Clientes</h1>
+            <p className="mt-2 max-w-3xl text-sm leading-5 text-muted-foreground">
               Gestiona personas y empresas que contratan eventos. Asociarlos te ayuda a ordenar historial, planes y seguimiento.
             </p>
             {query.error ? (
@@ -97,7 +105,7 @@ export default async function ClientsPage({
               <p className="mt-4 rounded-lg bg-emerald-50 p-3 text-sm font-semibold text-emerald-800">{query.created}</p>
             ) : null}
           </div>
-          <Button asChild className="bg-[#6f1029] text-white hover:bg-[#581023]">
+          <Button asChild className="h-11 bg-[#6f1029] px-5 text-white hover:bg-[#581023]">
             <Link href="/dashboard/clientes?create=1">
               <Plus className="h-4 w-4" />
               Crear cliente
@@ -127,16 +135,16 @@ export default async function ClientsPage({
         </Card>
       ) : null}
 
-      <Card className="border-[#eadfd2] bg-white">
-        <CardContent className="p-4 md:p-5">
-          <form className="grid gap-3 lg:grid-cols-[1fr_180px_220px_auto]" action="/dashboard/clientes">
+      <Card className="border-[#eadfd2] bg-white shadow-[0_16px_56px_-50px_rgba(17,24,39,0.7)]">
+        <CardContent className="p-3">
+          <form className="grid gap-3 lg:grid-cols-[1fr_160px_190px_auto]" action="/dashboard/clientes">
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 name="q"
                 defaultValue={query.q ?? ""}
                 placeholder="Buscar por nombre, contacto, teléfono, WhatsApp o email"
-                className="h-11 pl-9"
+                className="h-10 pl-9"
               />
             </div>
             <Select name="status" defaultValue={query.status ?? "todos"}>
@@ -153,12 +161,12 @@ export default async function ClientsPage({
                 </option>
               ))}
             </Select>
-            <Button variant="outline">Filtrar</Button>
+            <Button variant="outline" className="h-10">Filtrar</Button>
           </form>
         </CardContent>
       </Card>
 
-      <section className="grid gap-3">
+      <section className="grid min-h-0 content-start gap-3 overflow-hidden">
         {eventsClient ? (
           <Card className="border-[#eadfd2] bg-[#fffaf2]">
             <CardHeader className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
@@ -199,16 +207,16 @@ export default async function ClientsPage({
 
           return (
             <Card key={client.id} className="border-[#eadfd2] bg-white shadow-[0_18px_64px_-56px_rgba(17,24,39,0.7)]">
-              <CardContent className="grid gap-4 p-5 xl:grid-cols-[1.15fr_0.75fr_0.7fr_auto] xl:items-center">
+              <CardContent className="grid gap-3 p-4 xl:grid-cols-[1.05fr_0.65fr_0.75fr_auto] xl:items-center">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
-                    <Building2 className="h-5 w-5 text-[#7b1631]" />
-                    <p className="truncate text-lg font-bold text-[#1f1215]">{client.name}</p>
+                    <Building2 className="h-4 w-4 text-[#7b1631]" />
+                    <p className="truncate text-base font-bold text-[#1f1215]">{client.name}</p>
                     <span className={client.status === "activo" ? statusClassActive : statusClassInactive}>
                       {client.status}
                     </span>
                   </div>
-                  <p className="mt-2 text-sm text-muted-foreground">
+                  <p className="mt-1 truncate text-sm text-muted-foreground">
                     {client.contact_name || "Sin persona de contacto"}
                   </p>
                 </div>
@@ -227,7 +235,7 @@ export default async function ClientsPage({
                   </p>
                 </div>
 
-                <div className="flex flex-col gap-2 sm:flex-row xl:justify-end">
+                <div className="flex flex-wrap gap-2 xl:flex-nowrap xl:justify-end">
                   <Button variant="outline" size="sm" asChild>
                     <Link href={`/dashboard/clientes?edit=${client.id}`}>
                       <Edit3 className="h-4 w-4" />
@@ -235,7 +243,7 @@ export default async function ClientsPage({
                     </Link>
                   </Button>
                   <form action={toggleClientStatus.bind(null, client.id, client.status === "activo" ? "inactivo" : "activo")}>
-                    <Button size="sm" variant={client.status === "activo" ? "outline" : "default"} className="w-full sm:w-fit">
+                    <Button size="sm" variant={client.status === "activo" ? "outline" : "default"} className="w-fit">
                       {client.status === "activo" ? "Inactivar" : "Activar"}
                     </Button>
                   </form>

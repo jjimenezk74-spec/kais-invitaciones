@@ -1,6 +1,6 @@
 "use client";
 
-import { Download } from "lucide-react";
+import { Download, QrCode } from "lucide-react";
 import QRCode from "qrcode";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -22,15 +22,25 @@ export function QrDownload({ value, filename }: QrDownloadProps) {
   }, [value]);
 
   return (
-    <div className="flex flex-col gap-3 sm:flex-row">
-      <Button variant="outline" disabled={!png} onClick={() => download(png, `${filename}.png`)}>
-        <Download className="h-4 w-4" />
-        QR PNG
-      </Button>
-      <Button variant="outline" disabled={!svg} onClick={() => download(svg, `${filename}.svg`)}>
-        <Download className="h-4 w-4" />
-        QR SVG
-      </Button>
+    <div className="grid gap-2">
+      <div className="mx-auto flex aspect-square w-24 items-center justify-center rounded-2xl border border-[#eadfd2] bg-[#fffaf2] p-2 shadow-sm">
+        {png ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={png} alt="QR" className="h-full w-full rounded-xl" />
+        ) : (
+          <QrCode className="h-10 w-10 text-muted-foreground" />
+        )}
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <Button size="sm" variant="outline" disabled={!png} onClick={() => download(png, `${filename}.png`)}>
+          <Download className="h-4 w-4" />
+          PNG
+        </Button>
+        <Button size="sm" variant="outline" disabled={!svg} onClick={() => download(svg, `${filename}.svg`)}>
+          <Download className="h-4 w-4" />
+          SVG
+        </Button>
+      </div>
     </div>
   );
 }
@@ -41,3 +51,4 @@ function download(href: string, filename: string) {
   link.download = filename;
   link.click();
 }
+

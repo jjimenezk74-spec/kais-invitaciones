@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import QRCode from "qrcode";
 import { LiveSlideshow } from "@/components/live-album/live-slideshow";
 import { getApprovedLivePhotos } from "@/app/actions/live-photos";
+import { getD1PublicEventBySlug } from "@/lib/cloudflare/public-events";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { absoluteUrl } from "@/lib/utils";
 import type { Event } from "@/lib/types";
@@ -12,8 +13,16 @@ export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }: Props) {
   const { slug } = await params;
-  const admin = createAdminClient();
-  const { data } = await admin.from("events").select("hosts_names").eq("slug", slug).single();
+
+  if (process.env.USE_CLOUDFLARE_AUTH === "1") {
+    const event = await getD1PublicEventBySlug(slug);
+    return {
+      title: event ? `Live · ${event.hosts_names}` : "KAIS Live",
+      robots: "noindex",
+    };
+  }
+
+  const { data } = await createAdminClient().from("events").select("hosts_names").eq("slug", slug).single();
   return {
     title: data ? `Live · ${data.hosts_names}` : "KAIS Live",
     robots: "noindex",
@@ -22,15 +31,14 @@ export async function generateMetadata({ params }: Props) {
 
 export default async function LivePage({ params }: Props) {
   const { slug } = await params;
-  const admin = createAdminClient();
+  const event = process.env.USE_CLOUDFLARE_AUTH === "1"
+    ? await getD1PublicEventBySlug(slug)
+    : ((await createAdminClient()
+        .from("events")
+        .select("id, slug, hosts_names, status")
+        .eq("slug", slug)
+        .single()).data as Event | null);
 
-  const { data } = await admin
-    .from("events")
-    .select("id, slug, hosts_names, status")
-    .eq("slug", slug)
-    .single();
-
-  const event = data as Event | null;
   if (!event || event.status !== "publicado") notFound();
 
   const [photos, qrDataUrl] = await Promise.all([

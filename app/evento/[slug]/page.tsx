@@ -1,14 +1,17 @@
 import { headers } from "next/headers";
+import { submitD1Rsvp } from "@/app/actions/cloudflare-events";
 import { submitRsvp, trackVisit } from "@/app/actions/events";
 import { resolvePremiumThemeDesign, resolveLegacyDesign } from "@/lib/invitation-design";
 import { CanvasMobileRenderer } from "@/components/public-invitation/canvas-mobile-renderer";
 import { PublicInvitation } from "@/components/public-invitation/public-invitation";
 import { hasRenderableMobileCanvasDesign, normalizeCanvasDesign } from "@/lib/canvas/normalize-canvas-design";
+import { CanvasV3PublicRenderer } from "@/app/dashboard/eventos/[id]/canvas-v3/canvas-v3-public-renderer";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { fetchThemeById } from "@/lib/invitation-themes.server";
 import { eventHasFeature } from "@/lib/event-features";
 import { createClient } from "@/lib/supabase/server";
 import { isKaisAdmin } from "@/lib/profiles";
+import { getD1EventGuestByToken, getD1PublicEventBySlug, getD1RsvpById, trackD1Visit } from "@/lib/cloudflare/public-events";
 import type { CanvasDesign, Event, EventDecorations, EventGuest, InvitationTemplate, Rsvp, VisualDecoration } from "@/lib/types";
 import {
   NotPublishedScreen,
@@ -92,19 +95,28 @@ const PUBLIC_EVENT_SELECT = [
 export default async function PublicEventPage({ params, searchParams }: PageProps) {
   const { slug } = await params;
   const query = searchParams ? await searchParams : {};
-  const supabase = await createClient();
-  const { data } = await supabase.from("events").select(PUBLIC_EVENT_SELECT).eq("slug", slug).maybeSingle();
-  const eventRow = data as PublicEventRow | null;
-  const event = eventRow as Event | null;
+  const isPreviewMode = normalizeSearchParam(query.preview) === "admin";
+  const isCloudflareMode = process.env.USE_CLOUDFLARE_AUTH === "1";
+  const d1Event = isPreviewMode ? null : await getD1PublicEventBySlug(slug);
+  let supabase: Awaited<ReturnType<typeof createClient>> | null = null;
+  let eventRow: PublicEventRow | null = d1Event as PublicEventRow | null;
+  let event = d1Event as Event | null;
+  const eventSource: "d1" | "supabase" = event ? "d1" : "supabase";
+
+  if (!event && !isCloudflareMode) {
+    supabase = await createClient();
+    const { data } = await supabase.from("events").select(PUBLIC_EVENT_SELECT).eq("slug", slug).maybeSingle();
+    eventRow = data as PublicEventRow | null;
+    event = eventRow as Event | null;
+  }
 
   if (!event) return <NotPublishedScreen />;
 
   // --- Admin preview: verify BEFORE any access restrictions ---
   // Must run first so isAdminPreview can suppress all blocks below.
-  const isPreviewMode = normalizeSearchParam(query.preview) === "admin";
   let isAdminPreview = false;
 
-  if (isPreviewMode) {
+  if (isPreviewMode && supabase) {
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
       const { data: profileData } = await createAdminClient()
@@ -128,7 +140,7 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
   let invitedGuest: EventGuest | null = null;
   let invitedGuestRsvp: Rsvp | null = null;
 
-  if (event.guest_mode === "lista_invitados" && !isAdminPreview) {
+  if (event.guest_mode === "lista_invitados" && !isAdminPreview && eventSource === "supabase") {
     console.info("[KAIS GUEST LINK]", { slug, guestToken, eventId: event.id, guestMode: event.guest_mode });
 
     if (!guestToken) {
@@ -171,17 +183,63 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
     }
   }
 
+  if (event.guest_mode === "lista_invitados" && !isAdminPreview && eventSource === "d1") {
+    if (!guestToken) return <PersonalLinkRequired />;
+
+    invitedGuest = await getD1EventGuestByToken(event.id, guestToken);
+    if (!invitedGuest) return <InvalidPersonalLink />;
+    if (invitedGuest.status === "bloqueado") return <InactivePersonalLink />;
+
+    if (invitedGuest.rsvp_id) {
+      invitedGuestRsvp = await getD1RsvpById(invitedGuest.rsvp_id);
+    }
+  }
+
   // Skip analytics for admin previews (avoid polluting visit counts)
   if (!isAdminPreview) {
     const headerStore = await headers();
-    await trackVisit(event.id, headerStore.get("user-agent"));
+    if (eventSource === "d1") {
+      await trackD1Visit(event.id, headerStore.get("user-agent"));
+    } else {
+      await trackVisit(event.id, headerStore.get("user-agent"));
+    }
   }
 
-  const rsvpAction = submitRsvp.bind(null, event.id);
+  const canvasDesign = event.canvas_design as unknown;
+  const hasCanvasV3Design = isCanvasV3Design(canvasDesign);
+
+  if (hasCanvasV3Design) {
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          background: "linear-gradient(180deg,#fff8f0 0%,#f7eadc 55%,#f1dccd 100%)",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          paddingTop: 0,
+          paddingBottom: 0,
+          overflowX: "hidden",
+        }}
+      >
+        <div style={{ width: "100%", maxWidth: "100vw", padding: 0, overflowX: "hidden" }}>
+          <CanvasV3PublicRenderer
+            design={canvasDesign}
+            eventTitle={event.hosts_names || event.title || "Evento"}
+            eventSlug={event.slug ?? slug}
+            eventDate={event.event_date && event.event_time ? `${event.event_date}T${event.event_time}` : undefined}
+            mode="public"
+          />
+        </div>
+      </div>
+    );
+  }
+
+  const rsvpAction = (eventSource === "d1" ? submitD1Rsvp : submitRsvp).bind(null, event.id);
   const calendarUrl = buildCalendarUrl(event);
   const [template, invitationTheme] = await Promise.all([
-    event.template_id ? getInvitationTemplate(event.template_id) : Promise.resolve(null),
-    event.theme_id    ? fetchThemeById(event.theme_id)           : Promise.resolve(null)
+    eventSource === "supabase" && event.template_id ? getInvitationTemplate(event.template_id) : Promise.resolve(null),
+    eventSource === "supabase" && event.theme_id    ? fetchThemeById(event.theme_id)           : Promise.resolve(null)
   ]);
 
   const rsvpStatus = normalizeSearchParam(query.rsvp);
@@ -264,8 +322,7 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
     });
   }
 
-  const canvasDesign = event.canvas_design as CanvasDesign | null;
-  const hasMobileCanvas = hasRenderableMobileCanvasDesign(canvasDesign);
+  const hasMobileCanvas = !hasCanvasV3Design && hasRenderableMobileCanvasDesign(canvasDesign);
 
   const publicInvitation = (
     <PublicInvitation
@@ -290,7 +347,7 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
       slotDecorations={slotDecorations}
       freeDecorations={freeDecorations}
       showRoyalPack={showRoyalPack}
-      canvasDesign={canvasDesign}
+      canvasDesign={canvasDesign as CanvasDesign | null}
     />
   );
 
@@ -313,6 +370,13 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
 
   return publicInvitation;
 }
+
+function isCanvasV3Design(value: unknown): value is Record<string, unknown> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const design = value as Record<string, unknown>;
+  return design.version === 3 && Array.isArray(design.sections) && Array.isArray(design.elements);
+}
+
 function normalizeVisualDecorations(value: unknown): VisualDecoration[] {
   if (Array.isArray(value)) return value.filter((decoration) => Boolean(decoration?.url)) as VisualDecoration[];
   if (typeof value !== "string") return [];
@@ -326,15 +390,20 @@ function normalizeVisualDecorations(value: unknown): VisualDecoration[] {
 }
 
 function buildCalendarUrl(event: Event) {
-  const start = `${event.event_date.replaceAll("-", "")}T${event.event_time.replace(":", "")}00`;
-  const end = `${event.event_date.replaceAll("-", "")}T235900`;
   const params = new URLSearchParams({
     action: "TEMPLATE",
-    text: event.title,
-    dates: `${start}/${end}`,
+    text: event.title || "Evento",
     details: event.main_message ?? "",
-    location: event.address
+    location: event.address ?? ""
   });
+
+  if (event.event_date) {
+    const time = event.event_time || "00:00";
+    const start = `${event.event_date.replaceAll("-", "")}T${time.replace(":", "")}00`;
+    const end = `${event.event_date.replaceAll("-", "")}T235900`;
+    params.set("dates", `${start}/${end}`);
+  }
+
   return `https://calendar.google.com/calendar/render?${params.toString()}`;
 }
 

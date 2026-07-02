@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { getD1EventByIdOrSlug, updateD1CanvasDesign } from "@/lib/cloudflare/public-events";
 import { canEditEventDesign } from "@/lib/permissions";
 import { getCurrentUserProfile } from "@/lib/profiles";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -118,6 +119,43 @@ export async function saveCanvasDesignV3(
   design: unknown
 ): Promise<{ ok: boolean; error: string | null }> {
   const { profile } = await getCurrentUserProfile();
+
+  if (process.env.USE_CLOUDFLARE_AUTH === "1") {
+    if (!canEditEventDesign(profile)) {
+      return { ok: false, error: "No tenes permisos para editar el diseno del evento." };
+    }
+    if (!/^[a-zA-Z0-9_-]{3,80}$/.test(eventId)) {
+      return { ok: false, error: "Evento invalido." };
+    }
+
+    const validationError = validateCanvasV3Design(design);
+    if (validationError) {
+      console.error("[save-v3] validation failed:", validationError);
+      return { ok: false, error: `Diseno invalido: ${validationError}` };
+    }
+
+    const sanitised = sanitiseDesign(design as Record<string, unknown>);
+    const json = JSON.stringify(sanitised);
+    if (json.length > MAX_CANVAS_V3_JSON_BYTES) {
+      return { ok: false, error: "El diseno excede el tamano maximo permitido (500KB)." };
+    }
+
+    try {
+      await updateD1CanvasDesign(eventId, sanitised);
+      const verify = await getD1EventByIdOrSlug(eventId);
+      if (!verify?.canvas_design) {
+        return { ok: false, error: "canvas_design no quedo guardado en D1." };
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "No se pudo guardar en D1.";
+      return { ok: false, error: `No se pudo guardar: ${message}` };
+    }
+
+    revalidatePath(`/dashboard/eventos/${eventId}`);
+    revalidatePath(`/dashboard/eventos/${eventId}/canvas-v3`);
+
+    return { ok: true, error: null };
+  }
 
   if (!canEditEventDesign(profile)) {
     return { ok: false, error: "No tenes permisos para editar el diseno del evento." };

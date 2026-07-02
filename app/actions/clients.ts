@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { createD1Client, deleteD1Client, updateD1Client, updateD1ClientStatus } from "@/lib/cloudflare/public-events";
 import { canManageClients } from "@/lib/permissions";
 import { getCurrentUserProfile } from "@/lib/profiles";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -12,6 +13,18 @@ export async function createClientRecord(formData: FormData) {
 
   if (!payload.name) {
     redirect("/dashboard/clientes?error=El nombre del cliente es obligatorio.");
+  }
+
+  if (process.env.USE_CLOUDFLARE_AUTH === "1") {
+    try {
+      await createD1Client({ ...payload, created_by: userId });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "No se pudo crear el cliente.";
+      redirect(`/dashboard/clientes?error=${encodeURIComponent(message)}`);
+    }
+
+    revalidatePath("/dashboard/clientes");
+    redirect("/dashboard/clientes?created=Cliente creado correctamente.");
   }
 
   const { error } = await createAdminClient()
@@ -37,6 +50,18 @@ export async function updateClientRecord(clientId: string, formData: FormData) {
     redirect(`/dashboard/clientes?error=El nombre del cliente es obligatorio.`);
   }
 
+  if (process.env.USE_CLOUDFLARE_AUTH === "1") {
+    try {
+      await updateD1Client(clientId, payload);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "No se pudo actualizar el cliente.";
+      redirect(`/dashboard/clientes?error=${encodeURIComponent(message)}`);
+    }
+
+    revalidatePath("/dashboard/clientes");
+    redirect("/dashboard/clientes?created=Cliente actualizado correctamente.");
+  }
+
   const { error } = await createAdminClient().from("clients").update(payload).eq("id", clientId);
 
   if (error) {
@@ -49,6 +74,19 @@ export async function updateClientRecord(clientId: string, formData: FormData) {
 
 export async function toggleClientStatus(clientId: string, status: "activo" | "inactivo") {
   await assertCanManageClients();
+
+  if (process.env.USE_CLOUDFLARE_AUTH === "1") {
+    try {
+      await updateD1ClientStatus(clientId, status);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "No se pudo actualizar el cliente.";
+      redirect(`/dashboard/clientes?error=${encodeURIComponent(message)}`);
+    }
+
+    revalidatePath("/dashboard/clientes");
+    redirect("/dashboard/clientes");
+  }
+
   const { error } = await createAdminClient().from("clients").update({ status }).eq("id", clientId);
 
   if (error) {
@@ -61,6 +99,19 @@ export async function toggleClientStatus(clientId: string, status: "activo" | "i
 
 export async function deleteClientRecord(clientId: string) {
   await assertCanManageClients();
+
+  if (process.env.USE_CLOUDFLARE_AUTH === "1") {
+    try {
+      await deleteD1Client(clientId);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "No se pudo eliminar el cliente.";
+      redirect(`/dashboard/clientes?error=${encodeURIComponent(message)}`);
+    }
+
+    revalidatePath("/dashboard/clientes");
+    redirect("/dashboard/clientes?created=Cliente eliminado correctamente.");
+  }
+
   const { error } = await createAdminClient().from("clients").delete().eq("id", clientId);
 
   if (error) {
@@ -85,7 +136,22 @@ async function assertCanManageClients() {
   return user.id;
 }
 
-function getClientPayload(formData: FormData) {
+function getClientPayload(): never;
+function getClientPayload(formData: FormData): {
+  name: string;
+  plan_id: string | null;
+  contact_name: string | null;
+  phone: string | null;
+  whatsapp: string | null;
+  email: string | null;
+  notes: string | null;
+  status: "activo" | "inactivo";
+};
+function getClientPayload(formData?: FormData) {
+  if (!formData) {
+    throw new Error("FormData requerido.");
+  }
+
   return {
     name: String(formData.get("name") ?? "").trim(),
     plan_id: nullable(formData.get("plan_id")),

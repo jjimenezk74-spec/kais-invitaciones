@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { getEventLoginSession } from "@/lib/event-login-auth";
+import { isCloudflareAuthEnabled } from "@/lib/cloudflare/auth";
+import { listD1Rsvps } from "@/lib/cloudflare/public-events";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function GET() {
@@ -9,14 +11,13 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const admin = createAdminClient();
-  const { data, error } = await admin
-    .from("rsvps")
-    .select("guest_name,phone,email,attending,companions,message,dietary_restrictions,created_at")
-    .eq("event_id", login.event_id)
-    .order("created_at", { ascending: false });
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  const data = isCloudflareAuthEnabled()
+    ? await listD1Rsvps(login.event_id)
+    : (await createAdminClient()
+        .from("rsvps")
+        .select("guest_name,phone,email,attending,companions,message,dietary_restrictions,created_at")
+        .eq("event_id", login.event_id)
+        .order("created_at", { ascending: false })).data ?? [];
 
   const header = ["nombre", "telefono", "email", "asistira", "acompanantes", "mensaje", "restriccion_alimentaria", "fecha"];
   const csv = [

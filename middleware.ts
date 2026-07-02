@@ -14,6 +14,12 @@ export async function middleware(request: NextRequest) {
   const middlewareLabel = `[KAIS PERF] middleware ${request.nextUrl.pathname} ${perfId}`;
   if (shouldMeasure) console.time(middlewareLabel);
   let response = NextResponse.next({ request });
+
+  if (process.env.USE_CLOUDFLARE_AUTH === "1") {
+    if (shouldMeasure) console.timeEnd(middlewareLabel);
+    return response;
+  }
+
   const missingEnv = getMissingSupabasePublicEnv();
 
   if (missingEnv.length > 0) {

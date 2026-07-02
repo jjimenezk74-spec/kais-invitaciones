@@ -4,6 +4,7 @@ import { Camera } from "lucide-react";
 import { getPublicLivePhotoInteractions } from "@/app/actions/live-photo-interactions";
 import { getApprovedLivePhotos } from "@/app/actions/live-photos";
 import { PublicLiveAlbum } from "@/components/live-album/public-live-album";
+import { getD1PublicEventBySlug } from "@/lib/cloudflare/public-events";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { formatDate } from "@/lib/utils";
 import { canUploadEventPhotos } from "@/lib/event-time";
@@ -13,12 +14,9 @@ type Props = { params: Promise<{ slug: string }> };
 
 export async function generateMetadata({ params }: Props) {
   const { slug } = await params;
-  const admin = createAdminClient();
-  const { data } = await admin
-    .from("events")
-    .select("hosts_names, event_type")
-    .eq("slug", slug)
-    .maybeSingle();
+  const data = process.env.USE_CLOUDFLARE_AUTH === "1"
+    ? await getD1PublicEventBySlug(slug)
+    : (await createAdminClient().from("events").select("hosts_names, event_type").eq("slug", slug).maybeSingle()).data;
 
   const title = data ? `Álbum · ${data.hosts_names}` : "Álbum";
   return { title };
@@ -26,13 +24,13 @@ export async function generateMetadata({ params }: Props) {
 
 export default async function AlbumPage({ params }: Props) {
   const { slug } = await params;
-  const admin = createAdminClient();
-
-  const { data } = await admin
-    .from("events")
-    .select("id, slug, hosts_names, event_type, event_date, event_time, theme_color, status")
-    .eq("slug", slug)
-    .maybeSingle();
+  const data = process.env.USE_CLOUDFLARE_AUTH === "1"
+    ? await getD1PublicEventBySlug(slug)
+    : (await createAdminClient()
+        .from("events")
+        .select("id, slug, hosts_names, event_type, event_date, event_time, theme_color, status")
+        .eq("slug", slug)
+        .maybeSingle()).data;
 
   const event = data as Event | null;
   if (!event) notFound();

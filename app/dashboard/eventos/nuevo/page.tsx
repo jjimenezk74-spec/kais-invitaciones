@@ -3,7 +3,8 @@ import { redirect } from "next/navigation";
 import { createEvent, getCurrentProfile } from "@/app/actions/events";
 import { EventForm } from "@/components/event-form";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
+import { listD1Clients } from "@/lib/cloudflare/public-events";
 import { canCreateEvents, canManageEvents } from "@/lib/permissions";
 import { timed } from "@/lib/perf";
 import { createClient } from "@/lib/supabase/server";
@@ -17,42 +18,52 @@ export default async function NewEventPage({
   searchParams: Promise<{ error?: string }>;
 }) {
   const query = await searchParams;
-  const supabase = await createClient();
   const profile = await getCurrentProfile();
-  const admin = createAdminClient();
+  const isCloudflareMode = process.env.USE_CLOUDFLARE_AUTH === "1";
+  const supabase = isCloudflareMode ? null : await createClient();
+  const admin = isCloudflareMode ? null : createAdminClient();
   if (!canCreateEvents(profile)) {
     redirect("/dashboard?error=Tu rol no tiene permisos para crear eventos.");
   }
-  const [{ data: clientsData }, { data: businessClientsData }, categories, themes] = await Promise.all([
-    canManageEvents(profile)
-      ? timed(
-          "new-event-profile-clients",
-          supabase
-            .from("profiles")
-            .select("id,full_name,email,role,is_active,created_at")
-            .eq("role", "cliente")
-            .order("created_at", { ascending: false })
-        )
-      : Promise.resolve({ data: [] }),
-    timed(
-      "new-event-business-clients",
-      admin.from("clients").select("id,name,contact_name,plan_id,phone,whatsapp,email,notes,status,created_at,created_by").eq("status", "activo").order("name", { ascending: true })
-    ),
-    timed("new-event-categories", fetchActiveCategories()),
-    timed("new-event-themes", fetchActiveThemes())
-  ]);
+  const [{ data: clientsData }, { data: businessClientsData }, categories, themes] = isCloudflareMode
+    ? await Promise.all([
+        Promise.resolve({ data: [] }),
+        timed("new-event-business-clients-d1", listD1Clients()).then((data) => ({
+          data: data.filter((client) => client.status === "activo"),
+        })),
+        Promise.resolve([]),
+        Promise.resolve([]),
+      ])
+    : await Promise.all([
+        canManageEvents(profile)
+          ? timed(
+              "new-event-profile-clients",
+              supabase!
+                .from("profiles")
+                .select("id,full_name,email,role,is_active,created_at")
+                .eq("role", "cliente")
+                .order("created_at", { ascending: false })
+            )
+          : Promise.resolve({ data: [] }),
+        timed(
+          "new-event-business-clients",
+          admin!.from("clients").select("id,name,contact_name,plan_id,phone,whatsapp,email,notes,status,created_at,created_by").eq("status", "activo").order("name", { ascending: true })
+        ),
+        timed("new-event-categories", fetchActiveCategories()),
+        timed("new-event-themes", fetchActiveThemes())
+      ]);
   const clients = clientsData ?? [];
   const businessClients = (businessClientsData ?? []) as Client[];
   const activeCategories = categories as EventCategory[];
   const activeThemes = themes as InvitationTheme[];
 
   return (
-    <div className="grid gap-6">
-      <div className="flex flex-col gap-4 rounded-3xl border border-[#eadfd2] bg-[#fffaf3] p-6 shadow-[0_24px_70px_rgba(74,23,36,0.08)] md:flex-row md:items-center md:justify-between">
+    <div className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-3">
+      <div className="flex flex-col gap-2 rounded-2xl border border-[#eadfd2] bg-[#fffaf3] px-5 py-2 shadow-[0_22px_72px_-58px_rgba(17,24,39,0.75)] md:flex-row md:items-center md:justify-between">
         <div>
-          <p className="text-xs font-bold uppercase tracking-[0.22em] text-accent">KAIS Dashboard</p>
-          <h1 className="mt-2 font-display text-3xl text-[#3b1721]">Crear evento</h1>
-          <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+          <p className="text-[0.68rem] font-bold uppercase tracking-[0.22em] text-accent">KAIS Dashboard</p>
+          <h1 className="font-display text-xl text-[#3b1721]">Crear evento</h1>
+          <p className="mt-0.5 max-w-2xl text-xs text-muted-foreground">
             Completa solo lo necesario: datos del evento, tema visual, contenido, multimedia y RSVP.
           </p>
           {query.error ? <p className="mt-3 text-sm font-semibold text-red-600">{query.error}</p> : null}
@@ -62,12 +73,16 @@ export default async function NewEventPage({
         </Button>
       </div>
 
-      <Card className="border-[#eadfd2] shadow-[0_24px_70px_rgba(74,23,36,0.07)]">
-        <CardHeader className="border-b border-[#eadfd2] bg-white/70">
-          <CardTitle className="font-display text-2xl text-[#3b1721]">Configuracion del evento</CardTitle>
-        </CardHeader>
-        <CardContent className="p-4 md:p-6">
-          <EventForm action={createEvent} clients={clients} businessClients={businessClients} categories={activeCategories} themes={activeThemes} showOwner={canManageEvents(profile)} />
+      <Card className="min-h-0 border-[#eadfd2] shadow-[0_24px_70px_rgba(74,23,36,0.07)]">
+        <CardContent className="h-full p-3">
+          <EventForm
+            action={isCloudflareMode ? "/api/dashboard/events/create" : createEvent}
+            clients={clients}
+            businessClients={businessClients}
+            categories={activeCategories}
+            themes={activeThemes}
+            showOwner={canManageEvents(profile)}
+          />
         </CardContent>
       </Card>
     </div>

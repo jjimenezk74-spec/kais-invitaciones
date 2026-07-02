@@ -9,7 +9,7 @@ export function createClientSupabaseBrowser() {
   if (!url || !anonKey) {
     return {
       client: null,
-      error: "Faltan variables publicas de Supabase para subir archivos. Revisa NEXT_PUBLIC_SUPABASE_URL y NEXT_PUBLIC_SUPABASE_ANON_KEY en Vercel."
+      error: "Faltan variables publicas de Supabase para subir archivos. Revisa NEXT_PUBLIC_SUPABASE_URL y NEXT_PUBLIC_SUPABASE_ANON_KEY en Cloudflare."
     };
   }
 

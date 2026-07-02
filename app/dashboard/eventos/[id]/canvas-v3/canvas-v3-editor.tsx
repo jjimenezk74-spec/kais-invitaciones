@@ -1,7 +1,9 @@
 "use client";
 
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { saveCanvasDesignV3 } from "./actions";
+import { applyCanvasV3TemplateToEvent } from "@/app/dashboard/canvas-v3/templates/actions";
 import {
   CANVAS_V3_THEMES,
   DEFAULT_CANVAS_V3_THEME_ID,
@@ -19,6 +21,14 @@ import type { CeremonySectionKind, CeremonySemanticRole } from "@/lib/canvas-v3/
 
 type ElType = "text" | "shape" | "app" | "decoration";
 type V3AppType = "rsvp" | "whatsapp" | "countdown" | "maps" | "live-album" | "live-screen" | "qr";
+type CanvasViewportMode = "mobile" | "desktop";
+
+type V3ElementLayout = {
+  x: number;
+  y: number;
+  width: number;
+  height: number | null;
+};
 
 interface V3Element {
   id: string;
@@ -27,6 +37,7 @@ interface V3Element {
   y: number;
   width: number;
   height: number | null;
+  layouts?: Partial<Record<CanvasViewportMode, V3ElementLayout>>;
   locked: boolean;
   visible: boolean;
   zIndex: number;
@@ -38,6 +49,7 @@ interface V3Element {
   fontWeight?: string;
   fontStyle?: string;
   textAlign?: "left" | "center" | "right";
+  verticalAlign?: "top" | "center" | "bottom";
   color?: string;
   textShadow?: string;
   letterSpacing?: number;
@@ -59,7 +71,14 @@ interface V3Element {
   lockedContent?: boolean;
   config?: {
     url?: string;
+    assetName?: string;
     primaryColor?: string;
+    color?: string;
+    accentColor?: string;
+    effect?: "soft-card" | "glow-circle" | "rose-soft" | "spark" | "soft-glow" | "editorial-line" | "dots" | "ambient-glow" | "cinematic-haze" | "gold-contamination" | "blue-ambient-light" | "editorial-fog";
+    intensity?: number;
+    darkness?: number;
+    blendWithBackground?: boolean;
     textColor?: string;
     countdownTarget?: string;
     countdownMode?: "event" | "custom";
@@ -114,6 +133,7 @@ type InspectorGroup =
   | "content"
   | "typography"
   | "fill"
+  | "atmosphere"
   | "stroke"
   | "shadow"
   | "spacing"
@@ -137,14 +157,174 @@ type SelectionBox = {
   height: number;
 };
 
+type ElementContextMenuState = {
+  elementId: string;
+  x: number;
+  y: number;
+};
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants & initial design
 // ─────────────────────────────────────────────────────────────────────────────
 
-const CANVAS_W = 390;
+const MOBILE_CANVAS_W = 390;
+const DESKTOP_CANVAS_W = 1000;
+const CANVAS_W = MOBILE_CANVAS_W;
 const HERO_H = 844;
 
 const cx = (w: number) => Math.round((CANVAS_W - w) / 2);
+const clampNumber = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
+
+function getBaseLayout(element: V3Element): V3ElementLayout {
+  return {
+    x: element.x,
+    y: element.y,
+    width: element.width,
+    height: element.height
+  };
+}
+
+function getLayoutPatch(patch: Partial<V3Element>): Partial<V3ElementLayout> {
+  const layoutPatch: Partial<V3ElementLayout> = {};
+  if (typeof patch.x === "number") layoutPatch.x = patch.x;
+  if (typeof patch.y === "number") layoutPatch.y = patch.y;
+  if (typeof patch.width === "number") layoutPatch.width = patch.width;
+  if ("height" in patch && (typeof patch.height === "number" || patch.height === null)) layoutPatch.height = patch.height;
+  return layoutPatch;
+}
+
+function stripLayoutPatch(patch: Partial<V3Element>): Partial<V3Element> {
+  const { x: _x, y: _y, width: _width, height: _height, ...rest } = patch;
+  return rest;
+}
+
+function hasLayoutPatch(patch: Partial<V3Element>) {
+  return (
+    typeof patch.x === "number" ||
+    typeof patch.y === "number" ||
+    typeof patch.width === "number" ||
+    "height" in patch
+  );
+}
+
+function deriveDesktopLayoutFromMobile(element: V3Element): V3ElementLayout {
+  const base = getBaseLayout(element);
+  const ratio = DESKTOP_CANVAS_W / MOBILE_CANVAS_W;
+  const isFullWidth = base.x <= 1 && base.width >= MOBILE_CANVAS_W - 2;
+  const width = isFullWidth
+    ? DESKTOP_CANVAS_W
+    : Math.round(Math.min(DESKTOP_CANVAS_W - 80, Math.max(base.width, base.width * Math.min(1.55, ratio))));
+  const x = isFullWidth
+    ? 0
+    : clampNumber(Math.round((base.x + base.width / 2) * ratio - width / 2), 40, Math.max(40, DESKTOP_CANVAS_W - width - 40));
+  return {
+    x,
+    y: base.y,
+    width,
+    height: base.height
+  };
+}
+
+function getElementLayoutForViewport(element: V3Element, viewport: CanvasViewportMode): V3ElementLayout {
+  if (viewport === "desktop") {
+    return element.layouts?.desktop ?? deriveDesktopLayoutFromMobile(element);
+  }
+  return element.layouts?.mobile ?? getBaseLayout(element);
+}
+
+function projectElementToViewport(element: V3Element, viewport: CanvasViewportMode): V3Element {
+  return {
+    ...element,
+    ...getElementLayoutForViewport(element, viewport)
+  };
+}
+
+function patchElementForViewport(element: V3Element, viewport: CanvasViewportMode, patch: Partial<V3Element>): V3Element {
+  if (!hasLayoutPatch(patch)) return { ...element, ...patch };
+  const layoutPatch = getLayoutPatch(patch);
+  const rest = stripLayoutPatch(patch);
+  if (viewport === "desktop") {
+    const currentDesktop = getElementLayoutForViewport(element, "desktop");
+    return {
+      ...element,
+      ...rest,
+      layouts: {
+        ...(element.layouts ?? {}),
+        desktop: {
+          ...currentDesktop,
+          ...layoutPatch
+        }
+      }
+    };
+  }
+  return {
+    ...element,
+    ...rest,
+    ...layoutPatch
+  };
+}
+
+function prepareElementForViewport(element: V3Element, viewport: CanvasViewportMode): V3Element {
+  const elementWithDesktopLayout = ensureIndependentViewportLayouts(element);
+  if (viewport !== "desktop") return elementWithDesktopLayout;
+  if (element.layouts?.desktop) return elementWithDesktopLayout;
+  return {
+    ...elementWithDesktopLayout,
+    layouts: {
+      ...(elementWithDesktopLayout.layouts ?? {}),
+      desktop: deriveDesktopLayoutFromMobile(element)
+    }
+  };
+}
+
+function ensureIndependentViewportLayouts(element: V3Element): V3Element {
+  if (element.layouts?.desktop) return element;
+  return {
+    ...element,
+    layouts: {
+      ...(element.layouts ?? {}),
+      desktop: deriveDesktopLayoutFromMobile(element)
+    }
+  };
+}
+
+function ensureIndependentViewportLayoutsForAll(elements: V3Element[]): V3Element[] {
+  return elements.map(ensureIndependentViewportLayouts);
+}
+
+function duplicateElementForViewport(element: V3Element, viewport: CanvasViewportMode, id: string, zIndex: number): V3Element {
+  const currentLayout = getElementLayoutForViewport(element, viewport);
+  if (viewport === "desktop") {
+    return {
+      ...element,
+      id,
+      zIndex,
+      layouts: {
+        ...(element.layouts ?? {}),
+        desktop: {
+          ...currentLayout,
+          x: currentLayout.x + 14,
+          y: currentLayout.y + 14
+        }
+      }
+    };
+  }
+  return {
+    ...element,
+    id,
+    x: element.x + 14,
+    y: element.y + 14,
+    zIndex,
+    layouts: {
+      ...(element.layouts ?? {}),
+      desktop: {
+        ...getElementLayoutForViewport(element, "desktop"),
+        x: getElementLayoutForViewport(element, "desktop").x + 14,
+        y: getElementLayoutForViewport(element, "desktop").y + 14
+      }
+    }
+  };
+}
 
 const DEFAULT_SECTION_TEMPLATES: Omit<V3Section, "y">[] = [
   { id: "hero", label: "Portada", height: 844, background: "linear-gradient(180deg,#1a0a18 0%,#3d1535 45%,#180a14 100%)" },
@@ -326,6 +506,7 @@ function normalizeInitialV3Design(value: unknown): CanvasV3Design | null {
   if (validElements.length !== value.elements.length) return null;
   const elements = validElements.map((element) => ({
     ...element,
+    content: element.id.startsWith("uploaded-") && element.config?.url ? undefined : element.content,
     height: element.height ?? null,
   }));
   const rawSections = Array.isArray(value.sections) ? value.sections.filter(isV3Section) : [];
@@ -391,7 +572,7 @@ const TOOLS: { id: ToolId; icon: string; label: string }[] = [
 const APP_LABELS: Record<string, { label: string; icon: string }> = {
   rsvp: { label: "Confirmar asistencia", icon: "✓" },
   countdown: { label: "Cuenta regresiva: 45 DÍAS  12 HRS  08 MIN", icon: "⏱" },
-  whatsapp: { label: "Mensaje por WhatsApp", icon: "💬" },
+  whatsapp: { label: "Mensaje por WhatsApp", icon: "WA" },
   album: { label: "Álbum en vivo", icon: "📸" },
   live: { label: "Pantalla en vivo", icon: "🖥" },
   maps: { label: "Ver en Google Maps", icon: "📍" },
@@ -401,7 +582,7 @@ const APP_LABELS: Record<string, { label: string; icon: string }> = {
 const APP_DEMO_LABELS: Record<string, { label: string; icon: string }> = {
   rsvp: { label: "Confirmar asistencia", icon: "✓" },
   countdown: { label: "Cuenta regresiva", icon: "⏱" },
-  whatsapp: { label: "Enviar WhatsApp", icon: "💬" },
+  whatsapp: { label: "Enviar WhatsApp", icon: "WA" },
   maps: { label: "Ver ubicación", icon: "⌖" },
   "live-album": { label: "Álbum en vivo", icon: "▧" },
   "live-screen": { label: "Pantalla en vivo", icon: "▣" },
@@ -461,6 +642,89 @@ function computeBorder(el: { border?: string; borderColor?: string; borderWidth?
   return el.border; // legacy
 }
 
+function hexToRgb(color: string): { r: number; g: number; b: number } | null {
+  const raw = color.trim().replace("#", "");
+  const normalized = raw.length === 3
+    ? raw.split("").map((part) => part + part).join("")
+    : raw.slice(0, 6);
+  if (!/^[0-9a-fA-F]{6}$/.test(normalized)) return null;
+  return {
+    r: parseInt(normalized.slice(0, 2), 16),
+    g: parseInt(normalized.slice(2, 4), 16),
+    b: parseInt(normalized.slice(4, 6), 16),
+  };
+}
+
+function colorWithAlpha(color: string | undefined, alpha: number, fallback: string): string {
+  if (!color) return fallback;
+  const rgb = hexToRgb(color);
+  if (!rgb) return fallback;
+  return `rgba(${rgb.r},${rgb.g},${rgb.b},${alpha})`;
+}
+
+function clamp01(value: unknown, fallback = 1): number {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.min(1, Math.max(0, n));
+}
+
+function shouldBlendDecoration(el: Pick<V3Element, "type" | "config">): boolean {
+  return el.type === "decoration" && Boolean(el.config?.effect && el.config.blendWithBackground);
+}
+
+function buildDecorationBackground(el: Pick<V3Element, "background" | "config">): string | undefined {
+  const effect = el.config?.effect;
+  if (!effect) return el.background;
+  const color = el.config?.color ?? el.config?.primaryColor ?? "#b8925a";
+  const accent = el.config?.accentColor ?? "#fffaf2";
+  const intensity = clamp01(el.config?.intensity, 1);
+  const darkness = clamp01(el.config?.darkness, 0);
+  const blend = el.config?.blendWithBackground === true;
+  const alpha = (value: number) => Math.min(1, Math.max(0, value * intensity * (blend ? 0.68 : 1) * (1 - darkness * 0.22)));
+  const c90 = colorWithAlpha(color, alpha(0.90), "rgba(184,146,90,0.90)");
+  const c66 = colorWithAlpha(color, alpha(0.66), "rgba(184,146,90,0.66)");
+  const c50 = colorWithAlpha(color, alpha(0.50), "rgba(184,146,90,0.50)");
+  const c44 = colorWithAlpha(color, alpha(0.44), "rgba(184,146,90,0.44)");
+  const c32 = colorWithAlpha(color, alpha(0.32), "rgba(184,146,90,0.32)");
+  const c22 = colorWithAlpha(color, alpha(0.22), "rgba(184,146,90,0.22)");
+  const c18 = colorWithAlpha(color, alpha(0.18), "rgba(184,146,90,0.18)");
+  const c14 = colorWithAlpha(color, alpha(0.14), "rgba(184,146,90,0.14)");
+  const c10 = colorWithAlpha(color, alpha(0.10), "rgba(184,146,90,0.10)");
+  const c06 = colorWithAlpha(color, alpha(0.06), "rgba(184,146,90,0.06)");
+  const c04 = colorWithAlpha(color, alpha(0.04), "rgba(184,146,90,0.04)");
+  const a72 = colorWithAlpha(accent, alpha(0.72), "rgba(255,252,247,0.72)");
+  const a34 = colorWithAlpha(accent, alpha(0.34), "rgba(37,99,235,0.34)");
+  const a22 = colorWithAlpha(accent, alpha(0.22), "rgba(37,99,235,0.22)");
+  const a16 = colorWithAlpha(accent, alpha(0.16), "rgba(37,99,235,0.16)");
+  const a10 = colorWithAlpha(accent, alpha(0.10), "rgba(37,99,235,0.10)");
+  const a06 = colorWithAlpha(accent, alpha(0.06), "rgba(37,99,235,0.06)");
+  const d28 = colorWithAlpha("#000000", darkness * 0.28, "rgba(0,0,0,0)");
+  const d14 = colorWithAlpha("#000000", darkness * 0.14, "rgba(0,0,0,0)");
+  const darkOverlay = darkness > 0 ? `linear-gradient(180deg,${d28},${d14}),` : "";
+  const blendHaze = blend ? `radial-gradient(118% 92% at 18% 28%,${c04} 0%,transparent 84%),radial-gradient(96% 108% at 82% 64%,${a06} 0%,transparent 88%),` : "";
+  const texture = "repeating-linear-gradient(180deg,rgba(255,255,255,0.018) 0 1px,transparent 1px 3px)";
+
+  if (effect === "soft-card") return `${darkOverlay}${blendHaze}radial-gradient(110% 72% at 78% 92%,${a10} 0%,transparent 70%),radial-gradient(92% 64% at 42% 18%,rgba(255,255,255,${0.055 * intensity}) 0%,transparent 58%),linear-gradient(180deg,rgba(34,36,42,${0.62 * intensity}),rgba(8,12,27,${0.92 - darkness * 0.12})),${texture}`;
+  if (effect === "glow-circle") return `${darkOverlay}${blendHaze}radial-gradient(36% 28% at 30% 23%,${a72} 0%,rgba(255,255,255,${0.20 * intensity}) 18%,transparent 38%),radial-gradient(84% 84% at 48% 48%,rgba(255,255,255,${0.045 * intensity}) 0%,transparent 48%),radial-gradient(116% 116% at 50% 50%,${c22} 0%,rgba(31,32,37,${0.78 + darkness * 0.14}) 58%,rgba(5,8,18,0.96) 100%),${texture}`;
+  if (effect === "rose-soft") return `${darkOverlay}${blendHaze}radial-gradient(18% 12% at 45% 25%,${a72} 0%,rgba(255,255,255,${0.18 * intensity}) 34%,transparent 58%),conic-gradient(from 18deg at 50% 50%,rgba(17,18,30,0.94),${c22},rgba(96,55,94,${0.42 * intensity}),rgba(18,18,31,0.86),${c14},rgba(9,11,21,0.96)),radial-gradient(112% 112% at 50% 50%,transparent 42%,rgba(0,0,0,${0.40 + darkness * 0.18}) 100%),${texture}`;
+  if (effect === "spark") return `${darkOverlay}${blendHaze}linear-gradient(86deg,transparent 0 42%,rgba(255,255,255,${0.52 * intensity}) 48%,rgba(255,255,255,${0.18 * intensity}) 52%,transparent 59%),linear-gradient(82deg,transparent 0 36%,${c50} 47%,${c18} 55%,transparent 68%),radial-gradient(96% 96% at 50% 50%,rgba(255,255,255,${0.055 * intensity}) 0%,rgba(13,16,25,0.84) 58%,rgba(3,6,15,0.97) 100%),${texture}`;
+  if (effect === "soft-glow") return `${darkOverlay}${blendHaze}radial-gradient(44% 58% at 28% 25%,${a72} 0%,rgba(255,255,255,${0.18 * intensity}) 22%,transparent 46%),radial-gradient(94% 112% at 50% 52%,${c18} 0%,rgba(23,27,37,0.76) 54%,rgba(4,8,18,0.96) 100%),radial-gradient(82% 104% at 76% 72%,${a06} 0%,transparent 78%),${texture}`;
+  if (effect === "editorial-line") return `${darkOverlay}${blendHaze}linear-gradient(90deg,transparent 0%,${c18} 18%,${c66} 50%,${c18} 82%,transparent 100%),linear-gradient(180deg,transparent 0 36%,${a72} 44%,${c90} 50%,${a72} 56%,transparent 64% 100%)`;
+  if (effect === "dots") return `${darkOverlay}${blendHaze}radial-gradient(circle at 14% 50%,${c44} 0 4px,transparent ${blend ? 9 : 6}px),radial-gradient(circle at 38% 50%,${c66} 0 5px,transparent ${blend ? 10 : 7}px),radial-gradient(circle at 62% 50%,${c66} 0 5px,transparent ${blend ? 10 : 7}px),radial-gradient(circle at 86% 50%,${c44} 0 4px,transparent ${blend ? 9 : 6}px),radial-gradient(ellipse at 50% 50%,${c10},transparent ${blend ? 88 : 72}%)`;
+  if (effect === "ambient-glow") return `radial-gradient(70% 62% at 42% 46%,${c18} 0%,${c10} 24%,transparent 58%),radial-gradient(92% 82% at 58% 52%,${a10} 0%,transparent 70%),radial-gradient(118% 112% at 50% 50%,rgba(13,17,28,${0.18 * intensity}) 0%,transparent 82%)`;
+  if (effect === "cinematic-haze") return `radial-gradient(76% 64% at 52% 48%,${a16} 0%,${a06} 42%,transparent 78%),radial-gradient(112% 96% at 48% 52%,rgba(15,29,74,${0.28 * intensity}) 0%,rgba(8,13,31,${0.12 * intensity}) 58%,transparent 86%)`;
+  if (effect === "gold-contamination") return `radial-gradient(74% 58% at 34% 28%,${c22} 0%,${c10} 34%,transparent 76%),radial-gradient(96% 82% at 50% 50%,rgba(99,82,33,${0.10 * intensity}) 0%,transparent 82%),radial-gradient(58% 44% at 72% 70%,${a06} 0%,transparent 84%)`;
+  if (effect === "blue-ambient-light") return `radial-gradient(62% 58% at 44% 46%,rgba(185,156,77,${0.10 * intensity}) 0%,rgba(185,156,77,${0.055 * intensity}) 28%,transparent 58%),radial-gradient(86% 78% at 56% 52%,${a22} 0%,${a16} 38%,${a06} 66%,transparent 88%),radial-gradient(122% 104% at 50% 50%,rgba(28,41,92,${0.24 * intensity}) 0%,rgba(19,28,67,${0.14 * intensity}) 48%,transparent 82%)`;
+  if (effect === "editorial-fog") return `radial-gradient(110% 78% at 54% 72%,${a10} 0%,transparent 72%),radial-gradient(92% 72% at 22% 18%,rgba(255,255,255,${0.028 * intensity}) 0%,transparent 62%),radial-gradient(120% 90% at 52% 50%,rgba(10,15,31,${0.16 * intensity}) 0%,transparent 84%)`;
+  return el.background;
+}
+
+function getDecorationBlendMode(effect?: NonNullable<V3Element["config"]>["effect"]): React.CSSProperties["mixBlendMode"] | undefined {
+  if (!effect) return undefined;
+  if (effect === "soft-card" || effect === "cinematic-haze" || effect === "editorial-fog") return "soft-light";
+  return "screen";
+}
+
 function isHexColor(v: string): boolean {
   return /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(v.trim());
 }
@@ -487,16 +751,100 @@ function estimateElementRenderHeight(el: V3Element): number {
   if (!el.content) return 60;
 
   const fontSize = el.fontSize ?? 14;
-  const lineHeight = typeof el.lineHeight === "number" ? el.lineHeight : 1.4;
+  const isScript = isScriptFont(el.fontFamily);
+  const lineHeight = Math.max(typeof el.lineHeight === "number" ? el.lineHeight : 1.4, isScript ? 1.24 : 1.1);
   const approxCharWidth = Math.max(6, fontSize * 0.56);
   const charsPerLine = Math.max(8, Math.floor(el.width / approxCharWidth));
   const visualLines = el.content.split("\n").reduce((total, line) => {
     const clean = line.trim();
     return total + Math.max(1, Math.ceil(clean.length / charsPerLine));
   }, 0);
-  const padding = el.type === "decoration" ? 32 : 6;
+  const padding = el.type === "decoration" ? 32 : getTextVerticalPadding(el) * 2;
 
   return Math.max(24, Math.ceil(visualLines * fontSize * lineHeight + padding));
+}
+
+function isScriptFont(fontFamily?: string): boolean {
+  const family = (fontFamily ?? "").toLowerCase();
+  return ["script", "vibes", "caveat", "dancing", "baloo", "fredoka"].some((token) => family.includes(token));
+}
+
+function getTextVerticalPadding(el: Pick<V3Element, "fontSize" | "fontFamily" | "type">): number {
+  const fontSize = el.fontSize ?? 14;
+  const scriptExtra = isScriptFont(el.fontFamily) ? 0.18 : 0.1;
+  return el.type === "decoration" ? 16 : Math.max(4, Math.ceil(fontSize * scriptExtra));
+}
+
+function getVerticalJustifyContent(value?: V3Element["verticalAlign"]): React.CSSProperties["justifyContent"] {
+  if (value === "bottom") return "flex-end";
+  if (value === "center") return "center";
+  return "flex-start";
+}
+
+type AlignmentIconKind = "left" | "center" | "right" | "top" | "middle" | "bottom";
+
+function AlignmentIcon({ kind }: { kind: AlignmentIconKind }) {
+  const stroke = "currentColor";
+  const line = {
+    stroke,
+    strokeWidth: 1.7,
+    strokeLinecap: "round" as const,
+  };
+  const guide = {
+    stroke,
+    strokeWidth: 1.2,
+    strokeLinecap: "round" as const,
+    opacity: 0.44,
+  };
+
+  if (kind === "left") {
+    return (
+      <svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+        <path d="M3 3.5h9.5M3 6.7h6.8M3 9.9h9.5M3 13.1h5.6" {...line} />
+      </svg>
+    );
+  }
+
+  if (kind === "center") {
+    return (
+      <svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+        <path d="M3.2 3.5h9.6M5 6.7h6M3.2 9.9h9.6M5.8 13.1h4.4" {...line} />
+      </svg>
+    );
+  }
+
+  if (kind === "right") {
+    return (
+      <svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+        <path d="M3.5 3.5H13M6.2 6.7H13M3.5 9.9H13M7.4 13.1H13" {...line} />
+      </svg>
+    );
+  }
+
+  if (kind === "top") {
+    return (
+      <svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+        <path d="M4 3h8" {...guide} />
+        <path d="M5.2 5.3h5.6M6.1 8h3.8M4.6 10.7h6.8" {...line} />
+      </svg>
+    );
+  }
+
+  if (kind === "middle") {
+    return (
+      <svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+        <path d="M3.5 8h9" {...guide} />
+        <path d="M5.4 4.9h5.2M4.7 8h6.6M5.8 11.1h4.4" {...line} />
+      </svg>
+    );
+  }
+
+  return (
+    <svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+      <path d="M4 13h8" {...guide} />
+      <path d="M4.6 5.3h6.8M6.1 8h3.8M5.2 10.7h5.6" {...line} />
+    </svg>
+  );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -509,7 +857,11 @@ function RenderElement({
   highlighted,
   onMouseDown,
   onClick,
+  onContextMenu,
   onResizeMouseDown,
+  onInlineTextCommit,
+  onReplaceImage,
+  onEditQr,
   // Section clip values: how many px the element overflows its section top/bottom.
   // Applied only to the visual content layer — handles and toolbar remain unclipped.
   clipTop = 0,
@@ -520,12 +872,66 @@ function RenderElement({
   highlighted?: boolean; // true when part of a multi-selection (no handles, just outline)
   onMouseDown: (e: React.MouseEvent) => void;
   onClick: (e: React.MouseEvent) => void;
+  onContextMenu?: (e: React.MouseEvent) => void;
   onResizeMouseDown: (e: React.MouseEvent, handle: string) => void;
+  onInlineTextCommit?: (content: string) => void;
+  onReplaceImage?: () => void;
+  onEditQr?: () => void;
   clipTop?: number;
   clipBottom?: number;
 }) {
   const [isHovered, setIsHovered] = useState(false);
+  const [isInlineEditing, setIsInlineEditing] = useState(false);
+  const [inlineDraft, setInlineDraft] = useState(el.content ?? "");
   const renderHeight = estimateElementRenderHeight(el);
+  const elementLooksLikeImage = el.type !== "app" && (el.config?.url || /\burl\(/i.test(el.background ?? ""));
+  const elementIsQr = el.type === "app" && normalizeAppType(el) === "qr";
+  const elementIsTextLike = el.type === "text" || Boolean(el.content && el.type !== "app");
+  const visualBackground = buildDecorationBackground(el);
+  const blendDecoration = shouldBlendDecoration(el);
+
+  useEffect(() => {
+    if (!isInlineEditing) setInlineDraft(el.content ?? "");
+  }, [el.content, isInlineEditing]);
+
+  const commitInlineEditing = () => {
+    if (!isInlineEditing) return;
+    const next = inlineDraft;
+    setIsInlineEditing(false);
+    if (next !== (el.content ?? "")) onInlineTextCommit?.(next);
+  };
+
+  const cancelInlineEditing = () => {
+    setInlineDraft(el.content ?? "");
+    setIsInlineEditing(false);
+  };
+
+  const runContextualDoubleAction = () => {
+    if (el.locked) return;
+    if (elementIsTextLike) {
+      setInlineDraft(el.content ?? "");
+      setIsInlineEditing(true);
+    } else if (elementLooksLikeImage) {
+      onReplaceImage?.();
+    } else if (elementIsQr) {
+      onEditQr?.();
+    }
+  };
+  const isAppElement = el.type === "app";
+  const isTextElement = el.type === "text" || (Boolean(el.content) && el.type !== "app");
+  const isAtmosphericDecoration = el.type === "decoration" && blendDecoration;
+  const selectionColor = isAppElement
+    ? "rgba(96,116,255,0.72)"
+    : isTextElement
+    ? "rgba(184,146,90,0.78)"
+    : isAtmosphericDecoration
+    ? "rgba(255,255,255,0.22)"
+    : "rgba(184,146,90,0.58)";
+  const hoverColor = isAppElement
+    ? "rgba(96,116,255,0.30)"
+    : isAtmosphericDecoration
+    ? "rgba(255,255,255,0.12)"
+    : "rgba(184,146,90,0.28)";
 
   // ── Outer positioning div ─────────────────────────────────────────────────
   // Always overflow: visible so resize handles (-4px) and toolbar (-32px) show.
@@ -543,14 +949,25 @@ function RenderElement({
     overflow: "visible",
     // selection / hover ring — stays on outer so it's always fully visible
     outline: selected
-      ? "1.5px solid #b8925a"
+      ? `${isAtmosphericDecoration ? 1 : 1.2}px solid ${selectionColor}`
       : isHovered
-      ? "1px solid rgba(184,146,90,0.46)"
+      ? `1px solid ${hoverColor}`
       : undefined,
-    outlineOffset: "2px",
+    outlineOffset: isAtmosphericDecoration ? "7px" : "3px",
     boxShadow: highlighted && !selected
-      ? "inset 0 0 0 1px rgba(184,146,90,0.72), 0 0 0 3px rgba(184,146,90,0.12)"
+      ? "0 0 0 1px rgba(184,146,90,0.42), 0 0 0 5px rgba(184,146,90,0.08)"
+      : selected
+      ? isAppElement
+        ? "0 0 0 4px rgba(96,116,255,0.08), 0 10px 26px rgba(8,12,28,0.12)"
+        : isAtmosphericDecoration
+        ? "0 0 0 10px rgba(255,255,255,0.025), 0 0 32px rgba(255,255,255,0.055)"
+        : "0 0 0 4px rgba(184,146,90,0.075), 0 8px 22px rgba(45,28,18,0.10)"
+      : isHovered
+      ? isAtmosphericDecoration
+        ? "0 0 24px rgba(255,255,255,0.045)"
+        : "0 8px 18px rgba(42,28,18,0.055)"
       : undefined,
+    transition: "outline-color 0.16s ease, outline-offset 0.16s ease, box-shadow 0.16s ease",
   };
 
   // ── Inner content wrapper — clipped to section boundaries ─────────────────
@@ -561,71 +978,143 @@ function RenderElement({
     position: "absolute",
     inset: 0,
     borderRadius: el.borderRadius,
-    border: computeBorder(el),
+    border: blendDecoration ? undefined : computeBorder(el),
     overflow: "hidden",
     clipPath: hasClip ? `inset(${clipTop}px 0px ${clipBottom}px 0px)` : undefined,
   };
 
-  const handleSize = 8;
+  const handleSize = isAtmosphericDecoration ? 5 : 6;
+  const handleOffset = isAtmosphericDecoration ? 9 : 6;
   const handles = ["tl", "t", "tr", "r", "br", "b", "bl", "l"];
   const handlePositions: Record<string, React.CSSProperties> = {
-    tl: { top: -handleSize / 2, left: -handleSize / 2,                        cursor: "nwse-resize" },
-    t:  { top: -handleSize / 2, left: "50%", marginLeft: -handleSize / 2,     cursor: "ns-resize"   },
-    tr: { top: -handleSize / 2, right: -handleSize / 2,                       cursor: "nesw-resize" },
-    r:  { top: "50%", right: -handleSize / 2, marginTop: -handleSize / 2,     cursor: "ew-resize"   },
-    br: { bottom: -handleSize / 2, right: -handleSize / 2,                    cursor: "nwse-resize" },
-    b:  { bottom: -handleSize / 2, left: "50%", marginLeft: -handleSize / 2,  cursor: "ns-resize"   },
-    bl: { bottom: -handleSize / 2, left: -handleSize / 2,                     cursor: "nesw-resize" },
-    l:  { top: "50%", left: -handleSize / 2, marginTop: -handleSize / 2,      cursor: "ew-resize"   },
+    tl: { top: -handleOffset, left: -handleOffset,                        cursor: "nwse-resize" },
+    t:  { top: -handleOffset, left: "50%", marginLeft: -handleSize / 2,     cursor: "ns-resize"   },
+    tr: { top: -handleOffset, right: -handleOffset,                       cursor: "nesw-resize" },
+    r:  { top: "50%", right: -handleOffset, marginTop: -handleSize / 2,     cursor: "ew-resize"   },
+    br: { bottom: -handleOffset, right: -handleOffset,                    cursor: "nwse-resize" },
+    b:  { bottom: -handleOffset, left: "50%", marginLeft: -handleSize / 2,  cursor: "ns-resize"   },
+    bl: { bottom: -handleOffset, left: -handleOffset,                     cursor: "nesw-resize" },
+    l:  { top: "50%", left: -handleOffset, marginTop: -handleSize / 2,      cursor: "ew-resize"   },
   };
-  const toolbarLabel = el.type === "text" ? "Texto" : el.type === "app" ? "Bloque" : el.type === "decoration" ? "Decoración" : "Forma";
-  const toolbarHint = el.type === "text" ? "Tipografía" : el.type === "app" ? "Acción" : "Forma";
+  const textVerticalPadding = getTextVerticalPadding(el);
+  const effectiveLineHeight = Math.max(el.lineHeight ?? 1.4, isScriptFont(el.fontFamily) ? 1.24 : 1.1);
 
   return (
     <div
       style={outerStyle}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      onMouseDown={(e) => { e.stopPropagation(); onMouseDown(e); }}
+      onMouseDown={(e) => {
+        e.stopPropagation();
+        if (e.button === 0 && e.detail >= 2) {
+          e.preventDefault();
+          runContextualDoubleAction();
+          return;
+        }
+        onMouseDown(e);
+      }}
       onClick={(e) => { e.stopPropagation(); onClick(e); }}
+      onContextMenu={(e) => {
+        e.stopPropagation();
+        onContextMenu?.(e);
+      }}
+      onDoubleClick={(e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        runContextualDoubleAction();
+      }}
     >
       {/* ── Visual content — clipped to section boundaries ── */}
       <div style={contentStyle}>
         {/* Background fill */}
-        {el.background && (
+        {visualBackground && (
           <div
             style={{
               position: "absolute", inset: 0,
-              background: el.background,
+              background: visualBackground,
               borderRadius: el.borderRadius,
+              mixBlendMode: blendDecoration ? getDecorationBlendMode(el.config?.effect) : undefined,
+              opacity: blendDecoration ? 0.92 : undefined,
               backdropFilter: el.blur ? `blur(${el.blur}px)` : undefined,
             }}
           />
         )}
 
         {/* Text content */}
-        {el.content && el.type !== "app" && (
+        {el.content && el.type !== "app" && !isInlineEditing && (
           <p
             style={{
-              position: "relative",
+              position: "absolute",
+              inset: 0,
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: getVerticalJustifyContent(el.verticalAlign),
               margin: 0,
-              padding: el.type === "decoration" ? "16px 20px" : 0,
+              padding: el.type === "decoration" ? "16px 20px" : `${textVerticalPadding}px 0`,
               fontFamily: el.fontFamily ?? "Inter, system-ui, sans-serif",
               fontSize: el.fontSize ?? 14,
               fontWeight: el.fontWeight ?? "400",
               fontStyle: el.fontStyle ?? "normal",
               textAlign: el.textAlign ?? "center",
               color: el.color ?? "#ffffff",
-              lineHeight: el.lineHeight ?? 1.4,
+              lineHeight: effectiveLineHeight,
               letterSpacing: el.letterSpacing ? `${el.letterSpacing}em` : undefined,
               textShadow: el.textShadow ?? undefined,
               whiteSpace: "pre-wrap",
               wordBreak: "break-word",
               width: "100%",
+              boxSizing: "border-box",
             }}
           >
-            {el.content}
+            <span>{el.content}</span>
           </p>
+        )}
+
+        {isInlineEditing && elementIsTextLike && (
+          <textarea
+            autoFocus
+            value={inlineDraft}
+            onMouseDown={(event) => event.stopPropagation()}
+            onClick={(event) => event.stopPropagation()}
+            onDoubleClick={(event) => event.stopPropagation()}
+            onChange={(event) => setInlineDraft(event.target.value)}
+            onBlur={commitInlineEditing}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && !event.shiftKey) {
+                event.preventDefault();
+                commitInlineEditing();
+              }
+              if (event.key === "Escape") {
+                event.preventDefault();
+                cancelInlineEditing();
+              }
+            }}
+            style={{
+              position: "absolute",
+              inset: 0,
+              width: "100%",
+              height: "100%",
+              margin: 0,
+              padding: el.type === "decoration" ? "16px 20px" : `${textVerticalPadding}px 0`,
+              border: "1px solid rgba(184,146,90,0.34)",
+              outline: "2px solid rgba(184,146,90,0.16)",
+              borderRadius: Math.max(6, el.borderRadius ?? 8),
+              resize: "none",
+              background: "rgba(255,252,247,0.14)",
+              color: el.color ?? "#ffffff",
+              fontFamily: el.fontFamily ?? "Inter, system-ui, sans-serif",
+              fontSize: el.fontSize ?? 14,
+              fontWeight: el.fontWeight ?? "400",
+              fontStyle: el.fontStyle ?? "normal",
+              textAlign: el.textAlign ?? "center",
+              lineHeight: effectiveLineHeight,
+              letterSpacing: el.letterSpacing ? `${el.letterSpacing}em` : undefined,
+              textShadow: el.textShadow ?? undefined,
+              whiteSpace: "pre-wrap",
+              overflow: "auto",
+              boxSizing: "border-box",
+            }}
+          />
         )}
 
         {/* App block content */}
@@ -664,27 +1153,47 @@ function RenderElement({
                 <span style={{ color: el.color ?? "#1a0a18", fontSize: 11, fontWeight: 700 }}>{el.content ?? "QR del evento"}</span>
               </>
             ) : normalizeAppType(el) === "whatsapp" ? (
-              /* ── WhatsApp premium render ──────────────────────────────────── */
-              <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "0 20px", width: "100%", justifyContent: "center", boxSizing: "border-box" }}>
-                <span style={{ fontSize: 22, lineHeight: 1, filter: "drop-shadow(0 1px 4px rgba(0,0,0,0.28))", flexShrink: 0 }}>💬</span>
+              /* WhatsApp premium render */
+              <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "0 18px", width: "100%", justifyContent: "center", boxSizing: "border-box" }}>
+                <span style={{
+                  position: "relative",
+                  display: "grid",
+                  placeItems: "center",
+                  width: 30,
+                  height: 30,
+                  borderRadius: 999,
+                  background: "linear-gradient(135deg,#25d366 0%,#128c7e 100%)",
+                  color: "#ffffff",
+                  fontFamily: "Inter, system-ui, sans-serif",
+                  fontSize: 9,
+                  fontWeight: 900,
+                  letterSpacing: "0.02em",
+                  boxShadow: "0 8px 18px rgba(18,140,126,0.32)",
+                  flexShrink: 0,
+                }}>
+                  <svg width="17" height="17" viewBox="0 0 24 24" aria-hidden="true" focusable="false" style={{ position: "relative", zIndex: 1 }}>
+                    <path fill="currentColor" d="M19.1 14.7c-.3-.2-1.9-.9-2.2-1-.3-.1-.5-.2-.7.2-.2.3-.8 1-.9 1.2-.2.2-.3.2-.6.1-1.7-.8-3-1.9-3.9-3.6-.1-.3-.1-.4.1-.6.1-.1.3-.4.5-.6.2-.2.2-.3.3-.5.1-.2 0-.4 0-.6-.1-.2-.7-1.7-1-2.3-.3-.6-.5-.5-.7-.5h-.6c-.2 0-.6.1-.9.4-.3.3-1.1 1.1-1.1 2.7s1.2 3.1 1.3 3.3c.2.2 2.3 3.6 5.7 5 .8.3 1.4.5 1.9.6.8.3 1.5.2 2.1.1.6-.1 1.9-.8 2.2-1.6.3-.8.3-1.4.2-1.5-.1-.2-.3-.3-.6-.4z" />
+                  </svg>
+                  <span style={{ position: "absolute", right: 2, bottom: 3, width: 7, height: 7, borderRadius: 2, background: "#128c7e", transform: "rotate(45deg)" }} />
+                </span>
                 <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
                   <span style={{
-                    color: el.color ?? "#e8f5ee",
+                    color: el.color ?? "#ffffff",
                     fontFamily: "Inter, system-ui, sans-serif",
                     fontSize: 14,
-                    fontWeight: "600",
+                    fontWeight: "800",
                     letterSpacing: "0.03em",
                     lineHeight: 1.2,
                   }}>{el.content || "Enviar WhatsApp"}</span>
                   <span style={{
-                    color: el.color ?? "#e8f5ee",
+                    color: el.color ?? "#ffffff",
                     fontFamily: "Inter, system-ui, sans-serif",
                     fontSize: 10,
-                    fontWeight: "400",
-                    opacity: 0.60,
+                    fontWeight: "700",
+                    opacity: 0.72,
                     letterSpacing: "0.07em",
                     textTransform: "uppercase",
-                  }}>Abrir en WhatsApp →</span>
+                  }}>Abrir WhatsApp</span>
                 </div>
               </div>
             ) : (
@@ -712,59 +1221,34 @@ function RenderElement({
           onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); onResizeMouseDown(e, h); }}
           onMouseEnter={(e) => {
             const d = e.currentTarget as HTMLDivElement;
-            d.style.transform = "scale(1.28)";
-            d.style.background = "#fff7e8";
+            d.style.transform = "scale(1.38)";
+            d.style.background = isAppElement ? "#eef1ff" : "#fff9ee";
+            d.style.borderColor = isAppElement ? "rgba(96,116,255,0.82)" : "rgba(184,146,90,0.82)";
           }}
           onMouseLeave={(e) => {
             const d = e.currentTarget as HTMLDivElement;
             d.style.transform = "scale(1)";
-            d.style.background = "#ffffff";
+            d.style.background = "rgba(255,255,255,0.92)";
+            d.style.borderColor = selectionColor;
           }}
           style={{
             position: "absolute",
             width: handleSize,
             height: handleSize,
-            background: "#ffffff",
-            border: "1px solid #b8925a",
+            background: "rgba(255,255,255,0.92)",
+            border: `1px solid ${selectionColor}`,
             borderRadius: 999,
-            boxShadow: "0 2px 8px rgba(70,50,35,0.20), 0 0 0 2px rgba(255,255,255,0.9)",
+            boxShadow: isAtmosphericDecoration
+              ? "0 0 0 2px rgba(5,8,18,0.34), 0 0 14px rgba(255,255,255,0.16)"
+              : "0 1px 7px rgba(36,24,18,0.16), 0 0 0 2px rgba(255,255,255,0.72)",
             zIndex: 9999,
-            transition: "transform 0.1s, background 0.1s",
+            transition: "transform 0.14s ease, background 0.14s ease, border-color 0.14s ease, box-shadow 0.14s ease",
+            opacity: isAtmosphericDecoration ? 0.76 : 0.94,
             ...handlePositions[h],
           }}
         />
       ))}
 
-      {/* ── Context toolbar — outside clip so it never gets hidden ── */}
-      {selected && (
-        <div
-          style={{
-            position: "absolute",
-            left: 0,
-            top: -32,
-            zIndex: 10000,
-            display: "flex",
-            alignItems: "center",
-            gap: 5,
-            padding: "4px 8px",
-            borderRadius: 999,
-            background: "rgba(255,252,247,0.96)",
-            border: "1px solid rgba(184,146,90,0.36)",
-            boxShadow: "0 10px 24px rgba(70,50,35,0.16)",
-            color: "#4b2735",
-            fontFamily: "Inter, system-ui, sans-serif",
-            fontSize: 10,
-            fontWeight: 700,
-            letterSpacing: "0.04em",
-            pointerEvents: "none",
-            whiteSpace: "nowrap",
-          }}
-        >
-          <span style={{ color: "#c8a96a" }}>{toolbarLabel}</span>
-          <span style={{ color: "#6f6b8f" }}>•</span>
-          <span style={{ color: "#a78bfa" }}>{toolbarHint}</span>
-        </div>
-      )}
     </div>
   );
 }
@@ -948,7 +1432,456 @@ function hydratePremiumTemplateElements(
   });
 }
 
+type SemanticPremiumTemplateSpec = {
+  id: string;
+  label: string;
+  category: string;
+  description: string;
+  eventTypeLabel: string;
+  heroDataKey: keyof CanvasV3EventData;
+  heroRole: CeremonySemanticRole;
+  accent: string;
+  accent2: string;
+  ink: string;
+  muted: string;
+  paper: string;
+  dark: string;
+  themeId: CanvasV3Theme["id"];
+  ceremonyLabel: string;
+  ceremonyDataKey: keyof CanvasV3EventData;
+  ceremonyRole: CeremonySemanticRole;
+  messageDataKey: keyof CanvasV3EventData;
+  messageRole: CeremonySemanticRole;
+  footerLine: string;
+};
+
+const SEMANTIC_TEMPLATE_SPECS: SemanticPremiumTemplateSpec[] = [
+  {
+    id: "wedding",
+    label: "Boda",
+    category: "Boda",
+    description: "Composiciones elegantes para ceremonia y recepción.",
+    eventTypeLabel: "Boda",
+    heroDataKey: "hosts_names",
+    heroRole: "couple_names",
+    accent: "#c8a96a",
+    accent2: "#e8d8c4",
+    ink: "#2d2621",
+    muted: "#7b6b5d",
+    paper: "#fffaf2",
+    dark: "#191511",
+    themeId: "kais-luxury",
+    ceremonyLabel: "Ceremonia",
+    ceremonyDataKey: "address",
+    ceremonyRole: "ceremony_place",
+    messageDataKey: "main_message",
+    messageRole: "main_message",
+    footerLine: "Celebremos este comienzo juntos.",
+  },
+  {
+    id: "quinceanios",
+    label: "Quinceaños",
+    category: "Quinceaños",
+    description: "Diseños románticos con portada, mensajes y familia.",
+    eventTypeLabel: "Mis quince",
+    heroDataKey: "quinceanera_name",
+    heroRole: "honoree_name",
+    accent: "#c87583",
+    accent2: "#e9b9c1",
+    ink: "#35222b",
+    muted: "#7b5f66",
+    paper: "#fff8f0",
+    dark: "#2a101e",
+    themeId: "floral-rose",
+    ceremonyLabel: "Misa",
+    ceremonyDataKey: "church_name",
+    ceremonyRole: "ceremony_place",
+    messageDataKey: "quince_message",
+    messageRole: "honoree_message",
+    footerLine: "Gracias por acompañarme en esta noche especial.",
+  },
+  {
+    id: "graduation",
+    label: "Graduación",
+    category: "Graduación",
+    description: "Estética académica, sobria y nocturna.",
+    eventTypeLabel: "Graduación",
+    heroDataKey: "graduate_name",
+    heroRole: "graduate_name",
+    accent: "#d7b77e",
+    accent2: "#6d88b7",
+    ink: "#eef2ff",
+    muted: "#b9c0d4",
+    paper: "#0b1020",
+    dark: "#060914",
+    themeId: "kais-luxury",
+    ceremonyLabel: "Acto académico",
+    ceremonyDataKey: "academic_ceremony_place",
+    ceremonyRole: "academic_ceremony",
+    messageDataKey: "graduate_message",
+    messageRole: "honoree_message",
+    footerLine: "Una nueva historia comienza.",
+  },
+  {
+    id: "baptism",
+    label: "Bautizo",
+    category: "Bautizo",
+    description: "Suave, familiar y ceremonial.",
+    eventTypeLabel: "Bautizo",
+    heroDataKey: "hosts_names",
+    heroRole: "baby_name",
+    accent: "#9fb99f",
+    accent2: "#d8e2ee",
+    ink: "#27342c",
+    muted: "#66736a",
+    paper: "#fbfff7",
+    dark: "#132018",
+    themeId: "romantic-garden",
+    ceremonyLabel: "Ceremonia",
+    ceremonyDataKey: "address",
+    ceremonyRole: "ceremony_place",
+    messageDataKey: "main_message",
+    messageRole: "main_message",
+    footerLine: "Un día de bendición y familia.",
+  },
+  {
+    id: "kids-birthday",
+    label: "Cumple infantil",
+    category: "Infantil",
+    description: "Colorido, alegre y claro para familias.",
+    eventTypeLabel: "Cumpleaños",
+    heroDataKey: "hosts_names",
+    heroRole: "birthday_person_name",
+    accent: "#f59e0b",
+    accent2: "#93c5fd",
+    ink: "#241b12",
+    muted: "#745c43",
+    paper: "#fff8df",
+    dark: "#29170b",
+    themeId: "romantic-garden",
+    ceremonyLabel: "Fiesta",
+    ceremonyDataKey: "address",
+    ceremonyRole: "event_address",
+    messageDataKey: "main_message",
+    messageRole: "main_message",
+    footerLine: "Una tarde para jugar, reír y celebrar.",
+  },
+  {
+    id: "birthday",
+    label: "Cumpleaños",
+    category: "Cumpleaños",
+    description: "Editorial, cálido y adaptable a adultos.",
+    eventTypeLabel: "Cumpleaños",
+    heroDataKey: "hosts_names",
+    heroRole: "birthday_person_name",
+    accent: "#b8925a",
+    accent2: "#ba6f63",
+    ink: "#2e2522",
+    muted: "#745f56",
+    paper: "#fff7ef",
+    dark: "#211614",
+    themeId: "kais-luxury",
+    ceremonyLabel: "Celebración",
+    ceremonyDataKey: "address",
+    ceremonyRole: "event_address",
+    messageDataKey: "main_message",
+    messageRole: "main_message",
+    footerLine: "Tu presencia hará especial este recuerdo.",
+  },
+  {
+    id: "baby-shower",
+    label: "Baby shower",
+    category: "Baby shower",
+    description: "Dulce, luminoso y familiar.",
+    eventTypeLabel: "Baby shower",
+    heroDataKey: "hosts_names",
+    heroRole: "baby_name",
+    accent: "#d39aa6",
+    accent2: "#b8c8dd",
+    ink: "#342830",
+    muted: "#756471",
+    paper: "#fff8fb",
+    dark: "#27151f",
+    themeId: "floral-rose",
+    ceremonyLabel: "Encuentro",
+    ceremonyDataKey: "address",
+    ceremonyRole: "event_address",
+    messageDataKey: "main_message",
+    messageRole: "main_message",
+    footerLine: "Celebramos con amor la dulce espera.",
+  },
+  {
+    id: "corporate",
+    label: "Corporativo",
+    category: "Corporativo",
+    description: "Limpio, profesional y premium.",
+    eventTypeLabel: "Evento corporativo",
+    heroDataKey: "title",
+    heroRole: "company_name",
+    accent: "#c8a96a",
+    accent2: "#8ea7c8",
+    ink: "#f8fafc",
+    muted: "#cbd5e1",
+    paper: "#0f172a",
+    dark: "#050816",
+    themeId: "elegant-black",
+    ceremonyLabel: "Agenda",
+    ceremonyDataKey: "address",
+    ceremonyRole: "agenda_summary",
+    messageDataKey: "main_message",
+    messageRole: "main_message",
+    footerLine: "Una experiencia diseñada para conectar.",
+  },
+  {
+    id: "other",
+    label: "General",
+    category: "General",
+    description: "Base versátil para eventos especiales.",
+    eventTypeLabel: "Invitación",
+    heroDataKey: "title",
+    heroRole: "event_title",
+    accent: "#b8925a",
+    accent2: "#c9b3c9",
+    ink: "#2d2530",
+    muted: "#746978",
+    paper: "#fffaf5",
+    dark: "#17111c",
+    themeId: "kais-luxury",
+    ceremonyLabel: "Detalles",
+    ceremonyDataKey: "address",
+    ceremonyRole: "event_address",
+    messageDataKey: "main_message",
+    messageRole: "main_message",
+    footerLine: "Gracias por ser parte de este momento.",
+  },
+];
+
+function getSemanticTemplateTypography(specId: string) {
+  if (specId === "quinceanios") {
+    return {
+      display: "'Great Vibes', 'Playfair Display', Georgia, serif",
+      title: "'Playfair Display', Georgia, serif",
+      body: "Montserrat, Inter, system-ui, sans-serif",
+      heroSize: 58,
+      titleSize: 36,
+      italic: false,
+    };
+  }
+
+  if (specId === "graduation") {
+    return {
+      display: "Cinzel, 'Cormorant Garamond', Georgia, serif",
+      title: "Cinzel, 'Cormorant Garamond', Georgia, serif",
+      body: "Montserrat, Inter, system-ui, sans-serif",
+      heroSize: 38,
+      titleSize: 30,
+      italic: false,
+    };
+  }
+
+  if (specId === "corporate") {
+    return {
+      display: "Montserrat, Inter, system-ui, sans-serif",
+      title: "Montserrat, Inter, system-ui, sans-serif",
+      body: "Inter, system-ui, sans-serif",
+      heroSize: 34,
+      titleSize: 28,
+      italic: false,
+    };
+  }
+
+  if (specId === "kids-birthday") {
+    return {
+      display: "Montserrat, Inter, system-ui, sans-serif",
+      title: "Montserrat, Inter, system-ui, sans-serif",
+      body: "Inter, system-ui, sans-serif",
+      heroSize: 40,
+      titleSize: 30,
+      italic: false,
+    };
+  }
+
+  if (specId === "baptism" || specId === "baby-shower") {
+    return {
+      display: "'Cormorant Garamond', 'Playfair Display', Georgia, serif",
+      title: "'Cormorant Garamond', 'Playfair Display', Georgia, serif",
+      body: "Montserrat, Inter, system-ui, sans-serif",
+      heroSize: 44,
+      titleSize: 34,
+      italic: false,
+    };
+  }
+
+  return {
+    display: "'Playfair Display', Georgia, serif",
+    title: "'Playfair Display', Georgia, serif",
+    body: "Montserrat, Inter, system-ui, sans-serif",
+    heroSize: 44,
+    titleSize: 34,
+    italic: true,
+  };
+}
+
+function makeSemanticPremiumTemplate(spec: SemanticPremiumTemplateSpec, variant: "editorial" | "cinematic"): PremiumTemplate {
+  const isDark = variant === "cinematic";
+  const labelSuffix = isDark ? "Nocturna" : "Editorial";
+  const type = getSemanticTemplateTypography(spec.id);
+  const bg0 = isDark ? spec.dark : spec.paper;
+  const bg1 = isDark ? "#10131f" : "#fffdf8";
+  const text = isDark ? "#fff7ec" : spec.ink;
+  const muted = isDark ? "rgba(255,247,236,0.74)" : spec.muted;
+  const card = isDark ? "rgba(255,255,255,0.105)" : "rgba(255,255,255,0.88)";
+  const cardBorder = isDark ? "rgba(255,255,255,0.18)" : "rgba(120,84,45,0.22)";
+  const titleShadow = isDark ? "0 8px 28px rgba(0,0,0,0.54)" : "0 2px 14px rgba(255,255,255,0.52)";
+  const appText = "#fffdf7";
+  const appBorder = isDark ? "rgba(255,255,255,0.22)" : "rgba(255,255,255,0.34)";
+  const previewGradient = isDark
+    ? `linear-gradient(135deg,${spec.dark} 0%,#101827 48%,${spec.accent} 135%)`
+    : `linear-gradient(135deg,${spec.paper} 0%,#fffdf8 48%,${spec.accent2} 130%)`;
+
+  return {
+    id: `${spec.id}-${variant}`,
+    label: `${spec.label} ${labelSuffix}`,
+    emoji: spec.label.slice(0, 1),
+    category: spec.category,
+    description: spec.description,
+    themeId: spec.themeId,
+    previewGradient,
+    create: () => {
+      const stamp = Date.now();
+      let zCounter = 1;
+      const z = () => zCounter++;
+      const mkId = (name: string) => `${spec.id}-${variant}-${name}-${stamp}`;
+      const y = {
+        hero: 0,
+        intro: 740,
+        details: 1240,
+        message: 1760,
+        rsvp: 2240,
+        footer: 2620,
+      };
+      const sections: V3Section[] = [
+        { id: mkId("hero"), label: "Portada", y: y.hero, height: 740, background: `linear-gradient(180deg,${bg0},${bg1})`, kind: "hero", required: true },
+        { id: mkId("intro"), label: "Presentación", y: y.intro, height: 500, background: `linear-gradient(180deg,${bg1},${bg0})`, kind: "person_presentation", required: true },
+        { id: mkId("details"), label: "Detalles", y: y.details, height: 520, background: `linear-gradient(180deg,${bg0},${bg1})`, kind: "event_details", required: true },
+        { id: mkId("message"), label: "Mensaje", y: y.message, height: 480, background: `linear-gradient(180deg,${bg1},${bg0})`, kind: "message", required: true },
+        { id: mkId("rsvp"), label: "Confirmación", y: y.rsvp, height: 380, background: `linear-gradient(180deg,${bg0},${bg1})`, kind: "rsvp", required: true },
+        { id: mkId("footer"), label: "Cierre", y: y.footer, height: 300, background: `linear-gradient(180deg,${bg1},${bg0})`, kind: "footer", required: true },
+      ];
+
+      const mkShape = (name: string, x: number, top: number, width: number, height: number, background: string, extra: Partial<V3Element> = {}): V3Element => ({
+        id: mkId(name),
+        type: "decoration",
+        x,
+        y: top,
+        width,
+        height,
+        locked: false,
+        visible: true,
+        zIndex: z(),
+        background,
+        borderRadius: 28,
+        opacity: 1,
+        ...extra,
+      });
+
+      const mkText = (name: string, content: string, x: number, top: number, width: number, height: number, extra: Partial<V3Element> = {}): V3Element => ({
+        id: mkId(name),
+        type: "text",
+        x,
+        y: top,
+        width,
+        height,
+        locked: false,
+        visible: true,
+        zIndex: z(),
+        content,
+        fontSize: 14,
+        fontFamily: type.body,
+        fontWeight: "400",
+        color: text,
+        textAlign: "center",
+        lineHeight: 1.38,
+        letterSpacing: 0,
+        verticalAlign: "center",
+        ...extra,
+      });
+
+      const mkApp = (name: string, appType: V3AppType, content: string, x: number, top: number, width: number, height: number, extra: Partial<V3Element> = {}): V3Element => ({
+        id: mkId(name),
+        type: "app",
+        appKind: appType,
+        appType,
+        x,
+        y: top,
+        width,
+        height,
+        locked: false,
+        visible: true,
+        zIndex: z(),
+        content,
+        background: appType === "whatsapp"
+          ? "linear-gradient(135deg,#25d366 0%,#128c7e 100%)"
+          : `linear-gradient(135deg,${spec.accent},${spec.dark})`,
+        color: appText,
+        borderRadius: 18,
+        border: `1px solid ${appType === "whatsapp" ? "rgba(255,255,255,0.42)" : appBorder}`,
+        config: { url: "", primaryColor: appType === "whatsapp" ? "#25d366" : spec.accent, textColor: appText },
+        semanticRole: appType === "countdown" ? "countdown" : appType === "maps" ? "maps_link" : appType === "whatsapp" ? "whatsapp_action" : "rsvp_action",
+        dataKey: appType === "countdown" ? "event_date" : appType === "maps" ? "google_maps_link" : appType === "whatsapp" ? "whatsapp_phone" : "package_key",
+        lockedContent: true,
+        ...extra,
+      });
+
+      const elements: V3Element[] = [];
+      elements.push(mkShape("hero-atmosphere", -98, y.hero + 34, 584, 548, `radial-gradient(ellipse at 42% 38%,${spec.accent}36 0%,${spec.accent2}1f 28%,transparent 72%),radial-gradient(ellipse at 74% 62%,${spec.accent2}22 0%,transparent 64%),radial-gradient(ellipse at 18% 78%,${spec.dark}34 0%,transparent 62%)`, { opacity: isDark ? 0.84 : 0.46, blur: 10, config: { effect: "ambient-glow", color: spec.accent, accentColor: spec.accent2, intensity: 0.46, blendWithBackground: true } }));
+      elements.push(mkShape("hero-line", cx(250), y.hero + 72, 250, 1, `linear-gradient(90deg,transparent,${spec.accent},transparent)`, { borderRadius: 0, opacity: 0.72 }));
+      elements.push(mkText("hero-kicker", spec.eventTypeLabel.toUpperCase(), cx(240), y.hero + 104, 240, 28, { fontSize: 10, fontWeight: "800", letterSpacing: 0.32, color: spec.accent }));
+      elements.push(mkText("hero-title", "Nombre del evento", cx(338), y.hero + 158, 338, 142, { dataKey: spec.heroDataKey, semanticRole: spec.heroRole, lockedContent: true, fontSize: type.heroSize, fontFamily: type.display, fontStyle: type.italic ? "italic" : "normal", fontWeight: spec.id === "corporate" ? "800" : "700", lineHeight: spec.id === "quinceanios" ? 1.02 : 1.12, textShadow: titleShadow }));
+      elements.push(mkText("hero-date", "Fecha por confirmar", cx(286), y.hero + 310, 286, 42, { dataKey: "event_date", semanticRole: "event_date", lockedContent: true, fontSize: 13, fontWeight: "700", color: spec.accent, lineHeight: 1.35 }));
+      elements.push(mkShape("hero-card", cx(322), y.hero + 414, 322, 136, card, { border: `1px solid ${cardBorder}`, borderRadius: 24, opacity: isDark ? 1 : 0.92 }));
+      elements.push(mkText("hero-message", "Mensaje principal del evento.", cx(270), y.hero + 442, 270, 92, { dataKey: "main_message", semanticRole: "main_message", lockedContent: true, fontSize: 16, fontFamily: type.title, fontStyle: type.italic ? "italic" : "normal", color: muted, lineHeight: 1.5 }));
+      elements.push(mkApp("hero-countdown", "countdown", "", cx(298), y.hero + 594, 298, 62, { background: isDark ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.82)", color: text, border: `1px solid ${cardBorder}` }));
+
+      elements.push(mkText("intro-kicker", "PRESENTACIÓN", cx(210), y.intro + 46, 210, 26, { fontSize: 10, fontWeight: "800", letterSpacing: 0.30, color: spec.accent }));
+      elements.push(mkText("intro-title", "Nombre del evento", cx(318), y.intro + 88, 318, 94, { dataKey: spec.heroDataKey, semanticRole: spec.heroRole, lockedContent: true, fontSize: type.titleSize, fontFamily: type.title, fontStyle: type.italic ? "italic" : "normal", fontWeight: "700", lineHeight: 1.18, textShadow: titleShadow }));
+      elements.push(mkShape("intro-card", cx(318), y.intro + 204, 318, 160, card, { border: `1px solid ${cardBorder}`, borderRadius: 22 }));
+      elements.push(mkText("intro-copy", "Una invitación pensada para compartir este momento con las personas importantes.", cx(266), y.intro + 232, 266, 94, { fontSize: 15, color: muted, lineHeight: 1.48 }));
+      elements.push(mkText("intro-style", "Temática del evento", cx(252), y.intro + 386, 252, 42, { dataKey: "theme", semanticRole: "theme", lockedContent: true, fontSize: 13, color: spec.accent, lineHeight: 1.35 }));
+
+      elements.push(mkText("details-title", spec.ceremonyLabel, cx(304), y.details + 54, 304, 66, { fontSize: type.titleSize, fontFamily: type.title, fontStyle: type.italic ? "italic" : "normal", fontWeight: "700", lineHeight: 1.16, textShadow: titleShadow }));
+      elements.push(mkShape("details-rule", cx(190), y.details + 126, 190, 1, `linear-gradient(90deg,transparent,${spec.accent},transparent)`, { borderRadius: 0, opacity: 0.78 }));
+      elements.push(mkText("details-place", "Lugar por confirmar", cx(308), y.details + 158, 308, 72, { dataKey: spec.ceremonyDataKey, semanticRole: spec.ceremonyRole, lockedContent: true, fontSize: 18, fontFamily: type.title, fontStyle: type.italic ? "italic" : "normal", color: muted, lineHeight: 1.38 }));
+      elements.push(mkText("details-address", "Dirección por confirmar", cx(306), y.details + 232, 306, 54, { dataKey: "address", semanticRole: "event_address", lockedContent: true, fontSize: 13, color: muted, lineHeight: 1.42 }));
+      elements.push(mkApp("details-map", "maps", "Ver ubicación", cx(234), y.details + 328, 234, 54, { background: card, color: text, border: `1px solid ${cardBorder}` }));
+      elements.push(mkText("details-dress", "Vestimenta por confirmar", cx(292), y.details + 408, 292, 48, { dataKey: "dress_code", semanticRole: "dress_code", lockedContent: true, fontSize: 12, color: spec.accent, lineHeight: 1.35 }));
+
+      elements.push(mkText("message-kicker", "MENSAJE", cx(174), y.message + 44, 174, 26, { fontSize: 10, fontWeight: "800", letterSpacing: 0.34, color: spec.accent }));
+      elements.push(mkText("message-copy", "Mensaje principal del evento.", cx(312), y.message + 88, 312, 168, { dataKey: spec.messageDataKey, semanticRole: spec.messageRole, lockedContent: true, fontSize: 21, fontFamily: type.title, fontStyle: type.italic ? "italic" : "normal", color: text, lineHeight: 1.44, textShadow: isDark ? "0 6px 22px rgba(0,0,0,0.42)" : undefined }));
+      elements.push(mkText("message-family", "Mensaje de la familia.", cx(292), y.message + 276, 292, 84, { dataKey: spec.id === "graduation" ? "family_message" : "parents_message", semanticRole: "parents_message", lockedContent: true, fontSize: 14, color: muted, lineHeight: 1.46 }));
+
+      elements.push(mkText("rsvp-title", "Confirmar asistencia", cx(304), y.rsvp + 46, 304, 64, { fontSize: type.titleSize, fontFamily: type.title, fontStyle: type.italic ? "italic" : "normal", fontWeight: "700", lineHeight: 1.16, textShadow: titleShadow }));
+      elements.push(mkApp("rsvp-action", "rsvp", "Confirmar asistencia", cx(300), y.rsvp + 126, 300, 60));
+      elements.push(mkApp("rsvp-whatsapp", "whatsapp", "Enviar WhatsApp", cx(250), y.rsvp + 206, 250, 58));
+
+      elements.push(mkText("footer-title", spec.footerLine, cx(318), y.footer + 74, 318, 86, { fontSize: 25, fontFamily: type.title, fontStyle: type.italic ? "italic" : "normal", fontWeight: "700", lineHeight: 1.24, textShadow: titleShadow }));
+      elements.push(mkText("footer-name", "Nombre del evento", cx(250), y.footer + 162, 250, 42, { dataKey: spec.heroDataKey, semanticRole: spec.heroRole, lockedContent: true, fontSize: 16, color: spec.accent, lineHeight: 1.32 }));
+      elements.push(mkShape("footer-line", cx(220), y.footer + 224, 220, 1, `linear-gradient(90deg,transparent,${spec.accent},transparent)`, { borderRadius: 0, opacity: 0.7 }));
+
+      return { sections, elements };
+    },
+  };
+}
+
+function createSemanticPremiumTemplates(): PremiumTemplate[] {
+  return SEMANTIC_TEMPLATE_SPECS.flatMap((spec) => [
+    makeSemanticPremiumTemplate(spec, "editorial"),
+    makeSemanticPremiumTemplate(spec, "cinematic"),
+  ]);
+}
+
 const PREMIUM_TEMPLATES: PremiumTemplate[] = [
+  ...createSemanticPremiumTemplates(),
   {
     id: "glam-rosa",
     label: "Glam Rosa",
@@ -1179,7 +2112,21 @@ function ExpandedPanel({
   onApplyTheme,
   activeThemeId,
   onApplyPremiumTemplate,
+  canvasTemplates = [],
+  onApplyTemplateFromDb,
+  applyingTemplateId = null,
+  isApplyingTemplate = false,
+  templateApplyError = null,
   eventFeatureSource = null,
+  assetCategories = [],
+  assetItems = [],
+  assetLibraryStatus = "idle",
+  assetLibraryError = null,
+  onCreateAssetCategory,
+  onUploadAsset,
+  onDeleteAsset,
+  onDeleteAssetCategory,
+  onAddUploadedAsset,
 }: {
   tool: ToolId;
   onAddText: (kind: "title" | "subtitle" | "paragraph") => void;
@@ -1189,34 +2136,119 @@ function ExpandedPanel({
   onApplyTheme: (theme: CanvasV3Theme) => void;
   activeThemeId: string;
   onApplyPremiumTemplate: (id: string) => void;
+  canvasTemplates?: CanvasV3TemplateGalleryItem[];
+  onApplyTemplateFromDb: (template: CanvasV3TemplateGalleryItem) => void;
+  applyingTemplateId?: string | null;
+  isApplyingTemplate?: boolean;
+  templateApplyError?: string | null;
   eventFeatureSource?: V3FeatureSource | null;
+  assetCategories?: CanvasV3AssetCategoryItem[];
+  assetItems?: CanvasV3AssetLibraryItem[];
+  assetLibraryStatus?: "idle" | "loading" | "saving" | "error";
+  assetLibraryError?: string | null;
+  onCreateAssetCategory: (name: string) => Promise<void>;
+  onUploadAsset: (input: { file: File; name?: string; categoryId?: string | null }) => Promise<void>;
+  onDeleteAsset: (assetId: string) => Promise<void>;
+  onDeleteAssetCategory: (categoryId: string) => Promise<void>;
+  onAddUploadedAsset: (asset: CanvasV3AssetLibraryItem) => void;
 }) {
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [uploadName, setUploadName] = useState("");
+  const [uploadCategoryId, setUploadCategoryId] = useState("");
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const panelShellStyle: React.CSSProperties = { padding: "14px 14px 18px" };
+  const eyebrowStyle: React.CSSProperties = {
+    color: "#8a6f61",
+    fontSize: 10,
+    letterSpacing: "0.11em",
+    textTransform: "uppercase",
+    margin: "0 0 7px",
+    fontWeight: 900,
+    fontFamily: "Inter, system-ui, sans-serif",
+  };
+  const panelTitleStyle: React.CSSProperties = {
+    color: "#3d2d27",
+    fontSize: 17,
+    lineHeight: 1.08,
+    margin: "0 0 6px",
+    fontFamily: "'Playfair Display', Georgia, serif",
+    fontStyle: "italic",
+    fontWeight: 800,
+  };
+  const panelCopyStyle: React.CSSProperties = {
+    color: "#7c6658",
+    fontSize: 10.5,
+    lineHeight: 1.45,
+    margin: "0 0 14px",
+    fontFamily: "Inter, system-ui, sans-serif",
+  };
+  const libraryCardStyle: React.CSSProperties = {
+    width: "100%",
+    border: "1px solid rgba(166,135,92,0.18)",
+    borderRadius: 14,
+    background: "linear-gradient(180deg,rgba(255,252,247,0.94),rgba(244,238,228,0.72))",
+    cursor: "pointer",
+    textAlign: "left",
+    boxShadow: "0 10px 22px rgba(54,42,34,0.075)",
+    transition: "transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease, background 0.16s ease",
+  };
+  const liftLibraryCard = (element: HTMLButtonElement) => {
+    element.style.transform = "translateY(-1px)";
+    element.style.borderColor = "rgba(166,135,92,0.40)";
+    element.style.boxShadow = "0 14px 28px rgba(54,42,34,0.12)";
+  };
+  const settleLibraryCard = (element: HTMLButtonElement) => {
+    element.style.transform = "translateY(0)";
+    element.style.borderColor = "rgba(166,135,92,0.18)";
+    element.style.boxShadow = "0 10px 22px rgba(54,42,34,0.075)";
+  };
+
   if (tool === "text") {
+    const textPresets: Array<{
+      id: "title" | "subtitle" | "paragraph";
+      label: string;
+      description: string;
+      sample: string;
+      fontFamily: string;
+      fontSize: number;
+      fontStyle?: string;
+    }> = [
+      { id: "title", label: "Titulo editorial", description: "Hero o nombre principal", sample: "Kenia", fontFamily: "'Playfair Display', Georgia, serif", fontSize: 24, fontStyle: "italic" },
+      { id: "subtitle", label: "Subtitulo", description: "Linea elegante de apoyo", sample: "Una noche especial", fontFamily: "Inter, system-ui, sans-serif", fontSize: 14 },
+      { id: "paragraph", label: "Parrafo", description: "Mensaje breve o detalle", sample: "Celebremos juntos", fontFamily: "Inter, system-ui, sans-serif", fontSize: 12 },
+    ];
+
     return (
-      <div style={{ padding: "12px 14px" }}>
-        <p style={{ color: "#8884a8", fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", margin: "0 0 10px" }}>
+      <div style={panelShellStyle}>
+        <p style={eyebrowStyle}>
           Texto
         </p>
-        {(["title", "subtitle", "paragraph"] as const).map((k) => (
+        <h3 style={panelTitleStyle}>Presets tipograficos</h3>
+        <p style={panelCopyStyle}>Agrega textos limpios para titular, acompanar o narrar la invitacion.</p>
+        {textPresets.map((preset) => (
           <button
-            key={k}
+            key={preset.id}
             type="button"
-            onClick={() => onAddText(k)}
+            onClick={() => onAddText(preset.id)}
             style={{
-              display: "block", width: "100%", marginBottom: 8,
-              padding: "10px 14px",
-              background: "#1e1e2d", border: "1px solid #2a2a3d",
-              borderRadius: 10, cursor: "pointer", textAlign: "left",
-              color: k === "title" ? "#e8e6ff" : k === "subtitle" ? "#c8c4f0" : "#9898b8",
-              fontSize: k === "title" ? 18 : k === "subtitle" ? 14 : 12,
-              fontFamily: k === "title" ? "'Playfair Display', Georgia, serif" : "Inter, system-ui, sans-serif",
-              fontStyle: k === "title" ? "italic" : "normal",
-              transition: "border-color 0.15s",
+              ...libraryCardStyle,
+              display: "grid",
+              gap: 6,
+              marginBottom: 8,
+              padding: "11px 12px",
             }}
-            onMouseEnter={(e) => (e.currentTarget.style.borderColor = "#7c3aed")}
-            onMouseLeave={(e) => (e.currentTarget.style.borderColor = "#2a2a3d")}
+            onMouseEnter={(e) => liftLibraryCard(e.currentTarget)}
+            onMouseLeave={(e) => settleLibraryCard(e.currentTarget)}
           >
-            {k === "title" ? "Agregar título" : k === "subtitle" ? "Agregar subtítulo" : "Agregar párrafo"}
+            <span style={{ color: "#4b342d", fontSize: 12, fontWeight: 850, fontFamily: "Inter, system-ui, sans-serif" }}>
+              {preset.label}
+            </span>
+            <span style={{ color: "#7c6658", fontSize: 9.8, fontFamily: "Inter, system-ui, sans-serif" }}>
+              {preset.description}
+            </span>
+            <span style={{ color: "#342620", fontSize: preset.fontSize, fontFamily: preset.fontFamily, fontStyle: preset.fontStyle, lineHeight: 1.12 }}>
+              {preset.sample}
+            </span>
           </button>
         ))}
       </div>
@@ -1224,119 +2256,199 @@ function ExpandedPanel({
   }
 
   if (tool === "elements") {
-    const invitationBlocks: { id: InvitationBlockKind; icon: string; label: string; description: string }[] = [
-      { id: "date", icon: "◇", label: "Fecha", description: "Día, mes, año y hora" },
-      { id: "countdown", icon: "⏱", label: "Cuenta regresiva", description: "Días, horas y minutos" },
-      { id: "location", icon: "⌖", label: "Ubicación", description: "Lugar, dirección y mapa" },
-      { id: "dresscode", icon: "◐", label: "Vestimenta", description: "Tenida y paleta de colores" },
-      { id: "message", icon: "❞", label: "Mensaje", description: "Frase elegante para invitados" },
+    const basics: { id: InvitationBlockKind; icon: string; label: string; description: string; preview: string }[] = [
+      { id: "date", icon: "12", label: "Fecha", description: "Dia, mes, ano y hora", preview: "linear-gradient(135deg,rgba(255,252,247,0.96),rgba(184,146,90,0.20))" },
+      { id: "dresscode", icon: "◐", label: "Vestimenta", description: "Tenida y gama de colores", preview: "linear-gradient(135deg,rgba(250,247,241,0.96),rgba(94,79,69,0.16))" },
+      { id: "message", icon: "❞", label: "Mensaje", description: "Texto editorial para invitados", preview: "linear-gradient(135deg,rgba(255,252,247,0.96),rgba(199,183,160,0.24))" },
     ];
-    const cats = [
-      { label: "Formas", items: ["Rectángulo", "Círculo", "Línea"] },
-      { label: "Flores", items: ["Rosa", "Flor 1", "Flor 2"] },
-      { label: "Brillos", items: ["Destello", "Resplandor", "Polvo"] },
-      { label: "Separadores", items: ["Línea dorada", "Ola", "Puntos"] },
-      { label: "Botones", items: ["Primario", "Contorno", "Sutil"] },
+    const decorations: { kind: string; label: string; description: string; preview: React.ReactNode }[] = [
+      {
+        kind: "soft-card",
+        label: "Tarjeta suave",
+        description: "Base glass para contenido",
+        preview: <span style={{ width: 44, height: 24, borderRadius: 9, background: "rgba(255,252,247,0.86)", border: "1px solid rgba(184,146,90,0.28)", boxShadow: "0 8px 18px rgba(75,39,53,0.10)" }} />,
+      },
+      {
+        kind: "glow-circle",
+        label: "Circulo glow",
+        description: "Luz decorativa radial",
+        preview: <span style={{ width: 38, height: 38, borderRadius: 999, background: "radial-gradient(circle,rgba(255,252,247,0.95),rgba(199,183,160,0.48),rgba(184,146,90,0.18))", border: "1px solid rgba(184,146,90,0.22)" }} />,
+      },
+      {
+        kind: "rose-soft",
+        label: "Rosa soft",
+        description: "Ornamento floral sutil",
+        preview: <span style={{ width: 42, height: 42, borderRadius: 999, background: "radial-gradient(circle,rgba(250,247,241,0.92),rgba(184,146,90,0.34),transparent 72%)", border: "1px solid rgba(166,135,92,0.22)" }} />,
+      },
+      {
+        kind: "spark",
+        label: "Destello",
+        description: "Punto de luz dorado",
+        preview: <span style={{ width: 36, height: 36, borderRadius: 999, background: "radial-gradient(circle,rgba(244,210,138,0.90),rgba(184,146,90,0.30),transparent 72%)" }} />,
+      },
+      {
+        kind: "soft-glow",
+        label: "Resplandor",
+        description: "Fondo luminoso suave",
+        preview: <span style={{ width: 54, height: 34, borderRadius: 999, background: "radial-gradient(ellipse,rgba(184,146,90,0.30),rgba(59,48,42,0.12),transparent 74%)" }} />,
+      },
+      {
+        kind: "ambient-glow",
+        label: "Ambient glow",
+        description: "Luz azul/dorada envolvente",
+        preview: <span style={{ width: 56, height: 36, borderRadius: 999, background: "radial-gradient(ellipse at 35% 30%,rgba(212,175,55,0.28),transparent 62%),radial-gradient(ellipse at 72% 68%,rgba(37,99,235,0.24),transparent 70%)" }} />,
+      },
+      {
+        kind: "cinematic-haze",
+        label: "Cinematic haze",
+        description: "Velo ambiental suave",
+        preview: <span style={{ width: 56, height: 34, borderRadius: 12, background: "radial-gradient(120% 64% at 50% 0%,rgba(212,175,55,0.16),transparent 64%),linear-gradient(180deg,rgba(37,99,235,0.08),rgba(255,255,255,0.04))" }} />,
+      },
+      {
+        kind: "gold-contamination",
+        label: "Gold contamination",
+        description: "Derrame dorado atmosférico",
+        preview: <span style={{ width: 56, height: 36, borderRadius: 999, background: "radial-gradient(ellipse at 28% 22%,rgba(212,175,55,0.34),rgba(212,175,55,0.12),transparent 70%),radial-gradient(ellipse at 76% 76%,rgba(212,175,55,0.18),transparent 72%)" }} />,
+      },
+      {
+        kind: "blue-ambient-light",
+        label: "Blue ambient light",
+        description: "Luz fría cinematográfica",
+        preview: <span style={{ width: 56, height: 36, borderRadius: 999, background: "radial-gradient(ellipse at 42% 38%,rgba(37,99,235,0.34),rgba(37,99,235,0.14),transparent 72%),radial-gradient(ellipse at 70% 70%,rgba(212,175,55,0.10),transparent 78%)" }} />,
+      },
+      {
+        kind: "editorial-fog",
+        label: "Editorial fog",
+        description: "Niebla editorial integrada",
+        preview: <span style={{ width: 56, height: 34, borderRadius: 12, background: "radial-gradient(140% 76% at 18% 24%,rgba(37,99,235,0.12),transparent 60%),linear-gradient(115deg,transparent,rgba(212,175,55,0.10),rgba(37,99,235,0.08),transparent)" }} />,
+      },
+      {
+        kind: "editorial-line",
+        label: "Linea editorial",
+        description: "Separador fino premium",
+        preview: <span style={{ width: 56, height: 2, borderRadius: 999, background: "linear-gradient(90deg,transparent,#b8925a,transparent)" }} />,
+      },
+      {
+        kind: "dots",
+        label: "Puntos",
+        description: "Separador minimal",
+        preview: <span style={{ display: "flex", gap: 5 }}>{[0, 1, 2, 3].map((dot) => <span key={dot} style={{ width: 7, height: 7, borderRadius: 999, background: dot === 0 || dot === 3 ? "rgba(184,146,90,0.45)" : "#d4aa72" }} />)}</span>,
+      },
     ];
+    const sectionTitleStyle: React.CSSProperties = {
+      color: "#8a6f61",
+      fontSize: 10,
+      letterSpacing: "0.11em",
+      textTransform: "uppercase",
+      margin: "18px 0 9px",
+      fontWeight: 900,
+      fontFamily: "Inter, system-ui, sans-serif",
+    };
+    const cardStyle: React.CSSProperties = {
+      width: "100%",
+      border: "1px solid rgba(184,146,90,0.18)",
+      borderRadius: 14,
+      background: "linear-gradient(180deg,rgba(255,252,247,0.90),rgba(255,247,237,0.66))",
+      cursor: "pointer",
+      textAlign: "left",
+      boxShadow: "0 10px 22px rgba(67,43,30,0.08)",
+      transition: "transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease",
+    };
+    const liftCard = (element: HTMLButtonElement) => {
+      element.style.transform = "translateY(-1px)";
+      element.style.borderColor = "rgba(184,146,90,0.42)";
+      element.style.boxShadow = "0 14px 28px rgba(67,43,30,0.13)";
+    };
+    const settleCard = (element: HTMLButtonElement) => {
+      element.style.transform = "translateY(0)";
+      element.style.borderColor = "rgba(184,146,90,0.18)";
+      element.style.boxShadow = "0 10px 22px rgba(67,43,30,0.08)";
+    };
     return (
-      <div style={{ padding: "12px 14px", overflowY: "auto", maxHeight: "calc(100vh - 56px)" }}>
-        <div style={{ marginBottom: 16 }}>
-          <p style={{ color: "#c8a96a", fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", margin: "0 0 8px", fontWeight: 800 }}>
-            Bloques de invitación
-          </p>
-          <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
-            {invitationBlocks.map((block) => (
-              <button
-                key={block.id}
-                type="button"
-                onClick={() => onAddInvitationBlock(block.id)}
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "30px 1fr",
-                  gap: 10,
-                  alignItems: "center",
-                  width: "100%",
-                  padding: "10px 12px",
-                  background: "linear-gradient(135deg,rgba(124,58,237,0.16),rgba(200,169,106,0.08))",
-                  border: "1px solid rgba(200,169,106,0.24)",
-                  borderRadius: 12,
-                  cursor: "pointer",
-                  textAlign: "left",
-                  transition: "border-color 0.15s, transform 0.15s",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = "rgba(200,169,106,0.55)";
-                  e.currentTarget.style.transform = "translateY(-1px)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = "rgba(200,169,106,0.24)";
-                  e.currentTarget.style.transform = "translateY(0)";
-                }}
-              >
-                <span style={{ width: 30, height: 30, borderRadius: 10, display: "grid", placeItems: "center", background: "rgba(200,169,106,0.14)", color: "#f4d28a", fontSize: 15 }}>
-                  {block.icon}
+      <div style={panelShellStyle}>
+        <p style={panelTitleStyle}>
+          Elementos curados
+        </p>
+        <p style={panelCopyStyle}>
+          Bloques y detalles listos para componer tu invitacion.
+        </p>
+
+        <p style={{ ...sectionTitleStyle, marginTop: 0 }}>Basicos</p>
+        <div style={{ display: "grid", gap: 8 }}>
+          {basics.map((block) => (
+            <button
+              key={block.id}
+              type="button"
+              onClick={() => onAddInvitationBlock(block.id)}
+              style={{ ...cardStyle, display: "grid", gridTemplateColumns: "48px 1fr", gap: 10, alignItems: "center", padding: 10 }}
+              onMouseEnter={(e) => liftCard(e.currentTarget)}
+              onMouseLeave={(e) => settleCard(e.currentTarget)}
+            >
+              <span style={{ width: 48, height: 44, borderRadius: 13, display: "grid", placeItems: "center", background: block.preview, color: "#4b2735", fontSize: 12, fontWeight: 900, boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.42)" }}>
+                {block.icon}
+              </span>
+              <span style={{ minWidth: 0 }}>
+                <span style={{ display: "block", color: "#4b2735", fontSize: 12, fontWeight: 850, fontFamily: "Inter, system-ui, sans-serif" }}>
+                  {block.label}
                 </span>
-                <span>
-                  <span style={{ display: "block", color: "#e8e6ff", fontSize: 12, fontWeight: 800, fontFamily: "Inter, system-ui, sans-serif" }}>
-                    {block.label}
-                  </span>
-                  <span style={{ display: "block", marginTop: 2, color: "#8884a8", fontSize: 10, lineHeight: 1.25, fontFamily: "Inter, system-ui, sans-serif" }}>
-                    {block.description}
-                  </span>
+                <span style={{ display: "block", marginTop: 2, color: "#8a6b58", fontSize: 10, lineHeight: 1.3, fontFamily: "Inter, system-ui, sans-serif" }}>
+                  {block.description}
                 </span>
-              </button>
-            ))}
-          </div>
+              </span>
+            </button>
+          ))}
         </div>
-        {cats.map((cat) => (
-          <div key={cat.label} style={{ marginBottom: 14 }}>
-            <p style={{ color: "#8884a8", fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", margin: "0 0 8px" }}>
-              {cat.label}
-            </p>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
-              {cat.items.map((item) => (
-                <button
-                  key={item}
-                  type="button"
-                  onClick={() => onAddElement(item)}
-                  style={{
-                    padding: "8px 10px",
-                    background: "#1e1e2d", border: "1px solid #2a2a3d",
-                    borderRadius: 8, cursor: "pointer",
-                    color: "#c8c4f0", fontSize: 11,
-                    fontFamily: "Inter, system-ui, sans-serif",
-                    transition: "border-color 0.15s",
-                  }}
-                  onMouseEnter={(e) => (e.currentTarget.style.borderColor = "#7c3aed")}
-                  onMouseLeave={(e) => (e.currentTarget.style.borderColor = "#2a2a3d")}
-                >
-                  {item}
-                </button>
-              ))}
-            </div>
-          </div>
-        ))}
+
+        <p style={sectionTitleStyle}>Decoraciones</p>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+          {decorations.map((item) => (
+            <button
+              key={item.kind}
+              type="button"
+              onClick={() => onAddElement(item.kind)}
+              style={{ ...cardStyle, minHeight: 112, padding: 10, display: "grid", gridTemplateRows: "42px auto", gap: 8, justifyItems: "start" }}
+              onMouseEnter={(e) => liftCard(e.currentTarget)}
+              onMouseLeave={(e) => settleCard(e.currentTarget)}
+            >
+              <span style={{ width: "100%", height: 42, borderRadius: 12, display: "grid", placeItems: "center", background: "linear-gradient(135deg,rgba(255,252,247,0.80),rgba(184,146,90,0.10))", overflow: "hidden" }}>
+                {item.preview}
+              </span>
+              <span>
+                <span style={{ display: "block", color: "#4b2735", fontSize: 11.5, fontWeight: 850, fontFamily: "Inter, system-ui, sans-serif" }}>
+                  {item.label}
+                </span>
+                <span style={{ display: "block", marginTop: 2, color: "#8a6b58", fontSize: 9.5, lineHeight: 1.28, fontFamily: "Inter, system-ui, sans-serif" }}>
+                  {item.description}
+                </span>
+              </span>
+            </button>
+          ))}
+        </div>
+
       </div>
     );
   }
 
   if (tool === "apps") {
-    const appList: Array<{ id: string; icon: string; label: string }> = [
-      { id: "rsvp",   icon: "✓",  label: "Confirmar asistencia" },
-      { id: "countdown", icon: "⏱", label: "Cuenta regresiva" },
-      { id: "whatsapp",  icon: "💬", label: "WhatsApp" },
-      { id: "album",  icon: "📸", label: "Álbum en vivo" },
-      { id: "live",   icon: "🖥",  label: "Pantalla en vivo" },
-      { id: "maps",   icon: "📍", label: "Google Maps" },
-      { id: "qr",     icon: "▦",  label: "Código QR" },
+    const appList: Array<{ id: string; icon: string; label: string; description: string; accent: string }> = [
+      { id: "countdown", icon: "00", label: "Cuenta regresiva", description: "Dias, horas y minutos en vivo", accent: "linear-gradient(135deg,#2d2621,#b8925a)" },
+      { id: "rsvp", icon: "✓", label: "RSVP", description: "Confirmacion de asistencia", accent: "linear-gradient(135deg,#4b3a2e,#b8925a)" },
+      { id: "whatsapp", icon: "WA", label: "WhatsApp", description: "Contacto directo con invitados", accent: "linear-gradient(135deg,#26352d,#9fb99f)" },
+      { id: "maps", icon: "⌖", label: "Google Maps", description: "Boton funcional de ubicacion", accent: "linear-gradient(135deg,#2f3437,#b7a98f)" },
+      { id: "qr", icon: "QR", label: "Codigo QR", description: "Acceso escaneable al evento", accent: "linear-gradient(135deg,#191716,#c8a96a)" },
+      { id: "album", icon: "AL", label: "Album en vivo", description: "Fotos compartidas en tiempo real", accent: "linear-gradient(135deg,#2e2930,#b7a98f)" },
+      { id: "live", icon: "TV", label: "Pantalla en vivo", description: "Visual para recepcion o salon", accent: "linear-gradient(135deg,#111827,#9ca3af)" },
     ];
 
     return (
-      <div style={{ padding: "12px 14px" }}>
-        <p style={{
-          color: "#8a6f61", fontSize: 10, letterSpacing: "0.1em",
-          textTransform: "uppercase", margin: "0 0 10px", fontWeight: 800,
-        }}>
+      <div style={panelShellStyle}>
+        <p style={panelTitleStyle}>
+          Apps interactivas
+        </p>
+        <p style={panelCopyStyle}>
+          Bloques con accion real para tus invitados.
+        </p>
+        <p style={eyebrowStyle}>
           Bloques interactivos
         </p>
         {appList.map((app) => {
@@ -1351,23 +2463,28 @@ function ExpandedPanel({
               <div
                 key={app.id}
                 style={{
-                  display: "flex", alignItems: "center", gap: 10,
+                  display: "grid", gridTemplateColumns: "42px 1fr auto", alignItems: "center", gap: 10,
                   width: "100%", marginBottom: 6,
                   padding: "10px 14px",
-                  background: "rgba(248,245,240,0.55)",
+                  background: "linear-gradient(180deg,rgba(248,245,240,0.58),rgba(255,252,247,0.36))",
                   border: "1px solid rgba(184,146,90,0.14)",
-                  borderRadius: 10,
+                  borderRadius: 14,
                   cursor: "default",
                   boxSizing: "border-box",
                   position: "relative",
                 }}
               >
                 {/* Icon + label — muted */}
-                <span style={{ fontSize: 16, width: 24, textAlign: "center", opacity: 0.28 }}>
+                <span style={{ width: 42, height: 38, borderRadius: 12, display: "grid", placeItems: "center", background: app.accent, color: "#fff7ef", fontSize: 10, fontWeight: 900, opacity: 0.28 }}>
                   {app.icon}
                 </span>
-                <span style={{ color: "#8a6f61", fontSize: 12, fontFamily: "Inter, system-ui, sans-serif", opacity: 0.5, flex: 1 }}>
-                  {app.label}
+                <span style={{ minWidth: 0, opacity: 0.55 }}>
+                  <span style={{ display: "block", color: "#4b2735", fontSize: 12, fontFamily: "Inter, system-ui, sans-serif", fontWeight: 850 }}>
+                    {app.label}
+                  </span>
+                  <span style={{ display: "block", marginTop: 2, color: "#8a6b58", fontSize: 10, lineHeight: 1.3, fontFamily: "Inter, system-ui, sans-serif" }}>
+                    {app.description}
+                  </span>
                 </span>
                 {/* Right side: lock + plan badge */}
                 <span style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
@@ -1396,34 +2513,47 @@ function ExpandedPanel({
               type="button"
               onClick={() => onAddApp(app.id)}
               style={{
-                display: "flex", alignItems: "center", gap: 10,
+                display: "grid", gridTemplateColumns: "42px 1fr", alignItems: "center", gap: 10,
                 width: "100%", marginBottom: 6,
-                padding: "10px 14px",
-                background: "rgba(255,252,247,0.78)",
+                padding: "10px 12px",
+                background: "linear-gradient(180deg,rgba(255,252,247,0.92),rgba(255,247,237,0.68))",
                 border: "1px solid rgba(184,146,90,0.22)",
-                borderRadius: 10, cursor: "pointer", textAlign: "left",
-                transition: "border-color 0.15s, background 0.15s",
+                borderRadius: 14, cursor: "pointer", textAlign: "left",
+                transition: "border-color 0.15s, background 0.15s, transform 0.15s, box-shadow 0.15s",
                 boxSizing: "border-box",
+                boxShadow: "0 10px 22px rgba(67,43,30,0.08)",
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.borderColor = "rgba(184,146,90,0.55)";
-                e.currentTarget.style.background = "rgba(255,252,247,1)";
+                e.currentTarget.style.background = "linear-gradient(180deg,rgba(255,252,247,1),rgba(255,247,237,0.82))";
+                e.currentTarget.style.transform = "translateY(-1px)";
+                e.currentTarget.style.boxShadow = "0 14px 28px rgba(67,43,30,0.13)";
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.borderColor = "rgba(184,146,90,0.22)";
-                e.currentTarget.style.background = "rgba(255,252,247,0.78)";
+                e.currentTarget.style.background = "linear-gradient(180deg,rgba(255,252,247,0.92),rgba(255,247,237,0.68))";
+                e.currentTarget.style.transform = "translateY(0)";
+                e.currentTarget.style.boxShadow = "0 10px 22px rgba(67,43,30,0.08)";
               }}
             >
               <span style={{
-                width: 28, height: 28, borderRadius: 8, flexShrink: 0,
+                width: 42, height: 38, borderRadius: 12, flexShrink: 0,
                 display: "grid", placeItems: "center",
-                background: "rgba(184,146,90,0.10)",
-                fontSize: 14,
+                background: app.accent,
+                color: "#fff7ef",
+                fontSize: 10,
+                fontWeight: 900,
+                boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.18)",
               }}>
                 {app.icon}
               </span>
-              <span style={{ color: "#4b2735", fontSize: 12, fontFamily: "Inter, system-ui, sans-serif", fontWeight: 600 }}>
-                {app.label}
+              <span style={{ minWidth: 0 }}>
+                <span style={{ display: "block", color: "#4b2735", fontSize: 12, fontFamily: "Inter, system-ui, sans-serif", fontWeight: 850 }}>
+                  {app.label}
+                </span>
+                <span style={{ display: "block", marginTop: 2, color: "#8a6b58", fontSize: 10, lineHeight: 1.3, fontFamily: "Inter, system-ui, sans-serif" }}>
+                  {app.description}
+                </span>
               </span>
             </button>
           );
@@ -1452,85 +2582,545 @@ function ExpandedPanel({
   }
 
   if (tool === "templates") {
+    const templateFallbackGradients = [
+      "linear-gradient(155deg,#211323 0%,#6f3a4e 48%,#d7b271 100%)",
+      "linear-gradient(155deg,#111827 0%,#2f3d55 52%,#c8a96a 100%)",
+      "linear-gradient(155deg,#fff8f0 0%,#d8b6a4 48%,#8b5a65 100%)",
+      "linear-gradient(155deg,#171312 0%,#4c3a2d 50%,#b8925a 100%)",
+      "linear-gradient(155deg,#f8f5ef 0%,#b7a98f 50%,#2f3437 100%)",
+    ];
+    const pickTemplateGradient = (seed: string, index = 0) => {
+      const charTotal = seed.split("").reduce((total, char) => total + char.charCodeAt(0), 0);
+      return templateFallbackGradients[(charTotal + index) % templateFallbackGradients.length];
+    };
+    const renderTemplateMockup = ({
+      previewUrl,
+      gradient,
+      initial,
+      isPremium,
+    }: {
+      previewUrl?: string | null;
+      gradient: string;
+      initial: string;
+      isPremium?: boolean;
+    }) => (
+      <span
+        style={{
+          width: 62,
+          height: 92,
+          borderRadius: 18,
+          position: "relative",
+          display: "grid",
+          placeItems: "center",
+          overflow: "hidden",
+          flexShrink: 0,
+          background: previewUrl
+            ? `linear-gradient(rgba(18,14,20,0.12),rgba(18,14,20,0.12)),url(${previewUrl}) center/cover`
+            : gradient,
+          boxShadow: "0 12px 24px rgba(38,21,16,0.18), inset 0 0 0 1px rgba(255,255,255,0.30)",
+        }}
+      >
+        {!previewUrl && (
+          <>
+            <span style={{ position: "absolute", inset: 7, borderRadius: 14, border: "1px solid rgba(255,255,255,0.22)" }} />
+            <span style={{ position: "absolute", top: 12, left: 14, right: 14, height: 1, background: "linear-gradient(90deg,transparent,rgba(255,255,255,0.70),transparent)" }} />
+            <span style={{ position: "absolute", bottom: 13, left: 16, right: 16, height: 18, borderRadius: 999, background: "rgba(255,252,247,0.18)", border: "1px solid rgba(255,255,255,0.18)" }} />
+            <span style={{ position: "absolute", width: 34, height: 34, borderRadius: 999, background: "radial-gradient(circle,rgba(255,255,255,0.46),rgba(255,255,255,0.08),transparent 72%)" }} />
+            <span style={{ color: "#fff7ef", fontSize: 20, fontWeight: 850, fontFamily: "'Playfair Display', Georgia, serif", textShadow: "0 8px 18px rgba(0,0,0,0.28)", zIndex: 1 }}>
+              {initial}
+            </span>
+          </>
+        )}
+        <span style={{
+          position: "absolute",
+          right: 6,
+          top: 6,
+          width: 7,
+          height: 7,
+          borderRadius: 999,
+          background: isPremium ? "#f4d28a" : "rgba(255,255,255,0.76)",
+          boxShadow: "0 0 0 1px rgba(20,14,16,0.12)",
+        }} />
+      </span>
+    );
+    const compactTemplateCardStyle: React.CSSProperties = {
+      marginBottom: 9,
+      padding: 9,
+      borderRadius: 17,
+      border: "1px solid rgba(184,146,90,0.20)",
+      background: "linear-gradient(180deg,rgba(255,252,247,0.94),rgba(246,239,228,0.76))",
+      boxShadow: "0 10px 22px rgba(67,43,30,0.085)",
+      transition: "transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease",
+    };
+    const liftTemplateCard = (element: HTMLDivElement) => {
+      element.style.transform = "translateY(-1px)";
+      element.style.boxShadow = "0 14px 28px rgba(67,43,30,0.14)";
+      element.style.borderColor = "rgba(184,146,90,0.40)";
+    };
+    const settleTemplateCard = (element: HTMLDivElement) => {
+      element.style.transform = "translateY(0)";
+      element.style.boxShadow = "0 10px 22px rgba(67,43,30,0.085)";
+      element.style.borderColor = "rgba(184,146,90,0.20)";
+    };
+    const compactTagStyle: React.CSSProperties = {
+      padding: "2px 5px",
+      borderRadius: 999,
+      background: "rgba(184,146,90,0.10)",
+      color: "#7a5a40",
+      fontSize: 7.8,
+      fontWeight: 850,
+      letterSpacing: "0.045em",
+      textTransform: "uppercase",
+      whiteSpace: "nowrap",
+    };
+
     return (
-      <div style={{ padding: "12px 14px" }}>
+      <div style={panelShellStyle}>
+        <p style={eyebrowStyle}>
+          Galeria KAIS
+        </p>
+        <h3 style={panelTitleStyle}>
+          Disenos listos para tu evento
+        </h3>
+        <p style={panelCopyStyle}>
+          Aplica una composicion visual y conserva nombres, fechas, ubicacion y mensajes reales.
+        </p>
+        {templateApplyError && (
+          <div style={{
+            marginBottom: 12,
+            padding: "9px 10px",
+            borderRadius: 12,
+            background: "rgba(239,68,68,0.10)",
+            border: "1px solid rgba(239,68,68,0.22)",
+            color: "#fecaca",
+            fontSize: 11,
+            lineHeight: 1.45,
+            fontFamily: "Inter, system-ui, sans-serif",
+          }}>
+            {templateApplyError}
+          </div>
+        )}
+        {canvasTemplates.length > 0 && (
+          canvasTemplates.map((template, index) => {
+            const previewUrl = template.thumbnailUrl || template.previewImageUrl;
+            const isApplying = isApplyingTemplate && applyingTemplateId === template.id;
+            return (
+              <div
+                key={template.id}
+                onMouseEnter={(e) => liftTemplateCard(e.currentTarget)}
+                onMouseLeave={(e) => settleTemplateCard(e.currentTarget)}
+                style={compactTemplateCardStyle}
+              >
+                <div style={{ display: "grid", gridTemplateColumns: "62px 1fr", gap: 10, alignItems: "center" }}>
+                  {renderTemplateMockup({
+                    previewUrl,
+                    gradient: pickTemplateGradient(template.name || template.slug, index),
+                    initial: template.name.slice(0, 1).toUpperCase(),
+                    isPremium: template.isPremium,
+                  })}
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 3 }}>
+                      <p style={{ color: "#4b2735", fontSize: 12.5, fontWeight: 850, margin: 0, fontFamily: "Inter, system-ui, sans-serif", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>
+                        {template.name}
+                      </p>
+                      <span style={{ ...compactTagStyle, background: template.isPremium ? "rgba(184,146,90,0.18)" : "rgba(80,70,60,0.08)", color: template.isPremium ? "#9a6d32" : "#706259" }}>
+                        {template.isPremium ? "Premium" : "Libre"}
+                      </span>
+                    </div>
+                    <p style={{ color: "#8a6b58", fontSize: 9.6, lineHeight: 1.32, margin: "0 0 7px", fontFamily: "Inter, system-ui, sans-serif", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                      {template.description || template.visualCategory || "Composicion editable para KAIS Studio."}
+                    </p>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 8 }}>
+                      {template.visualCategory && (
+                        <span style={compactTagStyle}>
+                          {template.visualCategory}
+                        </span>
+                      )}
+                      {template.compatibleEventTypes.slice(0, 3).map((eventType) => (
+                        <span
+                          key={eventType}
+                          style={compactTagStyle}
+                        >
+                          {eventType}
+                        </span>
+                      ))}
+                    </div>
+                    <button
+                      type="button"
+                      disabled={isApplyingTemplate}
+                      onClick={() => onApplyTemplateFromDb(template)}
+                      style={{
+                        width: "100%",
+                        padding: "7px 9px",
+                        borderRadius: 10,
+                        border: "1px solid rgba(184,146,90,0.28)",
+                        background: isApplying
+                          ? "rgba(184,146,90,0.18)"
+                          : "linear-gradient(135deg,#2b1b24,#b8925a)",
+                        color: "#fff7ef",
+                        cursor: isApplyingTemplate ? "wait" : "pointer",
+                        fontSize: 10,
+                        fontWeight: 850,
+                        letterSpacing: "0.035em",
+                        boxShadow: "0 8px 16px rgba(61,35,21,0.14)",
+                        fontFamily: "Inter, system-ui, sans-serif",
+                        opacity: isApplyingTemplate && !isApplying ? 0.58 : 1,
+                      }}
+                    >
+                      {isApplying ? "Aplicando..." : "Usar plantilla"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })
+        )}
         {/* ── Premium templates ── */}
-        <p style={{ color: "#f472b6", fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", margin: "0 0 10px", fontWeight: 800 }}>
-          ✦ Plantillas premium
+        <p style={{ ...eyebrowStyle, marginTop: 20, marginBottom: 10 }}>
+          Plantillas KAIS
         </p>
         {PREMIUM_TEMPLATES.map((tpl) => (
-          <div key={tpl.id} style={{ marginBottom: 12, borderRadius: 14, overflow: "hidden", border: "1px solid rgba(244,114,182,0.32)" }}>
-            {/* Preview swatch */}
-            <div style={{ height: 56, background: tpl.previewGradient, position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <span style={{ fontSize: 22 }}>{tpl.emoji}</span>
-              <span style={{ position: "absolute", top: 6, right: 8, fontSize: 8, fontWeight: 800, letterSpacing: "0.1em", color: "rgba(244,114,182,0.8)", textTransform: "uppercase" }}>
-                {tpl.category}
-              </span>
-            </div>
-            <div style={{ padding: "10px 11px 11px", background: "rgba(244,114,182,0.06)" }}>
-              <p style={{ color: "#fff7ef", fontSize: 13, fontWeight: 700, margin: "0 0 4px", fontFamily: "Inter, system-ui, sans-serif" }}>
-                {tpl.label}
-              </p>
-              <p style={{ color: "#c084fc", fontSize: 10, lineHeight: 1.4, margin: "0 0 10px", fontFamily: "Inter, system-ui, sans-serif" }}>
-                {tpl.description}
-              </p>
+          <div
+            key={tpl.id}
+            onMouseEnter={(e) => liftTemplateCard(e.currentTarget)}
+            onMouseLeave={(e) => settleTemplateCard(e.currentTarget)}
+            style={compactTemplateCardStyle}
+          >
+            <div style={{ display: "grid", gridTemplateColumns: "62px 1fr", gap: 10, alignItems: "center" }}>
+              {renderTemplateMockup({
+                gradient: tpl.previewGradient,
+                initial: tpl.emoji,
+                isPremium: true,
+              })}
+              <div style={{ minWidth: 0 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 3 }}>
+                  <p style={{ color: "#4b342d", fontSize: 12.5, fontWeight: 850, margin: 0, fontFamily: "Inter, system-ui, sans-serif", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>
+                    {tpl.label}
+                  </p>
+                  <span style={{ ...compactTagStyle, background: "rgba(184,146,90,0.18)", color: "#9a6d32" }}>
+                    Premium
+                  </span>
+                </div>
+                <p style={{ color: "#7c6658", fontSize: 9.6, lineHeight: 1.32, margin: "0 0 7px", fontFamily: "Inter, system-ui, sans-serif", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                  {tpl.description}
+                </p>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 8 }}>
+                  <span style={compactTagStyle}>{tpl.category}</span>
+                  <span style={compactTagStyle}>Clasico</span>
+                </div>
               <button
                 type="button"
                 onClick={() => onApplyPremiumTemplate(tpl.id)}
                 style={{
-                  width: "100%", padding: "9px 10px", borderRadius: 10,
+                  width: "100%", padding: "7px 9px", borderRadius: 10,
                   border: "none",
-                  background: "linear-gradient(135deg,#f472b6,#c026d3)",
-                  color: "#fff", cursor: "pointer",
-                  fontSize: 11, fontWeight: 800, letterSpacing: "0.04em",
-                  boxShadow: "0 4px 16px rgba(244,114,182,0.38)",
+                  background: "linear-gradient(135deg,#2d2621,#b8925a)",
+                  color: "#fffaf2", cursor: "pointer",
+                  fontSize: 10, fontWeight: 850, letterSpacing: "0.035em",
+                  boxShadow: "0 8px 16px rgba(54,42,34,0.14)",
                   fontFamily: "Inter, system-ui, sans-serif",
                 }}
               >
-                Generar invitación completa →
+                Usar plantilla
               </button>
+              </div>
             </div>
-          </div>
-        ))}
-
-        {/* ── Theme palettes ── */}
-        <p style={{ color: "#8884a8", fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", margin: "18px 0 10px" }}>
-          Paletas de color
-        </p>
-        {CANVAS_V3_THEMES.map((theme) => (
-          <div
-            key={theme.id}
-            style={{
-              marginBottom: 10, padding: 10,
-              background: activeThemeId === theme.id ? "rgba(124,58,237,0.18)" : "#1e1e2d",
-              border: activeThemeId === theme.id ? "1px solid #7c3aed" : "1px solid #2a2a3d",
-              borderRadius: 12
-            }}
-          >
-            <div style={{ height: 48, borderRadius: 10, marginBottom: 9, background: theme.sectionBackgrounds.hero, boxShadow: `inset 0 0 0 1px ${theme.colors.accent}44` }} />
-            <p style={{ color: "#e8e6ff", fontSize: 12, fontWeight: 700, margin: "0 0 4px", fontFamily: "Inter, system-ui, sans-serif" }}>{theme.name}</p>
-            <p style={{ color: "#8884a8", fontSize: 10, lineHeight: 1.35, margin: "0 0 9px", fontFamily: "Inter, system-ui, sans-serif" }}>{theme.description}</p>
-            <button
-              type="button"
-              onClick={() => onApplyTheme(theme)}
-              style={{
-                width: "100%", padding: "8px 10px", borderRadius: 9,
-                border: "1px solid rgba(200,169,106,0.36)",
-                background: activeThemeId === theme.id ? "rgba(200,169,106,0.22)" : "rgba(200,169,106,0.10)",
-                color: activeThemeId === theme.id ? "#f4d28a" : "#c8c4f0",
-                cursor: "pointer", fontSize: 11, fontWeight: 700
-              }}
-            >
-              {activeThemeId === theme.id ? "Aplicado" : "Aplicar paleta"}
-            </button>
           </div>
         ))}
       </div>
     );
   }
 
+  if (tool === "uploaded") {
+    const groupedAssets = [
+      ...assetCategories.map((category) => ({
+        id: category.id,
+        label: category.name,
+        assets: assetItems.filter((asset) => asset.categoryId === category.id)
+      })),
+      {
+        id: "uncategorized",
+        label: "Sin categoria",
+        assets: assetItems.filter((asset) => !asset.categoryId)
+      }
+    ].filter((group) => group.assets.length > 0 || group.id !== "uncategorized");
+
+    return (
+      <div style={panelShellStyle}>
+        <p style={eyebrowStyle}>Subidos</p>
+        <h3 style={panelTitleStyle}>Biblioteca visual</h3>
+        <p style={panelCopyStyle}>Carga elementos decorativos y reutilizalos en cualquier composicion del Studio.</p>
+
+        <form
+          onSubmit={async (event) => {
+            event.preventDefault();
+            const name = newCategoryName.trim();
+            if (!name) return;
+            await onCreateAssetCategory(name);
+            setNewCategoryName("");
+          }}
+          style={{
+            borderRadius: 18,
+            border: "1px solid rgba(166,135,92,0.22)",
+            background: "linear-gradient(180deg,rgba(255,252,247,0.96),rgba(247,242,233,0.76))",
+            padding: 12,
+            display: "grid",
+            gap: 8,
+            marginBottom: 12,
+          }}
+        >
+          <span style={{ color: "#4b342d", fontSize: 11, fontWeight: 850, fontFamily: "Inter, system-ui, sans-serif" }}>
+            Nueva categoria
+          </span>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 7 }}>
+            <input
+              value={newCategoryName}
+              onChange={(event) => setNewCategoryName(event.target.value)}
+              placeholder="Flores, glows, marcos..."
+              style={{
+                minWidth: 0,
+                border: "1px solid rgba(166,135,92,0.22)",
+                borderRadius: 11,
+                padding: "8px 10px",
+                color: "#4b342d",
+                background: "rgba(255,255,255,0.72)",
+                fontSize: 11,
+                outline: "none",
+              }}
+            />
+            <button
+              type="submit"
+              disabled={assetLibraryStatus === "saving"}
+              style={{
+                border: "none",
+                borderRadius: 11,
+                padding: "8px 10px",
+                background: "#4b2735",
+                color: "#fffaf4",
+                cursor: assetLibraryStatus === "saving" ? "wait" : "pointer",
+                fontSize: 11,
+                fontWeight: 850,
+              }}
+            >
+              Crear
+            </button>
+          </div>
+        </form>
+
+        <form
+          onSubmit={async (event) => {
+            event.preventDefault();
+            if (!uploadFile) return;
+            await onUploadAsset({
+              file: uploadFile,
+              name: uploadName.trim() || undefined,
+              categoryId: uploadCategoryId || null
+            });
+            setUploadName("");
+            setUploadFile(null);
+            const input = event.currentTarget.querySelector<HTMLInputElement>('input[type="file"]');
+            if (input) input.value = "";
+          }}
+          style={{
+            borderRadius: 18,
+            border: "1px solid rgba(166,135,92,0.22)",
+            background: "rgba(255,255,255,0.58)",
+            padding: 12,
+            display: "grid",
+            gap: 8,
+            marginBottom: 14,
+          }}
+        >
+          <span style={{ color: "#4b342d", fontSize: 11, fontWeight: 850, fontFamily: "Inter, system-ui, sans-serif" }}>
+            Subir recurso
+          </span>
+          <input
+            value={uploadName}
+            onChange={(event) => setUploadName(event.target.value)}
+            placeholder="Nombre visible"
+            style={{
+              border: "1px solid rgba(166,135,92,0.20)",
+              borderRadius: 11,
+              padding: "8px 10px",
+              color: "#4b342d",
+              fontSize: 11,
+              outline: "none",
+            }}
+          />
+          <select
+            value={uploadCategoryId}
+            onChange={(event) => setUploadCategoryId(event.target.value)}
+            style={{
+              border: "1px solid rgba(166,135,92,0.20)",
+              borderRadius: 11,
+              padding: "8px 10px",
+              color: "#4b342d",
+              fontSize: 11,
+              outline: "none",
+              background: "#fff",
+            }}
+          >
+            <option value="">Sin categoria</option>
+            {assetCategories.map((category) => (
+              <option key={category.id} value={category.id}>{category.name}</option>
+            ))}
+          </select>
+          <input
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            onChange={(event) => setUploadFile(event.target.files?.[0] ?? null)}
+            style={{
+              width: "100%",
+              border: "1px dashed rgba(166,135,92,0.36)",
+              borderRadius: 11,
+              padding: "8px",
+              color: "#6f5b51",
+              fontSize: 10.5,
+              background: "rgba(255,252,247,0.72)",
+            }}
+          />
+          <button
+            type="submit"
+            disabled={!uploadFile || assetLibraryStatus === "saving"}
+            style={{
+              width: "100%",
+              border: "none",
+              borderRadius: 12,
+              padding: "9px 10px",
+              background: !uploadFile ? "rgba(75,39,53,0.32)" : "linear-gradient(135deg,#4b2735,#b8925a)",
+              color: "#fffaf4",
+              cursor: !uploadFile || assetLibraryStatus === "saving" ? "not-allowed" : "pointer",
+              fontSize: 11,
+              fontWeight: 900,
+              boxShadow: uploadFile ? "0 10px 20px rgba(75,39,53,0.14)" : "none",
+            }}
+          >
+            {assetLibraryStatus === "saving" ? "Guardando..." : "Subir a biblioteca"}
+          </button>
+        </form>
+
+        {assetLibraryError && (
+          <div style={{
+            borderRadius: 12,
+            border: "1px solid rgba(190,60,60,0.26)",
+            background: "rgba(255,245,245,0.88)",
+            color: "#9b2f2f",
+            padding: 9,
+            fontSize: 10.5,
+            lineHeight: 1.35,
+            marginBottom: 12,
+          }}>
+            {assetLibraryError}
+          </div>
+        )}
+
+        {assetLibraryStatus === "loading" && assetItems.length === 0 ? (
+          <div style={{ color: "#7c6658", fontSize: 11, padding: "12px 2px" }}>Cargando biblioteca...</div>
+        ) : groupedAssets.length === 0 ? (
+          <div
+            style={{
+              borderRadius: 18,
+              border: "1px dashed rgba(166,135,92,0.32)",
+              background: "linear-gradient(180deg,rgba(255,252,247,0.92),rgba(244,238,228,0.66))",
+              padding: 16,
+              textAlign: "center",
+              boxShadow: "0 12px 28px rgba(54,42,34,0.08)",
+            }}
+          >
+            <span style={{ display: "block", color: "#4b342d", fontSize: 12, fontWeight: 850, fontFamily: "Inter, system-ui, sans-serif", marginBottom: 5 }}>
+              Biblioteca vacia
+            </span>
+            <span style={{ display: "block", color: "#7c6658", fontSize: 10.5, lineHeight: 1.45, fontFamily: "Inter, system-ui, sans-serif" }}>
+              Sube PNG, JPG o WEBP para reutilizar elementos decorativos.
+            </span>
+          </div>
+        ) : (
+          <div style={{ display: "grid", gap: 14 }}>
+            {groupedAssets.map((group) => (
+              <section key={group.id} style={{ display: "grid", gap: 8 }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                  <span style={{ color: "#8a6f61", fontSize: 9.5, fontWeight: 900, letterSpacing: "0.10em", textTransform: "uppercase" }}>
+                    {group.label}
+                  </span>
+                  {group.id !== "uncategorized" && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (window.confirm("Eliminar categoria? Los recursos quedaran sin categoria.")) {
+                          void onDeleteAssetCategory(group.id);
+                        }
+                      }}
+                      style={{ border: "none", background: "transparent", color: "#9b5353", cursor: "pointer", fontSize: 10, fontWeight: 800 }}
+                    >
+                      Eliminar
+                    </button>
+                  )}
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                  {group.assets.map((asset) => (
+                    <div
+                      key={asset.id}
+                      style={{
+                        borderRadius: 15,
+                        border: "1px solid rgba(166,135,92,0.18)",
+                        background: "rgba(255,255,255,0.72)",
+                        padding: 8,
+                        boxShadow: "0 10px 20px rgba(54,42,34,0.07)",
+                      }}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => onAddUploadedAsset(asset)}
+                        title="Usar en el lienzo"
+                        style={{
+                          width: "100%",
+                          aspectRatio: "1 / 1",
+                          border: "none",
+                          borderRadius: 12,
+                          background: `linear-gradient(135deg,rgba(248,245,239,0.85),rgba(229,219,203,0.62)), url("${asset.fileUrl.replace(/"/g, "%22")}") center / contain no-repeat`,
+                          cursor: "pointer",
+                          boxShadow: "inset 0 0 0 1px rgba(166,135,92,0.12)",
+                        }}
+                      />
+                      <div style={{ marginTop: 7, display: "grid", gap: 6 }}>
+                        <span style={{ color: "#4b342d", fontSize: 10.5, fontWeight: 850, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {asset.name}
+                        </span>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 5 }}>
+                          <button
+                            type="button"
+                            onClick={() => onAddUploadedAsset(asset)}
+                            style={{ border: "none", borderRadius: 9, padding: "6px 7px", background: "#4b2735", color: "#fffaf4", cursor: "pointer", fontSize: 10, fontWeight: 850 }}
+                          >
+                            Usar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (window.confirm("Eliminar este recurso de la biblioteca?")) {
+                                void onDeleteAsset(asset.id);
+                              }
+                            }}
+                            title="Eliminar recurso"
+                            style={{ border: "1px solid rgba(190,60,60,0.20)", borderRadius: 9, padding: "6px 7px", background: "rgba(255,245,245,0.8)", color: "#a33a3a", cursor: "pointer", fontSize: 10, fontWeight: 850 }}
+                          >
+                            X
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
-    <div style={{ padding: 20, color: "#8884a8", fontSize: 12, textAlign: "center" }}>
+    <div style={{ ...panelShellStyle, color: "#7c6658", fontSize: 12, textAlign: "center" }}>
       Próximamente
     </div>
   );
@@ -1561,6 +3151,7 @@ function RightPanel({
   onLayerMoveDown,
   onReorderLayers,
   eventDate,
+  panelMode = "properties",
 }: {
   element: V3Element | null;
   onChange: (id: string, patch: Partial<V3Element>) => void;
@@ -1583,6 +3174,7 @@ function RightPanel({
   onLayerMoveDown: (id: string) => void;
   onReorderLayers: (orderedIds: string[]) => void;
   eventDate?: string;
+  panelMode?: "properties" | "layers";
 }) {
   const [pendingDelete, setPendingDelete] = React.useState<"element" | "section" | null>(null);
   const [openGroup, setOpenGroup] = React.useState<InspectorGroup>("content");
@@ -1601,7 +3193,7 @@ function RightPanel({
   onReorderLayersRef.current = onReorderLayers;
 
   React.useEffect(() => {
-    const ROW_H = 29; // row height + gap in px
+    const ROW_H = 54; // row height + gap in px
     const onMove = (e: PointerEvent) => {
       if (!layerDragRef.current || !layerListRef.current) return;
       const rect = layerListRef.current.getBoundingClientRect();
@@ -1742,6 +3334,11 @@ function RightPanel({
     </div>
   );
   const hasEffectControls = element ? (element.type !== "app" || Boolean(normalizeAppType(element))) : false;
+  const hasAtmosphereControls = element?.type === "decoration" && Boolean(element.config?.effect);
+  const updateEffectConfig = (patch: Partial<NonNullable<V3Element["config"]>>) => {
+    if (!element) return;
+    onChange(element.id, { config: { ...(element.config ?? {}), ...patch } });
+  };
   const effectPresetBtnStyle: React.CSSProperties = {
     ...actionBtnStyle,
     textAlign: "center",
@@ -1842,6 +3439,74 @@ function RightPanel({
   };
 
   // ── Layers panel (always visible when sectionElements present) ─────────────
+  const getPremiumLayerIcon = (el: V3Element): string => {
+    if (el.type === "text") return "T";
+    if (el.type === "app") {
+      const app = el.appKind ?? el.appType ?? "";
+      if (app === "whatsapp") return "WA";
+      if (app === "rsvp") return "RS";
+      if (app === "countdown") return "CD";
+      if (app === "maps") return "MP";
+      if (app === "live-album" || app === "album") return "AL";
+      if (app === "live-screen" || app === "live") return "LV";
+      if (app === "qr") return "QR";
+      return "AP";
+    }
+    if (el.type === "decoration") return "D";
+    if (el.config?.url || /\burl\(/i.test(el.background ?? "")) return "IMG";
+    return "F";
+  };
+  const getPremiumLayerType = (el: V3Element): string => {
+    if (el.type === "text") return "Texto";
+    if (el.type === "app") return "App";
+    if (el.type === "decoration") return "Decoracion";
+    if (el.config?.url || /\burl\(/i.test(el.background ?? "")) return "Imagen";
+    return "Forma";
+  };
+  const getPremiumLayerName = (el: V3Element): string => {
+    if (el.type === "text") {
+      const txt = (el.content ?? "").trim();
+      return txt.length > 30 ? `${txt.slice(0, 30)}...` : txt || "Texto";
+    }
+    if (el.type === "app") {
+      const app = el.appKind ?? el.appType ?? "";
+      if (app === "whatsapp") return "WhatsApp";
+      if (app === "rsvp") return "RSVP";
+      if (app === "countdown") return "Cuenta regresiva";
+      if (app === "maps") return "Mapa";
+      if (app === "live-album" || app === "album") return "Album";
+      if (app === "live-screen" || app === "live") return "Pantalla en vivo";
+      if (app === "qr") return "Codigo QR";
+      return el.content || "Aplicacion";
+    }
+    if (el.type === "decoration") {
+      const effect = el.config?.effect;
+      if (effect === "blue-ambient-light") return "Luz azul ambiental";
+      if (effect === "gold-contamination") return "Contaminacion dorada";
+      if (effect === "cinematic-haze") return "Haze cinematografico";
+      if (effect === "editorial-fog") return "Niebla editorial";
+      if (effect === "ambient-glow") return "Glow ambiental";
+      return el.content || "Decoracion";
+    }
+    if (el.config?.url || /\burl\(/i.test(el.background ?? "")) return el.content || "Imagen";
+    return "Forma";
+  };
+  const layerActionButtonStyle: React.CSSProperties = {
+    width: 24,
+    height: 24,
+    border: "1px solid rgba(184,146,90,0.14)",
+    background: "rgba(255,255,255,0.54)",
+    color: "#7c5d4d",
+    cursor: "pointer",
+    borderRadius: 9,
+    fontSize: 10,
+    fontWeight: 800,
+    display: "grid",
+    placeItems: "center",
+    padding: 0,
+    lineHeight: 1,
+  };
+
   const sortedLayers = [...sectionElements].sort((a, b) => b.zIndex - a.zIndex);
   sortedLayersRef.current = sortedLayers; // keep ref current for drag handler
   const isDragging = dropAt >= 0;
@@ -1856,13 +3521,13 @@ function RightPanel({
   );
 
   const LayersPanel = sectionElements.length > 0 ? (
-    <div style={{ background: "rgba(255,255,255,0.54)", borderBottom: "1px solid rgba(184,146,90,0.16)" }}>
+    <div style={{ background: "linear-gradient(180deg,rgba(255,252,247,0.78),rgba(255,255,255,0.54))", borderBottom: "1px solid rgba(184,146,90,0.12)" }}>
       {/* header */}
       <button
         type="button"
         onClick={() => setLayersOpen((v) => !v)}
         style={{
-          width: "100%", padding: "10px 14px", border: "none", background: "transparent",
+          width: "100%", padding: "12px 14px 10px", border: "none", background: "transparent",
           cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between",
           fontFamily: "Inter, system-ui, sans-serif",
         }}
@@ -1875,7 +3540,7 @@ function RightPanel({
         <span style={{ fontSize: 9, color: "#9a8a80" }}>{layersOpen ? "−" : "+"}</span>
       </button>
       {layersOpen && (
-        <div ref={layerListRef} style={{ display: "flex", flexDirection: "column", padding: "2px 8px 8px" }}>
+        <div ref={layerListRef} style={{ display: "flex", flexDirection: "column", gap: 7, padding: "4px 10px 12px" }}>
           {sortedLayers.map((el, idx) => {
             const isSel = selectedIds.includes(el.id);
             const isHid = el.visible === false;
@@ -1887,18 +3552,21 @@ function RightPanel({
                 {isDragging && dropAt === idx && DropLine}
                 <div
                   style={{
-                    display: "flex", alignItems: "center", gap: 4,
-                    padding: "5px 4px 5px 2px",
-                    borderRadius: 7,
+                    display: "grid",
+                    gridTemplateColumns: "16px 34px minmax(0, 1fr) auto",
+                    alignItems: "center",
+                    gap: 8,
+                    padding: "8px 8px 8px 6px",
+                    borderRadius: 14,
                     background: isDragSrc
-                      ? "rgba(124,58,237,0.08)"
-                      : isSel ? "rgba(184,146,90,0.14)" : "transparent",
-                    border: isSel ? "1px solid rgba(184,146,90,0.34)" : "1px solid transparent",
+                      ? "rgba(184,146,90,0.10)"
+                      : isSel ? "linear-gradient(135deg,rgba(255,252,247,0.94),rgba(244,232,212,0.72))" : "rgba(255,255,255,0.42)",
+                    border: isSel ? "1px solid rgba(184,146,90,0.32)" : "1px solid rgba(184,146,90,0.10)",
+                    boxShadow: isSel ? "0 12px 28px rgba(62,42,30,0.10), inset 0 0 0 1px rgba(255,255,255,0.38)" : "0 6px 16px rgba(62,42,30,0.045)",
                     opacity: isHid ? 0.42 : isDragSrc ? 0.55 : 1,
                     cursor: isDragging ? "grabbing" : "pointer",
-                    transition: "background 0.1s, opacity 0.1s",
+                    transition: "background 0.14s ease, opacity 0.14s ease, border-color 0.14s ease, box-shadow 0.14s ease",
                     userSelect: "none",
-                    marginBottom: 1,
                   }}
                   onClick={(e) => { if (!isDragging) onSelectLayer(el.id, e.shiftKey); }}
                 >
@@ -1912,9 +3580,9 @@ function RightPanel({
                       setDropAt(idx);
                     }}
                     style={{
-                      fontSize: 11, width: 12, flexShrink: 0,
+                      fontSize: 12, width: 14, flexShrink: 0,
                       cursor: "grab",
-                      color: "#3e3b60",
+                      color: "rgba(138,111,97,0.54)",
                       display: "flex", alignItems: "center", justifyContent: "center",
                       userSelect: "none",
                       lineHeight: 1,
@@ -1923,28 +3591,62 @@ function RightPanel({
                     ⠿
                   </span>
                   {/* type icon */}
-                  <span style={{ fontSize: 10, width: 14, textAlign: "center", flexShrink: 0, color: isSel ? "#c4b5fd" : "#8884a8" }}>
-                    {getLayerIcon(el)}
+                  <span style={{
+                    width: 34,
+                    height: 34,
+                    borderRadius: 12,
+                    display: "grid",
+                    placeItems: "center",
+                    textAlign: "center",
+                    flexShrink: 0,
+                    color: isSel ? "#4b2735" : "#8a6f61",
+                    background: isSel ? "rgba(184,146,90,0.18)" : "rgba(255,252,247,0.74)",
+                    border: "1px solid rgba(184,146,90,0.16)",
+                    fontSize: getPremiumLayerIcon(el).length > 1 ? 8 : 12,
+                    fontWeight: 900,
+                    letterSpacing: "0.02em",
+                    fontFamily: "Inter, system-ui, sans-serif",
+                  }}>
+                    {getPremiumLayerIcon(el)}
                   </span>
                   {/* name */}
-                  <span style={{
-                    flex: 1, fontSize: 11, fontFamily: "Inter, system-ui, sans-serif",
-                    color: isSel ? "#e8e6ff" : "#c8c4f0",
-                    whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-                    minWidth: 0,
-                  }}>
-                    {getLayerName(el)}
-                  </span>
+                  <div style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 3 }}>
+                    <span style={{
+                      fontSize: 12,
+                      fontFamily: "Inter, system-ui, sans-serif",
+                      color: isSel ? "#4b2735" : "#5c4a43",
+                      fontWeight: isSel ? 850 : 720,
+                      whiteSpace: "nowrap",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      minWidth: 0,
+                    }}>
+                      {getPremiumLayerName(el)}
+                    </span>
+                    <span style={{ fontSize: 9, color: "#a18b7e", letterSpacing: "0.06em", textTransform: "uppercase", fontWeight: 800 }}>
+                      {getPremiumLayerType(el)} - z {el.zIndex}
+                    </span>
+                  </div>
                   {/* controls: eye + lock */}
-                  <div style={{ display: "flex", gap: 2, flexShrink: 0 }} onClick={(e) => e.stopPropagation()}>
+                  <div style={{ display: "flex", gap: 4, flexShrink: 0 }} onClick={(e) => e.stopPropagation()}>
+                    <button type="button" title="Subir capa"
+                      onClick={() => onLayerMoveUp(el.id)}
+                      style={layerActionButtonStyle}>
+                      UP
+                    </button>
+                    <button type="button" title="Bajar capa"
+                      onClick={() => onLayerMoveDown(el.id)}
+                      style={layerActionButtonStyle}>
+                      DN
+                    </button>
                     <button type="button" title={isHid ? "Mostrar" : "Ocultar"}
                       onClick={() => onToggleVisible(el.id)}
-                      style={{ width: 18, height: 18, border: "none", background: "none", cursor: "pointer", color: isHid ? "#4a4870" : "#7878a8", fontSize: 10, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 4, padding: 0 }}>
+                      style={{ ...layerActionButtonStyle, opacity: isHid ? 0.58 : 1 }}>
                     {isHid ? "🙈" : "👁"}
                     </button>
                     <button type="button" title={isLocked ? "Desbloquear" : "Bloquear"}
                       onClick={() => onToggleLocked(el.id)}
-                      style={{ width: 18, height: 18, border: "none", background: "none", cursor: "pointer", color: isLocked ? "#c8a96a" : "#4a4870", fontSize: 10, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 4, padding: 0 }}>
+                      style={{ ...layerActionButtonStyle, color: isLocked ? "#9f6f2f" : "#7c5d4d", background: isLocked ? "rgba(184,146,90,0.16)" : layerActionButtonStyle.background }}>
                       {isLocked ? "🔒" : "🔓"}
                     </button>
                   </div>
@@ -1958,6 +3660,31 @@ function RightPanel({
       )}
     </div>
   ) : null;
+
+  if (panelMode === "layers") {
+    return (
+      <div style={s}>
+        <div style={{ padding: "16px", borderBottom: "1px solid rgba(184,146,90,0.14)" }}>
+          <p style={{ color: "#8a6f61", fontSize: 10, letterSpacing: "0.08em", fontFamily: "Inter, system-ui, sans-serif", margin: 0, textTransform: "uppercase", fontWeight: 850 }}>
+            Capas
+          </p>
+          <p style={{ color: "#4b2735", fontSize: 17, fontWeight: 750, fontFamily: "Inter, system-ui, sans-serif", margin: "5px 0 0" }}>
+            Orden del lienzo
+          </p>
+          <p style={{ color: "#9a8a80", fontSize: 11, margin: "6px 0 0", lineHeight: 1.45 }}>
+            Selecciona, oculta, bloquea o arrastra elementos de la seccion activa.
+          </p>
+        </div>
+        {LayersPanel ?? (
+          <div style={{ flex: 1, display: "grid", placeItems: "center", padding: 20 }}>
+            <p style={{ color: "#8884a8", fontSize: 12, fontFamily: "Inter, system-ui, sans-serif", textAlign: "center", margin: 0 }}>
+              Esta seccion todavia no tiene elementos.
+            </p>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   const renderGroup = (
     id: InspectorGroup,
@@ -2011,7 +3738,6 @@ function RightPanel({
     if (section) {
       return (
         <div style={s}>
-          {LayersPanel}
           <div style={{ padding: "16px", borderBottom: "1px solid rgba(184,146,90,0.14)" }}>
             <span style={{ ...panelBadgeStyle, color: "#f4d28a", background: "rgba(200,169,106,0.12)", border: "1px solid rgba(200,169,106,0.24)" }}>
               Sección
@@ -2048,7 +3774,6 @@ function RightPanel({
     }
     return (
       <div style={s}>
-        {LayersPanel}
         <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 10, padding: "0 20px" }}>
           <span style={{ fontSize: 28, opacity: 0.25 }}>◻</span>
           <p style={{ color: "#8884a8", fontSize: 12, fontFamily: "Inter, system-ui, sans-serif", textAlign: "center", margin: 0, lineHeight: 1.6 }}>
@@ -2061,7 +3786,6 @@ function RightPanel({
 
   return (
     <div style={s}>
-      {LayersPanel}
       {/* Element header */}
       <div style={{ padding: "16px 16px 12px", borderBottom: "1px solid rgba(184,146,90,0.14)" }}>
         <p style={{ color: "#8a6f61", fontSize: 10, letterSpacing: "0.06em", fontFamily: "Inter, system-ui, sans-serif", margin: 0, textTransform: "uppercase", opacity: 0.9 }}>Elemento</p>
@@ -2117,6 +3841,56 @@ function RightPanel({
         ), true, element.type === "text" ? "Texto" : element.type === "app" ? "Bloque" : "Forma")}
         {renderGroup("typography", "Tipografía", <><div><span style={labelStyle}>Color de texto</span>{renderSwatches(element.color ?? "#4b2735", (next) => onChange(element.id, { color: next }))}</div><button type="button" onClick={() => setShowHexEditors((v) => !v)} style={{ ...actionBtnStyle, width: "auto", padding: "6px 10px", alignSelf: "flex-start" }}>{showHexEditors ? "Ocultar HEX" : "Editar HEX"}</button>{showHexEditors && <input type="text" value={element.color ?? "#ffffff"} onChange={(e) => onChange(element.id, { color: e.target.value })} style={{ ...inputStyle, flex: 1 }} />}<div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}><div><span style={labelStyle}>Tamaño</span><input type="number" min={8} max={120} value={element.fontSize ?? 16} onChange={(e) => onChange(element.id, { fontSize: Number(e.target.value) })} style={inputStyle} /></div><div><span style={labelStyle}>Peso</span><input type="text" value={element.fontWeight ?? "400"} onChange={(e) => onChange(element.id, { fontWeight: e.target.value })} style={inputStyle} /></div></div><div><span style={labelStyle}>Fuente</span><select value={element.fontFamily ?? "Inter, system-ui, sans-serif"} onChange={(e) => onChange(element.id, { fontFamily: e.target.value })} style={{ ...inputStyle, cursor: "pointer" }}><option value="Inter, system-ui, sans-serif">Inter</option><option value="'Playfair Display', Georgia, serif">Playfair Display</option><option value="Georgia, serif">Georgia</option><option value="'Dancing Script', cursive">Dancing Script</option></select></div></>, element.type === "text", "Aa")}
         {renderGroup("fill", "Color", <><div><span style={labelStyle}>Relleno</span>{renderSwatches(element.config?.primaryColor ?? element.background ?? "#fff8f0", (next) => onChange(element.id, { background: next, config: element.type === "app" ? { ...(element.config ?? {}), primaryColor: next } : element.config }))}</div>{element.type === "app" && <div><span style={labelStyle}>Color de texto</span>{renderSwatches(element.color ?? element.config?.textColor ?? "#4b2735", (next) => onChange(element.id, { color: next, config: { ...(element.config ?? {}), textColor: next } }))}</div>}<button type="button" onClick={() => setShowHexEditors((v) => !v)} style={{ ...actionBtnStyle, width: "auto", padding: "6px 10px", alignSelf: "flex-start" }}>{showHexEditors ? "Ocultar HEX" : "Editar HEX"}</button>{showHexEditors && <><div><span style={labelStyle}>Fondo (HEX/valor)</span><input type="text" value={element.config?.primaryColor ?? element.background ?? ""} placeholder="Color, rgba(...) o linear-gradient(...)" onChange={(e) => onChange(element.id, { background: e.target.value, config: element.type === "app" ? { ...(element.config ?? {}), primaryColor: e.target.value } : element.config })} style={inputStyle} /></div>{element.type === "app" && <div><span style={labelStyle}>Texto (HEX)</span><input type="text" value={element.color ?? element.config?.textColor ?? ""} onChange={(e) => onChange(element.id, { color: e.target.value, config: { ...(element.config ?? {}), textColor: e.target.value } })} style={inputStyle} /></div>}</>}<div><span style={labelStyle}>Opacidad {Math.round((element.opacity ?? 1) * 100)}%</span><input type="range" min={0} max={1} step={0.01} value={element.opacity ?? 1} onChange={(e) => onChange(element.id, { opacity: Number(e.target.value) })} style={{ width: "100%", accentColor: "#b8925a" }} /></div></>, element.type !== "text", "Color")}
+        {renderGroup("atmosphere", "Atmósfera", (
+          <>
+            <div>
+              <span style={labelStyle}>Color principal</span>
+              {renderSwatches(element.config?.color ?? element.config?.primaryColor ?? "#d4af37", (next) => updateEffectConfig({ color: next }))}
+            </div>
+            <div>
+              <span style={labelStyle}>Color secundario</span>
+              {renderSwatches(element.config?.accentColor ?? "#2563eb", (next) => updateEffectConfig({ accentColor: next }))}
+            </div>
+            {showHexEditors && (
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                <div>
+                  <span style={labelStyle}>Principal HEX</span>
+                  <input type="text" value={element.config?.color ?? ""} placeholder="#d4af37" onChange={(e) => updateEffectConfig({ color: e.target.value })} style={inputStyle} />
+                </div>
+                <div>
+                  <span style={labelStyle}>Acento HEX</span>
+                  <input type="text" value={element.config?.accentColor ?? ""} placeholder="#2563eb" onChange={(e) => updateEffectConfig({ accentColor: e.target.value })} style={inputStyle} />
+                </div>
+              </div>
+            )}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, padding: "9px 10px", borderRadius: 12, background: "rgba(255,255,255,0.62)", border: "1px solid rgba(184,146,90,0.16)" }}>
+              <div>
+                <span style={{ ...labelStyle, marginBottom: 2 }}>Mezclar con fondo</span>
+                <p style={{ margin: 0, color: "#9a8a80", fontSize: 11, lineHeight: 1.35 }}>Suaviza bordes y funde el efecto.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => updateEffectConfig({ blendWithBackground: !element.config?.blendWithBackground })}
+                style={{ width: 42, height: 24, borderRadius: 999, border: "none", background: element.config?.blendWithBackground ? "#b8925a" : "rgba(184,146,90,0.24)", cursor: "pointer", position: "relative", flexShrink: 0 }}
+                aria-pressed={Boolean(element.config?.blendWithBackground)}
+              >
+                <span style={{ position: "absolute", top: 3, left: element.config?.blendWithBackground ? 21 : 3, width: 18, height: 18, background: "#fffaf2", borderRadius: 999, boxShadow: "0 2px 6px rgba(75,39,53,0.18)", transition: "left 0.16s ease" }} />
+              </button>
+            </div>
+            <div>
+              <span style={labelStyle}>Intensidad {Math.round(clamp01(element.config?.intensity, 1) * 100)}%</span>
+              <input type="range" min={0} max={1} step={0.01} value={clamp01(element.config?.intensity, 1)} onChange={(e) => updateEffectConfig({ intensity: Number(e.target.value) })} style={{ width: "100%", accentColor: "#b8925a" }} />
+            </div>
+            <div>
+              <span style={labelStyle}>Oscuridad {Math.round(clamp01(element.config?.darkness, 0) * 100)}%</span>
+              <input type="range" min={0} max={1} step={0.01} value={clamp01(element.config?.darkness, 0)} onChange={(e) => updateEffectConfig({ darkness: Number(e.target.value) })} style={{ width: "100%", accentColor: "#4b2735" }} />
+            </div>
+            <div>
+              <span style={labelStyle}>Transparencia general {Math.round((1 - (element.opacity ?? 1)) * 100)}%</span>
+              <input type="range" min={0.05} max={1} step={0.01} value={element.opacity ?? 1} onChange={(e) => onChange(element.id, { opacity: Number(e.target.value) })} style={{ width: "100%", accentColor: "#8ea7c8" }} />
+            </div>
+          </>
+        ), hasAtmosphereControls, "FX")}
         {renderGroup("spacing", "Espaciado básico", <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>{(["x", "y", "width", "height"] as const).map((k) => <div key={k}><span style={{ ...labelStyle, fontSize: 9 }}>{k === "x" ? "Posición X" : k === "y" ? "Posición Y" : k === "width" ? "Ancho" : "Alto"}</span><input type="number" value={Math.round(element[k] as number) || 0} disabled={element.locked} onChange={(e) => onChange(element.id, { [k]: Number(e.target.value) })} style={{ ...inputStyle, opacity: element.locked ? 0.5 : 1 }} /></div>)}</div>, true, "Ajustes")}
         <button
           type="button"
@@ -2301,6 +4075,35 @@ type V3FeatureSource = {
   disabled_features?: readonly string[] | null;
 };
 
+type CanvasV3TemplateGalleryItem = {
+  id: string;
+  name: string;
+  slug: string;
+  compatibleEventTypes: string[];
+  visualCategory?: string | null;
+  description?: string | null;
+  templateScope?: "full" | "section" | "component";
+  previewImageUrl?: string | null;
+  thumbnailUrl?: string | null;
+  isPremium?: boolean;
+};
+
+type CanvasV3AssetCategoryItem = {
+  id: string;
+  name: string;
+  slug: string;
+  sortOrder?: number;
+};
+
+type CanvasV3AssetLibraryItem = {
+  id: string;
+  categoryId: string | null;
+  name: string;
+  fileUrl: string;
+  mimeType?: string | null;
+  fileSize?: number | null;
+};
+
 type CanvasEditorV3Props = {
   eventId: string;
   eventSlug?: string;
@@ -2315,6 +4118,7 @@ type CanvasEditorV3Props = {
   whatsappPhone?: string | null;
   googleMapsLink?: string | null;
   musicUrl?: string | null;
+  canvasTemplates?: CanvasV3TemplateGalleryItem[];
 };
 
 export function CanvasEditorV3({
@@ -2324,7 +4128,9 @@ export function CanvasEditorV3({
   whatsappPhone,
   googleMapsLink,
   musicUrl: _musicUrl,
+  canvasTemplates = [],
 }: CanvasEditorV3Props) {
+  const router = useRouter();
   // Feature source passed to eventHasFeature — null = legacy luxury fallback (all enabled)
   const featureSource: V3FeatureSource | null =
     packageKey != null || enabledFeatures != null || disabledFeatures != null
@@ -2332,7 +4138,7 @@ export function CanvasEditorV3({
       : null;
   const parsedInitialDesign = normalizeInitialV3Design(initialDesign);
   const [elements, setElements] = useState<V3Element[]>(
-    () => parsedInitialDesign?.elements ?? INITIAL_ELEMENTS
+    () => ensureIndependentViewportLayoutsForAll(parsedInitialDesign?.elements ?? INITIAL_ELEMENTS)
   );
   const [sections, setSections] = useState<V3Section[]>(
     () => parsedInitialDesign?.sections ?? DEFAULT_SECTIONS
@@ -2347,19 +4153,34 @@ export function CanvasEditorV3({
   const selectedId = selectedIds.length === 1 ? selectedIds[0] : null;
   const [activeTool, setActiveTool] = useState<ToolId | null>(null);
   const [sidebarHovered, setSidebarHovered] = useState(false);
+  const [pinnedLibraryTool, setPinnedLibraryTool] = useState<ToolId | null>(null);
   const [zoom, setZoom] = useState(0.75);
-  const [viewportMode, setViewportMode] = useState<"mobile" | "desktop">("mobile");
+  const [viewportMode, setViewportMode] = useState<CanvasViewportMode>("mobile");
   const [saved, setSaved] = useState(false);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [templateApplyError, setTemplateApplyError] = useState<string | null>(null);
+  const [applyingTemplateId, setApplyingTemplateId] = useState<string | null>(null);
+  const [templateToApply, setTemplateToApply] = useState<CanvasV3TemplateGalleryItem | null>(null);
+  const [isApplyingTemplate, startApplyTemplateTransition] = useTransition();
   const [preview, setPreview] = useState(false);
   const [snapLines, setSnapLines] = useState<SnapLine[]>([]);
   const [selectionBox, setSelectionBox] = useState<SelectionBox | null>(null);
   const [multiToolbarMenuOpen, setMultiToolbarMenuOpen] = useState(false);
+  const [elementContextMenu, setElementContextMenu] = useState<ElementContextMenuState | null>(null);
+  const [topToolbarPopover, setTopToolbarPopover] = useState<"color" | "accentColor" | "font" | null>(null);
+  const [assetCategories, setAssetCategories] = useState<CanvasV3AssetCategoryItem[]>([]);
+  const [assetItems, setAssetItems] = useState<CanvasV3AssetLibraryItem[]>([]);
+  const [assetLibraryStatus, setAssetLibraryStatus] = useState<"idle" | "loading" | "saving" | "error">("idle");
+  const [assetLibraryError, setAssetLibraryError] = useState<string | null>(null);
 
+  const studioRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const viewportModeRef = useRef<CanvasViewportMode>(viewportMode);
   const elementsRef = useRef<V3Element[]>(elements);
+  const viewportElements = elements.map((element) => projectElementToViewport(element, viewportMode));
+  const viewportElementsRef = useRef<V3Element[]>(viewportElements);
   const dragRef = useRef<{
     id: string; startX: number; startY: number; elX: number; elY: number; active: boolean;
     shiftKey: boolean; // true = started with Shift held, selection deferred to onClick
@@ -2382,21 +4203,98 @@ export function CanvasEditorV3({
   } | null>(null);
 
   const wasMovedRef = useRef(false); // true during the tick after a real drag completes
-  const selected = elements.find((e) => e.id === selectedId) ?? null;
+  const selected = viewportElements.find((e) => e.id === selectedId) ?? null;
   const inspectorHasContext = Boolean(selected && !preview);
   const activeSection = sections.find((section) => section.id === activeSectionId) ?? sections[0] ?? DEFAULT_SECTIONS[0];
   const documentHeight = sections.at(-1) ? sections.at(-1)!.y + sections.at(-1)!.height : DEFAULT_DOCUMENT_H;
-  const canvasW = viewportMode === "desktop" ? 1000 : CANVAS_W;
+  const canvasW = viewportMode === "desktop" ? DESKTOP_CANVAS_W : CANVAS_W;
   const SNAP_TOLERANCE = 6;
   const DRAG_START_THRESHOLD = 2;
+
+  const loadAssetLibrary = useCallback(async () => {
+    setAssetLibraryStatus((current) => current === "saving" ? current : "loading");
+    setAssetLibraryError(null);
+    try {
+      const response = await fetch("/api/dashboard/canvas-v3/assets", { cache: "no-store" });
+      const json = await response.json().catch(() => null);
+      if (!response.ok || !json?.ok) {
+        throw new Error(json?.error || "No se pudo cargar la biblioteca.");
+      }
+      setAssetCategories(Array.isArray(json.categories) ? json.categories : []);
+      setAssetItems(Array.isArray(json.assets) ? json.assets : []);
+      setAssetLibraryStatus("idle");
+    } catch (error) {
+      setAssetLibraryStatus("error");
+      setAssetLibraryError(error instanceof Error ? error.message : "No se pudo cargar la biblioteca.");
+    }
+  }, []);
 
   useEffect(() => {
     elementsRef.current = elements;
   }, [elements]);
 
   useEffect(() => {
+    viewportModeRef.current = viewportMode;
+  }, [viewportMode]);
+
+  useEffect(() => {
+    viewportElementsRef.current = viewportElements;
+  }, [viewportElements]);
+
+  useEffect(() => {
+    void loadAssetLibrary();
+  }, [loadAssetLibrary]);
+
+  useEffect(() => {
     if (selectedIds.length <= 1 || preview) setMultiToolbarMenuOpen(false);
   }, [selectedIds.length, preview]);
+
+  useEffect(() => {
+    if (preview) setElementContextMenu(null);
+  }, [preview]);
+
+  useEffect(() => {
+    if (!selectedId || preview) setTopToolbarPopover(null);
+  }, [preview, selectedId]);
+
+  useEffect(() => {
+    const node = studioRef.current;
+    if (!node) return;
+
+    const onWheel = (event: WheelEvent) => {
+      if (!event.ctrlKey && !event.metaKey) return;
+      event.preventDefault();
+      const direction = event.deltaY > 0 ? -1 : 1;
+      setZoom((current) => {
+        const step = event.shiftKey ? 0.05 : 0.08;
+        return Math.max(0.3, Math.min(2, Number((current + direction * step).toFixed(2))));
+      });
+    };
+
+    node.addEventListener("wheel", onWheel, { passive: false });
+    return () => node.removeEventListener("wheel", onWheel);
+  }, []);
+
+  useEffect(() => {
+    if (!elementContextMenu) return;
+
+    const closeMenu = () => setElementContextMenu(null);
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") closeMenu();
+    };
+
+    window.addEventListener("mousedown", closeMenu);
+    window.addEventListener("scroll", closeMenu, true);
+    window.addEventListener("resize", closeMenu);
+    window.addEventListener("keydown", onKeyDown);
+
+    return () => {
+      window.removeEventListener("mousedown", closeMenu);
+      window.removeEventListener("scroll", closeMenu, true);
+      window.removeEventListener("resize", closeMenu);
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [elementContextMenu]);
 
   const sectionsRef = useRef<V3Section[]>(sections);
   useEffect(() => { sectionsRef.current = sections; }, [sections]);
@@ -2469,7 +4367,7 @@ export function CanvasEditorV3({
       { elements: elementsRef.current, sections: sectionsRef.current },
       ...futureRef.current,
     ].slice(0, MAX_HISTORY);
-    setElements(prev.elements);
+    setElements(ensureIndependentViewportLayoutsForAll(prev.elements));
     setSections(prev.sections);
     setCanUndo(pastRef.current.length > 0);
     setCanRedo(true);
@@ -2483,11 +4381,91 @@ export function CanvasEditorV3({
       ...pastRef.current,
       { elements: elementsRef.current, sections: sectionsRef.current },
     ].slice(-MAX_HISTORY);
-    setElements(next.elements);
+    setElements(ensureIndependentViewportLayoutsForAll(next.elements));
     setSections(next.sections);
     setCanUndo(true);
     setCanRedo(futureRef.current.length > 0);
   }, []);
+
+  const createAssetCategory = useCallback(async (name: string) => {
+    setAssetLibraryStatus("saving");
+    setAssetLibraryError(null);
+    try {
+      const response = await fetch("/api/dashboard/canvas-v3/assets/categories", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ name })
+      });
+      const json = await response.json().catch(() => null);
+      if (!response.ok || !json?.ok) {
+        throw new Error(json?.error || "No se pudo crear la categoria.");
+      }
+      await loadAssetLibrary();
+    } catch (error) {
+      setAssetLibraryStatus("error");
+      setAssetLibraryError(error instanceof Error ? error.message : "No se pudo crear la categoria.");
+    }
+  }, [loadAssetLibrary]);
+
+  const uploadAssetToLibrary = useCallback(async (input: { file: File; name?: string; categoryId?: string | null }) => {
+    setAssetLibraryStatus("saving");
+    setAssetLibraryError(null);
+    try {
+      const formData = new FormData();
+      formData.set("file", input.file);
+      if (input.name) formData.set("name", input.name);
+      if (input.categoryId) formData.set("categoryId", input.categoryId);
+
+      const response = await fetch("/api/dashboard/canvas-v3/assets", {
+        method: "POST",
+        body: formData
+      });
+      const json = await response.json().catch(() => null);
+      if (!response.ok || !json?.ok) {
+        throw new Error(json?.error || "No se pudo subir el recurso.");
+      }
+      await loadAssetLibrary();
+    } catch (error) {
+      setAssetLibraryStatus("error");
+      setAssetLibraryError(error instanceof Error ? error.message : "No se pudo subir el recurso.");
+    }
+  }, [loadAssetLibrary]);
+
+  const deleteAssetFromLibrary = useCallback(async (assetId: string) => {
+    setAssetLibraryStatus("saving");
+    setAssetLibraryError(null);
+    try {
+      const response = await fetch(`/api/dashboard/canvas-v3/assets/${encodeURIComponent(assetId)}`, {
+        method: "DELETE"
+      });
+      const json = await response.json().catch(() => null);
+      if (!response.ok || !json?.ok) {
+        throw new Error(json?.error || "No se pudo eliminar el recurso.");
+      }
+      await loadAssetLibrary();
+    } catch (error) {
+      setAssetLibraryStatus("error");
+      setAssetLibraryError(error instanceof Error ? error.message : "No se pudo eliminar el recurso.");
+    }
+  }, [loadAssetLibrary]);
+
+  const deleteAssetCategoryFromLibrary = useCallback(async (categoryId: string) => {
+    setAssetLibraryStatus("saving");
+    setAssetLibraryError(null);
+    try {
+      const response = await fetch(`/api/dashboard/canvas-v3/assets/categories/${encodeURIComponent(categoryId)}`, {
+        method: "DELETE"
+      });
+      const json = await response.json().catch(() => null);
+      if (!response.ok || !json?.ok) {
+        throw new Error(json?.error || "No se pudo eliminar la categoria.");
+      }
+      await loadAssetLibrary();
+    } catch (error) {
+      setAssetLibraryStatus("error");
+      setAssetLibraryError(error instanceof Error ? error.message : "No se pudo eliminar la categoria.");
+    }
+  }, [loadAssetLibrary]);
 
   const getSnappedPosition = useCallback((
     moving: V3Element,
@@ -2588,7 +4566,8 @@ export function CanvasEditorV3({
 
   // ── Drag to move ────────────────────────────────────────────────────────────
   const onMoveStart = useCallback((e: React.MouseEvent, id: string) => {
-    const el = elements.find((el) => el.id === id);
+    const renderedElements = viewportElementsRef.current;
+    const el = renderedElements.find((el) => el.id === id);
     if (!el || el.locked) return;
 
     if (e.shiftKey) {
@@ -2600,7 +4579,7 @@ export function CanvasEditorV3({
       const offsets = multiIds
         .filter((sid) => sid !== id)
         .flatMap((sid) => {
-          const sEl = elements.find((e) => e.id === sid);
+          const sEl = renderedElements.find((e) => e.id === sid);
           return sEl && !sEl.locked ? [{ id: sid, dx: sEl.x - el.x, dy: sEl.y - el.y }] : [];
         });
       dragRef.current = { id, startX: e.clientX, startY: e.clientY, elX: el.x, elY: el.y, shiftKey: true, offsets, active: false, preSnapshot: snapshot() };
@@ -2614,15 +4593,15 @@ export function CanvasEditorV3({
     const offsets = multiIds
       .filter((sid) => sid !== id)
       .flatMap((sid) => {
-        const sEl = elements.find((e) => e.id === sid);
+        const sEl = renderedElements.find((e) => e.id === sid);
         return sEl && !sEl.locked ? [{ id: sid, dx: sEl.x - el.x, dy: sEl.y - el.y }] : [];
       });
     dragRef.current = { id, startX: e.clientX, startY: e.clientY, elX: el.x, elY: el.y, shiftKey: false, offsets, active: false, preSnapshot: snapshot() };
-  }, [elements, expandSelectionWithGroups, selectedIds, snapshot]);
+  }, [expandSelectionWithGroups, selectedIds, snapshot]);
 
   // ── Resize ──────────────────────────────────────────────────────────────────
   const onResizeStart = useCallback((e: React.MouseEvent, id: string, handle: string) => {
-    const el = elements.find((el) => el.id === id);
+    const el = viewportElementsRef.current.find((el) => el.id === id);
     if (!el || el.locked) return;
     resizeRef.current = {
       id, handle,
@@ -2631,7 +4610,7 @@ export function CanvasEditorV3({
       origW: el.width, origH: el.height ?? 60,
       preSnapshot: snapshot(),
     };
-  }, [elements, snapshot]);
+  }, [snapshot]);
 
   const shouldIgnoreWorkspaceSelectionStart = useCallback((target: HTMLElement | null) => {
     if (!target) return true;
@@ -2687,6 +4666,7 @@ export function CanvasEditorV3({
         }
       }
       if (dragRef.current) {
+        const activeViewport = viewportModeRef.current;
         const drag = dragRef.current;
         const { id, startX, startY, elX, elY, offsets } = drag;
         const screenDx = e.clientX - startX;
@@ -2703,7 +4683,7 @@ export function CanvasEditorV3({
         drag.active = true;
         const dx = screenDx / zoom;
         const dy = screenDy / zoom;
-        const currentElements = elementsRef.current;
+        const currentElements = viewportElementsRef.current;
         const movingElement = currentElements.find((el) => el.id === id);
         if (!movingElement) return;
         const snapped = getSnappedPosition(movingElement, elX + dx, elY + dy, currentElements);
@@ -2713,14 +4693,20 @@ export function CanvasEditorV3({
         const snapDy = snapped.y - elY;
         setElements((prev) =>
           prev.map((el) => {
-            if (el.id === id) return { ...el, x: snapped.x, y: snapped.y };
+            if (el.id === id) return patchElementForViewport(el, activeViewport, { x: snapped.x, y: snapped.y });
             const off = offsets.find((o) => o.id === el.id);
-            if (off) return { ...el, x: Math.round(elX + snapDx + off.dx), y: Math.round(elY + snapDy + off.dy) };
+            if (off) {
+              return patchElementForViewport(el, activeViewport, {
+                x: Math.round(elX + snapDx + off.dx),
+                y: Math.round(elY + snapDy + off.dy)
+              });
+            }
             return el;
           })
         );
       }
       if (resizeRef.current) {
+        const activeViewport = viewportModeRef.current;
         const { id, handle, startX, startY, origX, origY, origW, origH } = resizeRef.current;
         const dx = (e.clientX - startX) / zoom;
         const dy = (e.clientY - startY) / zoom;
@@ -2732,7 +4718,12 @@ export function CanvasEditorV3({
             if (handle.includes("l")) { w = Math.max(40, origW - dx); x = origX + (origW - w); }
             if (handle.includes("b")) h = Math.max(24, origH + dy);
             if (handle.includes("t")) { h = Math.max(24, origH - dy); y = origY + (origH - h); }
-            return { ...el, x: Math.round(x), y: Math.round(y), width: Math.round(w), height: Math.round(h) };
+            return patchElementForViewport(el, activeViewport, {
+              x: Math.round(x),
+              y: Math.round(y),
+              width: Math.round(w),
+              height: Math.round(h)
+            });
           })
         );
       }
@@ -2742,7 +4733,7 @@ export function CanvasEditorV3({
         const selection = selectionBoxRef.current;
         const box = normalizeBox(selection.startX, selection.startY, selection.currentX, selection.currentY);
         if (selection.active && box.width >= DRAG_START_THRESHOLD && box.height >= DRAG_START_THRESHOLD) {
-          const ids = elementsRef.current
+          const ids = viewportElementsRef.current
             .filter((element) => element.visible && !element.locked && intersectsBox(element, box))
             .map((element) => element.id);
           if (selection.shiftKey) {
@@ -2762,7 +4753,7 @@ export function CanvasEditorV3({
       }
       if (resizeRef.current) {
         const { origX, origY, origW, origH, preSnapshot, id } = resizeRef.current;
-        const movedEl = elementsRef.current.find((e) => e.id === id);
+        const movedEl = viewportElementsRef.current.find((e) => e.id === id);
         if (movedEl && (
           movedEl.x !== origX || movedEl.y !== origY ||
           movedEl.width !== origW || (movedEl.height ?? origH) !== origH
@@ -2779,9 +4770,38 @@ export function CanvasEditorV3({
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
     return () => { window.removeEventListener("mousemove", onMove); window.removeEventListener("mouseup", onUp); };
-  }, [expandSelectionWithGroups, getCanvasPoint, getSnappedPosition, normalizeBox, zoom, pushHistory]);
+  }, [expandSelectionWithGroups, getCanvasPoint, getSnappedPosition, normalizeBox, viewportMode, zoom, pushHistory]);
 
   // ── Add elements ────────────────────────────────────────────────────────────────────────────
+  const addUploadedAsset = (asset: CanvasV3AssetLibraryItem) => {
+    pushHistory(snapshot());
+    const sectionY = activeSection?.y ?? 0;
+    const size = 190;
+    const id = `uploaded-${asset.id}-${Date.now()}`;
+    const safeUrl = asset.fileUrl.replace(/"/g, "%22");
+    const element: V3Element = {
+      id,
+      type: "decoration",
+      x: cx(size),
+      y: sectionY + 82,
+      width: size,
+      height: size,
+      locked: false,
+      visible: true,
+      zIndex: elementsRef.current.length,
+      background: `url("${safeUrl}") center / contain no-repeat`,
+      border: undefined,
+      borderRadius: 0,
+      opacity: 1,
+      config: {
+        url: asset.fileUrl,
+        assetName: asset.name
+      }
+    };
+    setElements((prev) => [...prev, prepareElementForViewport(element, viewportModeRef.current)]);
+    setSelectedIds([id]);
+  };
+
   const addText = (kind: "title" | "subtitle" | "paragraph") => {
     pushHistory(snapshot());
     const id = `text-${Date.now()}`;
@@ -2803,7 +4823,7 @@ export function CanvasEditorV3({
     } else {
       Object.assign(base, { content: "Escribe aquí tu mensaje...", fontSize: 15, color: "#e8e0cc", height: null });
     }
-    setElements((prev) => [...prev, base]);
+    setElements((prev) => [...prev, prepareElementForViewport(base, viewportModeRef.current)]);
     setSelectedIds([id]);
     setActiveTool(null);
   };
@@ -2816,6 +4836,110 @@ export function CanvasEditorV3({
     // ── Premium preset library ──────────────────────────────────────────────
     // Each entry is a list of V3Elements with zIndex=0 (remapped on insertion).
     const PRESETS: Record<string, V3Element[]> = {
+      "soft-card": [{
+        id: `deco-soft-card-${stamp}`, type: "decoration",
+        x: cx(230), y: sectionY + 86, width: 230, height: 150,
+        locked: false, visible: true, zIndex: 0,
+        background: "radial-gradient(110% 72% at 78% 92%,rgba(37,99,235,0.10) 0%,transparent 70%),radial-gradient(92% 64% at 42% 18%,rgba(255,255,255,0.05) 0%,transparent 58%),linear-gradient(180deg,rgba(34,36,42,0.62),rgba(8,12,27,0.90))",
+        config: { effect: "soft-card", color: "#111827", accentColor: "#2563eb", intensity: 1, darkness: 0.25, blendWithBackground: false },
+        border: undefined,
+        borderRadius: 34, opacity: 0.88,
+      }],
+      "glow-circle": [{
+        id: `deco-glow-circle-${stamp}`, type: "decoration",
+        x: cx(172), y: sectionY + 58, width: 172, height: 172,
+        locked: false, visible: true, zIndex: 0,
+        background: "radial-gradient(36% 28% at 30% 23%,rgba(255,255,255,0.72) 0%,rgba(255,255,255,0.20) 18%,transparent 38%),radial-gradient(116% 116% at 50% 50%,rgba(47,48,54,0.22) 0%,rgba(31,32,37,0.84) 58%,rgba(5,8,18,0.96) 100%)",
+        config: { effect: "glow-circle", color: "#2f3036", accentColor: "#ffffff", intensity: 0.96, darkness: 0.42, blendWithBackground: false },
+        border: undefined,
+        borderRadius: 999, opacity: 0.92,
+      }],
+      "rose-soft": [{
+        id: `deco-rose-soft-${stamp}`, type: "decoration",
+        x: cx(172), y: sectionY + 58, width: 172, height: 172,
+        locked: false, visible: true, zIndex: 0,
+        background: "radial-gradient(18% 12% at 45% 25%,rgba(255,255,255,0.72) 0%,rgba(255,255,255,0.18) 34%,transparent 58%),conic-gradient(from 18deg at 50% 50%,rgba(17,18,30,0.94),rgba(123,59,118,0.22),rgba(96,55,94,0.42),rgba(18,18,31,0.86),rgba(123,59,118,0.14),rgba(9,11,21,0.96))",
+        config: { effect: "rose-soft", color: "#7b3b76", accentColor: "#ffffff", intensity: 0.94, darkness: 0.32, blendWithBackground: false },
+        border: undefined,
+        borderRadius: 999, opacity: 0.90,
+      }],
+      "spark": [{
+        id: `deco-spark-${stamp}`, type: "decoration",
+        x: cx(128), y: sectionY + 72, width: 128, height: 128,
+        locked: false, visible: true, zIndex: 0,
+        background: "linear-gradient(86deg,transparent 0 42%,rgba(255,255,255,0.52) 48%,rgba(255,255,255,0.18) 52%,transparent 59%),linear-gradient(82deg,transparent 0 36%,rgba(212,175,55,0.50) 47%,rgba(212,175,55,0.18) 55%,transparent 68%),radial-gradient(96% 96% at 50% 50%,rgba(255,255,255,0.05) 0%,rgba(13,16,25,0.84) 58%,rgba(3,6,15,0.97) 100%)",
+        config: { effect: "spark", color: "#d4af37", accentColor: "#ffffff", intensity: 0.96, darkness: 0.25, blendWithBackground: false },
+        borderRadius: 999, opacity: 0.92,
+      }],
+      "soft-glow": [{
+        id: `deco-soft-glow-${stamp}`, type: "decoration",
+        x: cx(164), y: sectionY + 54, width: 164, height: 164,
+        locked: false, visible: true, zIndex: 0,
+        background: "radial-gradient(44% 58% at 28% 25%,rgba(255,255,255,0.72) 0%,rgba(255,255,255,0.18) 22%,transparent 46%),radial-gradient(94% 112% at 50% 52%,rgba(37,40,51,0.18) 0%,rgba(23,27,37,0.76) 54%,rgba(4,8,18,0.96) 100%)",
+        config: { effect: "soft-glow", color: "#252833", accentColor: "#ffffff", intensity: 0.94, darkness: 0.36, blendWithBackground: false },
+        borderRadius: 999, opacity: 0.92,
+      }],
+      "ambient-glow": [{
+        id: `deco-ambient-glow-${stamp}`, type: "decoration",
+        x: cx(380), y: sectionY - 10, width: 380, height: 420,
+        locked: false, visible: true, zIndex: 0,
+        background: "radial-gradient(70% 62% at 42% 46%,rgba(138,122,66,0.16) 0%,rgba(138,122,66,0.09) 24%,transparent 58%),radial-gradient(92% 82% at 58% 52%,rgba(37,99,235,0.09) 0%,transparent 70%)",
+        config: { effect: "ambient-glow", color: "#8a7a42", accentColor: "#2563eb", intensity: 0.82, darkness: 0, blendWithBackground: true },
+        border: undefined,
+        borderRadius: 0, opacity: 0.92, blur: 0,
+      }],
+      "cinematic-haze": [{
+        id: `deco-cinematic-haze-${stamp}`, type: "decoration",
+        x: cx(390), y: sectionY - 12, width: 390, height: 460,
+        locked: false, visible: true, zIndex: 0,
+        background: "radial-gradient(76% 64% at 52% 48%,rgba(37,99,235,0.14) 0%,rgba(37,99,235,0.05) 42%,transparent 78%),radial-gradient(112% 96% at 48% 52%,rgba(15,29,74,0.22) 0%,rgba(8,13,31,0.10) 58%,transparent 86%)",
+        config: { effect: "cinematic-haze", color: "#0f1d4a", accentColor: "#2563eb", intensity: 0.8, darkness: 0, blendWithBackground: true },
+        border: undefined,
+        borderRadius: 0, opacity: 0.86, blur: 0,
+      }],
+      "gold-contamination": [{
+        id: `deco-gold-contamination-${stamp}`, type: "decoration",
+        x: cx(380), y: sectionY - 8, width: 380, height: 420,
+        locked: false, visible: true, zIndex: 0,
+        background: "radial-gradient(74% 58% at 34% 28%,rgba(212,175,55,0.18) 0%,rgba(212,175,55,0.08) 34%,transparent 76%),radial-gradient(96% 82% at 50% 50%,rgba(99,82,33,0.08) 0%,transparent 82%)",
+        config: { effect: "gold-contamination", color: "#d4af37", accentColor: "#fff4c6", intensity: 0.82, darkness: 0, blendWithBackground: true },
+        border: undefined,
+        borderRadius: 0, opacity: 0.92, blur: 0,
+      }],
+      "blue-ambient-light": [{
+        id: `deco-blue-ambient-light-${stamp}`, type: "decoration",
+        x: cx(390), y: sectionY - 18, width: 390, height: 520,
+        locked: false, visible: true, zIndex: 0,
+        background: "radial-gradient(62% 58% at 44% 46%,rgba(185,156,77,0.08) 0%,rgba(185,156,77,0.04) 28%,transparent 58%),radial-gradient(86% 78% at 56% 52%,rgba(37,99,235,0.18) 0%,rgba(37,99,235,0.11) 38%,rgba(37,99,235,0.04) 66%,transparent 88%),radial-gradient(122% 104% at 50% 50%,rgba(28,41,92,0.20) 0%,rgba(19,28,67,0.11) 48%,transparent 82%)",
+        config: { effect: "blue-ambient-light", color: "#111827", accentColor: "#2563eb", intensity: 0.86, darkness: 0, blendWithBackground: true },
+        border: undefined,
+        borderRadius: 0, opacity: 0.94, blur: 0,
+      }],
+      "editorial-fog": [{
+        id: `deco-editorial-fog-${stamp}`, type: "decoration",
+        x: cx(390), y: sectionY - 10, width: 390, height: 430,
+        locked: false, visible: true, zIndex: 0,
+        background: "radial-gradient(110% 78% at 54% 72%,rgba(37,99,235,0.08) 0%,transparent 72%),radial-gradient(92% 72% at 22% 18%,rgba(255,255,255,0.02) 0%,transparent 62%),radial-gradient(120% 90% at 52% 50%,rgba(10,15,31,0.12) 0%,transparent 84%)",
+        config: { effect: "editorial-fog", color: "#111827", accentColor: "#2563eb", intensity: 0.78, darkness: 0, blendWithBackground: true },
+        border: undefined,
+        borderRadius: 0, opacity: 0.90, blur: 0,
+      }],
+      "editorial-line": [{
+        id: `deco-editorial-line-${stamp}`, type: "decoration",
+        x: cx(280), y: sectionY + 90, width: 280, height: 14,
+        locked: false, visible: true, zIndex: 0,
+        background: "linear-gradient(90deg,transparent 0%,rgba(184,146,90,0.18) 18%,rgba(184,146,90,0.66) 50%,rgba(184,146,90,0.18) 82%,transparent 100%),linear-gradient(180deg,transparent 0 36%,rgba(255,252,247,0.72) 44%,rgba(184,146,90,0.90) 50%,rgba(255,252,247,0.72) 56%,transparent 64% 100%)",
+        config: { effect: "editorial-line", color: "#b8925a", accentColor: "#fffaf2" },
+        borderRadius: 999, opacity: 0.82,
+      }],
+      "dots": [{
+        id: `deco-dots-${stamp}`, type: "decoration",
+        x: cx(146), y: sectionY + 84, width: 146, height: 28,
+        locked: false, visible: true, zIndex: 0,
+        background: "radial-gradient(circle at 14% 50%,rgba(184,146,90,0.44) 0 4px,transparent 6px),radial-gradient(circle at 38% 50%,rgba(184,146,90,0.66) 0 5px,transparent 7px),radial-gradient(circle at 62% 50%,rgba(184,146,90,0.66) 0 5px,transparent 7px),radial-gradient(circle at 86% 50%,rgba(184,146,90,0.44) 0 4px,transparent 6px),radial-gradient(ellipse at 50% 50%,rgba(184,146,90,0.10),transparent 72%)",
+        config: { effect: "dots", color: "#b8925a", accentColor: "#fffaf2" },
+        borderRadius: 999, opacity: 0.78,
+      }],
 
       // ── FORMAS ─────────────────────────────────────────────────────────────
       "Rectángulo": [{
@@ -2958,20 +5082,20 @@ export function CanvasEditorV3({
     if (templates) {
       setElements((prev) => {
         const baseZ = prev.length;
-        return [...prev, ...templates.map((t, i) => ({ ...t, zIndex: baseZ + i }))];
+        return [...prev, ...templates.map((t, i) => prepareElementForViewport({ ...t, zIndex: baseZ + i }, viewportModeRef.current))];
       });
       setSelectedIds(templates.map((t) => t.id));
     } else {
       // fallback for unknown kinds
       const id = `deco-${stamp}`;
-      setElements((prev) => [...prev, {
+      setElements((prev) => [...prev, prepareElementForViewport({
         id, type: "decoration" as ElType,
         x: cx(200), y: sectionY + 80, width: 200, height: 80,
         locked: false, visible: true, zIndex: prev.length,
         background: "rgba(255,255,255,0.08)",
         border: "1px solid rgba(200,169,106,0.2)",
         borderRadius: 16, opacity: 1,
-      }]);
+      }, viewportModeRef.current)]);
       setSelectedIds([id]);
     }
     setActiveTool(null);
@@ -3131,7 +5255,7 @@ export function CanvasEditorV3({
     const selected = next.map((element) => element.id);
     setElements((prev) => [
       ...prev,
-      ...next.map((element, index) => ({ ...element, zIndex: baseZ + index })),
+      ...next.map((element, index) => prepareElementForViewport({ ...element, zIndex: baseZ + index }, viewportModeRef.current)),
     ]);
     setSelectedIds(selected);
     setActiveTool(null);
@@ -3150,7 +5274,7 @@ export function CanvasEditorV3({
         : appType === "maps" && googleMapsLink
         ? googleMapsLink
         : defaults.url ?? "";
-    setElements((prev) => [...prev, {
+    setElements((prev) => [...prev, prepareElementForViewport({
       id, type: "app" as ElType,
       x: cx(defaults.width), y: sectionY + 80, width: defaults.width, height: defaults.height,
       locked: false, visible: true, zIndex: prev.length,
@@ -3167,7 +5291,7 @@ export function CanvasEditorV3({
         primaryColor: defaults.background,
         textColor: defaults.color
       }
-    }]);
+    }, viewportModeRef.current)]);
     setSelectedIds([id]);
     setActiveTool(null);
   };
@@ -3177,7 +5301,7 @@ export function CanvasEditorV3({
     const last = lastPatchRef.current;
     if (!last || last.id !== id || now - last.time > 800) pushHistory(snapshot());
     lastPatchRef.current = { id, time: now };
-    setElements((prev) => prev.map((el) => el.id === id ? { ...el, ...patch } : el));
+    setElements((prev) => prev.map((el) => el.id === id ? patchElementForViewport(el, viewportModeRef.current, patch) : el));
   };
 
   const deleteSelected = () => {
@@ -3187,14 +5311,98 @@ export function CanvasEditorV3({
     setSelectedIds([]);
   };
 
+  const deleteElementById = (id: string) => {
+    pushHistory(snapshot());
+    setElements((prev) => prev.filter((el) => el.id !== id));
+    setSelectedIds((prev) => prev.filter((selected) => selected !== id));
+  };
+
   const duplicateElement = () => {
     if (!selectedId) return;
     const el = elements.find((e) => e.id === selectedId);
     if (!el) return;
     pushHistory(snapshot());
-    const newEl: V3Element = { ...el, id: `el-${Date.now()}`, x: el.x + 14, y: el.y + 14, zIndex: elements.length };
+    const newEl = duplicateElementForViewport(el, viewportModeRef.current, `el-${Date.now()}`, elements.length);
     setElements((prev) => [...prev, newEl]);
     setSelectedIds([newEl.id]);
+  };
+
+  const duplicateElementById = (id: string) => {
+    const el = elements.find((item) => item.id === id);
+    if (!el) return;
+    pushHistory(snapshot());
+    const newEl = duplicateElementForViewport(el, viewportModeRef.current, `el-${Date.now()}`, elements.length);
+    setElements((prev) => [...prev, newEl]);
+    setSelectedIds([newEl.id]);
+  };
+
+  const openSelectedInspector = () => {
+    if (!selectedId) return;
+    setInspectorOpen(true);
+  };
+
+  const editSelectedText = () => {
+    if (!selectedId) return;
+    const el = elements.find((item) => item.id === selectedId);
+    if (!el) return;
+    const next = window.prompt("Editar texto", el.content ?? "");
+    if (next === null || next === el.content) return;
+    patchElement(selectedId, { content: next });
+  };
+
+  const quickColorSelected = () => {
+    if (!selectedId) return;
+    const el = elements.find((item) => item.id === selectedId);
+    if (!el) return;
+    const palette = ["#fff7ef", "#3b1721", "#b8925a", "#f472b6", "#111827"];
+    const current = el.type === "decoration" ? el.config?.color ?? el.config?.primaryColor : el.type === "text" || el.content ? el.color : el.background;
+    const index = Math.max(0, palette.indexOf(current ?? ""));
+    const nextColor = palette[(index + 1) % palette.length];
+    if (el.type === "text" || el.content) {
+      patchElement(selectedId, { color: nextColor });
+    } else if (el.type === "decoration") {
+      const nextConfig = { ...(el.config ?? {}), color: nextColor, primaryColor: nextColor };
+      patchElement(selectedId, { config: nextConfig, background: buildDecorationBackground({ ...el, config: nextConfig }) });
+    } else {
+      patchElement(selectedId, { background: nextColor });
+    }
+  };
+
+  const replaceSelectedImage = () => {
+    if (!selectedId) return;
+    const next = window.prompt("Pegar URL de imagen", "");
+    if (!next) return;
+    patchElement(selectedId, {
+      background: `url(${next.trim()}) center/cover no-repeat`,
+      config: { ...(selected?.config ?? {}), url: next.trim() },
+    });
+  };
+
+  const cropSelectedImage = () => {
+    if (!selectedId) return;
+    setInspectorOpen(true);
+  };
+
+  const editSelectedQr = () => {
+    if (!selectedId) return;
+    setInspectorOpen(true);
+  };
+
+  const downloadSelectedQr = () => {
+    const el = selected;
+    if (!el || normalizeAppType(el) !== "qr") return;
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="220" height="220" viewBox="0 0 220 220"><rect width="220" height="220" rx="20" fill="#fffaf0"/><g fill="#1a0a18">${Array.from({ length: 25 }).map((_, index) => {
+      const x = 38 + (index % 5) * 28;
+      const y = 38 + Math.floor(index / 5) * 28;
+      return index % 3 === 0 || index % 7 === 0 ? `<rect x="${x}" y="${y}" width="20" height="20" rx="3"/>` : "";
+    }).join("")}</g><text x="110" y="196" text-anchor="middle" font-family="Arial" font-size="12" fill="#1a0a18">${el.content ?? "QR del evento"}</text></svg>`;
+    const blob = new Blob([svg], { type: "image/svg+xml" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "kais-qr.svg";
+    link.click();
+    URL.revokeObjectURL(url);
   };
 
   const bringToFront = () => {
@@ -3204,11 +5412,27 @@ export function CanvasEditorV3({
     setElements((prev) => prev.map((e) => e.id === selectedId ? { ...e, zIndex: maxZ + 1 } : e));
   };
 
+  const bringElementToFront = (id: string) => {
+    pushHistory(snapshot());
+    const maxZ = Math.max(...elements.map((e) => e.zIndex));
+    setElements((prev) => prev.map((e) => e.id === id ? { ...e, zIndex: maxZ + 1 } : e));
+  };
+
   const sendToBack = () => {
     if (!selectedId) return;
     pushHistory(snapshot());
     const minZ = Math.min(...elements.map((e) => e.zIndex));
     setElements((prev) => prev.map((e) => e.id === selectedId ? { ...e, zIndex: minZ - 1 } : e));
+  };
+
+  const sendElementToBack = (id: string) => {
+    pushHistory(snapshot());
+    const minZ = Math.min(...elements.map((e) => e.zIndex));
+    setElements((prev) => prev.map((e) => e.id === id ? { ...e, zIndex: minZ - 1 } : e));
+  };
+
+  const toggleElementLocked = (id: string) => {
+    patchElement(id, { locked: !(elements.find((el) => el.id === id)?.locked ?? false) });
   };
 
   const getSelectedGroupBounds = useCallback((ids: string[], source = elementsRef.current) => {
@@ -3231,19 +5455,21 @@ export function CanvasEditorV3({
 
   const alignSelectedGroup = (mode: "left" | "centerX" | "right" | "top" | "centerY" | "bottom") => {
     if (selectedIds.length <= 1) return;
-    const bounds = getSelectedGroupBounds(selectedIds);
+    const bounds = getSelectedGroupBounds(selectedIds, viewportElementsRef.current);
     if (!bounds) return;
     pushHistory(snapshot());
+    const activeViewport = viewportModeRef.current;
     setElements((prev) =>
       prev.map((el) => {
         if (!selectedIds.includes(el.id) || el.locked) return el;
-        const height = estimateElementRenderHeight(el);
-        if (mode === "left") return { ...el, x: Math.round(bounds.minX) };
-        if (mode === "centerX") return { ...el, x: Math.round(bounds.minX + (bounds.width - el.width) / 2) };
-        if (mode === "right") return { ...el, x: Math.round(bounds.maxX - el.width) };
-        if (mode === "top") return { ...el, y: Math.round(bounds.minY) };
-        if (mode === "centerY") return { ...el, y: Math.round(bounds.minY + (bounds.height - height) / 2) };
-        if (mode === "bottom") return { ...el, y: Math.round(bounds.maxY - height) };
+        const projected = projectElementToViewport(el, activeViewport);
+        const height = estimateElementRenderHeight(projected);
+        if (mode === "left") return patchElementForViewport(el, activeViewport, { x: Math.round(bounds.minX) });
+        if (mode === "centerX") return patchElementForViewport(el, activeViewport, { x: Math.round(bounds.minX + (bounds.width - projected.width) / 2) });
+        if (mode === "right") return patchElementForViewport(el, activeViewport, { x: Math.round(bounds.maxX - projected.width) });
+        if (mode === "top") return patchElementForViewport(el, activeViewport, { y: Math.round(bounds.minY) });
+        if (mode === "centerY") return patchElementForViewport(el, activeViewport, { y: Math.round(bounds.minY + (bounds.height - height) / 2) });
+        if (mode === "bottom") return patchElementForViewport(el, activeViewport, { y: Math.round(bounds.maxY - height) });
         return el;
       })
     );
@@ -3267,14 +5493,8 @@ export function CanvasEditorV3({
         }
         nextGroupId = groupIdMap.get(el.groupId);
       }
-      return {
-        ...el,
-        id: `el-${stamp}-${index}`,
-        x: el.x + 24,
-        y: el.y + 24,
-        zIndex: maxZ + index + 1,
-        groupId: nextGroupId,
-      };
+      const copy = duplicateElementForViewport(el, viewportModeRef.current, `el-${stamp}-${index}`, maxZ + index + 1);
+      return { ...copy, groupId: nextGroupId };
     });
     setElements((prev) => [...prev, ...copies]);
     setSelectedIds(copies.map((el) => el.id));
@@ -3313,7 +5533,7 @@ export function CanvasEditorV3({
 
   const distributeSelectedGroup = (axis: "horizontal" | "vertical") => {
     if (selectedIds.length < 3) return;
-    const selectedElements = elements
+    const selectedElements = viewportElements
       .filter((el) => selectedIds.includes(el.id) && el.visible && !el.locked)
       .sort((a, b) => axis === "horizontal" ? a.x - b.x : a.y - b.y);
     if (selectedElements.length < 3) return;
@@ -3332,7 +5552,7 @@ export function CanvasEditorV3({
         positions[el.id] = index === selectedElements.length - 1 ? last.x : Math.round(nextX);
         nextX += el.width + gap;
       });
-      setElements((prev) => prev.map((el) => el.id in positions ? { ...el, x: positions[el.id] } : el));
+      setElements((prev) => prev.map((el) => el.id in positions ? patchElementForViewport(el, viewportModeRef.current, { x: positions[el.id] }) : el));
       return;
     }
 
@@ -3348,13 +5568,13 @@ export function CanvasEditorV3({
       positions[el.id] = index === selectedElements.length - 1 ? last.y : Math.round(nextY);
       nextY += estimateElementRenderHeight(el) + gap;
     });
-    setElements((prev) => prev.map((el) => el.id in positions ? { ...el, y: positions[el.id] } : el));
+    setElements((prev) => prev.map((el) => el.id in positions ? patchElementForViewport(el, viewportModeRef.current, { y: positions[el.id] }) : el));
   };
 
   const getSectionElements = (sId: string) => {
     const sec = sections.find((s) => s.id === sId);
     if (!sec) return [];
-    return elements.filter((el) => el.y >= sec.y && el.y < sec.y + sec.height);
+    return viewportElements.filter((el) => el.y >= sec.y && el.y < sec.y + sec.height);
   };
 
   const layerMoveUp = (id: string) => {
@@ -3362,7 +5582,7 @@ export function CanvasEditorV3({
     pushHistory(snapshot());
     const sec = sections.find((s) => s.id === activeSectionId);
     if (!sec) return;
-    const sEls = elements
+    const sEls = viewportElements
       .filter((el) => el.y >= sec.y && el.y < sec.y + sec.height)
       .sort((a, b) => a.zIndex - b.zIndex);
     const idx = sEls.findIndex((el) => el.id === id);
@@ -3384,7 +5604,7 @@ export function CanvasEditorV3({
     pushHistory(snapshot());
     const sec = sections.find((s) => s.id === activeSectionId);
     if (!sec) return;
-    const sEls = elements
+    const sEls = viewportElements
       .filter((el) => el.y >= sec.y && el.y < sec.y + sec.height)
       .sort((a, b) => a.zIndex - b.zIndex);
     const idx = sEls.findIndex((el) => el.id === id);
@@ -3414,7 +5634,7 @@ export function CanvasEditorV3({
     pushHistory(snapshot());
     const sec = sections.find((s) => s.id === activeSectionId);
     if (!sec) return;
-    const sEls = elements.filter((el) => el.y >= sec.y && el.y < sec.y + sec.height);
+    const sEls = viewportElements.filter((el) => el.y >= sec.y && el.y < sec.y + sec.height);
     // Collect existing zIndex values for the section, sorted ascending
     const zValues = [...sEls.map((el) => el.zIndex)].sort((a, b) => a - b);
     // Assign: orderedIds[0] = top layer = highest zIndex = zValues[last]
@@ -3572,7 +5792,7 @@ export function CanvasEditorV3({
       currentDesign as unknown as SharedCanvasV3Design
     ) as unknown as CanvasV3Design | null;
     setSections(hydratedDesign?.sections ?? newSections);
-    setElements(hydratedDesign?.elements ?? legacyHydratedElements);
+    setElements(ensureIndependentViewportLayoutsForAll(hydratedDesign?.elements ?? legacyHydratedElements));
     setThemeId(tpl.themeId);
     setActiveSectionId(newSections[0]?.id ?? "");
     setSelectedIds([]);
@@ -3583,6 +5803,40 @@ export function CanvasEditorV3({
     window.setTimeout(() => {
       if (scrollRef.current) scrollRef.current.scrollTo({ top: 0, behavior: "smooth" });
     }, 50);
+  };
+
+  const applyTemplateFromDb = (template: CanvasV3TemplateGalleryItem) => {
+    setTemplateApplyError(null);
+    setTemplateToApply(template);
+  };
+
+  const confirmApplyTemplateFromDb = () => {
+    const template = templateToApply;
+    if (!template || isApplyingTemplate) return;
+
+    setTemplateApplyError(null);
+    setApplyingTemplateId(template.id);
+    startApplyTemplateTransition(() => {
+      void (async () => {
+        const result = await applyCanvasV3TemplateToEvent(eventId, template.id);
+        if (!result.ok) {
+          setTemplateApplyError(result.error);
+          setApplyingTemplateId(null);
+          return;
+        }
+
+        setSaved(true);
+        setSaveStatus("saved");
+        setActiveTool(null);
+        setTemplateToApply(null);
+        setSelectedIds([]);
+        router.refresh();
+        window.setTimeout(() => {
+          if (scrollRef.current) scrollRef.current.scrollTo({ top: 0, behavior: "smooth" });
+          setApplyingTemplateId(null);
+        }, 50);
+      })();
+    });
   };
 
   const handleSave = async () => {
@@ -3611,6 +5865,7 @@ export function CanvasEditorV3({
   const [inspectorOpen, setInspectorOpen] = useState(() =>
     false
   );
+  const [layersPanelOpen, setLayersPanelOpen] = useState(false);
 
   useEffect(() => {
     const onResize = () => {
@@ -3636,27 +5891,28 @@ export function CanvasEditorV3({
   const EXPANDED_PANEL_W = 260;
   // Inspector width: 320px on wide screens, 280px on laptop
   const INSPECTOR_W = vw >= 1600 ? 320 : 280;
-  // On laptop and smaller screens inspector renders as overlay drawer
-  const inspectorIsOverlay = vw < 1400;
   const showInspector = inspectorOpen && inspectorHasContext;
+  const showLayersPanel = layersPanelOpen && !preview;
 
   useEffect(() => {
-    setInspectorOpen(inspectorHasContext);
-  }, [inspectorHasContext, selectedId]);
+    if (!inspectorHasContext) setInspectorOpen(false);
+  }, [inspectorHasContext]);
 
   useEffect(() => {
-    const inlineInspectorWidth = !inspectorIsOverlay && inspectorOpen && inspectorHasContext ? INSPECTOR_W : 0;
-    const activePanelWidth = activeTool && sidebarHovered ? EXPANDED_PANEL_W : 0;
-    const availableWidth = vw - ICON_SIDEBAR_W - activePanelWidth - inlineInspectorWidth - 96;
+    const availableWidth = vw - ICON_SIDEBAR_W - 96;
     const nextZoom = Math.max(0.3, Math.min(1, Math.floor((availableWidth / canvasW) * 100) / 100));
     setZoom((current) => Math.abs(current - nextZoom) > 0.03 ? nextZoom : current);
-  }, [activeTool, canvasW, inspectorHasContext, inspectorIsOverlay, inspectorOpen, sidebarHovered, vw]);
+  }, [canvasW, vw]);
 
   // ── Keyboard shortcuts ──────────────────────────────────────────────────────
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const ctrl = e.ctrlKey || e.metaKey;
       if (e.key === "Escape") {
+        if (elementContextMenu) {
+          setElementContextMenu(null);
+          return;
+        }
         if (selectedIds.length > 0) {
           setSelectedIds([]);
           setSelectionBox(null);
@@ -3670,16 +5926,253 @@ export function CanvasEditorV3({
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [undo, redo, selectedIds.length]);
+  }, [elementContextMenu, undo, redo, selectedIds.length]);
 
   // ─────────────────────────────────────────────────────────────────────────────
   // Render
   // ─────────────────────────────────────────────────────────────────────────────
   const countSectionElements = (section: V3Section) =>
-    elements.filter((el) => el.y >= section.y && el.y < section.y + section.height).length;
+    viewportElements.filter((el) => el.y >= section.y && el.y < section.y + section.height).length;
+
+  const openElementContextMenu = (event: React.MouseEvent, elementId: string) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (preview) return;
+    if (!selectedIds.includes(elementId)) {
+      setSelectedIds(expandSelectionWithGroups([elementId]));
+    }
+
+    const MENU_W = 176;
+    const MENU_H = 198;
+    const GAP = 10;
+    const x = Math.max(8, Math.min(window.innerWidth - MENU_W - 8, event.clientX + GAP));
+    const y = Math.max(8, Math.min(window.innerHeight - MENU_H - 8, event.clientY + GAP));
+    setElementContextMenu({ elementId, x, y });
+  };
+  const contextMenuElement = elementContextMenu
+    ? viewportElements.find((element) => element.id === elementContextMenu.elementId) ?? null
+    : null;
+  const selectedAppType = selected ? normalizeAppType(selected) : null;
+  const selectedLooksLikeImage = Boolean(selected && selected.type !== "app" && (selected.config?.url || /\burl\(/i.test(selected.background ?? "")));
+  const selectedIsTextLike = Boolean(selected && (selected.type === "text" || (selected.content && selected.type !== "app")));
+  const selectedIsShapeLike = Boolean(selected && (selected.type === "shape" || selected.type === "decoration"));
+  const selectedIsAppLike = Boolean(selected && selected.type === "app");
+  const selectedHasAtmosphere = Boolean(selected?.type === "decoration" && selected.config?.effect);
+  const selectedAccentColor = selected?.config?.accentColor ?? "#2563eb";
+  const selectedToolbarColor = selectedIsTextLike
+    ? selected?.color ?? "#4b2735"
+    : selectedIsAppLike
+      ? selected?.config?.primaryColor ?? selected?.background ?? "#b8925a"
+      : selected?.type === "decoration"
+        ? selected?.config?.color ?? selected?.config?.primaryColor ?? "#b8925a"
+        : selected?.background ?? "#b8925a";
+  const topToolbarColorPalettes = [
+    { label: "Boda", colors: ["#fffaf2", "#e7d8c4", "#c9a96a", "#8b6f47", "#2f2a26", "#ffffff"] },
+    { label: "Quince", colors: ["#fff1f5", "#f8c8dc", "#d67b9a", "#b8925a", "#7c3aed", "#3b1721"] },
+    { label: "Infantil", colors: ["#fff7b2", "#ffd6e7", "#a7f3d0", "#93c5fd", "#c4b5fd", "#f97316"] },
+    { label: "Luxury", colors: ["#0f0f17", "#1f1720", "#c8a96a", "#f4d28a", "#ffffff", "#5b4636"] },
+    { label: "Rose gold", colors: ["#fff7ef", "#f2c8ce", "#c87583", "#b8925a", "#8f6f52", "#4b2735"] },
+    { label: "Dark neon", colors: ["#030712", "#111827", "#22d3ee", "#a78bfa", "#f472b6", "#25d366"] },
+    { label: "Pastel", colors: ["#fef3c7", "#fde2e4", "#d8f3dc", "#dbeafe", "#ede9fe", "#ffffff"] },
+  ];
+  const topToolbarFonts = [
+    {
+      category: "Elegantes",
+      fonts: [
+        { label: "Playfair", value: "'Playfair Display', Georgia, serif" },
+        { label: "Cormorant", value: "'Cormorant Garamond', Georgia, serif" },
+        { label: "Lora", value: "'Lora', Georgia, serif" },
+      ],
+    },
+    {
+      category: "Serif",
+      fonts: [
+        { label: "Merriweather", value: "'Merriweather', Georgia, serif" },
+        { label: "Libre Baskerville", value: "'Libre Baskerville', Georgia, serif" },
+        { label: "EB Garamond", value: "'EB Garamond', Georgia, serif" },
+      ],
+    },
+    {
+      category: "Script",
+      fonts: [
+        { label: "Dancing Script", value: "'Dancing Script', cursive" },
+        { label: "Great Vibes", value: "'Great Vibes', cursive" },
+        { label: "Caveat", value: "'Caveat', cursive" },
+      ],
+    },
+    {
+      category: "Modernas",
+      fonts: [
+        { label: "Montserrat", value: "'Montserrat', Inter, system-ui, sans-serif" },
+        { label: "Poppins", value: "'Poppins', Inter, system-ui, sans-serif" },
+        { label: "Raleway", value: "'Raleway', Inter, system-ui, sans-serif" },
+      ],
+    },
+    {
+      category: "Minimal",
+      fonts: [
+        { label: "Inter", value: "Inter, system-ui, sans-serif" },
+        { label: "Nunito", value: "'Nunito', Inter, system-ui, sans-serif" },
+        { label: "Quicksand", value: "'Quicksand', Inter, system-ui, sans-serif" },
+      ],
+    },
+    {
+      category: "Infantiles",
+      fonts: [
+        { label: "Fredoka", value: "'Fredoka', Inter, system-ui, sans-serif" },
+        { label: "Baloo 2", value: "'Baloo 2', Inter, system-ui, sans-serif" },
+        { label: "Nunito", value: "'Nunito', Inter, system-ui, sans-serif" },
+      ],
+    },
+    {
+      category: "Formales",
+      fonts: [
+        { label: "Cinzel", value: "'Cinzel', Georgia, serif" },
+        { label: "Cormorant", value: "'Cormorant Garamond', Georgia, serif" },
+        { label: "Libre Baskerville", value: "'Libre Baskerville', Georgia, serif" },
+      ],
+    },
+    {
+      category: "Luxury",
+      fonts: [
+        { label: "Bodoni Moda", value: "'Bodoni Moda', Georgia, serif" },
+        { label: "Playfair", value: "'Playfair Display', Georgia, serif" },
+        { label: "Cinzel", value: "'Cinzel', Georgia, serif" },
+      ],
+    },
+  ];
+  const topToolbarFontPreview = "Quinceañera Ñandutí, José, María, corazón, ilusión";
+  const applyTopToolbarColor = (color: string, target: "primary" | "accent" = "primary") => {
+    if (!selected) return;
+    if (target === "accent" && selected.type === "decoration") {
+      const nextConfig = { ...(selected.config ?? {}), accentColor: color };
+      patchElement(selected.id, {
+        config: nextConfig,
+        background: buildDecorationBackground({ ...selected, config: nextConfig }),
+      });
+    } else if (selectedIsTextLike) {
+      patchElement(selected.id, { color });
+    } else if (selectedIsAppLike) {
+      patchElement(selected.id, {
+        background: color,
+        config: { ...(selected.config ?? {}), primaryColor: color },
+      });
+    } else if (selected.type === "decoration") {
+      const nextConfig = { ...(selected.config ?? {}), color, primaryColor: color };
+      patchElement(selected.id, {
+        config: nextConfig,
+        background: buildDecorationBackground({ ...selected, config: nextConfig }),
+      });
+    } else {
+      patchElement(selected.id, { background: color });
+    }
+    setTopToolbarPopover(null);
+  };
+  const applyTopToolbarFont = (fontFamily: string) => {
+    if (!selected || !selectedIsTextLike) return;
+    patchElement(selected.id, { fontFamily });
+    setTopToolbarPopover(null);
+  };
+  const topContextButtonStyle: React.CSSProperties = {
+    height: 26,
+    minWidth: 28,
+    border: "1px solid rgba(184,146,90,0.12)",
+    borderRadius: 9,
+    background: "rgba(255,252,247,0.54)",
+    color: "#4b2735",
+    cursor: "pointer",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+    padding: "0 7px",
+    fontSize: 10,
+    fontWeight: 800,
+    fontFamily: "Inter, system-ui, sans-serif",
+    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.28)",
+    whiteSpace: "nowrap",
+  };
+  const topContextIconButtonStyle: React.CSSProperties = {
+    ...topContextButtonStyle,
+    width: 28,
+    minWidth: 28,
+    padding: 0,
+  };
+  const getTopContextIconButtonStyle = (active: boolean): React.CSSProperties => ({
+    ...topContextIconButtonStyle,
+    background: active ? "rgba(184,146,90,0.24)" : topContextIconButtonStyle.background,
+    border: active ? "1px solid rgba(184,146,90,0.36)" : topContextIconButtonStyle.border,
+    color: active ? "#2f1d24" : topContextIconButtonStyle.color,
+    boxShadow: active
+      ? "inset 0 1px 0 rgba(255,255,255,0.34), 0 5px 12px rgba(80,45,30,0.10)"
+      : topContextIconButtonStyle.boxShadow,
+  });
+  const topContextDisabledButtonStyle: React.CSSProperties = {
+    ...topContextButtonStyle,
+    opacity: 0.42,
+    cursor: "not-allowed",
+  };
+  const topContextDividerStyle: React.CSSProperties = {
+    width: 1,
+    height: 16,
+    background: "rgba(184,146,90,0.16)",
+    flexShrink: 0,
+  };
+  const topContextGroupStyle: React.CSSProperties = {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 4,
+    padding: 2,
+    borderRadius: 12,
+    background: "rgba(255,255,255,0.18)",
+    flexShrink: 0,
+  };
+  const topContextPopoverStyle: React.CSSProperties = {
+    position: "absolute",
+    top: 38,
+    left: "50%",
+    transform: "translateX(-50%)",
+    zIndex: 2,
+    minWidth: 164,
+    padding: 6,
+    borderRadius: 14,
+    background: "rgba(255,252,247,0.94)",
+    border: "1px solid rgba(184,146,90,0.18)",
+    boxShadow: "0 18px 42px rgba(38,24,30,0.18)",
+    backdropFilter: "blur(10px)",
+  };
+  const topContextColorSwatchStyle: React.CSSProperties = {
+    width: 18,
+    height: 18,
+    borderRadius: 999,
+    background: selectedToolbarColor,
+    border: "2px solid rgba(255,255,255,0.82)",
+    boxShadow: "0 0 0 1px rgba(75,39,53,0.18), 0 4px 10px rgba(38,24,30,0.16)",
+    display: "inline-block",
+    flexShrink: 0,
+  };
+  const topContextAccentSwatchStyle: React.CSSProperties = {
+    ...topContextColorSwatchStyle,
+    width: 16,
+    height: 16,
+    background: selectedAccentColor,
+  };
+  const topContextTinyRangeStyle: React.CSSProperties = {
+    width: 62,
+    accentColor: "#b8925a",
+    cursor: "pointer",
+  };
+  const patchSelectedEffectConfig = (patch: Partial<NonNullable<V3Element["config"]>>) => {
+    if (!selected || selected.type !== "decoration") return;
+    const nextConfig = { ...(selected.config ?? {}), ...patch };
+    patchElement(selected.id, {
+      config: nextConfig,
+      background: buildDecorationBackground({ ...selected, config: nextConfig }),
+    });
+  };
 
   return (
-    <div style={{
+    <div ref={studioRef} style={{
       display: "flex", flexDirection: "column",
       height: "100dvh", width: "100vw", maxWidth: "100vw", minWidth: 0,
       background: "#0f0f17", overflow: "hidden",
@@ -3716,7 +6209,7 @@ export function CanvasEditorV3({
           whiteSpace: "nowrap",
           opacity: 0.9,
         }}>
-          {eventTitle} · Editor V3
+          {eventTitle} · KAIS Studio
         </div>
 
         {/* Zoom */}
@@ -3800,27 +6293,229 @@ export function CanvasEditorV3({
           Publicar ↗
         </button>
 
-        {/* Inspector toggle (always visible in top bar for small screens) */}
-        {vw < 1400 && inspectorHasContext && (
-          <button
-            type="button"
-            title={inspectorOpen ? "Cerrar inspector" : "Propiedades"}
-            onClick={() => setInspectorOpen(o => !o)}
-            style={{
-              ...topBtnStyle, flexShrink: 0,
-              background: inspectorOpen ? "rgba(149,129,112,0.24)" : "rgba(255,255,255,0.05)",
-              color: inspectorOpen ? "#f0e5db" : "#a19388",
-              borderColor: inspectorOpen ? "rgba(149,129,112,0.40)" : "rgba(149,129,112,0.24)",
-            }}
-          >
-            Propiedades
-          </button>
-        )}
       </div>
 
       {/* ── BODY ── */}
       <div style={{ flex: 1, display: "flex", overflow: "hidden", minWidth: 0, position: "relative" }}>
+        {selected && !preview && (
+          <div
+            data-canvas-control="true"
+            onMouseDown={(event) => {
+              event.stopPropagation();
+              event.preventDefault();
+            }}
+            onClick={(event) => event.stopPropagation()}
+            style={{
+              position: "absolute",
+              top: 10,
+              left: "50%",
+              transform: "translateX(-50%)",
+              zIndex: 48,
+              maxWidth: "min(760px, calc(100vw - 112px))",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexWrap: "wrap",
+              gap: 4,
+              padding: 4,
+              borderRadius: 15,
+              background: "linear-gradient(180deg,rgba(255,252,247,0.76),rgba(255,244,232,0.54))",
+              border: "1px solid rgba(184,146,90,0.14)",
+              boxShadow: "0 16px 40px rgba(38,24,30,0.14), inset 0 1px 0 rgba(255,255,255,0.44)",
+              backdropFilter: "blur(10px)",
+              overflow: "visible",
+              fontFamily: "Inter, system-ui, sans-serif",
+              animation: "kaisTopContextIn 140ms ease-out",
+            }}
+          >
+            <style>{`@keyframes kaisTopContextIn{from{opacity:0;transform:translateX(-50%) translateY(-4px) scale(.985)}to{opacity:1;transform:translateX(-50%) translateY(0) scale(1)}}`}</style>
+            <span style={{ color: "#8a6f61", fontSize: 9, fontWeight: 900, letterSpacing: "0.08em", textTransform: "uppercase", padding: "0 5px", whiteSpace: "nowrap" }}>
+              {selectedIsTextLike ? "Texto" : selectedHasAtmosphere ? "Atmósfera" : selectedIsAppLike ? "App" : selectedLooksLikeImage ? "Imagen" : "Elemento"}
+            </span>
 
+            {selectedIsTextLike && (
+              <span style={topContextGroupStyle}>
+                <button type="button" title="Fuente" onClick={() => setTopToolbarPopover(topToolbarPopover === "font" ? null : "font")} style={topContextButtonStyle}>Aa</button>
+                <button type="button" title="Reducir tamano" onClick={() => patchElement(selected.id, { fontSize: Math.max(8, (selected.fontSize ?? 14) - 1) })} style={topContextButtonStyle}>-</button>
+                <span style={{ minWidth: 24, textAlign: "center", fontSize: 11, color: "#4b2735", fontWeight: 850 }}>{selected.fontSize ?? 14}</span>
+                <button type="button" title="Aumentar tamano" onClick={() => patchElement(selected.id, { fontSize: Math.min(140, (selected.fontSize ?? 14) + 1) })} style={topContextButtonStyle}>+</button>
+                <button type="button" title="Color" onClick={() => setTopToolbarPopover(topToolbarPopover === "color" ? null : "color")} style={{ ...topContextButtonStyle, width: 34, padding: 0 }}><span style={topContextColorSwatchStyle} /></button>
+                <button type="button" title="Negrita" onClick={() => patchElement(selected.id, { fontWeight: selected.fontWeight === "700" || selected.fontWeight === "800" ? "400" : "700" })} style={{ ...topContextButtonStyle, background: selected.fontWeight === "700" || selected.fontWeight === "800" ? "rgba(184,146,90,0.22)" : topContextButtonStyle.background }}>B</button>
+                <button type="button" title="Italic" onClick={() => patchElement(selected.id, { fontStyle: selected.fontStyle === "italic" ? "normal" : "italic" })} style={{ ...topContextButtonStyle, fontStyle: "italic", background: selected.fontStyle === "italic" ? "rgba(184,146,90,0.22)" : topContextButtonStyle.background }}>I</button>
+                <button type="button" title="Subrayado disponible desde propiedades" disabled style={topContextDisabledButtonStyle}>U</button>
+              </span>
+            )}
+
+            {selectedIsTextLike && (
+              <span style={topContextGroupStyle}>
+                <button type="button" aria-label="Alinear izquierda" title="Alinear izquierda" onClick={() => patchElement(selected.id, { textAlign: "left" })} style={getTopContextIconButtonStyle((selected.textAlign ?? "left") === "left")}><AlignmentIcon kind="left" /></button>
+                <button type="button" aria-label="Centrar horizontal" title="Centrar horizontal" onClick={() => patchElement(selected.id, { textAlign: "center" })} style={getTopContextIconButtonStyle(selected.textAlign === "center")}><AlignmentIcon kind="center" /></button>
+                <button type="button" aria-label="Alinear derecha" title="Alinear derecha" onClick={() => patchElement(selected.id, { textAlign: "right" })} style={getTopContextIconButtonStyle(selected.textAlign === "right")}><AlignmentIcon kind="right" /></button>
+                <span style={topContextDividerStyle} />
+                <button type="button" aria-label="Alinear arriba" title="Alinear arriba" onClick={() => patchElement(selected.id, { verticalAlign: "top" })} style={getTopContextIconButtonStyle((selected.verticalAlign ?? "top") === "top")}><AlignmentIcon kind="top" /></button>
+                <button type="button" aria-label="Centrar vertical" title="Centrar vertical" onClick={() => patchElement(selected.id, { verticalAlign: "center" })} style={getTopContextIconButtonStyle(selected.verticalAlign === "center")}><AlignmentIcon kind="middle" /></button>
+                <button type="button" aria-label="Alinear abajo" title="Alinear abajo" onClick={() => patchElement(selected.id, { verticalAlign: "bottom" })} style={getTopContextIconButtonStyle(selected.verticalAlign === "bottom")}><AlignmentIcon kind="bottom" /></button>
+                <button type="button" title="Espaciado" onClick={openSelectedInspector} style={topContextButtonStyle}>Esp</button>
+                <button type="button" title="Efectos" onClick={openSelectedInspector} style={topContextButtonStyle}>Fx</button>
+              </span>
+            )}
+
+            {selectedHasAtmosphere && selected && (
+              <span style={topContextGroupStyle}>
+                <button type="button" title="Color principal" onClick={() => setTopToolbarPopover(topToolbarPopover === "color" ? null : "color")} style={{ ...topContextButtonStyle, width: 34, padding: 0 }}><span style={topContextColorSwatchStyle} /></button>
+                <button type="button" title="Color secundario" onClick={() => setTopToolbarPopover(topToolbarPopover === "accentColor" ? null : "accentColor")} style={{ ...topContextButtonStyle, width: 32, padding: 0 }}><span style={topContextAccentSwatchStyle} /></button>
+                <span title="Intensidad" style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "0 5px", color: "#6f564e", fontSize: 9, fontWeight: 850 }}>
+                  Int
+                  <input
+                    type="range"
+                    min={0}
+                    max={1}
+                    step={0.05}
+                    value={clamp01(selected.config?.intensity, 1)}
+                    onChange={(event) => patchSelectedEffectConfig({ intensity: Number(event.target.value) })}
+                    style={topContextTinyRangeStyle}
+                  />
+                </span>
+                <button
+                  type="button"
+                  title="Mezclar con fondo"
+                  onClick={() => patchSelectedEffectConfig({ blendWithBackground: !selected.config?.blendWithBackground })}
+                  style={{ ...topContextButtonStyle, background: selected.config?.blendWithBackground ? "rgba(184,146,90,0.24)" : topContextButtonStyle.background }}
+                >
+                  Mix
+                </button>
+                <button type="button" title="Menos transparencia" onClick={() => patchElement(selected.id, { opacity: Math.min(1, Math.round(((selected.opacity ?? 1) + 0.1) * 10) / 10) })} style={topContextButtonStyle}>Op+</button>
+                <button type="button" title="Más transparencia" onClick={() => patchElement(selected.id, { opacity: Math.max(0.05, Math.round(((selected.opacity ?? 1) - 0.1) * 10) / 10) })} style={topContextButtonStyle}>Op-</button>
+                <button type="button" title="Más ajustes" onClick={openSelectedInspector} style={topContextButtonStyle}>Fx</button>
+              </span>
+            )}
+
+            {(selectedIsShapeLike || selectedLooksLikeImage) && !selectedHasAtmosphere && (
+              <>
+              <span style={topContextGroupStyle}>
+                <button type="button" title="Color o relleno" onClick={() => setTopToolbarPopover(topToolbarPopover === "color" ? null : "color")} style={{ ...topContextButtonStyle, width: 34, padding: 0 }}><span style={topContextColorSwatchStyle} /></button>
+                <button type="button" title="Menos opacidad" onClick={() => patchElement(selected.id, { opacity: Math.max(0.1, Math.round(((selected.opacity ?? 1) - 0.1) * 10) / 10) })} style={topContextButtonStyle}>Op-</button>
+                <button type="button" title="Mas opacidad" onClick={() => patchElement(selected.id, { opacity: Math.min(1, Math.round(((selected.opacity ?? 1) + 0.1) * 10) / 10) })} style={topContextButtonStyle}>Op+</button>
+                <button type="button" title="Borde y contorno" onClick={openSelectedInspector} style={topContextButtonStyle}>Bd</button>
+                <button type="button" title="Sombra y efectos" onClick={openSelectedInspector} style={topContextButtonStyle}>Fx</button>
+              </span>
+                {selectedLooksLikeImage && (
+                  <span style={topContextGroupStyle}>
+                    <button type="button" title="Reemplazar imagen" onClick={replaceSelectedImage} style={topContextButtonStyle}>Img</button>
+                    <button type="button" title="Recortar" onClick={cropSelectedImage} style={topContextButtonStyle}>Crop</button>
+                  </span>
+                )}
+              </>
+            )}
+
+            {selectedIsAppLike && (
+              <span style={topContextGroupStyle}>
+                {selectedAppType === "qr" && (
+                  <>
+                    <button type="button" title="Editar QR" onClick={editSelectedQr} style={topContextButtonStyle}>QR</button>
+                    <button type="button" title="Descargar QR" onClick={downloadSelectedQr} style={topContextButtonStyle}>↓</button>
+                  </>
+                )}
+                <button type="button" title="Color" onClick={() => setTopToolbarPopover(topToolbarPopover === "color" ? null : "color")} style={{ ...topContextButtonStyle, width: 34, padding: 0 }}><span style={topContextColorSwatchStyle} /></button>
+                <button type="button" title="Configurar bloque" onClick={openSelectedInspector} style={topContextButtonStyle}>Cfg</button>
+              </span>
+            )}
+
+            <span style={topContextDividerStyle} />
+            <span style={topContextGroupStyle}>
+            <button type="button" title="Animar" disabled style={topContextDisabledButtonStyle}>Ani</button>
+            <button type="button" title="Posicion y tamano" onClick={openSelectedInspector} style={topContextButtonStyle}>Pos</button>
+            <button type="button" title="Traer adelante" onClick={bringToFront} style={topContextButtonStyle}>↑</button>
+            <button type="button" title="Enviar atras" onClick={sendToBack} style={topContextButtonStyle}>↓</button>
+            <button type="button" title="Duplicar" onClick={duplicateElement} style={topContextButtonStyle}>⧉</button>
+            <button type="button" title={selected.locked ? "Desbloquear" : "Bloquear"} onClick={() => toggleLayerLocked(selected.id)} style={topContextButtonStyle}>
+              {selected.locked ? "🔒" : "🔓"}
+            </button>
+            </span>
+
+            {(topToolbarPopover === "color" || topToolbarPopover === "accentColor") && (
+              <div style={{ ...topContextPopoverStyle, width: 254 }}>
+                <p style={{ margin: "0 0 6px", color: "#8a6f61", fontSize: 10, fontWeight: 900, letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                  {topToolbarPopover === "accentColor" ? "Color secundario" : "Color principal"}
+                </p>
+                <div style={{ display: "grid", gap: 7 }}>
+                  {topToolbarColorPalettes.map((palette) => (
+                    <div key={palette.label} style={{ display: "grid", gap: 4 }}>
+                      <span style={{ color: "#8a6f61", fontSize: 9, fontWeight: 900, letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                        {palette.label}
+                      </span>
+                      <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+                        {palette.colors.map((color) => (
+                          <button
+                            key={`${palette.label}-${color}`}
+                            type="button"
+                            title={`${palette.label} ${color}`}
+                            onClick={() => applyTopToolbarColor(color, topToolbarPopover === "accentColor" ? "accent" : "primary")}
+                            style={{
+                              width: 24,
+                              height: 24,
+                              borderRadius: 999,
+                              border: "1px solid rgba(75,39,53,0.16)",
+                              background: color,
+                              cursor: "pointer",
+                              boxShadow: "inset 0 0 0 2px rgba(255,255,255,0.34), 0 5px 12px rgba(38,24,30,0.10)",
+                            }}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {topToolbarPopover === "font" && selectedIsTextLike && (
+              <div style={{ ...topContextPopoverStyle, width: 330, maxHeight: "min(62vh, 460px)", overflowY: "auto" }}>
+                <div style={{ display: "grid", gap: 8 }}>
+                  {topToolbarFonts.map((group) => (
+                    <div key={group.category} style={{ display: "grid", gap: 4 }}>
+                      <span style={{ color: "#8a6f61", fontSize: 9, fontWeight: 900, letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                        {group.category}
+                      </span>
+                      <div style={{ display: "grid", gap: 3 }}>
+                        {group.fonts.map((font) => (
+                          <button
+                            key={`${group.category}-${font.value}`}
+                            type="button"
+                            onClick={() => applyTopToolbarFont(font.value)}
+                            style={{
+                              minHeight: 42,
+                              border: "none",
+                              borderRadius: 10,
+                              background: selected.fontFamily === font.value ? "rgba(184,146,90,0.16)" : "rgba(255,255,255,0.34)",
+                              color: "#4b2735",
+                              cursor: "pointer",
+                              textAlign: "left",
+                              padding: "5px 9px",
+                              fontFamily: "Inter, system-ui, sans-serif",
+                            }}
+                          >
+                            <span style={{ display: "block", fontSize: 11, fontWeight: 850, marginBottom: 2 }}>
+                              {font.label}
+                            </span>
+                            <span style={{ display: "block", fontFamily: font.value, fontSize: 14, lineHeight: 1.25, color: "#3c2430" }}>
+                              {topToolbarFontPreview}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {(() => {
+          const visibleLibraryTool = sidebarHovered && activeTool ? activeTool : pinnedLibraryTool;
+
+          return (
         <div
           onMouseEnter={() => setSidebarHovered(true)}
           onMouseLeave={() => setSidebarHovered(false)}
@@ -3828,6 +6523,8 @@ export function CanvasEditorV3({
             display: "flex",
             flexShrink: 0,
             position: "relative",
+            alignSelf: "stretch",
+            height: "100%",
             zIndex: 40,
           }}
         >
@@ -3850,12 +6547,16 @@ export function CanvasEditorV3({
           </p>
           <div style={{ display: "flex", flexDirection: "column", gap: 7, alignItems: "center", width: "100%" }}>
             {TOOLS.filter((tool) => tool.id !== "projects").map((tool) => {
-              const active = activeTool === tool.id;
+              const active = visibleLibraryTool === tool.id;
               return (
                 <button
                   key={tool.id}
                   type="button"
-                  onClick={() => setActiveTool(active ? null : tool.id)}
+                  onMouseEnter={() => setActiveTool(tool.id)}
+                  onClick={() => {
+                    setActiveTool(tool.id);
+                    setPinnedLibraryTool((current) => current === tool.id ? null : tool.id);
+                  }}
                   title={tool.label}
                   style={{
                     width: 58,
@@ -3884,14 +6585,20 @@ export function CanvasEditorV3({
         </div>
 
         {/* ── EXPANDED PANEL ── */}
-        {activeTool && sidebarHovered && (
+        {visibleLibraryTool && (
           <div style={{
-            width: EXPANDED_PANEL_W, maxWidth: EXPANDED_PANEL_W, minWidth: 0, flexShrink: 0,
+            position: "absolute",
+            left: ICON_SIDEBAR_W,
+            top: 0,
+            bottom: 0,
+            width: EXPANDED_PANEL_W, maxWidth: EXPANDED_PANEL_W, minWidth: 0,
             background: "rgba(255,252,247,0.98)",
             borderRight: "1px solid rgba(184,146,90,0.18)",
-            overflowY: "auto", zIndex: 40,
+            borderLeft: "1px solid rgba(255,255,255,0.72)",
+            overflow: "hidden", zIndex: 55,
             display: "flex", flexDirection: "column",
-            boxShadow: "12px 0 30px rgba(70,50,35,0.08)",
+            boxShadow: "18px 0 40px rgba(70,50,35,0.14)",
+            backdropFilter: "blur(18px)",
           }}>
             <div style={{
               padding: "14px 14px 10px", flexShrink: 0,
@@ -3899,11 +6606,15 @@ export function CanvasEditorV3({
               display: "flex", justifyContent: "space-between", alignItems: "center",
             }}>
               <span style={{ color: "#4b2735", fontSize: 13, fontWeight: "700" }}>
-                {TOOLS.find(t => t.id === activeTool)?.label}
+                {TOOLS.find(t => t.id === visibleLibraryTool)?.label}
               </span>
               <button
                 type="button"
-                onClick={() => setActiveTool(null)}
+                onClick={() => {
+                  setPinnedLibraryTool(null);
+                  setActiveTool(null);
+                  setSidebarHovered(false);
+                }}
                 style={{ background: "none", border: "none", color: "#8884a8", cursor: "pointer", fontSize: 14, padding: 0 }}
               >
                 ✕
@@ -3911,7 +6622,7 @@ export function CanvasEditorV3({
             </div>
             <div style={{ flex: 1, overflowY: "auto" }}>
               <ExpandedPanel
-                tool={activeTool}
+                tool={visibleLibraryTool}
                 onAddText={addText}
                 onAddElement={addElement}
                 onAddApp={addApp}
@@ -3919,12 +6630,28 @@ export function CanvasEditorV3({
                 onApplyTheme={applyTheme}
                 activeThemeId={themeId}
                 onApplyPremiumTemplate={applyPremiumTemplate}
+                canvasTemplates={canvasTemplates}
+                onApplyTemplateFromDb={applyTemplateFromDb}
+                applyingTemplateId={applyingTemplateId}
+                isApplyingTemplate={isApplyingTemplate}
+                templateApplyError={templateApplyError}
                 eventFeatureSource={featureSource}
+                assetCategories={assetCategories}
+                assetItems={assetItems}
+                assetLibraryStatus={assetLibraryStatus}
+                assetLibraryError={assetLibraryError}
+                onCreateAssetCategory={createAssetCategory}
+                onUploadAsset={uploadAssetToLibrary}
+                onDeleteAsset={deleteAssetFromLibrary}
+                onDeleteAssetCategory={deleteAssetCategoryFromLibrary}
+                onAddUploadedAsset={addUploadedAsset}
               />
             </div>
           </div>
         )}
         </div>
+          );
+        })()}
 
         {/* -- CANVAS WORKSPACE -- */}
         <div style={{
@@ -4010,7 +6737,7 @@ export function CanvasEditorV3({
                     )}
                   </div>
                 ))}
-                {[...elements]
+                {[...viewportElements]
                   .filter((el) => el.visible)
                   .sort((a, b) => a.zIndex - b.zIndex)
                   .map((el) => {
@@ -4031,6 +6758,7 @@ export function CanvasEditorV3({
                         selected={el.id === selectedId && !preview}
                         highlighted={selectedIds.length > 1 && selectedIds.includes(el.id) && !preview}
                         onMouseDown={(e) => !preview && onMoveStart(e, el.id)}
+                        onContextMenu={(event) => openElementContextMenu(event, el.id)}
                         onClick={(e) => {
                           if (preview) return;
                           e.stopPropagation();
@@ -4050,6 +6778,9 @@ export function CanvasEditorV3({
                           }
                         }}
                         onResizeMouseDown={(e, h) => !preview && onResizeStart(e, el.id, h)}
+                        onInlineTextCommit={(content) => patchElement(el.id, { content })}
+                        onReplaceImage={replaceSelectedImage}
+                        onEditQr={editSelectedQr}
                       />
                     );
                   })}
@@ -4074,7 +6805,7 @@ export function CanvasEditorV3({
 
                 {/* Group selection bounding box */}
                 {!preview && selectedIds.length > 1 && (() => {
-                  const selEls = elements.filter((el) => selectedIds.includes(el.id) && el.visible);
+                  const selEls = viewportElements.filter((el) => selectedIds.includes(el.id) && el.visible);
                   if (selEls.length === 0) return null;
                   const PAD = 6;
                   const TOOLBAR_W = 310;
@@ -4364,31 +7095,137 @@ export function CanvasEditorV3({
           </div>
         </div>
 
-        {/* ── RIGHT INSPECTOR — inline on ≥1400px, overlay drawer on laptop/mobile ── */}
-        {showInspector && inspectorIsOverlay && (
-          /* Backdrop for drawer */
+        {/* ── LAYERS PANEL — floating overlay, independent from properties ── */}
+        {showLayersPanel && (
           <div
+            data-canvas-control="true"
+            onMouseDown={(event) => event.stopPropagation()}
             style={{
-              position: "absolute", inset: 0, zIndex: 49,
-              background: "rgba(0,0,0,0.45)",
+              position: "absolute",
+              top: 10,
+              right: showInspector ? INSPECTOR_W + 22 : 10,
+              bottom: 10,
+              width: Math.min(300, INSPECTOR_W),
+              minWidth: Math.min(300, INSPECTOR_W),
+              height: "auto",
+              flexShrink: 0,
+              zIndex: 49,
+              borderRadius: 18,
+              overflow: "hidden",
+              boxShadow: "-18px 20px 48px rgba(24,16,22,0.20)",
+              transform: "translateX(0)",
+              opacity: 1,
+              transition: "opacity 180ms ease, transform 180ms ease",
             }}
-            onClick={() => setInspectorOpen(false)}
-          />
+          >
+            <button
+              type="button"
+              title="Cerrar capas"
+              onClick={() => setLayersPanelOpen(false)}
+              style={{
+                position: "absolute",
+                right: 10,
+                top: 12,
+                zIndex: 2,
+                width: 32,
+                height: 32,
+                borderRadius: 999,
+                border: "1px solid rgba(184,146,90,0.18)",
+                background: "rgba(255,252,247,0.72)",
+                color: "#4b2735",
+                cursor: "pointer",
+                boxShadow: "0 10px 24px rgba(38,24,30,0.14)",
+                backdropFilter: "blur(8px)",
+                fontSize: 16,
+                lineHeight: 1,
+              }}
+            >
+              ×
+            </button>
+            <RightPanel
+              element={null}
+              onChange={patchElement}
+              onDuplicate={duplicateElement}
+              onDelete={deleteSelected}
+              onBringToFront={bringToFront}
+              onSendToBack={sendToBack}
+              section={null}
+              onDuplicateSection={() => duplicateSection(activeSectionId)}
+              onDeleteSection={() => deleteSection(activeSectionId)}
+              onMoveSectionUp={() => moveSectionUp(activeSectionId)}
+              onMoveSectionDown={() => moveSectionDown(activeSectionId)}
+              sectionElements={preview ? [] : getSectionElements(activeSectionId)}
+              selectedIds={selectedIds}
+              onSelectLayer={(id, shift) => {
+                const expanded = expandSelectionWithGroups([id]);
+                if (shift) {
+                  setSelectedIds((prev) => {
+                    const expandedSet = new Set(expanded);
+                    const allSelected = expanded.every((expandedId) => prev.includes(expandedId));
+                    return allSelected
+                      ? prev.filter((sid) => !expandedSet.has(sid))
+                      : Array.from(new Set([...prev, ...expanded]));
+                  });
+                } else {
+                  setSelectedIds(expanded);
+                }
+              }}
+              onToggleVisible={toggleLayerVisible}
+              onToggleLocked={toggleLayerLocked}
+              onLayerMoveUp={layerMoveUp}
+              onLayerMoveDown={layerMoveDown}
+              onReorderLayers={reorderLayers}
+              eventDate={eventDate}
+              panelMode="layers"
+            />
+          </div>
         )}
 
+        {/* ── RIGHT INSPECTOR — floating overlay, never shifts the canvas ── */}
         {showInspector && (
-          <div style={{
-            position: inspectorIsOverlay ? "absolute" : "relative",
-            top: inspectorIsOverlay ? 0 : undefined,
-            right: inspectorIsOverlay ? 0 : undefined,
-            bottom: inspectorIsOverlay ? 0 : undefined,
+          <div
+            data-canvas-control="true"
+            onMouseDown={(event) => event.stopPropagation()}
+            style={{
+            position: "absolute",
+            top: 10,
+            right: 10,
+            bottom: 10,
             width: INSPECTOR_W,
             minWidth: INSPECTOR_W,
-            height: "100%",
+            height: "auto",
             flexShrink: 0, zIndex: 50,
-            boxShadow: inspectorIsOverlay ? "-24px 0 60px rgba(0,0,0,0.45)" : undefined,
-            transition: "width 0.2s",
+            borderRadius: 18,
+            overflow: "hidden",
+            boxShadow: "-18px 20px 48px rgba(24,16,22,0.24)",
+            transform: "translateX(0)",
+            opacity: 1,
+            transition: "opacity 180ms ease, transform 180ms ease",
           }}>
+            <button
+              type="button"
+              title="Cerrar propiedades"
+              onClick={() => setInspectorOpen(false)}
+              style={{
+                position: "absolute",
+                right: 10,
+                top: 12,
+                zIndex: 2,
+                width: 32,
+                height: 32,
+                borderRadius: 999,
+                border: "1px solid rgba(184,146,90,0.18)",
+                background: "rgba(255,252,247,0.72)",
+                color: "#4b2735",
+                cursor: "pointer",
+                boxShadow: "0 10px 24px rgba(38,24,30,0.14)",
+                backdropFilter: "blur(8px)",
+                fontSize: 16,
+                lineHeight: 1,
+              }}
+            >
+              ×
+            </button>
             <RightPanel
               element={selected && !preview ? selected : null}
               onChange={patchElement}
@@ -4423,12 +7260,13 @@ export function CanvasEditorV3({
               onLayerMoveDown={layerMoveDown}
               onReorderLayers={reorderLayers}
               eventDate={eventDate}
+              panelMode="properties"
             />
           </div>
         )}
 
-        {/* Floating toggle when inspector is closed (≥1400px) */}
-        {inspectorHasContext && !inspectorOpen && !inspectorIsOverlay && (
+        {/* Floating toggle when inspector is closed */}
+        {inspectorHasContext && !inspectorOpen && (
           <button
             type="button"
             title="Abrir propiedades"
@@ -4447,6 +7285,210 @@ export function CanvasEditorV3({
           >
             Propiedades
           </button>
+        )}
+
+        {!preview && !layersPanelOpen && (
+          <button
+            type="button"
+            title="Abrir capas"
+            onClick={() => setLayersPanelOpen(true)}
+            style={{
+              position: "absolute", right: 12, top: inspectorHasContext ? "calc(50% + 76px)" : "50%", transform: "translateY(-50%)",
+              zIndex: 45, width: 28, height: 64, borderRadius: 8,
+              background: "#1e1e2d", border: "1px solid #2a2a3d",
+              cursor: "pointer", color: "#8884a8", fontSize: 10,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              writingMode: "vertical-rl",
+              transition: "all 0.15s",
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = "#f4d28a"; e.currentTarget.style.borderColor = "#b8925a"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = "#8884a8"; e.currentTarget.style.borderColor = "#2a2a3d"; }}
+          >
+            Capas
+          </button>
+        )}
+
+        {elementContextMenu && contextMenuElement && !preview && (
+          <div
+            role="menu"
+            aria-label="Acciones del elemento"
+            onMouseDown={(event) => {
+              event.stopPropagation();
+              event.preventDefault();
+            }}
+            onClick={(event) => event.stopPropagation()}
+            style={{
+              position: "fixed",
+              left: elementContextMenu.x,
+              top: elementContextMenu.y,
+              zIndex: 90,
+              width: 176,
+              padding: 5,
+              borderRadius: 14,
+              background: "rgba(255,252,247,0.82)",
+              border: "1px solid rgba(184,146,90,0.16)",
+              boxShadow: "0 16px 38px rgba(38,24,30,0.16)",
+              backdropFilter: "blur(8px)",
+              display: "grid",
+              gap: 3,
+              fontFamily: "Inter, system-ui, sans-serif",
+              animation: "kaisContextMenuIn 120ms ease-out",
+            }}
+          >
+            <style>{`@keyframes kaisContextMenuIn{from{opacity:0;transform:translateY(-2px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}`}</style>
+            {[
+              {
+                label: "Duplicar",
+                action: () => duplicateElementById(contextMenuElement.id),
+              },
+              {
+                label: contextMenuElement.locked ? "Desbloquear" : "Bloquear",
+                action: () => toggleElementLocked(contextMenuElement.id),
+              },
+              {
+                label: "Traer adelante",
+                action: () => bringElementToFront(contextMenuElement.id),
+              },
+              {
+                label: "Enviar atras",
+                action: () => sendElementToBack(contextMenuElement.id),
+              },
+              {
+                label: "Eliminar",
+                danger: true,
+                action: () => deleteElementById(contextMenuElement.id),
+              },
+            ].map((item) => (
+              <button
+                key={item.label}
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  setElementContextMenu(null);
+                  item.action();
+                }}
+                style={{
+                  height: 30,
+                  border: "none",
+                  borderRadius: 10,
+                  background: "transparent",
+                  color: item.danger ? "#9f1d2f" : "#49313b",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "0 9px",
+                  fontSize: 11,
+                  fontWeight: 750,
+                  letterSpacing: "0.01em",
+                  textAlign: "left",
+                }}
+                onMouseEnter={(event) => {
+                  event.currentTarget.style.background = item.danger
+                    ? "rgba(159,29,47,0.08)"
+                    : "rgba(184,146,90,0.10)";
+                }}
+                onMouseLeave={(event) => {
+                  event.currentTarget.style.background = "transparent";
+                }}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {templateToApply && (
+          <div
+            role="dialog"
+            aria-modal="true"
+            style={{
+              position: "absolute",
+              inset: 0,
+              zIndex: 80,
+              display: "grid",
+              placeItems: "center",
+              padding: 18,
+              background: "rgba(21,13,20,0.58)",
+              backdropFilter: "blur(10px)",
+            }}
+            onClick={() => {
+              if (!isApplyingTemplate) setTemplateToApply(null);
+            }}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                width: "min(380px, 100%)",
+                borderRadius: 24,
+                padding: 18,
+                background: "linear-gradient(180deg,rgba(255,252,247,0.98),rgba(255,244,232,0.94))",
+                border: "1px solid rgba(184,146,90,0.28)",
+                boxShadow: "0 28px 80px rgba(16,10,14,0.44)",
+                color: "#3c2430",
+              }}
+            >
+              <div style={{
+                width: 78,
+                height: 124,
+                margin: "0 auto 14px",
+                borderRadius: 22,
+                background: templateToApply.thumbnailUrl || templateToApply.previewImageUrl
+                  ? `linear-gradient(rgba(18,14,20,0.14),rgba(18,14,20,0.14)),url(${templateToApply.thumbnailUrl || templateToApply.previewImageUrl}) center/cover`
+                  : "radial-gradient(circle at 32% 18%,rgba(255,255,255,0.78),transparent 24%),radial-gradient(circle at 70% 78%,rgba(184,146,90,0.45),transparent 30%),linear-gradient(160deg,#211323,#6f3a4e 44%,#d7b271)",
+                boxShadow: "0 18px 36px rgba(38,21,16,0.22), inset 0 0 0 1px rgba(255,255,255,0.34)",
+              }} />
+              <p style={{ color: "#b8925a", fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", margin: "0 0 8px", textAlign: "center", fontWeight: 900 }}>
+                Aplicar diseno
+              </p>
+              <h3 style={{ margin: "0 0 8px", textAlign: "center", fontFamily: "'Playfair Display', Georgia, serif", fontStyle: "italic", fontSize: 25, lineHeight: 1.05, color: "#3c2430" }}>
+                {templateToApply.name}
+              </h3>
+              <p style={{ margin: "0 0 16px", color: "#7c5d4d", fontSize: 12, lineHeight: 1.55, textAlign: "center", fontFamily: "Inter, system-ui, sans-serif" }}>
+                Se reemplazara la composicion visual actual. Los nombres, fechas, ubicacion, mensajes y apps del evento se conservaran.
+              </p>
+              <div style={{ display: "grid", gap: 8 }}>
+                <button
+                  type="button"
+                  disabled={isApplyingTemplate}
+                  onClick={confirmApplyTemplateFromDb}
+                  style={{
+                    width: "100%",
+                    border: "1px solid rgba(184,146,90,0.34)",
+                    borderRadius: 14,
+                    padding: "12px 14px",
+                    background: isApplyingTemplate ? "rgba(184,146,90,0.22)" : "linear-gradient(135deg,#2b1b24,#b8925a)",
+                    color: "#fff7ef",
+                    cursor: isApplyingTemplate ? "wait" : "pointer",
+                    fontSize: 12,
+                    fontWeight: 900,
+                    letterSpacing: "0.04em",
+                    boxShadow: "0 14px 28px rgba(61,35,21,0.18)",
+                  }}
+                >
+                  {isApplyingTemplate ? "Aplicando..." : "Aplicar diseno"}
+                </button>
+                <button
+                  type="button"
+                  disabled={isApplyingTemplate}
+                  onClick={() => setTemplateToApply(null)}
+                  style={{
+                    width: "100%",
+                    border: "1px solid rgba(184,146,90,0.18)",
+                    borderRadius: 14,
+                    padding: "10px 14px",
+                    background: "rgba(255,255,255,0.62)",
+                    color: "#7c5d4d",
+                    cursor: isApplyingTemplate ? "wait" : "pointer",
+                    fontSize: 12,
+                    fontWeight: 800,
+                  }}
+                >
+                  Mantener mi diseno actual
+                </button>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </div>

@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { CalendarDays, Images, UsersRound } from "lucide-react";
-import { signIn } from "@/app/actions/auth";
 import { Field } from "@/components/field";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -85,7 +84,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
               ) : null}
             </CardHeader>
             <CardContent className="grid gap-5 px-6 pb-7 sm:px-8 sm:pb-8">
-              <form action={signIn} className="grid gap-4 [&_label]:font-bold [&_label]:text-[#3b1b24]">
+              <form action="/api/auth/login" method="post" className="grid gap-4 [&_label]:font-bold [&_label]:text-[#3b1b24]">
                 <Field label="Email">
                   <Input
                     name="email"

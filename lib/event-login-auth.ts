@@ -2,6 +2,8 @@ import "server-only";
 
 import { createHmac, pbkdf2Sync, randomBytes, timingSafeEqual } from "crypto";
 import { cookies } from "next/headers";
+import { isCloudflareAuthEnabled } from "@/lib/cloudflare/auth";
+import { getD1EventLoginById } from "@/lib/cloudflare/public-events";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { EventLogin } from "@/lib/types";
 
@@ -88,6 +90,16 @@ export async function getEventLoginSession() {
     return null;
   }
 
+  if (isCloudflareAuthEnabled()) {
+    const login = await getD1EventLoginById(payload.loginId);
+
+    if (!login || login.event_id !== payload.eventId || !login.active || isExpired(login.expires_at)) {
+      return null;
+    }
+
+    return login;
+  }
+
   const admin = createAdminClient();
   const { data: login } = await admin
     .from("event_logins")
@@ -142,5 +154,5 @@ function verifySignedPayload(value: string): SessionPayload | null {
 }
 
 function getSessionSecret() {
-  return process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "kais-dev-secret";
+  return process.env.KAIS_AUTH_SECRET ?? process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "kais-dev-secret";
 }

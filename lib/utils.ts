@@ -7,12 +7,7 @@ export function cn(...inputs: ClassValue[]) {
 
 export function absoluteUrl(path = "") {
   const configuredBase = process.env.NEXT_PUBLIC_APP_URL?.trim();
-  const base =
-    configuredBase && !configuredBase.includes("vercel.app")
-      ? configuredBase
-      : configuredBase?.includes("localhost") || configuredBase?.includes("127.0.0.1")
-        ? configuredBase
-        : "https://kais.click";
+  const base = configuredBase || "https://kais.click";
 
   return `${base.replace(/\/$/, "")}${path.startsWith("/") ? path : `/${path}`}`;
 }

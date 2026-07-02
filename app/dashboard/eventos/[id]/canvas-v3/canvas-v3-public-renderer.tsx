@@ -25,6 +25,7 @@ export interface V3Element {
   fontWeight?: string;
   fontStyle?: string;
   textAlign?: "left" | "center" | "right";
+  verticalAlign?: "top" | "center" | "bottom";
   color?: string;
   textShadow?: string;
   letterSpacing?: number;
@@ -44,6 +45,12 @@ export interface V3Element {
   config?: {
     url?: string;
     primaryColor?: string;
+    color?: string;
+    accentColor?: string;
+    effect?: "soft-card" | "glow-circle" | "rose-soft" | "spark" | "soft-glow" | "editorial-line" | "dots" | "ambient-glow" | "cinematic-haze" | "gold-contamination" | "blue-ambient-light" | "editorial-fog";
+    intensity?: number;
+    darkness?: number;
+    blendWithBackground?: boolean;
     textColor?: string;
     countdownTarget?: string;
     countdownMode?: "event" | "custom";
@@ -107,6 +114,106 @@ function computeBorder(el: { border?: string; borderColor?: string; borderWidth?
     return `${w}px ${s} ${c}`;
   }
   return el.border;
+}
+
+function hexToRgb(color: string): { r: number; g: number; b: number } | null {
+  const raw = color.trim().replace("#", "");
+  const normalized = raw.length === 3
+    ? raw.split("").map((part) => part + part).join("")
+    : raw.slice(0, 6);
+  if (!/^[0-9a-fA-F]{6}$/.test(normalized)) return null;
+  return {
+    r: parseInt(normalized.slice(0, 2), 16),
+    g: parseInt(normalized.slice(2, 4), 16),
+    b: parseInt(normalized.slice(4, 6), 16),
+  };
+}
+
+function colorWithAlpha(color: string | undefined, alpha: number, fallback: string): string {
+  if (!color) return fallback;
+  const rgb = hexToRgb(color);
+  if (!rgb) return fallback;
+  return `rgba(${rgb.r},${rgb.g},${rgb.b},${alpha})`;
+}
+
+function clamp01(value: unknown, fallback = 1): number {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.min(1, Math.max(0, n));
+}
+
+function shouldBlendDecoration(el: Pick<V3Element, "type" | "config">): boolean {
+  return el.type === "decoration" && Boolean(el.config?.effect && el.config.blendWithBackground);
+}
+
+function buildDecorationBackground(el: Pick<V3Element, "background" | "config">): string | undefined {
+  const effect = el.config?.effect;
+  if (!effect) return el.background;
+  const color = el.config?.color ?? el.config?.primaryColor ?? "#b8925a";
+  const accent = el.config?.accentColor ?? "#fffaf2";
+  const intensity = clamp01(el.config?.intensity, 1);
+  const darkness = clamp01(el.config?.darkness, 0);
+  const blend = el.config?.blendWithBackground === true;
+  const alpha = (value: number) => Math.min(1, Math.max(0, value * intensity * (blend ? 0.68 : 1) * (1 - darkness * 0.22)));
+  const c90 = colorWithAlpha(color, alpha(0.90), "rgba(184,146,90,0.90)");
+  const c66 = colorWithAlpha(color, alpha(0.66), "rgba(184,146,90,0.66)");
+  const c50 = colorWithAlpha(color, alpha(0.50), "rgba(184,146,90,0.50)");
+  const c44 = colorWithAlpha(color, alpha(0.44), "rgba(184,146,90,0.44)");
+  const c32 = colorWithAlpha(color, alpha(0.32), "rgba(184,146,90,0.32)");
+  const c22 = colorWithAlpha(color, alpha(0.22), "rgba(184,146,90,0.22)");
+  const c18 = colorWithAlpha(color, alpha(0.18), "rgba(184,146,90,0.18)");
+  const c14 = colorWithAlpha(color, alpha(0.14), "rgba(184,146,90,0.14)");
+  const c10 = colorWithAlpha(color, alpha(0.10), "rgba(184,146,90,0.10)");
+  const c06 = colorWithAlpha(color, alpha(0.06), "rgba(184,146,90,0.06)");
+  const c04 = colorWithAlpha(color, alpha(0.04), "rgba(184,146,90,0.04)");
+  const a72 = colorWithAlpha(accent, alpha(0.72), "rgba(255,252,247,0.72)");
+  const a34 = colorWithAlpha(accent, alpha(0.34), "rgba(37,99,235,0.34)");
+  const a22 = colorWithAlpha(accent, alpha(0.22), "rgba(37,99,235,0.22)");
+  const a16 = colorWithAlpha(accent, alpha(0.16), "rgba(37,99,235,0.16)");
+  const a10 = colorWithAlpha(accent, alpha(0.10), "rgba(37,99,235,0.10)");
+  const a06 = colorWithAlpha(accent, alpha(0.06), "rgba(37,99,235,0.06)");
+  const d28 = colorWithAlpha("#000000", darkness * 0.28, "rgba(0,0,0,0)");
+  const d14 = colorWithAlpha("#000000", darkness * 0.14, "rgba(0,0,0,0)");
+  const darkOverlay = darkness > 0 ? `linear-gradient(180deg,${d28},${d14}),` : "";
+  const blendHaze = blend ? `radial-gradient(118% 92% at 18% 28%,${c04} 0%,transparent 84%),radial-gradient(96% 108% at 82% 64%,${a06} 0%,transparent 88%),` : "";
+  const texture = "repeating-linear-gradient(180deg,rgba(255,255,255,0.018) 0 1px,transparent 1px 3px)";
+
+  if (effect === "soft-card") return `${darkOverlay}${blendHaze}radial-gradient(110% 72% at 78% 92%,${a10} 0%,transparent 70%),radial-gradient(92% 64% at 42% 18%,rgba(255,255,255,${0.055 * intensity}) 0%,transparent 58%),linear-gradient(180deg,rgba(34,36,42,${0.62 * intensity}),rgba(8,12,27,${0.92 - darkness * 0.12})),${texture}`;
+  if (effect === "glow-circle") return `${darkOverlay}${blendHaze}radial-gradient(36% 28% at 30% 23%,${a72} 0%,rgba(255,255,255,${0.20 * intensity}) 18%,transparent 38%),radial-gradient(84% 84% at 48% 48%,rgba(255,255,255,${0.045 * intensity}) 0%,transparent 48%),radial-gradient(116% 116% at 50% 50%,${c22} 0%,rgba(31,32,37,${0.78 + darkness * 0.14}) 58%,rgba(5,8,18,0.96) 100%),${texture}`;
+  if (effect === "rose-soft") return `${darkOverlay}${blendHaze}radial-gradient(18% 12% at 45% 25%,${a72} 0%,rgba(255,255,255,${0.18 * intensity}) 34%,transparent 58%),conic-gradient(from 18deg at 50% 50%,rgba(17,18,30,0.94),${c22},rgba(96,55,94,${0.42 * intensity}),rgba(18,18,31,0.86),${c14},rgba(9,11,21,0.96)),radial-gradient(112% 112% at 50% 50%,transparent 42%,rgba(0,0,0,${0.40 + darkness * 0.18}) 100%),${texture}`;
+  if (effect === "spark") return `${darkOverlay}${blendHaze}linear-gradient(86deg,transparent 0 42%,rgba(255,255,255,${0.52 * intensity}) 48%,rgba(255,255,255,${0.18 * intensity}) 52%,transparent 59%),linear-gradient(82deg,transparent 0 36%,${c50} 47%,${c18} 55%,transparent 68%),radial-gradient(96% 96% at 50% 50%,rgba(255,255,255,${0.055 * intensity}) 0%,rgba(13,16,25,0.84) 58%,rgba(3,6,15,0.97) 100%),${texture}`;
+  if (effect === "soft-glow") return `${darkOverlay}${blendHaze}radial-gradient(44% 58% at 28% 25%,${a72} 0%,rgba(255,255,255,${0.18 * intensity}) 22%,transparent 46%),radial-gradient(94% 112% at 50% 52%,${c18} 0%,rgba(23,27,37,0.76) 54%,rgba(4,8,18,0.96) 100%),radial-gradient(82% 104% at 76% 72%,${a06} 0%,transparent 78%),${texture}`;
+  if (effect === "editorial-line") return `${darkOverlay}${blendHaze}linear-gradient(90deg,transparent 0%,${c18} 18%,${c66} 50%,${c18} 82%,transparent 100%),linear-gradient(180deg,transparent 0 36%,${a72} 44%,${c90} 50%,${a72} 56%,transparent 64% 100%)`;
+  if (effect === "dots") return `${darkOverlay}${blendHaze}radial-gradient(circle at 14% 50%,${c44} 0 4px,transparent ${blend ? 9 : 6}px),radial-gradient(circle at 38% 50%,${c66} 0 5px,transparent ${blend ? 10 : 7}px),radial-gradient(circle at 62% 50%,${c66} 0 5px,transparent ${blend ? 10 : 7}px),radial-gradient(circle at 86% 50%,${c44} 0 4px,transparent ${blend ? 9 : 6}px),radial-gradient(ellipse at 50% 50%,${c10},transparent ${blend ? 88 : 72}%)`;
+  if (effect === "ambient-glow") return `radial-gradient(70% 62% at 42% 46%,${c18} 0%,${c10} 24%,transparent 58%),radial-gradient(92% 82% at 58% 52%,${a10} 0%,transparent 70%),radial-gradient(118% 112% at 50% 50%,rgba(13,17,28,${0.18 * intensity}) 0%,transparent 82%)`;
+  if (effect === "cinematic-haze") return `radial-gradient(76% 64% at 52% 48%,${a16} 0%,${a06} 42%,transparent 78%),radial-gradient(112% 96% at 48% 52%,rgba(15,29,74,${0.28 * intensity}) 0%,rgba(8,13,31,${0.12 * intensity}) 58%,transparent 86%)`;
+  if (effect === "gold-contamination") return `radial-gradient(74% 58% at 34% 28%,${c22} 0%,${c10} 34%,transparent 76%),radial-gradient(96% 82% at 50% 50%,rgba(99,82,33,${0.10 * intensity}) 0%,transparent 82%),radial-gradient(58% 44% at 72% 70%,${a06} 0%,transparent 84%)`;
+  if (effect === "blue-ambient-light") return `radial-gradient(62% 58% at 44% 46%,rgba(185,156,77,${0.10 * intensity}) 0%,rgba(185,156,77,${0.055 * intensity}) 28%,transparent 58%),radial-gradient(86% 78% at 56% 52%,${a22} 0%,${a16} 38%,${a06} 66%,transparent 88%),radial-gradient(122% 104% at 50% 50%,rgba(28,41,92,${0.24 * intensity}) 0%,rgba(19,28,67,${0.14 * intensity}) 48%,transparent 82%)`;
+  if (effect === "editorial-fog") return `radial-gradient(110% 78% at 54% 72%,${a10} 0%,transparent 72%),radial-gradient(92% 72% at 22% 18%,rgba(255,255,255,${0.028 * intensity}) 0%,transparent 62%),radial-gradient(120% 90% at 52% 50%,rgba(10,15,31,${0.16 * intensity}) 0%,transparent 84%)`;
+  return el.background;
+}
+
+function getDecorationBlendMode(effect?: NonNullable<V3Element["config"]>["effect"]): React.CSSProperties["mixBlendMode"] | undefined {
+  if (!effect) return undefined;
+  if (effect === "soft-card" || effect === "cinematic-haze" || effect === "editorial-fog") return "soft-light";
+  return "screen";
+}
+
+function isScriptFont(fontFamily?: string): boolean {
+  const family = (fontFamily ?? "").toLowerCase();
+  return ["script", "vibes", "caveat", "dancing", "baloo", "fredoka"].some((token) => family.includes(token));
+}
+
+function getTextVerticalPadding(el: Pick<V3Element, "fontSize" | "fontFamily" | "type">): number {
+  const fontSize = el.fontSize ?? 14;
+  const scriptExtra = isScriptFont(el.fontFamily) ? 0.18 : 0.1;
+  return el.type === "decoration" ? 16 : Math.max(4, Math.ceil(fontSize * scriptExtra));
+}
+
+function getVerticalJustifyContent(value?: V3Element["verticalAlign"]): React.CSSProperties["justifyContent"] {
+  if (value === "bottom") return "flex-end";
+  if (value === "center") return "center";
+  return "flex-start";
 }
 
 const DEFAULT_SECTION: V3Section = {
@@ -221,7 +328,7 @@ export function normalizePublicV3Design(value: unknown): CanvasV3Design | null {
 const APP_DEMO: Record<string, { label: string; icon: string }> = {
   rsvp: { label: "Confirmar asistencia", icon: "✓" },
   countdown: { label: "Cuenta regresiva", icon: "⏱" },
-  whatsapp: { label: "Enviar WhatsApp", icon: "💬" },
+  whatsapp: { label: "Enviar WhatsApp", icon: "WA" },
   maps: { label: "Ver ubicación", icon: "⌖" },
   "live-album": { label: "Álbum en vivo", icon: "▧" },
   "live-screen": { label: "Pantalla en vivo", icon: "▣" },
@@ -271,6 +378,10 @@ function PublicElement({
     Number.isFinite(Number(v)) ? Number(v) : fallback;
 
   const hasClip = clipTop > 0 || clipBottom > 0;
+  const textVerticalPadding = getTextVerticalPadding(el);
+  const effectiveLineHeight = Math.max(el.lineHeight ?? 1.4, isScriptFont(el.fontFamily) ? 1.24 : 1.1);
+  const visualBackground = buildDecorationBackground(el);
+  const blendDecoration = shouldBlendDecoration(el);
 
   const boxStyle: React.CSSProperties = {
     position: "absolute",
@@ -283,7 +394,7 @@ function PublicElement({
     zIndex: safeNum(el.zIndex, 0),
     opacity: Math.min(1, Math.max(0, safeNum(el.opacity, 1))),
     borderRadius: el.borderRadius != null ? safeNum(el.borderRadius, 0) : undefined,
-    border: computeBorder(el),
+    border: blendDecoration ? undefined : computeBorder(el),
     overflow: "hidden",
     // Section clip — same logic as the editor's inner content wrapper
     clipPath: hasClip ? `inset(${clipTop}px 0px ${clipBottom}px 0px)` : undefined,
@@ -312,31 +423,46 @@ function PublicElement({
         <QrBlock el={el} />
       ) : isWhatsapp ? (
         /* ── WhatsApp premium render ──────────────────────────────────────────── */
-        <div style={{ display: "flex", alignItems: "center", gap: 13, padding: "0 24px", width: "100%", justifyContent: "center", boxSizing: "border-box" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 13, padding: "0 20px", width: "100%", justifyContent: "center", boxSizing: "border-box" }}>
           <span style={{
-            fontSize: 24,
-            lineHeight: 1,
-            filter: "drop-shadow(0 1px 5px rgba(0,0,0,0.28))",
+            position: "relative",
+            display: "grid",
+            placeItems: "center",
+            width: 32,
+            height: 32,
+            borderRadius: 999,
+            background: "linear-gradient(135deg,#25d366 0%,#128c7e 100%)",
+            color: "#ffffff",
+            fontFamily: "Inter, system-ui, sans-serif",
+            fontSize: 9,
+            fontWeight: 900,
+            letterSpacing: "0.02em",
+            boxShadow: "0 9px 20px rgba(18,140,126,0.34)",
             flexShrink: 0,
-          }}>💬</span>
+          }}>
+            <svg width="17" height="17" viewBox="0 0 24 24" aria-hidden="true" focusable="false" style={{ position: "relative", zIndex: 1 }}>
+              <path fill="currentColor" d="M19.1 14.7c-.3-.2-1.9-.9-2.2-1-.3-.1-.5-.2-.7.2-.2.3-.8 1-.9 1.2-.2.2-.3.2-.6.1-1.7-.8-3-1.9-3.9-3.6-.1-.3-.1-.4.1-.6.1-.1.3-.4.5-.6.2-.2.2-.3.3-.5.1-.2 0-.4 0-.6-.1-.2-.7-1.7-1-2.3-.3-.6-.5-.5-.7-.5h-.6c-.2 0-.6.1-.9.4-.3.3-1.1 1.1-1.1 2.7s1.2 3.1 1.3 3.3c.2.2 2.3 3.6 5.7 5 .8.3 1.4.5 1.9.6.8.3 1.5.2 2.1.1.6-.1 1.9-.8 2.2-1.6.3-.8.3-1.4.2-1.5-.1-.2-.3-.3-.6-.4z" />
+            </svg>
+            <span style={{ position: "absolute", right: 2, bottom: 3, width: 7, height: 7, borderRadius: 2, background: "#128c7e", transform: "rotate(45deg)" }} />
+          </span>
           <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
             <span style={{
-              color: el.color ?? "#e8f5ee",
+              color: el.color ?? "#ffffff",
               fontFamily: "Inter, system-ui, sans-serif",
               fontSize: 15,
-              fontWeight: "600",
+              fontWeight: "800",
               letterSpacing: "0.03em",
               lineHeight: 1.2,
             }}>{el.content || "Enviar WhatsApp"}</span>
             <span style={{
-              color: el.color ?? "#e8f5ee",
+              color: el.color ?? "#ffffff",
               fontFamily: "Inter, system-ui, sans-serif",
               fontSize: 10,
-              fontWeight: "400",
-              opacity: 0.55,
+              fontWeight: "700",
+              opacity: 0.72,
               letterSpacing: "0.08em",
               textTransform: "uppercase",
-            }}>Abrir en WhatsApp →</span>
+            }}>Abrir WhatsApp</span>
           </div>
         </div>
       ) : (
@@ -394,12 +520,14 @@ function PublicElement({
   }
 
   // Shape / decoration with background but no text content
-  if (!el.content && el.background) {
+  if (!el.content && visualBackground) {
     return (
       <div
         style={{
           ...boxStyle,
-          background: el.background,
+          background: visualBackground,
+          mixBlendMode: blendDecoration ? getDecorationBlendMode(el.config?.effect) : undefined,
+          opacity: blendDecoration ? 0.92 : undefined,
           backdropFilter: el.blur ? `blur(${el.blur}px)` : undefined,
         }}
       />
@@ -410,37 +538,44 @@ function PublicElement({
   if (el.content) {
     return (
       <div style={boxStyle}>
-        {el.background && (
+        {visualBackground && (
           <div
             style={{
               position: "absolute",
               inset: 0,
-              background: el.background,
+              background: visualBackground,
               borderRadius: el.borderRadius,
+              mixBlendMode: blendDecoration ? getDecorationBlendMode(el.config?.effect) : undefined,
+              opacity: blendDecoration ? 0.92 : undefined,
               backdropFilter: el.blur ? `blur(${el.blur}px)` : undefined,
             }}
           />
         )}
         <p
           style={{
-            position: "relative",
+            position: "absolute",
+            inset: 0,
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: getVerticalJustifyContent(el.verticalAlign),
             margin: 0,
-            padding: el.type === "decoration" ? "16px 20px" : 0,
+            padding: el.type === "decoration" ? "16px 20px" : `${textVerticalPadding}px 0`,
             fontFamily: el.fontFamily ?? "Inter, system-ui, sans-serif",
             fontSize: el.fontSize ?? 14,
             fontWeight: el.fontWeight ?? "400",
             fontStyle: el.fontStyle ?? "normal",
             textAlign: el.textAlign ?? "center",
             color: el.color ?? "#ffffff",
-            lineHeight: el.lineHeight ?? 1.4,
+            lineHeight: effectiveLineHeight,
             letterSpacing: el.letterSpacing ? `${el.letterSpacing}em` : undefined,
             textShadow: el.textShadow ?? undefined,
             whiteSpace: "pre-wrap",
             wordBreak: "break-word",
             width: "100%",
+            boxSizing: "border-box",
           }}
         >
-          {el.content}
+          <span>{el.content}</span>
         </p>
       </div>
     );

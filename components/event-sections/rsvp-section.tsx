@@ -6,6 +6,8 @@
 import { UserCheck } from "lucide-react";
 import { redirect } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { isCloudflareAuthEnabled } from "@/lib/cloudflare/auth";
+import { listD1EventGuests, listD1Rsvps } from "@/lib/cloudflare/public-events";
 import { perfEnd, perfStart, timed } from "@/lib/perf";
 import { canViewRsvps } from "@/lib/permissions";
 import { getCurrentUserProfile } from "@/lib/profiles";
@@ -46,25 +48,30 @@ export async function RsvpSection({ eventId }: { eventId: string }) {
   if (!canViewRsvps(profile)) redirect("/dashboard?error=Tu rol no tiene permisos para ver confirmaciones.");
 
   const sectionLabel = perfStart(`rsvp-section-${eventId}`);
-  const admin = createAdminClient();
-  const [{ data: rsvpsData }, { data: guestQuotaData }] = await Promise.all([
-    timed(
-      "[KAIS PERF] rsvp full-list",
-      admin
-        .from("rsvps")
-        .select("id,event_id,guest_name,phone,email,attending,companions,message,dietary_restrictions,created_at")
-        .eq("event_id", eventId)
-        .order("created_at", { ascending: false })
-    ),
-    timed(
-      "[KAIS PERF] rsvp guest-quotas",
-      admin
-        .from("event_guests")
-        .select("rsvp_id,max_companions")
-        .eq("event_id", eventId)
-        .not("rsvp_id", "is", null)
-    )
-  ]);
+  const cloudflareMode = isCloudflareAuthEnabled();
+  const [{ data: rsvpsData }, { data: guestQuotaData }] = cloudflareMode
+    ? [
+        { data: await listD1Rsvps(eventId) },
+        { data: (await listD1EventGuests(eventId)).filter((guest) => Boolean(guest.rsvp_id)) }
+      ]
+    : await Promise.all([
+        timed(
+          "[KAIS PERF] rsvp full-list",
+          createAdminClient()
+            .from("rsvps")
+            .select("id,event_id,guest_name,phone,email,attending,companions,message,dietary_restrictions,created_at")
+            .eq("event_id", eventId)
+            .order("created_at", { ascending: false })
+        ),
+        timed(
+          "[KAIS PERF] rsvp guest-quotas",
+          createAdminClient()
+            .from("event_guests")
+            .select("rsvp_id,max_companions")
+            .eq("event_id", eventId)
+            .not("rsvp_id", "is", null)
+        )
+      ]);
   perfEnd(sectionLabel);
 
   const rsvps = (rsvpsData ?? []) as Rsvp[];

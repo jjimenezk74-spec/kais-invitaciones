@@ -11,6 +11,8 @@ import { CopyLinkButton } from "@/components/copy-link-button";
 import { QrDownload } from "@/components/qr-download";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { isCloudflareAuthEnabled } from "@/lib/cloudflare/auth";
+import { getD1EventByIdOrSlug, listD1EventGuests, listD1EventPhotos, listD1Rsvps } from "@/lib/cloudflare/public-events";
 import { getEventLoginSession } from "@/lib/event-login-auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Event, EventGuest, EventPhoto, Rsvp } from "@/lib/types";
@@ -27,29 +29,48 @@ export default async function PanelEventoPage({
     redirect("/evento-login?error=Inicia sesion para entrar al panel.");
   }
 
-  const admin = createAdminClient();
-  const [{ data: event }, { data: rsvpsData }, { data: photosData }, { data: guestsData }] = await Promise.all([
-    admin
-      .from("events")
-      .select("id,owner_id,client_id,template_id,category_id,theme_id,title,event_type,hosts_names,event_date,event_time,address,google_maps_link,main_message,dress_code,cover_image_url,mobile_cover_image_url,music_url,decoration_top_left,decoration_top_right,decoration_bottom_left,decoration_bottom_right,decoration_side_left,decoration_side_right,visual_decorations,design_config,theme_color,status,guest_mode,slug,created_at,updated_at")
-      .eq("id", login.event_id)
-      .single(),
-    admin
-      .from("rsvps")
-      .select("id,event_id,guest_name,phone,email,attending,companions,message,dietary_restrictions,created_at")
-      .eq("event_id", login.event_id)
-      .order("created_at", { ascending: false }),
-    admin
-      .from("event_photos")
-      .select("id,event_id,storage_path,public_url,guest_name,is_approved,status,is_public,approved_at,approved_by_event_login,created_at")
-      .eq("event_id", login.event_id)
-      .order("created_at", { ascending: false }),
-    admin
-      .from("event_guests")
-      .select("id,event_id,guest_name,phone,email,token,max_companions,status,rsvp_id,last_opened_at,created_at")
-      .eq("event_id", login.event_id)
-      .order("created_at", { ascending: false })
-  ]);
+  const cloudflareMode = isCloudflareAuthEnabled();
+  const cloudflareData = cloudflareMode
+    ? await Promise.all([
+        getD1EventByIdOrSlug(login.event_id),
+        listD1Rsvps(login.event_id),
+        listD1EventPhotos(login.event_id),
+        listD1EventGuests(login.event_id)
+      ])
+    : null;
+
+  const supabaseData = cloudflareMode
+    ? null
+    : await (async () => {
+        const admin = createAdminClient();
+        return Promise.all([
+          admin
+            .from("events")
+            .select("id,owner_id,client_id,template_id,category_id,theme_id,title,event_type,hosts_names,event_date,event_time,address,google_maps_link,main_message,dress_code,cover_image_url,mobile_cover_image_url,music_url,decoration_top_left,decoration_top_right,decoration_bottom_left,decoration_bottom_right,decoration_side_left,decoration_side_right,visual_decorations,design_config,theme_color,status,guest_mode,slug,created_at,updated_at")
+            .eq("id", login.event_id)
+            .single(),
+          admin
+            .from("rsvps")
+            .select("id,event_id,guest_name,phone,email,attending,companions,message,dietary_restrictions,created_at")
+            .eq("event_id", login.event_id)
+            .order("created_at", { ascending: false }),
+          admin
+            .from("event_photos")
+            .select("id,event_id,storage_path,public_url,guest_name,is_approved,status,is_public,approved_at,approved_by_event_login,created_at")
+            .eq("event_id", login.event_id)
+            .order("created_at", { ascending: false }),
+          admin
+            .from("event_guests")
+            .select("id,event_id,guest_name,phone,email,token,max_companions,status,rsvp_id,last_opened_at,created_at")
+            .eq("event_id", login.event_id)
+            .order("created_at", { ascending: false })
+        ]);
+      })();
+
+  const event = cloudflareData ? cloudflareData[0] : supabaseData?.[0].data;
+  const rsvpsData = cloudflareData ? cloudflareData[1] : supabaseData?.[1].data;
+  const photosData = cloudflareData ? cloudflareData[2] : supabaseData?.[2].data;
+  const guestsData = cloudflareData ? cloudflareData[3] : supabaseData?.[3].data;
 
   if (!event) {
     redirect("/evento-login?error=Evento no encontrado.");

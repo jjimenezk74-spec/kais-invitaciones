@@ -1,5 +1,8 @@
 node_modules
+.tools
+.wrangler/
 .next
+.open-next
 .env
 .env.local
 .vercel

@@ -1,17 +1,29 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { isCloudflareAuthEnabled, signInWithD1, signOutFromD1 } from "@/lib/cloudflare/auth";
 import { ensureProfileForUser } from "@/lib/profiles";
 import { createClient } from "@/lib/supabase/server";
 import type { Profile } from "@/lib/types";
 
 export async function signIn(formData: FormData) {
-  const supabase = await createClient();
   const email = String(formData.get("email") ?? "");
   const password = String(formData.get("password") ?? "");
 
   console.info("[KAIS AUTH] Intentando login para", email);
 
+  if (isCloudflareAuthEnabled()) {
+    const result = await signInWithD1(email, password);
+    if (!result.ok) {
+      console.warn("[KAIS AUTH] Login D1 fallido:", result.error);
+      redirect(`/login?error=${encodeURIComponent(result.error)}`);
+    }
+
+    console.info("[KAIS AUTH] Login D1 correcto. Redirigiendo a /dashboard");
+    redirect("/dashboard");
+  }
+
+  const supabase = await createClient();
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) {
     console.warn("[KAIS AUTH] Login fallido:", error.message);
@@ -46,6 +58,11 @@ export async function signUp() {
 }
 
 export async function signOut() {
+  if (isCloudflareAuthEnabled()) {
+    await signOutFromD1();
+    redirect("/");
+  }
+
   const supabase = await createClient();
   await supabase.auth.signOut();
   redirect("/");

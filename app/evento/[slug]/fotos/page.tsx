@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { ImageIcon } from "lucide-react";
 import { PhotoUploadAvailability } from "@/components/photo-upload-availability";
 import { PhotoUploadForm } from "@/components/live-album/photo-upload-form";
+import { getD1PublicEventBySlug } from "@/lib/cloudflare/public-events";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { hasEventStarted } from "@/lib/event-time";
 import { absoluteUrl } from "@/lib/utils";
@@ -14,21 +15,22 @@ type Props = {
 
 export async function generateMetadata({ params }: Props) {
   const { slug } = await params;
-  const admin = createAdminClient();
-  const { data } = await admin.from("events").select("hosts_names, event_type").eq("slug", slug).maybeSingle();
+  const data = process.env.USE_CLOUDFLARE_AUTH === "1"
+    ? await getD1PublicEventBySlug(slug)
+    : (await createAdminClient().from("events").select("hosts_names, event_type").eq("slug", slug).maybeSingle()).data;
   const title = data ? `Sube tu foto · ${data.hosts_names}` : "Subir foto";
   return { title };
 }
 
 export default async function FotosPage({ params }: Props) {
   const { slug } = await params;
-  const admin = createAdminClient();
-
-  const { data } = await admin
-    .from("events")
-    .select("id, slug, hosts_names, event_type, event_date, event_time, theme_color, status")
-    .eq("slug", slug)
-    .maybeSingle();
+  const data = process.env.USE_CLOUDFLARE_AUTH === "1"
+    ? await getD1PublicEventBySlug(slug)
+    : (await createAdminClient()
+        .from("events")
+        .select("id, slug, hosts_names, event_type, event_date, event_time, theme_color, status")
+        .eq("slug", slug)
+        .maybeSingle()).data;
 
   const event = data as (Event & { status: string }) | null;
   if (!event) notFound();

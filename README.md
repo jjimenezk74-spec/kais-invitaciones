@@ -1,6 +1,6 @@
 # KAIS INVITACIONES
 
-MVP SaaS profesional para gestionar invitaciones digitales: landing pública, auth, panel cliente/admin, eventos, QR, página pública, RSVP, subida de fotos, estadísticas y Supabase con RLS.
+MVP SaaS profesional para gestionar invitaciones digitales: landing publica, auth, panel cliente/admin, eventos, QR, pagina publica, RSVP, subida de fotos, estadisticas y Supabase con RLS.
 
 ## Stack
 
@@ -9,12 +9,13 @@ MVP SaaS profesional para gestionar invitaciones digitales: landing pública, au
 - Supabase Auth, Database y Storage
 - Componentes estilo shadcn/ui
 - QR PNG/SVG con `qrcode`
+- Cloudflare Workers con OpenNext
 
 ## Flujo MVP
 
 registro/login -> crear evento -> publicar evento -> descargar QR -> ver `/evento/[slug]` -> confirmar asistencia -> revisar RSVP en panel.
 
-## Instalación
+## Instalacion
 
 ```bash
 npm install
@@ -41,19 +42,19 @@ Luego reemplaza los valores de Supabase desde **Supabase Dashboard > Project Set
 - `NEXT_PUBLIC_SUPABASE_URL`: Project URL.
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`: anon/public key.
 - `SUPABASE_SERVICE_ROLE_KEY`: service_role key, solo para servidor.
-- `NEXT_PUBLIC_APP_URL`: URL de la app. Usa `http://localhost:3000` en desarrollo y `https://kais.click` en producción.
+- `NEXT_PUBLIC_APP_URL`: URL de la app. Usa `http://localhost:3000` en desarrollo y `https://kais.click` en produccion.
 
-Después de editar `.env.local`, reinicia el servidor:
+Despues de editar `.env.local`, reinicia el servidor:
 
 ```bash
 npm run dev
 ```
 
-Si faltan `NEXT_PUBLIC_SUPABASE_URL` o `NEXT_PUBLIC_SUPABASE_ANON_KEY`, el middleware no detiene toda la app: la landing puede cargar y las rutas que usan Supabase mostrarán un error de configuración claro para desarrollo.
+Si faltan `NEXT_PUBLIC_SUPABASE_URL` o `NEXT_PUBLIC_SUPABASE_ANON_KEY`, el middleware no detiene toda la app: la landing puede cargar y las rutas que usan Supabase mostraran un error de configuracion claro para desarrollo.
 
 ## Si `/` devuelve 404 en desarrollo
 
-La ruta principal está en `app/page.tsx`. Si Next responde 404 aunque el archivo exista, normalmente es una caché `.next` incompleta después de un error de compilación o de variables de entorno. Detén el servidor, elimina `.next` y vuelve a iniciar:
+La ruta principal esta en `app/page.tsx`. Si Next responde 404 aunque el archivo exista, normalmente es una cache `.next` incompleta despues de un error de compilacion o de variables de entorno. Deten el servidor, elimina `.next` y vuelve a iniciar:
 
 ```bash
 rmdir /s /q .next
@@ -70,7 +71,7 @@ npm run dev
 ## Supabase
 
 1. Crea un proyecto en Supabase.
-2. Ejecuta `supabase/migrations/001_initial_schema.sql` en el SQL Editor.
+2. Ejecuta las migraciones en `supabase/migrations` desde el SQL Editor, en orden.
 3. Crea un usuario desde `/registro`.
 4. Para convertirlo en admin:
 
@@ -82,52 +83,29 @@ where email = 'tu-email@dominio.com';
 
 5. Opcional: usa `supabase/seed.sql`, reemplazando `owner_id` por el id real de un perfil.
 
-Si ya ejecutaste la primera migración antes de esta versión, ejecuta también:
+Notas de Storage:
 
-```sql
--- supabase/migrations/002_profiles_insert_policy.sql
-do $$
-begin
-  if not exists (
-    select 1
-    from pg_policies
-    where schemaname = 'public'
-      and tablename = 'profiles'
-      and policyname = 'profiles_insert_own_cliente'
-  ) then
-    create policy "profiles_insert_own_cliente"
-    on public.profiles for insert
-    to authenticated
-    with check (id = auth.uid() and role = 'cliente');
-  end if;
-end;
-$$;
-```
+- `event-photos`: bucket publico para fotos y portadas.
+- `event-audio`: bucket publico para musica del evento.
+- Los audios subidos desde el formulario no deben superar 10MB.
+- Las portadas aceptan `.jpg`, `.jpeg`, `.png` y `.webp`, con limite de 5MB.
 
-Esto permite que la app cree un `profile` faltante en el primer login si el trigger de registro no lo creó.
+## Modulos incluidos
 
-Para permitir subida de música desde el formulario de evento, ejecuta también `supabase/migrations/004_event_audio_storage.sql`. Esa migración crea el bucket público `event-audio` y las políticas de Storage para que usuarios autenticados puedan subir solo `.mp3`, `.wav` u `.ogg` dentro de su carpeta.
-
-Los audios subidos desde el formulario no deben superar 10MB. El proyecto configura Server Actions con `bodySizeLimit: "10mb"` y valida ese límite antes de subir el archivo a Supabase Storage.
-
-Para permitir foto de portada original, ejecuta `supabase/migrations/005_event_cover_storage.sql`. Esa migración asegura la columna `events.cover_image_url` y reutiliza el bucket público `event-photos` para subir portadas en `covers/{event_id}/...`. Las portadas aceptan `.jpg`, `.jpeg`, `.png` y `.webp`, con límite de 5MB.
-
-## Módulos incluidos
-
-- Landing pública con secciones de negocio, beneficios, tipos de eventos, planes, testimonios/contacto.
+- Landing publica con secciones de negocio, beneficios, tipos de eventos, planes, testimonios/contacto.
 - Login y registro con Supabase Auth.
-- Panel cliente para crear, editar, publicar eventos, ver enlace público, descargar QR, revisar RSVP, fotos y visitas.
-- Panel admin para clientes, eventos, métricas y creación para cliente.
-- Invitación pública en `/evento/[slug]` con portada premium, cuenta regresiva, RSVP, Google Maps, calendario, fotos y branding discreto.
-- RLS para separar clientes/admin y permitir acciones públicas limitadas de invitados.
+- Panel cliente para crear, editar, publicar eventos, ver enlace publico, descargar QR, revisar RSVP, fotos y visitas.
+- Panel admin para clientes, eventos, metricas y creacion para cliente.
+- Invitacion publica en `/evento/[slug]` con Canvas V3 cuando el evento tenga `canvas_design.version === 3`, y fallback legacy para disenos anteriores.
+- RLS para separar clientes/admin y permitir acciones publicas limitadas de invitados.
 
-## Producción
+## Produccion
 
 - Configura `NEXT_PUBLIC_APP_URL` con el dominio real para que el QR apunte al sitio correcto.
-- Revisa límites de Storage y políticas de moderación antes de abrir subidas masivas.
-- Agrega verificación de email si el modelo comercial lo requiere.
+- Revisa limites de Storage y politicas de moderacion antes de abrir subidas masivas.
+- Agrega verificacion de email si el modelo comercial lo requiere.
 
-## Deploy en Vercel
+## Deploy en Cloudflare Workers
 
 ### 1. Subir a GitHub
 
@@ -140,17 +118,34 @@ git remote add origin https://github.com/TU_USUARIO/kais-invitaciones.git
 git push -u origin main
 ```
 
-### 2. Conectar con Vercel
+### 2. Requisito de Node
 
-1. Entra a Vercel y elige **Add New Project**.
-2. Importa el repositorio de GitHub.
-3. Framework preset: **Next.js**.
-4. Build command: `npm run build`.
-5. Output directory: dejar vacío, Vercel detecta `.next`.
+Cloudflare/OpenNext usa Wrangler 4 y requiere Node 22 o superior. El repo incluye `.node-version`, `.nvmrc` y `engines.node` con ese requisito.
 
-### 3. Variables de entorno en Vercel
+```bash
+node -v
+```
 
-Agrega estas variables en **Project Settings > Environment Variables** para Production y Preview:
+### 3. Configuracion Cloudflare/OpenNext
+
+El proyecto usa:
+
+- `wrangler.jsonc`: configuracion del Worker.
+- `open-next.config.ts`: adaptador OpenNext para Cloudflare.
+- `.open-next/`: salida generada del build Cloudflare, ignorada por git.
+
+Scripts disponibles:
+
+```bash
+npm run cf:build
+npm run cf:preview
+npm run cf:deploy
+npm run cf:typegen
+```
+
+### 4. Variables de entorno en Cloudflare
+
+Agrega estas variables en Cloudflare Workers para Production:
 
 ```bash
 NEXT_PUBLIC_APP_URL=https://kais.click
@@ -159,20 +154,24 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 ```
 
-En producción, mantené `NEXT_PUBLIC_APP_URL=https://kais.click` y redeployá si cambiás la variable. Esta URL se usa para enlaces públicos, QR y mensajes enviados por WhatsApp.
+En produccion, manten `NEXT_PUBLIC_APP_URL=https://kais.click` y redeploya si cambias la variable. Esta URL se usa para enlaces publicos, QR y mensajes enviados por WhatsApp.
 
-### 4. Configurar Supabase para producción
+### 5. Build y deploy
 
-En Supabase ejecuta las migraciones en orden:
-
-```text
-001_initial_schema.sql
-002_profiles_insert_policy.sql
-003_events_rls_policy.sql
-004_event_audio_storage.sql
-005_event_cover_storage.sql
-006_event_logins.sql
+```bash
+npm install
+npm run build
+npm run cf:build
+npm run cf:deploy
 ```
+
+Para probar localmente el Worker generado:
+
+```bash
+npm run cf:preview
+```
+
+### 6. Configurar Supabase para produccion
 
 En **Authentication > URL Configuration**:
 
@@ -180,16 +179,20 @@ En **Authentication > URL Configuration**:
 - Redirect URLs:
   - `http://localhost:3000/**`
   - `https://kais.click/**`
-  - opcional para previews: `https://*-tu-usuario.vercel.app/**`
+  - opcional para previews Cloudflare: `https://*.workers.dev/**`
 
-Storage requerido:
+### 7. Obtener enlace publico final
 
-- `event-photos`: público, creado por `001_initial_schema.sql`.
-- `event-audio`: público, creado por `004_event_audio_storage.sql`.
+1. Haz deploy en Cloudflare Workers.
+2. Verifica que el dominio de produccion sea `https://kais.click`.
+3. Actualiza `NEXT_PUBLIC_APP_URL` en Cloudflare con `https://kais.click`.
+4. Ejecuta nuevamente `npm run cf:deploy`.
+5. Crea o publica un evento.
+6. Comparte los enlaces cortos como `/e/[slug]`, `/f/[slug]`, `/a/[slug]` o `/l/[slug]`.
 
-### Acceso por evento para clientes
+## Acceso por evento para clientes
 
-KAIS puede crear accesos específicos por evento sin usar Supabase Auth para el cliente final. Supabase Auth queda para administradores KAIS. Ejecuta `supabase/migrations/006_event_logins.sql` para crear `event_logins` y actualizar la moderación de fotos.
+KAIS puede crear accesos especificos por evento sin usar Supabase Auth para el cliente final. Supabase Auth queda para administradores KAIS. Ejecuta `supabase/migrations/006_event_logins.sql` para crear `event_logins` y actualizar la moderacion de fotos.
 
 Checklist de prueba:
 
@@ -197,18 +200,9 @@ Checklist de prueba:
 2. Admin crea o abre un evento en `/dashboard/eventos/[id]`.
 3. En `Acceso del cliente`, admin genera acceso.
 4. Admin copia el texto para WhatsApp.
-5. Cliente entra en `/evento-login` con usuario y contraseña.
+5. Cliente entra en `/evento-login` con usuario y contrasena.
 6. Cliente ve solo su evento en `/panel-evento`.
 7. Invitado sube foto desde `/evento/[slug]`.
 8. Cliente aprueba la foto en `/panel-evento`.
-9. La foto aparece en la galería pública.
-10. Cliente cierra sesión desde el panel.
-
-### 5. Obtener enlace público final
-
-1. Haz deploy en Vercel.
-2. Verifica que el dominio de producción sea `https://kais.click`.
-3. Actualiza `NEXT_PUBLIC_APP_URL` en Vercel con `https://kais.click`.
-4. Haz **Redeploy**.
-5. Crea o publica un evento.
-6. Comparte los enlaces cortos como `/e/[slug]`, `/f/[slug]`, `/a/[slug]` o `/l/[slug]`.
+9. La foto aparece en la galeria publica.
+10. Cliente cierra sesion desde el panel.

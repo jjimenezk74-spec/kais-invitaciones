@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@supabase/supabase-js";
+import { getD1EventByIdOrSlug, insertD1LivePhoto } from "@/lib/cloudflare/public-events";
 import { canUploadEventPhotos } from "@/lib/event-time";
 
 const ALLOWED_IMAGE_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp"];
@@ -19,6 +20,34 @@ export async function insertLivePhoto(payload: {
   guest_name: string | null;
   guest_message: string | null;
 }): Promise<{ error: string | null }> {
+  if (process.env.USE_CLOUDFLARE_AUTH === "1") {
+    if (!isStoragePathForEvent(payload.storage_path, payload.event_id)) {
+      return { error: "La foto no pertenece al evento indicado." };
+    }
+    if (!isAllowedImagePath(payload.storage_path)) {
+      return { error: "Solo se permiten fotos JPG, PNG o WEBP." };
+    }
+
+    const event = await getD1EventByIdOrSlug(payload.event_id);
+    if (!event) return { error: "Evento no encontrado." };
+    if (event.status !== "publicado") return { error: "El evento no esta activo." };
+    if (!canUploadEventPhotos(event)) return { error: "La subida de fotos estara disponible el dia del evento." };
+
+    try {
+      await insertD1LivePhoto({
+        eventId: payload.event_id,
+        imageUrl: payload.image_url,
+        storagePath: payload.storage_path,
+        guestName: payload.guest_name,
+        guestMessage: payload.guest_message
+      });
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : "No se pudo guardar la foto." };
+    }
+
+    return { error: null };
+  }
+
   const url            = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 

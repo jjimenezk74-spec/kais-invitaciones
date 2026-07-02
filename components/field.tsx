@@ -8,10 +8,10 @@ type FieldProps = {
 
 export function Field({ label, children, hint }: FieldProps) {
   return (
-    <div className="space-y-2">
-      <Label>{label}</Label>
+    <div className="space-y-1.5">
+      <Label className="text-sm leading-none">{label}</Label>
       {children}
-      {hint ? <p className="text-xs text-muted-foreground">{hint}</p> : null}
+      {hint ? <p className="text-[0.7rem] leading-tight text-muted-foreground">{hint}</p> : null}
     </div>
   );
 }

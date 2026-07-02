@@ -1,0 +1,45 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "kais-invitaciones",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-06-18",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "workers_dev": true,
+  "routes": [
+    {
+      "pattern": "kais.click/*",
+      "zone_name": "kais.click"
+    },
+    {
+      "pattern": "www.kais.click/*",
+      "zone_name": "kais.click"
+    }
+  ],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "vars": {
+    "USE_CLOUDFLARE_AUTH": "1",
+    "NEXT_PUBLIC_APP_URL": "https://kais.click"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "kais-invitaciones-db",
+      "database_id": "261179e2-53bf-463a-950d-7ea0569c834c",
+      "migrations_dir": "cloudflare/d1/migrations"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "MEDIA",
+      "bucket_name": "kais-invitaciones-media"
+    }
+  ],
+  "observability": {
+    "enabled": true
+  }
+}

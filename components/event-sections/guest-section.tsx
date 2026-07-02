@@ -11,6 +11,8 @@ import { GuestSearchInput } from "@/components/guest-search-input";
 import { CopyLinkButton } from "@/components/copy-link-button";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { isCloudflareAuthEnabled } from "@/lib/cloudflare/auth";
+import { listD1EventGuests } from "@/lib/cloudflare/public-events";
 import { perfEnd, perfStart, timed } from "@/lib/perf";
 import { canManageGuests } from "@/lib/permissions";
 import { getCurrentUserProfile } from "@/lib/profiles";
@@ -60,15 +62,16 @@ export async function GuestSection({ event }: { event: Event }) {
   if (!canManageGuests(profile)) redirect("/dashboard?error=Tu rol no tiene permisos para gestionar invitados.");
 
   const sectionLabel = perfStart(`guest-section-${event.id}`);
-  const admin = createAdminClient();
-  const { data: guestsData } = await timed(
-    "dashboard-event-guests-list",
-    admin
-      .from("event_guests")
-      .select("id,event_id,guest_name,phone,email,token,max_companions,status,rsvp_id,last_opened_at,created_at")
-      .eq("event_id", event.id)
-      .order("created_at", { ascending: false })
-  );
+  const guestsData = isCloudflareAuthEnabled()
+    ? await listD1EventGuests(event.id)
+    : (await timed(
+        "dashboard-event-guests-list",
+        createAdminClient()
+          .from("event_guests")
+          .select("id,event_id,guest_name,phone,email,token,max_companions,status,rsvp_id,last_opened_at,created_at")
+          .eq("event_id", event.id)
+          .order("created_at", { ascending: false })
+      )).data;
   perfEnd(sectionLabel);
 
   const guests = (guestsData ?? []) as EventGuest[];

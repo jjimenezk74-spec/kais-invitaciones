@@ -13,6 +13,8 @@ import {
 import { CopyLinkButton } from "@/components/copy-link-button";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { isCloudflareAuthEnabled } from "@/lib/cloudflare/auth";
+import { listD1EventLogins } from "@/lib/cloudflare/public-events";
 import { perfEnd, perfStart, timed } from "@/lib/perf";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Event, EventLogin } from "@/lib/types";
@@ -38,17 +40,17 @@ export async function AccesoSection({
   clientPanelUrl,
 }: Props) {
   const sectionLabel = perfStart(`acceso-section-${event.id}`);
-  const admin = createAdminClient();
-
   const { data: loginData } = canManage
-    ? await timed(
-        "[KAIS PERF] acceso event_logins",
-        admin
-          .from("event_logins")
-          .select("id,event_id,username,password_hash,active,expires_at,last_login_at,created_at,created_by")
-          .eq("event_id", event.id)
-          .order("created_at", { ascending: false })
-      )
+    ? isCloudflareAuthEnabled()
+      ? { data: await listD1EventLogins(event.id) }
+      : await timed(
+          "[KAIS PERF] acceso event_logins",
+          createAdminClient()
+            .from("event_logins")
+            .select("id,event_id,username,password_hash,active,expires_at,last_login_at,created_at,created_by")
+            .eq("event_id", event.id)
+            .order("created_at", { ascending: false })
+        )
     : { data: [] };
   perfEnd(sectionLabel);
 

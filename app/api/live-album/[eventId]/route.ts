@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { listD1ApprovedLivePhotos } from "@/lib/cloudflare/public-events";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { LivePhoto } from "@/lib/types";
 
@@ -31,6 +32,18 @@ export async function GET(
 
   if (!eventId) {
     return NextResponse.json({ photos: [], comments: [], reactions: [] }, { status: 400 });
+  }
+
+  if (process.env.USE_CLOUDFLARE_AUTH === "1") {
+    return NextResponse.json(
+      {
+        photos: await listD1ApprovedLivePhotos(eventId, 60),
+        comments: [],
+        reactions: [],
+        reactionSummary: {}
+      },
+      { headers: { "Cache-Control": "no-store" } },
+    );
   }
 
   const admin = createAdminClient();

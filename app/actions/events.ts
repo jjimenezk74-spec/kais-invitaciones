@@ -3,6 +3,19 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createInitialMobileCanvasDesign } from "@/lib/canvas/create-initial-mobile-canvas-design";
+import { createInitialCanvasV3Design, type CanvasV3EventData } from "@/lib/canvas-v3/initial-design";
+import {
+  createD1Event,
+  createD1EventGuest,
+  deleteD1Event,
+  deleteD1EventGuest,
+  getD1EventByIdOrSlug,
+  getD1PublicEventBySlug,
+  updateD1CanvasDesign,
+  updateD1EventFields,
+  updateD1EventGuestStatus
+} from "@/lib/cloudflare/public-events";
+import { uploadFileToR2Media } from "@/lib/cloudflare/r2";
 import { normalizeInvitationDesignConfig } from "@/lib/invitation-design";
 import { eventHasFeature } from "@/lib/event-features";
 import {
@@ -48,6 +61,124 @@ const GUEST_MODES = ["publico", "lista_invitados"] as const;
 const EVENT_PACKAGE_KEYS = ["essential", "premium", "experience", "luxury"] as const;
 
 export async function createEvent(formData: FormData) {
+  if (process.env.USE_CLOUDFLARE_AUTH === "1") {
+    const { user, profile } = await getCurrentUserProfile();
+    if (!user) redirect("/login");
+    if (!canCreateEvents(profile)) {
+      redirect("/dashboard?error=Tu rol no tiene permisos para crear eventos.");
+    }
+
+    const title = String(formData.get("title") ?? "Nuevo evento");
+    const requestedSlug = String(formData.get("slug") ?? "").trim();
+    const slug = normalizeEventSlug(requestedSlug || `${slugify(title)}-${crypto.randomUUID().slice(0, 8)}`);
+    if (!slug) {
+      redirect("/dashboard/eventos/nuevo?error=El enlace corto es obligatorio.");
+    }
+    const existing = await getD1PublicEventBySlug(slug);
+    if (existing) {
+      redirect("/dashboard/eventos/nuevo?error=Ya existe un evento con ese enlace corto.");
+    }
+
+    const coverFile = getOptionalFile(formData.get("cover_image_file"));
+    const mobileCoverFile = getOptionalFile(formData.get("mobile_cover_image_file"));
+    const musicFile = getOptionalFile(formData.get("music_file"));
+    let coverImageUrl = nullable(formData.get("cover_image_url"));
+    let mobileCoverImageUrl = nullable(formData.get("mobile_cover_image_url"));
+    let musicUrl = nullable(formData.get("music_url"));
+
+    try {
+      if (coverFile) {
+        validateCoverImageFile(coverFile);
+        coverImageUrl = await uploadFileToR2Media({
+          file: coverFile,
+          prefix: `event-photos/covers/${user.id}/desktop`,
+          contentType: coverFile.type || getCoverContentType(getFileExtension(coverFile.name)),
+          baseUrl: process.env.NEXT_PUBLIC_APP_URL
+        });
+      }
+      if (mobileCoverFile) {
+        validateCoverImageFile(mobileCoverFile);
+        mobileCoverImageUrl = await uploadFileToR2Media({
+          file: mobileCoverFile,
+          prefix: `event-photos/covers/${user.id}/mobile`,
+          contentType: mobileCoverFile.type || getCoverContentType(getFileExtension(mobileCoverFile.name)),
+          baseUrl: process.env.NEXT_PUBLIC_APP_URL
+        });
+      }
+      if (musicFile) {
+        validateAudioFile(musicFile);
+        const extension = getFileExtension(musicFile.name);
+        musicUrl = await uploadFileToR2Media({
+          file: musicFile,
+          prefix: `event-audio/${user.id}`,
+          contentType: musicFile.type || getAudioContentType(extension),
+          baseUrl: process.env.NEXT_PUBLIC_APP_URL
+        });
+      }
+    } catch (error) {
+      redirect(`/dashboard/eventos/nuevo?error=${encodeURIComponent(getErrorMessage(error))}`);
+    }
+
+    const payload = {
+      owner_id: user.id,
+      package_key: getPackageKey(formData.get("package_key")),
+      title,
+      event_type: String(formData.get("event_type") ?? "otro"),
+      hosts_names: String(formData.get("hosts_names") ?? title),
+      event_date: String(formData.get("event_date") ?? ""),
+      event_time: String(formData.get("event_time") ?? ""),
+      address: String(formData.get("address") ?? ""),
+      google_maps_link: nullable(formData.get("google_maps_link")),
+      whatsapp_phone: normalizeParaguayWhatsapp(formData.get("whatsapp_phone")),
+      external_photo_album_url: getOptionalUrl(formData.get("external_photo_album_url"), "/dashboard/eventos/nuevo"),
+      main_message: nullable(formData.get("main_message")),
+      quinceanera_name: nullable(formData.get("quinceanera_name")),
+      parents_names: nullable(formData.get("parents_names")),
+      church_name: nullable(formData.get("church_name")),
+      church_time: nullable(formData.get("church_time")),
+      dress_code: nullable(formData.get("dress_code")),
+      color_palette: nullable(formData.get("color_palette")),
+      theme: nullable(formData.get("theme")),
+      quince_message: nullable(formData.get("quince_message")),
+      parents_message: nullable(formData.get("parents_message")),
+      graduate_name: nullable(formData.get("graduate_name")),
+      graduation_type: nullable(formData.get("graduation_type")),
+      institution_name: nullable(formData.get("institution_name")),
+      academic_program: nullable(formData.get("academic_program")),
+      degree_title: nullable(formData.get("degree_title")),
+      promotion_name: nullable(formData.get("promotion_name")),
+      academic_ceremony_place: nullable(formData.get("academic_ceremony_place")),
+      academic_ceremony_time: nullable(formData.get("academic_ceremony_time")),
+      reception_place: nullable(formData.get("reception_place")),
+      reception_time: nullable(formData.get("reception_time")),
+      family_message: nullable(formData.get("family_message")),
+      graduate_message: nullable(formData.get("graduate_message")),
+      cover_image_url: coverImageUrl,
+      mobile_cover_image_url: mobileCoverImageUrl,
+      music_url: musicUrl,
+      theme_color: String(formData.get("theme_color") || "#111827"),
+      status: getEventStatus(formData.get("status")),
+      guest_mode: getGuestMode(formData.get("guest_mode")),
+      client_id: nullable(formData.get("client_id")),
+      template_id: nullable(formData.get("template_id")),
+      category_id: nullableUuid(formData.get("category_id")),
+      theme_id: nullableUuid(formData.get("theme_id")),
+      slug
+    };
+
+    let eventId: string;
+    try {
+      eventId = await createD1Event(payload);
+      const canvasDesign = createInitialCanvasV3Design({ ...payload, id: eventId, canvas_design: null } as CanvasV3EventData);
+      await updateD1CanvasDesign(eventId, canvasDesign);
+    } catch (error) {
+      redirect(`/dashboard/eventos/nuevo?error=${encodeURIComponent(getErrorMessage(error))}`);
+    }
+
+    revalidatePath("/dashboard");
+    redirect(`/dashboard/eventos/${eventId}/canvas-v3`);
+  }
+
   const supabase = await createClient();
   const {
     data: { user }
@@ -209,6 +340,74 @@ async function initializeEventCanvasDesign({
 }
 
 export async function updateEvent(eventId: string, formData: FormData) {
+  if (process.env.USE_CLOUDFLARE_AUTH === "1") {
+    const { user, profile } = await getCurrentUserProfile();
+    if (!user) redirect("/login");
+    if (!canManageEvents(profile)) {
+      redirect(`/dashboard/eventos/${eventId}?error=Tu rol no tiene permisos para editar todos los datos del evento.`);
+    }
+
+    const payload = getEventPayloadFromForm(formData, `/dashboard/eventos/${eventId}`);
+    const coverFile = getOptionalFile(formData.get("cover_image_file"));
+    const mobileCoverFile = getOptionalFile(formData.get("mobile_cover_image_file"));
+    const musicFile = getOptionalFile(formData.get("music_file"));
+
+    try {
+      if (coverFile) {
+        validateCoverImageFile(coverFile);
+        payload.cover_image_url = await uploadFileToR2Media({
+          file: coverFile,
+          prefix: `event-photos/covers/${eventId}/desktop`,
+          contentType: coverFile.type || getCoverContentType(getFileExtension(coverFile.name)),
+          baseUrl: process.env.NEXT_PUBLIC_APP_URL
+        });
+      }
+      if (mobileCoverFile) {
+        validateCoverImageFile(mobileCoverFile);
+        payload.mobile_cover_image_url = await uploadFileToR2Media({
+          file: mobileCoverFile,
+          prefix: `event-photos/covers/${eventId}/mobile`,
+          contentType: mobileCoverFile.type || getCoverContentType(getFileExtension(mobileCoverFile.name)),
+          baseUrl: process.env.NEXT_PUBLIC_APP_URL
+        });
+      }
+      if (musicFile) {
+        validateAudioFile(musicFile);
+        const extension = getFileExtension(musicFile.name);
+        payload.music_url = await uploadFileToR2Media({
+          file: musicFile,
+          prefix: `event-audio/${eventId}`,
+          contentType: musicFile.type || getAudioContentType(extension),
+          baseUrl: process.env.NEXT_PUBLIC_APP_URL
+        });
+      }
+    } catch (error) {
+      redirect(`/dashboard/eventos/${eventId}?error=${encodeURIComponent(getErrorMessage(error))}`);
+    }
+
+    const requestedSlug = String(formData.get("slug") ?? "").trim();
+    const normalizedSlug = normalizeEventSlug(requestedSlug);
+    if (!normalizedSlug) {
+      redirect(`/dashboard/eventos/${eventId}?error=${encodeURIComponent("El enlace corto es obligatorio.")}`);
+    }
+
+    const existing = await getD1PublicEventBySlug(normalizedSlug);
+    if (existing && existing.id !== eventId) {
+      redirect(`/dashboard/eventos/${eventId}?error=${encodeURIComponent("Ese enlace corto ya existe. Usa otro slug.")}`);
+    }
+
+    try {
+      await updateD1EventFields(eventId, { ...payload, slug: normalizedSlug });
+    } catch (error) {
+      redirect(`/dashboard/eventos/${eventId}?error=${encodeURIComponent(getErrorMessage(error))}`);
+    }
+
+    revalidatePath("/dashboard");
+    revalidatePath(`/dashboard/eventos/${eventId}`);
+    revalidatePath(`/evento/${normalizedSlug}`);
+    redirect(`/dashboard/eventos/${eventId}?saved=updated`);
+  }
+
   const supabase = await createClient();
   const {
     data: { user }
@@ -307,6 +506,26 @@ export async function updateEvent(eventId: string, formData: FormData) {
 }
 
 export async function saveVisualDecorationsOnly(eventId: string, visualDecorations: VisualDecoration[]) {
+  if (process.env.USE_CLOUDFLARE_AUTH === "1") {
+    const { user, profile } = await getCurrentUserProfile();
+    if (!user) {
+      return { ok: false, error: "Tu sesion expiro. Inicia sesion nuevamente." };
+    }
+    if (!canEditEventDesign(profile)) {
+      return { ok: false, error: "Tu rol no tiene permisos para editar decoraciones." };
+    }
+
+    const payload = sanitizeVisualDecorations(visualDecorations);
+    try {
+      await updateD1EventFields(eventId, { visual_decorations: JSON.stringify(payload) });
+    } catch (error) {
+      return { ok: false, error: getErrorMessage(error) };
+    }
+
+    revalidatePath(`/dashboard/eventos/${eventId}`);
+    return { ok: true, visualDecorations: payload };
+  }
+
   const supabase = await createClient();
   const {
     data: { user }
@@ -343,6 +562,26 @@ export async function updateEventThemeOnly(
     designConfig?: Partial<InvitationDesignConfig> | null;
   }
 ) {
+  if (process.env.USE_CLOUDFLARE_AUTH === "1") {
+    const permission = await ensureCloudflarePartialEventEditPermission("tema");
+    if (!permission.ok) return permission;
+
+    const payload = {
+      category_id: normalizeUuid(input.categoryId),
+      theme_id: normalizeUuid(input.themeId),
+      design_config: JSON.stringify(normalizeInvitationDesignConfig({ designConfig: input.designConfig ?? undefined }))
+    };
+
+    try {
+      await updateD1EventFields(eventId, payload);
+    } catch (error) {
+      return { ok: false, error: getErrorMessage(error) };
+    }
+
+    revalidatePath(`/dashboard/eventos/${eventId}`);
+    return { ok: true, payload };
+  }
+
   const permission = await ensurePartialEventEditPermission("tema");
   if (!permission.ok) return permission;
 
@@ -372,6 +611,25 @@ export async function updateEventCoverOnly(
     mobileCoverImageUrl?: string | null;
   }
 ) {
+  if (process.env.USE_CLOUDFLARE_AUTH === "1") {
+    const permission = await ensureCloudflarePartialEventEditPermission("portada");
+    if (!permission.ok) return permission;
+
+    const payload = {
+      cover_image_url: normalizeOptionalText(input.coverImageUrl),
+      mobile_cover_image_url: normalizeOptionalText(input.mobileCoverImageUrl)
+    };
+
+    try {
+      await updateD1EventFields(eventId, payload);
+    } catch (error) {
+      return { ok: false, error: getErrorMessage(error) };
+    }
+
+    revalidatePath(`/dashboard/eventos/${eventId}`);
+    return { ok: true, payload };
+  }
+
   const permission = await ensurePartialEventEditPermission("portada");
   if (!permission.ok) return permission;
 
@@ -394,6 +652,33 @@ export async function updateEventCoverOnly(
 }
 
 export async function updateEventMusicOnly(eventId: string, musicUrl?: string | null) {
+  if (process.env.USE_CLOUDFLARE_AUTH === "1") {
+    const permission = await ensureCloudflarePartialEventEditPermission("musica");
+    if (!permission.ok) return permission;
+
+    const eventFeatures = await getD1EventByIdOrSlug(eventId);
+    if (!eventFeatures) {
+      return { ok: false, error: "No se pudo validar el paquete contratado del evento." };
+    }
+
+    if (!eventHasFeature(eventFeatures, "music")) {
+      return {
+        ok: false,
+        error: "El paquete contratado para este evento no incluye musica."
+      };
+    }
+
+    const payload = { music_url: normalizeOptionalText(musicUrl) };
+    try {
+      await updateD1EventFields(eventId, payload);
+    } catch (error) {
+      return { ok: false, error: getErrorMessage(error) };
+    }
+
+    revalidatePath(`/dashboard/eventos/${eventId}`);
+    return { ok: true, payload };
+  }
+
   const permission = await ensurePartialEventEditPermission("musica");
   if (!permission.ok) return permission;
 
@@ -443,6 +728,17 @@ export async function updateEventPackage(eventId: string, packageKey: EventPacka
     return { ok: false, error: "Paquete invalido." };
   }
 
+  if (process.env.USE_CLOUDFLARE_AUTH === "1") {
+    try {
+      await updateD1EventFields(eventId, { package_key: packageKey });
+    } catch (error) {
+      return { ok: false, error: getErrorMessage(error) };
+    }
+
+    revalidatePath(`/dashboard/eventos/${eventId}`);
+    return { ok: true, packageKey };
+  }
+
   const supabase = await createClient();
   const { error } = await supabase
     .from("events")
@@ -466,6 +762,22 @@ export async function deleteEvent(eventId: string) {
 
   if (!canDeleteEvents(profile)) {
     redirect("/dashboard?error=Solo administradores KAIS pueden eliminar eventos.");
+  }
+
+  if (process.env.USE_CLOUDFLARE_AUTH === "1") {
+    const event = await getD1EventByIdOrSlug(eventId);
+    if (!event) {
+      redirect(`/dashboard/eventos/${eventId}?error=${encodeURIComponent("No se encontro el evento.")}`);
+    }
+
+    try {
+      await deleteD1Event(eventId);
+    } catch (error) {
+      redirect(`/dashboard/eventos/${eventId}?error=${encodeURIComponent(`No se pudo eliminar el evento. Detalle: ${getErrorMessage(error)}`)}`);
+    }
+
+    revalidatePath("/dashboard");
+    redirect(`/dashboard?${new URLSearchParams({ deleted: String(event.title ?? "Evento eliminado") }).toString()}`);
   }
 
   const admin = createAdminClient();
@@ -669,6 +981,24 @@ export async function createEventGuest(eventId: string, formData: FormData) {
     redirect(`/dashboard/eventos/${eventId}?error=Nombre y telefono son obligatorios para agregar invitado.`);
   }
 
+  if (process.env.USE_CLOUDFLARE_AUTH === "1") {
+    try {
+      await createD1EventGuest({
+        eventId,
+        guestName,
+        phone,
+        email,
+        maxCompanions,
+        token: crypto.randomUUID().replace(/-/g, "")
+      });
+    } catch (error) {
+      redirect(`/dashboard/eventos/${eventId}?error=${encodeURIComponent(error instanceof Error ? error.message : "No se pudo crear el invitado.")}`);
+    }
+
+    revalidatePath(`/dashboard/eventos/${eventId}`);
+    return;
+  }
+
   const admin = createAdminClient();
   const { error } = await admin.from("event_guests").insert({
     event_id: eventId,
@@ -692,6 +1022,16 @@ export async function deleteEventGuest(guestId: string, eventId: string) {
     redirect(`/dashboard/eventos/${eventId}?error=Solo admin KAIS puede eliminar invitados.`);
   }
 
+  if (process.env.USE_CLOUDFLARE_AUTH === "1") {
+    try {
+      await deleteD1EventGuest(guestId, eventId);
+    } catch (error) {
+      redirect(`/dashboard/eventos/${eventId}?error=${encodeURIComponent(error instanceof Error ? error.message : "No se pudo eliminar el invitado.")}`);
+    }
+    revalidatePath(`/dashboard/eventos/${eventId}`);
+    return;
+  }
+
   const { error } = await createAdminClient().from("event_guests").delete().eq("id", guestId).eq("event_id", eventId);
   if (error) {
     redirect(`/dashboard/eventos/${eventId}?error=${encodeURIComponent(error.message)}`);
@@ -703,6 +1043,16 @@ export async function toggleEventGuestBlocked(guestId: string, eventId: string, 
   const { profile } = await getCurrentUserProfile();
   if (!canManageGuests(profile)) {
     redirect(`/dashboard/eventos/${eventId}?error=Solo admin KAIS puede bloquear invitados.`);
+  }
+
+  if (process.env.USE_CLOUDFLARE_AUTH === "1") {
+    try {
+      await updateD1EventGuestStatus(guestId, eventId, blocked ? "bloqueado" : "pendiente");
+    } catch (error) {
+      redirect(`/dashboard/eventos/${eventId}?error=${encodeURIComponent(error instanceof Error ? error.message : "No se pudo actualizar el invitado.")}`);
+    }
+    revalidatePath(`/dashboard/eventos/${eventId}`);
+    return;
   }
 
   const { error } = await createAdminClient()
@@ -958,6 +1308,57 @@ function getGuestMode(value: FormDataEntryValue | null) {
   return GUEST_MODES.includes(mode as (typeof GUEST_MODES)[number]) ? mode : "publico";
 }
 
+function getPackageKey(value: FormDataEntryValue | null): EventPackageKey {
+  const packageKey = String(value ?? "essential");
+  return EVENT_PACKAGE_KEYS.includes(packageKey as EventPackageKey) ? (packageKey as EventPackageKey) : "essential";
+}
+
+function getEventPayloadFromForm(formData: FormData, errorPath: string) {
+  return {
+    title: String(formData.get("title") ?? ""),
+    event_type: String(formData.get("event_type") ?? "otro"),
+    hosts_names: String(formData.get("hosts_names") ?? ""),
+    event_date: String(formData.get("event_date") ?? ""),
+    event_time: String(formData.get("event_time") ?? ""),
+    address: String(formData.get("address") ?? ""),
+    google_maps_link: nullable(formData.get("google_maps_link")),
+    whatsapp_phone: normalizeParaguayWhatsapp(formData.get("whatsapp_phone")),
+    external_photo_album_url: getOptionalUrl(formData.get("external_photo_album_url"), errorPath),
+    main_message: nullable(formData.get("main_message")),
+    quinceanera_name: nullable(formData.get("quinceanera_name")),
+    parents_names: nullable(formData.get("parents_names")),
+    church_name: nullable(formData.get("church_name")),
+    church_time: nullable(formData.get("church_time")),
+    dress_code: nullable(formData.get("dress_code")),
+    color_palette: nullable(formData.get("color_palette")),
+    theme: nullable(formData.get("theme")),
+    quince_message: nullable(formData.get("quince_message")),
+    parents_message: nullable(formData.get("parents_message")),
+    graduate_name: nullable(formData.get("graduate_name")),
+    graduation_type: nullable(formData.get("graduation_type")),
+    institution_name: nullable(formData.get("institution_name")),
+    academic_program: nullable(formData.get("academic_program")),
+    degree_title: nullable(formData.get("degree_title")),
+    promotion_name: nullable(formData.get("promotion_name")),
+    academic_ceremony_place: nullable(formData.get("academic_ceremony_place")),
+    academic_ceremony_time: nullable(formData.get("academic_ceremony_time")),
+    reception_place: nullable(formData.get("reception_place")),
+    reception_time: nullable(formData.get("reception_time")),
+    family_message: nullable(formData.get("family_message")),
+    graduate_message: nullable(formData.get("graduate_message")),
+    cover_image_url: nullable(formData.get("cover_image_url")),
+    mobile_cover_image_url: nullable(formData.get("mobile_cover_image_url")),
+    music_url: nullable(formData.get("music_url")),
+    theme_color: String(formData.get("theme_color") || "#111827"),
+    status: getEventStatus(formData.get("status")),
+    guest_mode: getGuestMode(formData.get("guest_mode")),
+    client_id: nullable(formData.get("client_id")),
+    template_id: nullable(formData.get("template_id")),
+    category_id: nullableUuid(formData.get("category_id")),
+    theme_id: nullableUuid(formData.get("theme_id"))
+  };
+}
+
 function getDesignConfigFromForm(formData: FormData) {
   return normalizeInvitationDesignConfig({
     designConfig: {
@@ -986,6 +1387,20 @@ async function ensurePartialEventEditPermission(scope: string) {
   }
 
   return { ok: true as const, supabase };
+}
+
+async function ensureCloudflarePartialEventEditPermission(scope: string) {
+  const { user, profile } = await getCurrentUserProfile();
+
+  if (!user) {
+    return { ok: false as const, error: "Tu sesion expiro. Inicia sesion nuevamente." };
+  }
+
+  if (!canEditEventDesign(profile)) {
+    return { ok: false as const, error: `Tu rol no tiene permisos para editar ${scope}.` };
+  }
+
+  return { ok: true as const };
 }
 
 function normalizeUuid(value?: string | null) {

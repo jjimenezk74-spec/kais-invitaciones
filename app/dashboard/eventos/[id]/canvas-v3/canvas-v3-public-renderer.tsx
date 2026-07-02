@@ -212,8 +212,8 @@ function getTextVerticalPadding(el: Pick<V3Element, "fontSize" | "fontFamily" | 
 
 function getVerticalJustifyContent(value?: V3Element["verticalAlign"]): React.CSSProperties["justifyContent"] {
   if (value === "bottom") return "flex-end";
-  if (value === "center") return "center";
-  return "flex-start";
+  if (value === "top") return "flex-start";
+  return "center";
 }
 
 const DEFAULT_SECTION: V3Section = {

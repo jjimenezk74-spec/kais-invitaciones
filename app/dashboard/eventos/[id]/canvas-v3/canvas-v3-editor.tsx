@@ -777,8 +777,8 @@ function getTextVerticalPadding(el: Pick<V3Element, "fontSize" | "fontFamily" | 
 
 function getVerticalJustifyContent(value?: V3Element["verticalAlign"]): React.CSSProperties["justifyContent"] {
   if (value === "bottom") return "flex-end";
-  if (value === "center") return "center";
-  return "flex-start";
+  if (value === "top") return "flex-start";
+  return "center";
 }
 
 type AlignmentIconKind = "left" | "center" | "right" | "top" | "middle" | "bottom";
@@ -6352,8 +6352,8 @@ export function CanvasEditorV3({
                 <button type="button" aria-label="Centrar horizontal" title="Centrar horizontal" onClick={() => patchElement(selected.id, { textAlign: "center" })} style={getTopContextIconButtonStyle(selected.textAlign === "center")}><AlignmentIcon kind="center" /></button>
                 <button type="button" aria-label="Alinear derecha" title="Alinear derecha" onClick={() => patchElement(selected.id, { textAlign: "right" })} style={getTopContextIconButtonStyle(selected.textAlign === "right")}><AlignmentIcon kind="right" /></button>
                 <span style={topContextDividerStyle} />
-                <button type="button" aria-label="Alinear arriba" title="Alinear arriba" onClick={() => patchElement(selected.id, { verticalAlign: "top" })} style={getTopContextIconButtonStyle((selected.verticalAlign ?? "top") === "top")}><AlignmentIcon kind="top" /></button>
-                <button type="button" aria-label="Centrar vertical" title="Centrar vertical" onClick={() => patchElement(selected.id, { verticalAlign: "center" })} style={getTopContextIconButtonStyle(selected.verticalAlign === "center")}><AlignmentIcon kind="middle" /></button>
+                <button type="button" aria-label="Alinear arriba" title="Alinear arriba" onClick={() => patchElement(selected.id, { verticalAlign: "top" })} style={getTopContextIconButtonStyle(selected.verticalAlign === "top")}><AlignmentIcon kind="top" /></button>
+                <button type="button" aria-label="Centrar vertical" title="Centrar vertical" onClick={() => patchElement(selected.id, { verticalAlign: "center" })} style={getTopContextIconButtonStyle((selected.verticalAlign ?? "center") === "center")}><AlignmentIcon kind="middle" /></button>
                 <button type="button" aria-label="Alinear abajo" title="Alinear abajo" onClick={() => patchElement(selected.id, { verticalAlign: "bottom" })} style={getTopContextIconButtonStyle(selected.verticalAlign === "bottom")}><AlignmentIcon kind="bottom" /></button>
                 <button type="button" title="Espaciado" onClick={openSelectedInspector} style={topContextButtonStyle}>Esp</button>
                 <button type="button" title="Efectos" onClick={openSelectedInspector} style={topContextButtonStyle}>Fx</button>

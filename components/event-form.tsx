@@ -368,14 +368,13 @@ export function EventForm({
             </div>
           </div>
 
-          <div className="mt-3">
-            <EventSpecificFields event={event} kind={eventKind} />
-          </div>
         </FormSection>
       </div>
 
       <div className={activeStep === "detalles" ? "grid gap-2" : "hidden"}>
-        <FormSection title="Detalles visuales" description="Estilo, protocolo y pistas visuales para KAIS Studio.">
+        <FormSection title="Detalles del evento" description="Campos propios del tipo de evento y pistas visuales para KAIS Studio.">
+          <EventSpecificFields event={event} kind={eventKind} />
+
           <div className="grid gap-3 md:grid-cols-3">
             <Field label={eventKind === "corporate" ? "Protocolo" : "Tenida"}>
               <Input name="dress_code" defaultValue={event?.dress_code ?? ""} placeholder={getDressPlaceholder(eventKind)} />
@@ -770,7 +769,7 @@ function FormSection({ title, description, children }: { title: string; descript
         <p className="text-xs font-bold uppercase tracking-[0.18em] text-accent">{title}</p>
         {description ? <p className="mt-1 text-sm text-muted-foreground">{description}</p> : null}
       </div>
-      {children}
+      <div className="grid gap-3">{children}</div>
     </section>
   );
 }

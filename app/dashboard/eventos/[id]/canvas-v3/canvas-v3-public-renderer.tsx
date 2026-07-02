@@ -372,6 +372,7 @@ function PublicElement({
 
   const appType = el.type === "app" ? resolveAppType(el) : null;
   const isWhatsapp = appType === "whatsapp";
+  if (appType === "whatsapp") return null;
 
   // Sanitise numeric values so bad data can't produce invalid CSS
   const safeNum = (v: unknown, fallback: number) =>
@@ -406,8 +407,8 @@ function PublicElement({
 
     // WhatsApp → real link
     const href =
-      appType === "whatsapp"
-        ? el.config?.url || "https://wa.me/"
+      appType === "rsvp"
+        ? "#rsvp"
         : appType === "maps"
         ? el.config?.url || "https://maps.google.com"
         : appType === "live-album" && eventSlug
@@ -503,11 +504,12 @@ function PublicElement({
     };
 
     if (href) {
+      const isInternalAnchor = href.startsWith("#");
       return (
         <a
           href={href}
-          target="_blank"
-          rel="noopener noreferrer"
+          target={isInternalAnchor ? undefined : "_blank"}
+          rel={isInternalAnchor ? undefined : "noopener noreferrer"}
           style={wrapStyle}
           onMouseEnter={isWhatsapp ? () => setHovered(true) : undefined}
           onMouseLeave={isWhatsapp ? () => setHovered(false) : undefined}

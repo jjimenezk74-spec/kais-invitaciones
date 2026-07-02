@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { CalendarPlus, Eye, MapPin, Send } from "lucide-react";
+import { CalendarPlus, Eye, MapPin } from "lucide-react";
 import { BackButton } from "@/components/back-button";
 import { CanvasRenderer } from "@/components/canvas-renderer";
 import { RoyalWeddingDivider, RoyalWeddingPack } from "@/components/decorations/royal-wedding-pack";
@@ -16,7 +16,7 @@ import {
   MessagesSectionContent,
   PresentationSectionContent
 } from "@/components/public-invitation/invitation-sections";
-import { RsvpWhatsAppRedirect } from "@/components/rsvp-whatsapp-redirect";
+import { PublicRsvpForm } from "@/components/public-invitation/public-rsvp-form";
 import { ThemeDecorations } from "@/components/theme-decorations";
 import { eventHasFeature } from "@/lib/event-features";
 import type { ResolvedDesign } from "@/lib/invitation-design";
@@ -82,7 +82,6 @@ export function PublicInvitation({
     : rsvpStatus === "ok"
       ? rsvpAttending !== "no"
       : null;
-  const formDisabled = isEditor || isConfirmed || isAdminPreview;
 
   return (
     <main
@@ -242,145 +241,21 @@ export function PublicInvitation({
             )}
           </div>
 
-          <div className="kais-glass relative rounded-[2rem] p-6 sm:p-9 md:p-11">
-            {isAdminPreview && (
-              <div className="mb-5 rounded-xl border border-amber-400/30 bg-amber-900/20 px-4 py-3 text-xs font-semibold text-amber-300">
-                Vista previa administrador - el envio de RSVP esta deshabilitado.
-              </div>
-            )}
-            {eventHasFeature(event, "external_rsvp_whatsapp") && !event.whatsapp_phone ? (
-              <div className="mb-5 rounded-xl border border-amber-400/30 bg-amber-900/20 px-4 py-3 text-xs font-semibold text-amber-300">
-                Este evento usa RSVP por WhatsApp, pero todavia no tiene un numero configurado. La confirmacion se guardara en el sistema.
-              </div>
-            ) : null}
-            <form action={!isEditor ? rsvpAction ?? undefined : undefined} className="grid gap-5 md:gap-7">
-              <input type="hidden" name="slug" value={event.slug} />
-              <input type="hidden" name="guest_token" value={guestToken ?? ""} />
-              <input type="hidden" name="external_rsvp_whatsapp" value={shouldUseWhatsAppRsvp ? "1" : ""} />
-              <input type="hidden" name="event_title" value={event.title} />
-
-              {isConfirmed && !isAdminPreview ? (
-                <div className="rounded-2xl border border-[#d4af37]/35 bg-[#d4af37]/10 p-4 text-[#f5ecd9]">
-                  <p className="text-[0.68rem] font-semibold uppercase tracking-[0.28em] text-[#d4af37]">Confirmacion recibida</p>
-                  <p className="mt-2 text-sm leading-6 text-[#f5ecd9]/72">
-                    {confirmedAttending === false
-                      ? "Gracias por tu respuesta."
-                      : "Gracias por confirmar tu presencia. Te esperamos con mucha alegria."}
-                  </p>
-                  {shouldRedirectWhatsApp && event.whatsapp_phone && whatsappMessage ? (
-                    <RsvpWhatsAppRedirect phone={event.whatsapp_phone} message={whatsappMessage} />
-                  ) : null}
-                </div>
-              ) : null}
-
-              <LuxeField label="Nombre">
-                <input
-                  name="guest_name"
-                  required
-                  defaultValue={invitedGuest?.guest_name ?? ""}
-                  readOnly={Boolean(invitedGuest) || formDisabled}
-                  disabled={formDisabled}
-                  className="kais-input-luxe"
-                />
-              </LuxeField>
-
-              <div className="grid gap-5 md:grid-cols-2 md:gap-7">
-                <LuxeField label="Telefono">
-                  <input
-                    name="phone"
-                    defaultValue={invitedGuest?.phone ?? invitedGuestRsvp?.phone ?? ""}
-                    disabled={formDisabled}
-                    className="kais-input-luxe"
-                  />
-                </LuxeField>
-                <LuxeField label="Email">
-                  <input
-                    name="email"
-                    type="email"
-                    defaultValue={invitedGuest?.email ?? invitedGuestRsvp?.email ?? ""}
-                    disabled={formDisabled}
-                    className="kais-input-luxe"
-                  />
-                </LuxeField>
-              </div>
-
-              <div className="grid gap-5 md:grid-cols-2 md:gap-7">
-                <LuxeField label="Asistira?">
-                  <select
-                    name="attending"
-                    defaultValue={invitedGuestRsvp?.attending === false ? "no" : "si"}
-                    disabled={formDisabled}
-                    className="kais-input-luxe"
-                  >
-                    <option value="si">Si, con gusto</option>
-                    <option value="no">No podre asistir</option>
-                  </select>
-                </LuxeField>
-                {invitedGuest?.max_companions === 0 ? (
-                  <div className="rounded-2xl border border-[#d4af37]/25 bg-[#d4af37]/10 px-4 py-3">
-                    <p className="text-sm font-semibold text-[#f5ecd9]">Invitacion individual.</p>
-                  </div>
-                ) : (
-                  <LuxeField label="Cuantos acompanantes traeras?">
-                    <input
-                      name="companions"
-                      type="number"
-                      min={0}
-                      max={invitedGuest?.max_companions}
-                      defaultValue={String(invitedGuestRsvp?.companions ?? 0)}
-                      disabled={formDisabled}
-                      className="kais-input-luxe"
-                    />
-                    {invitedGuest ? (
-                      <p className="mt-2 text-xs leading-5 text-[#f5ecd9]/65">
-                        Tu cupo permite hasta {invitedGuest.max_companions} acompanante{invitedGuest.max_companions === 1 ? "" : "s"}.
-                      </p>
-                    ) : null}
-                  </LuxeField>
-                )}
-              </div>
-
-              {invitedGuest && invitedGuest.max_companions > 0 ? (
-                <div className="rounded-2xl border border-[#d4af37]/25 bg-[#d4af37]/10 px-4 py-3">
-                  <p className="text-sm font-semibold text-[#f5ecd9]">
-                    Podes venir con hasta {invitedGuest.max_companions} acompanante{invitedGuest.max_companions === 1 ? "" : "s"}.
-                  </p>
-                  <p className="mt-1 text-xs leading-5 text-[#f5ecd9]/70">
-                    Tu cupo total es de {invitedGuest.max_companions + 1} personas, incluyendo tu asistencia.
-                  </p>
-                </div>
-              ) : null}
-
-              <LuxeField label="Restriccion alimentaria">
-                <input
-                  name="dietary_restrictions"
-                  placeholder="Opcional"
-                  defaultValue={invitedGuestRsvp?.dietary_restrictions ?? ""}
-                  disabled={formDisabled}
-                  className="kais-input-luxe"
-                />
-              </LuxeField>
-
-              <LuxeField label="Mensaje para los anfitriones">
-                <textarea
-                  name="message"
-                  rows={3}
-                  defaultValue={invitedGuestRsvp?.message ?? ""}
-                  disabled={formDisabled}
-                  className="kais-input-luxe resize-none"
-                />
-              </LuxeField>
-
-              {!isConfirmed && !isAdminPreview && !isEditor ? (
-                <div className="mt-2">
-                  <button type="submit" className="kais-cta w-full sm:w-fit">
-                    <Send className="h-3.5 w-3.5" />
-                    Enviar confirmacion
-                  </button>
-                </div>
-              ) : null}
-            </form>
-          </div>
+          <PublicRsvpForm
+            event={event}
+            isEditor={isEditor}
+            isAdminPreview={isAdminPreview}
+            invitedGuest={invitedGuest}
+            invitedGuestRsvp={invitedGuestRsvp}
+            guestToken={guestToken}
+            rsvpAction={rsvpAction}
+            rsvpError={rsvpError}
+            rsvpStatus={rsvpStatus}
+            rsvpAttending={rsvpAttending}
+            shouldRedirectWhatsApp={shouldRedirectWhatsApp}
+            whatsappMessage={whatsappMessage}
+            shouldUseWhatsAppRsvp={shouldUseWhatsAppRsvp}
+          />
         </div>
         {canvasDesign && <CanvasRenderer design={canvasDesign} sectionId="rsvp" />}
         {renderCanvasLayer?.("rsvp")}
@@ -404,11 +279,3 @@ export function PublicInvitation({
   );
 }
 
-function LuxeField({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <label className="block">
-      <span className="kais-eyebrow text-[0.6rem] tracking-[0.36em] text-[#d4af37]/85">{label}</span>
-      <div className="mt-2.5">{children}</div>
-    </label>
-  );
-}

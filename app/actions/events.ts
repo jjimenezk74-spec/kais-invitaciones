@@ -847,6 +847,8 @@ export async function submitRsvp(eventId: string, formData: FormData) {
   const shouldOpenWhatsApp = String(formData.get("external_rsvp_whatsapp") ?? "") === "1";
   const eventTitle = String(formData.get("event_title") ?? "").trim();
   let eventGuest: EventGuest | null = null;
+  let resolvedPhone = phone;
+  let resolvedEmail = email;
 
   if (!slug) {
     redirect("/?error=No se pudo identificar la invitacion.");
@@ -876,6 +878,8 @@ export async function submitRsvp(eventId: string, formData: FormData) {
     }
 
     guestName = eventGuest.guest_name;
+    resolvedPhone = eventGuest.phone?.trim() || phone;
+    resolvedEmail = eventGuest.email?.trim() || email;
 
     if (eventGuest.rsvp_id) {
       revalidatePath(`/evento/${slug}`);
@@ -883,8 +887,8 @@ export async function submitRsvp(eventId: string, formData: FormData) {
         guestName,
         attending,
         companions,
-        phone,
-        email,
+        phone: resolvedPhone,
+        email: resolvedEmail,
         message,
         dietaryRestrictions,
         eventTitle,
@@ -918,8 +922,8 @@ export async function submitRsvp(eventId: string, formData: FormData) {
   const payload = {
     event_id: eventId,
     guest_name: guestName,
-    phone: nullable(formData.get("phone")),
-    email: nullable(formData.get("email")),
+    phone: nullable(resolvedPhone),
+    email: nullable(resolvedEmail),
     attending,
     companions: Math.floor(companions),
     message: nullable(formData.get("message")),
@@ -954,8 +958,8 @@ export async function submitRsvp(eventId: string, formData: FormData) {
     guestName,
     attending,
     companions,
-    phone,
-    email,
+    phone: resolvedPhone,
+    email: resolvedEmail,
     message,
     dietaryRestrictions,
     eventTitle,

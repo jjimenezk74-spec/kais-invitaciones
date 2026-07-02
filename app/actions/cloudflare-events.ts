@@ -46,9 +46,13 @@ export async function submitD1Rsvp(eventId: string, formData: FormData) {
   const dietaryRestrictions = String(formData.get("dietary_restrictions") ?? "").trim();
   const shouldOpenWhatsApp = String(formData.get("external_rsvp_whatsapp") ?? "") === "1";
   const eventTitle = String(formData.get("event_title") ?? "").trim();
+  let resolvedPhone = phone;
+  let resolvedEmail = email;
 
   if (eventGuest) {
     guestName = eventGuest.guest_name;
+    resolvedPhone = eventGuest.phone?.trim() || phone;
+    resolvedEmail = eventGuest.email?.trim() || email;
   }
 
   if (!guestName) {
@@ -65,8 +69,8 @@ export async function submitD1Rsvp(eventId: string, formData: FormData) {
       guestName,
       attending,
       companions,
-      phone,
-      email,
+      phone: resolvedPhone,
+      email: resolvedEmail,
       message,
       dietaryRestrictions,
       eventTitle,
@@ -82,8 +86,8 @@ export async function submitD1Rsvp(eventId: string, formData: FormData) {
     const rsvpId = await insertD1Rsvp({
       eventId,
       guestName,
-      phone: nullable(phone),
-      email: nullable(email),
+      phone: nullable(resolvedPhone),
+      email: nullable(resolvedEmail),
       attending,
       companions: Math.floor(companions),
       message: nullable(message),
@@ -112,8 +116,8 @@ export async function submitD1Rsvp(eventId: string, formData: FormData) {
     guestName,
     attending,
     companions,
-    phone,
-    email,
+    phone: resolvedPhone,
+    email: resolvedEmail,
     message,
     dietaryRestrictions,
     eventTitle,

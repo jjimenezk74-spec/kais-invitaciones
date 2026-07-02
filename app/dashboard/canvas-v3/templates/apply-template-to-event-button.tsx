@@ -18,7 +18,7 @@ export function ApplyCanvasV3TemplateToEventButton({
       variant="secondary"
       onClick={(event) => {
         const ok = window.confirm(
-          `Esto reemplazará el canvas_design V3 del evento con la plantilla "${templateName}" hidratada con sus datos reales. ¿Continuar?`
+          `Esto reemplazara el canvas_design V3 del evento con la plantilla "${templateName}" hidratada con sus datos reales. ¿Continuar?`
         );
         if (!ok) event.preventDefault();
       }}

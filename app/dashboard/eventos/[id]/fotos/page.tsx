@@ -4,6 +4,7 @@ import { ArrowLeft, ExternalLink, QrCode } from "lucide-react";
 import { PhotoAdminGrid } from "@/components/live-album/photo-admin-grid";
 import { LiveScreenActions } from "@/components/live-screen-actions";
 import { getAllLivePhotos } from "@/app/actions/live-photos";
+import { getD1EventByIdOrSlug } from "@/lib/cloudflare/public-events";
 import { canManagePhotos } from "@/lib/permissions";
 import { getCurrentUserProfile } from "@/lib/profiles";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -12,11 +13,33 @@ import type { Event } from "@/lib/types";
 
 type Props = { params: Promise<{ id: string }> };
 
+const isCloudflareMode = () => process.env.USE_CLOUDFLARE_AUTH === "1";
+
+async function getLiveAlbumEvent(id: string): Promise<Event | null> {
+  if (isCloudflareMode()) {
+    return getD1EventByIdOrSlug(id);
+  }
+
+  const admin = createAdminClient();
+  const { data } = await admin
+    .from("events")
+    .select("id, slug, hosts_names, title, event_type, event_date, theme_color")
+    .eq("id", id)
+    .single();
+
+  return data as Event | null;
+}
+
 export async function generateMetadata({ params }: Props) {
   const { id } = await params;
-  const admin = createAdminClient();
-  const { data } = await admin.from("events").select("hosts_names").eq("id", id).single();
-  return { title: data ? `Live Album · ${data.hosts_names}` : "Live Album" };
+
+  try {
+    const event = await getLiveAlbumEvent(id);
+    const eventName = event?.hosts_names || event?.title;
+    return { title: eventName ? `Live Album - ${eventName}` : "Live Album" };
+  } catch {
+    return { title: "Live Album" };
+  }
 }
 
 export default async function LiveAlbumAdminPage({ params }: Props) {
@@ -24,14 +47,7 @@ export default async function LiveAlbumAdminPage({ params }: Props) {
   const { profile } = await getCurrentUserProfile();
   if (!canManagePhotos(profile)) redirect("/dashboard");
 
-  const admin = createAdminClient();
-  const { data } = await admin
-    .from("events")
-    .select("id, slug, hosts_names, event_type, event_date, theme_color")
-    .eq("id", id)
-    .single();
-
-  const event = data as Event | null;
+  const event = await getLiveAlbumEvent(id);
   if (!event) notFound();
 
   const photos = await getAllLivePhotos(id);
@@ -40,6 +56,7 @@ export default async function LiveAlbumAdminPage({ params }: Props) {
   const approved = photos.filter((p) => p.approved && !p.rejected).length;
   const featured = photos.filter((p) => p.featured).length;
 
+  const eventName = event.hosts_names || event.title;
   const uploadUrl = absoluteUrl(`/evento/${event.slug}/fotos`);
   const livePath = `/l/${event.slug}`;
   const liveUrl = shortLiveScreenUrl(event.slug);
@@ -47,7 +64,6 @@ export default async function LiveAlbumAdminPage({ params }: Props) {
 
   return (
     <div className="flex flex-col gap-8">
-      {/* Breadcrumb */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
           <Link
@@ -60,16 +76,14 @@ export default async function LiveAlbumAdminPage({ params }: Props) {
         </div>
       </div>
 
-      {/* Header */}
       <div className="flex flex-col gap-2">
         <p className="text-xs font-bold uppercase tracking-[0.18em] text-muted-foreground">
           Live Album
         </p>
-        <h1 className="font-display text-3xl font-bold">{event.hosts_names}</h1>
+        <h1 className="font-display text-3xl font-bold">{eventName}</h1>
         <p className="text-sm text-muted-foreground capitalize">{event.event_type}</p>
       </div>
 
-      {/* Stats */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         {[
           ["Total", photos.length, "text-foreground"],
@@ -86,7 +100,6 @@ export default async function LiveAlbumAdminPage({ params }: Props) {
         ))}
       </div>
 
-      {/* Quick links */}
       <div className="flex flex-wrap gap-3">
         <LiveScreenActions livePath={livePath} liveUrl={liveUrl} />
         <a
@@ -110,7 +123,6 @@ export default async function LiveAlbumAdminPage({ params }: Props) {
         </a>
       </div>
 
-      {/* Photo grid */}
       <PhotoAdminGrid photos={photos} eventId={id} eventSlug={event.slug} />
     </div>
   );

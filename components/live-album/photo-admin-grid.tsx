@@ -62,6 +62,7 @@ function PhotoCard({ photo, eventId }: PhotoCardProps) {
           src={photo.image_url}
           alt={photo.guest_name ?? "Foto de invitado"}
           fill
+          unoptimized
           className="object-cover transition duration-300 group-hover:scale-105"
           sizes="(max-width: 640px) 100dvw, (max-width: 1024px) 50dvw, 33dvw"
         />

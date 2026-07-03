@@ -114,7 +114,11 @@ export async function insertLivePhoto(payload: {
 }
 
 function isStoragePathForEvent(storagePath: string, eventId: string) {
-  return storagePath.startsWith(`${eventId}/`) && !storagePath.includes("..");
+  const normalized = storagePath.replace(/^\/+/, "");
+  return (
+    !normalized.includes("..") &&
+    (normalized.startsWith(`${eventId}/`) || normalized.startsWith(`live-photos/${eventId}/`))
+  );
 }
 
 function isAllowedImagePath(storagePath: string) {

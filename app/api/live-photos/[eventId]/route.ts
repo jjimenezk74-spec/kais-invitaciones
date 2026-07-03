@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { insertLivePhoto } from "@/app/actions/insert-live-photo";
 import { getD1EventByIdOrSlug, listD1ApprovedLivePhotos } from "@/lib/cloudflare/public-events";
-import { uploadFileToR2Media } from "@/lib/cloudflare/r2";
+import { uploadFileToR2MediaWithKey } from "@/lib/cloudflare/r2";
 import { canUploadEventPhotos } from "@/lib/event-time";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { LivePhoto } from "@/lib/types";
@@ -79,8 +79,7 @@ export async function POST(
   }
 
   try {
-    const storagePath = `${eventId}/${crypto.randomUUID()}${getFileExtension(file.name) || ".jpg"}`;
-    const imageUrl = await uploadFileToR2Media({
+    const uploaded = await uploadFileToR2MediaWithKey({
       file,
       prefix: `live-photos/${eventId}`,
       contentType: file.type || getImageContentType(file.name),
@@ -89,8 +88,8 @@ export async function POST(
 
     const result = await insertLivePhoto({
       event_id: eventId,
-      image_url: imageUrl,
-      storage_path: storagePath,
+      image_url: uploaded.url,
+      storage_path: uploaded.key,
       guest_name: guestName,
       guest_message: guestMessage
     });
@@ -99,7 +98,7 @@ export async function POST(
       return NextResponse.json({ ok: false, error: result.error }, { status: 400 });
     }
 
-    return NextResponse.json({ ok: true, image_url: imageUrl });
+    return NextResponse.json({ ok: true, image_url: uploaded.url });
   } catch (error) {
     return NextResponse.json(
       { ok: false, error: error instanceof Error ? error.message : "No se pudo subir la foto." },

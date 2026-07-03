@@ -256,6 +256,7 @@ function AlbumGrid({
                 src={photo.image_url}
                 alt={photo.guest_name ?? "Foto del evento"}
                 fill
+                unoptimized
                 draggable={false}
                 onContextMenu={(event) => event.preventDefault()}
                 className="select-none object-cover transition duration-700 [-webkit-user-drag:none] group-hover:scale-105"
@@ -377,6 +378,7 @@ function PhotoLightbox({
           src={photo.image_url}
           alt={photo.guest_name ?? "Foto del evento"}
           fill
+          unoptimized
           draggable={false}
           priority
           onContextMenu={(event) => event.preventDefault()}

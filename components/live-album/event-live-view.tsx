@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { LivePhoto } from "@/lib/types";
 
@@ -167,37 +166,34 @@ export function EventLiveView({
       {currentPhoto ? (
         <>
           <div
-            className="absolute inset-0 scale-[1.08] bg-cover bg-center opacity-75 blur-3xl transition-opacity duration-700"
+            className="absolute inset-0 z-0 scale-[1.08] bg-cover bg-center blur-3xl transition-opacity duration-700"
             style={{
               backgroundImage: `url(${currentPhoto.image_url})`,
-              filter: "blur(38px) brightness(0.45) saturate(1.12)",
-              opacity: visible ? 0.72 : 0,
+              filter: "blur(24px) brightness(0.58) saturate(1.08)",
+              opacity: visible ? 0.5 : 0,
             }}
           />
-          <div className="absolute inset-0 bg-black/28" />
+          <div className="absolute inset-0 z-[1] bg-black/18" />
           <div
-            className="absolute inset-0 flex items-center justify-center px-4 py-8 transition-opacity duration-700 md:px-12 md:py-10 lg:px-16"
+            className="absolute inset-0 z-[3] flex items-center justify-center px-4 py-8 transition-opacity duration-700 md:px-12 md:py-10 lg:px-16"
             style={{ opacity: visible ? 1 : 0 }}
           >
-            <div className="relative h-[min(90vh,calc(100vh-3rem))] w-full max-w-[96vw]">
-              <Image
+            <div className="relative h-[min(84vh,calc(100vh-5rem))] w-[min(90vw,1320px)]">
+              <img
                 src={currentPhoto.image_url}
                 alt={currentPhoto.guest_name ?? "Foto del evento"}
-                fill
-                priority
                 draggable={false}
-                className="select-none rounded-[1.35rem] object-contain drop-shadow-[0_28px_70px_rgba(0,0,0,0.62)] [-webkit-user-drag:none] md:rounded-[1.75rem]"
-                sizes="96dvw"
+                className="h-full w-full select-none rounded-[1.35rem] object-contain drop-shadow-[0_28px_70px_rgba(0,0,0,0.62)] [-webkit-user-drag:none] md:rounded-[1.75rem]"
               />
             </div>
           </div>
         </>
       ) : (
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(120,27,48,0.45),rgba(0,0,0,1)_62%)]" />
+        <div className="absolute inset-0 z-0 bg-[radial-gradient(circle_at_center,rgba(120,27,48,0.45),rgba(0,0,0,1)_62%)]" />
       )}
 
-      <div className="absolute inset-0 bg-gradient-to-r from-black/54 via-black/14 to-black/34" />
-      <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/90 via-black/35 to-transparent" />
+      <div className="pointer-events-none absolute inset-0 z-[2] bg-gradient-to-r from-black/42 via-black/6 to-black/22" />
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[2] h-1/2 bg-gradient-to-t from-black/78 via-black/24 to-transparent" />
 
       <section className="absolute left-5 top-5 z-10 max-w-[18rem] rounded-3xl border border-white/10 bg-black/24 px-4 py-3 shadow-2xl shadow-black/20 backdrop-blur-md md:left-8 md:top-7 md:max-w-[22rem] md:px-5 md:py-4">
         <p className="text-[0.62rem] font-black uppercase tracking-[0.3em] text-white/48 md:text-[0.68rem]">

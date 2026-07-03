@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getD1Database } from "@/lib/cloudflare/d1";
 import { listD1ApprovedLivePhotos } from "@/lib/cloudflare/public-events";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { LivePhoto } from "@/lib/types";
@@ -24,6 +25,27 @@ type LiveReaction = {
 
 type ReactionSummary = Record<string, number>;
 
+type D1LiveCommentRow = {
+  id: string;
+  photo_id: string;
+  event_id: string;
+  author_name: string;
+  message: string;
+  created_at: string;
+};
+
+type D1LiveReactionRow = {
+  id: string;
+  photo_id: string;
+  event_id: string;
+  reaction: string;
+  created_at: string;
+};
+
+type D1ReactionSummaryRow = {
+  reaction: string;
+};
+
 export async function GET(
   _req: Request,
   { params }: { params: Promise<{ eventId: string }> },
@@ -35,12 +57,76 @@ export async function GET(
   }
 
   if (process.env.USE_CLOUDFLARE_AUTH === "1") {
+    const db = await getD1Database();
+    if (!db) {
+      return NextResponse.json(
+        {
+          photos: await listD1ApprovedLivePhotos(eventId, 60),
+          comments: [],
+          reactions: [],
+          reactionSummary: {},
+        },
+        { headers: { "Cache-Control": "no-store" } },
+      );
+    }
+
+    const [photos, commentsResult, reactionsResult, reactionSummaryResult] = await Promise.all([
+      listD1ApprovedLivePhotos(eventId, 60),
+      db
+        .prepare(
+          [
+            "select id, photo_id, event_id, author_name, message, created_at",
+            "from live_photo_comments",
+            "where event_id = ?",
+            "order by created_at desc",
+            "limit 12",
+          ].join(" "),
+        )
+        .bind(eventId)
+        .all<D1LiveCommentRow>(),
+      db
+        .prepare(
+          [
+            "select id, photo_id, event_id, reaction, created_at",
+            "from live_photo_reactions",
+            "where event_id = ?",
+            "order by created_at desc",
+            "limit 20",
+          ].join(" "),
+        )
+        .bind(eventId)
+        .all<D1LiveReactionRow>(),
+      db
+        .prepare("select reaction from live_photo_reactions where event_id = ? limit 500")
+        .bind(eventId)
+        .all<D1ReactionSummaryRow>(),
+    ]);
+
+    const reactionSummary: ReactionSummary = {};
+    for (const row of reactionSummaryResult.results ?? []) {
+      if (!row.reaction) continue;
+      reactionSummary[row.reaction] = (reactionSummary[row.reaction] ?? 0) + 1;
+    }
+
     return NextResponse.json(
       {
-        photos: await listD1ApprovedLivePhotos(eventId, 60),
-        comments: [],
-        reactions: [],
-        reactionSummary: {}
+        photos,
+        comments: (commentsResult.results ?? []).map((comment) => ({
+          id: comment.id,
+          photo_id: comment.photo_id,
+          event_id: comment.event_id,
+          author_name: comment.author_name,
+          comment_text: comment.message,
+          created_at: comment.created_at,
+        })),
+        reactions: (reactionsResult.results ?? []).map((reaction) => ({
+          id: reaction.id,
+          photo_id: reaction.photo_id,
+          event_id: reaction.event_id,
+          emoji: reaction.reaction,
+          created_at: reaction.created_at,
+        })),
+        reactionSummary,
       },
       { headers: { "Cache-Control": "no-store" } },
     );

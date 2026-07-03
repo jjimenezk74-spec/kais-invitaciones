@@ -14,8 +14,6 @@ import {
 } from "@/app/actions/live-photos";
 import type { LivePhoto } from "@/lib/types";
 
-type Tab = "pending" | "approved" | "rejected";
-
 type PhotoCardProps = {
   photo: LivePhoto;
   eventId: string;
@@ -26,12 +24,16 @@ function PhotoCard({ photo, eventId }: PhotoCardProps) {
   const [error, setError] = useState("");
   const router = useRouter();
 
-  const approve = () =>
-    startTransition(() => approveLivePhoto(photo.id, eventId));
-  const reject = () =>
-    startTransition(() => rejectLivePhoto(photo.id, eventId));
+  const approve = () => startTransition(() => approveLivePhoto(photo.id, eventId));
+  const reject = () => startTransition(() => rejectLivePhoto(photo.id, eventId));
+  const toggleFeatured = () =>
+    startTransition(() => featureLivePhoto(photo.id, eventId, !photo.featured));
+
   const del = () => {
-    if (!window.confirm("Esta acción eliminará la foto del álbum y de Storage. ¿Continuar?")) return;
+    if (!window.confirm("Esta acción eliminará la foto del álbum y de Storage. ¿Continuar?")) {
+      return;
+    }
+
     setError("");
     startTransition(async () => {
       const result = await deleteLivePhoto(photo.id, eventId);
@@ -42,20 +44,19 @@ function PhotoCard({ photo, eventId }: PhotoCardProps) {
       router.refresh();
     });
   };
-  const toggleFeatured = () =>
-    startTransition(() => featureLivePhoto(photo.id, eventId, !photo.featured));
 
   const statusBadge = photo.rejected
     ? { label: "Rechazada", cls: "bg-red-100 text-red-700" }
     : photo.approved
-    ? { label: "Aprobada", cls: "bg-emerald-100 text-emerald-700" }
-    : { label: "Pendiente", cls: "bg-amber-100 text-amber-700" };
+      ? { label: "Aprobada", cls: "bg-emerald-100 text-emerald-700" }
+      : { label: "Pendiente", cls: "bg-amber-100 text-amber-700" };
 
   return (
     <article
-      className={`group relative overflow-hidden rounded-2xl border bg-card shadow-sm transition-opacity ${isPending ? "opacity-50 pointer-events-none" : ""}`}
+      className={`group relative overflow-hidden rounded-xl border bg-card shadow-sm transition-opacity ${
+        isPending ? "pointer-events-none opacity-50" : ""
+      }`}
     >
-      {/* Image */}
       <div className="relative aspect-square w-full overflow-hidden bg-muted">
         <Image
           src={photo.image_url}
@@ -64,15 +65,14 @@ function PhotoCard({ photo, eventId }: PhotoCardProps) {
           className="object-cover transition duration-300 group-hover:scale-105"
           sizes="(max-width: 640px) 100dvw, (max-width: 1024px) 50dvw, 33dvw"
         />
-        {/* Status badge overlay */}
         <span
           className={`absolute left-2.5 top-2.5 rounded-full px-2.5 py-0.5 text-[0.65rem] font-bold ${statusBadge.cls}`}
         >
           {statusBadge.label}
         </span>
-        {/* Featured star */}
-        {photo.approved && !photo.rejected && (
+        {photo.approved && !photo.rejected ? (
           <button
+            type="button"
             onClick={toggleFeatured}
             aria-label={photo.featured ? "Quitar destacada" : "Destacar foto"}
             className={`absolute right-2.5 top-2.5 flex h-7 w-7 items-center justify-center rounded-full shadow transition ${
@@ -83,11 +83,10 @@ function PhotoCard({ photo, eventId }: PhotoCardProps) {
           >
             <Star className="h-3.5 w-3.5" fill={photo.featured ? "currentColor" : "none"} />
           </button>
-        )}
+        ) : null}
       </div>
 
-      {/* Meta */}
-      <div className="px-4 py-3">
+      <div className="px-3 py-2.5">
         <p className="truncate text-sm font-semibold text-foreground">
           {photo.guest_name ?? <span className="italic text-muted-foreground">Anónimo</span>}
         </p>
@@ -109,28 +108,29 @@ function PhotoCard({ photo, eventId }: PhotoCardProps) {
         ) : null}
       </div>
 
-      {/* Actions */}
-      <div className="flex gap-2 border-t border-border px-4 py-3">
-        {!photo.approved && !photo.rejected && (
+      <div className="flex gap-2 border-t border-border px-3 py-2.5">
+        {!photo.approved && !photo.rejected ? (
           <button
+            type="button"
             onClick={approve}
             className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-emerald-600 py-2 text-xs font-bold text-white transition hover:bg-emerald-700"
           >
             <Check className="h-3.5 w-3.5" />
             Aprobar
           </button>
-        )}
-        {!photo.rejected && (
+        ) : null}
+        {!photo.rejected ? (
           <button
+            type="button"
             onClick={reject}
             className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-border py-2 text-xs font-semibold text-foreground transition hover:bg-red-50 hover:text-red-600"
           >
             <X className="h-3.5 w-3.5" />
             Rechazar
           </button>
-        )}
-        {photo.rejected && (
+        ) : (
           <button
+            type="button"
             onClick={approve}
             className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-emerald-600 py-2 text-xs font-bold text-white transition hover:bg-emerald-700"
           >
@@ -139,6 +139,7 @@ function PhotoCard({ photo, eventId }: PhotoCardProps) {
           </button>
         )}
         <button
+          type="button"
           onClick={del}
           aria-label="Eliminar foto"
           className="flex h-9 w-9 items-center justify-center rounded-lg border border-border text-muted-foreground transition hover:bg-red-50 hover:text-red-600"
@@ -154,6 +155,7 @@ type PhotoAdminGridProps = {
   photos: LivePhoto[];
   eventId: string;
   eventSlug: string;
+  showAdminActions?: boolean;
 };
 
 type DownloadLink = {
@@ -162,14 +164,24 @@ type DownloadLink = {
   url: string;
 };
 
-export function PhotoAdminGrid({ photos, eventId, eventSlug }: PhotoAdminGridProps) {
+type LiveAlbumAdminActionsProps = {
+  photos: LivePhoto[];
+  eventId: string;
+  eventSlug: string;
+  compact?: boolean;
+};
+
+export function LiveAlbumAdminActions({
+  photos,
+  eventId,
+  eventSlug,
+  compact = false,
+}: LiveAlbumAdminActionsProps) {
   const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState("");
   const [downloadLinks, setDownloadLinks] = useState<DownloadLink[]>([]);
   const router = useRouter();
-  const pending = photos.filter((p) => !p.approved && !p.rejected);
   const approved = photos.filter((p) => p.approved && !p.rejected);
-  const rejected = photos.filter((p) => p.rejected);
 
   const downloadAlbum = () => {
     setMessage("");
@@ -204,16 +216,16 @@ export function PhotoAdminGrid({ photos, eventId, eventSlug }: PhotoAdminGridPro
     });
   };
 
-  const AdminActions = () => (
-    <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+  return (
+    <section className={`rounded-2xl border border-border bg-card shadow-sm ${compact ? "p-4" : "p-5"}`}>
+      <div className={`flex flex-col gap-4 ${compact ? "" : "md:flex-row md:items-center md:justify-between"}`}>
         <div>
           <p className="text-sm font-bold text-foreground">Acciones del álbum</p>
           <p className="mt-1 text-xs text-muted-foreground">
             Descarga fotos aprobadas o elimina el álbum completo del evento.
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className={`flex gap-2 ${compact ? "flex-col" : "flex-wrap"}`}>
           <button
             type="button"
             onClick={downloadAlbum}
@@ -264,11 +276,30 @@ export function PhotoAdminGrid({ photos, eventId, eventSlug }: PhotoAdminGridPro
       ) : null}
     </section>
   );
+}
 
-  const Section = ({ title, items, accent }: { title: string; items: LivePhoto[]; accent: string }) =>
+export function PhotoAdminGrid({
+  photos,
+  eventId,
+  eventSlug,
+  showAdminActions = true,
+}: PhotoAdminGridProps) {
+  const pending = photos.filter((p) => !p.approved && !p.rejected);
+  const approved = photos.filter((p) => p.approved && !p.rejected);
+  const rejected = photos.filter((p) => p.rejected);
+
+  const Section = ({
+    title,
+    items,
+    accent,
+  }: {
+    title: string;
+    items: LivePhoto[];
+    accent: string;
+  }) =>
     items.length > 0 ? (
       <section>
-        <div className="mb-4 flex items-center gap-3">
+        <div className="mb-3 flex items-center gap-3">
           <h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">
             {title}
           </h2>
@@ -276,7 +307,7 @@ export function PhotoAdminGrid({ photos, eventId, eventSlug }: PhotoAdminGridPro
             {items.length}
           </span>
         </div>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {items.map((p) => (
             <PhotoCard key={p.id} photo={p} eventId={eventId} />
           ))}
@@ -287,8 +318,10 @@ export function PhotoAdminGrid({ photos, eventId, eventSlug }: PhotoAdminGridPro
   if (photos.length === 0) {
     return (
       <div className="flex flex-col gap-6">
-        <AdminActions />
-        <div className="flex flex-col items-center gap-3 py-20 text-center text-muted-foreground">
+        {showAdminActions ? (
+          <LiveAlbumAdminActions photos={photos} eventId={eventId} eventSlug={eventSlug} />
+        ) : null}
+        <div className="flex flex-col items-center gap-3 py-14 text-center text-muted-foreground">
           <span className="text-5xl">📷</span>
           <p className="text-sm font-semibold">Aún no hay fotos</p>
           <p className="text-xs">Los invitados podrán subir fotos desde el enlace público.</p>
@@ -298,8 +331,10 @@ export function PhotoAdminGrid({ photos, eventId, eventSlug }: PhotoAdminGridPro
   }
 
   return (
-    <div className="flex flex-col gap-10">
-      <AdminActions />
+    <div className="flex flex-col gap-6">
+      {showAdminActions ? (
+        <LiveAlbumAdminActions photos={photos} eventId={eventId} eventSlug={eventSlug} />
+      ) : null}
       <Section title="Pendientes" items={pending} accent="bg-amber-100 text-amber-700" />
       <Section title="Aprobadas" items={approved} accent="bg-emerald-100 text-emerald-700" />
       <Section title="Rechazadas" items={rejected} accent="bg-red-100 text-red-700" />

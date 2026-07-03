@@ -8,12 +8,12 @@
  * eventClient puede pasarse desde la pagina para evitar fetch extra.
  */
 import Link from "next/link";
-import { ExternalLink, Eye, GlobeLock, Globe, Pencil, QrCode } from "lucide-react";
+import { ExternalLink, Eye, Pencil, QrCode } from "lucide-react";
 import { updateEvent, deleteEvent } from "@/app/actions/events";
-import { setEventStatus } from "@/app/actions/event-status";
 import { CopyLinkButton } from "@/components/copy-link-button";
 import { DeleteEventButton } from "@/components/delete-event-button";
 import { DeleteEventForm } from "@/components/delete-event-form";
+import { EventStatusButton } from "@/components/event-status-button";
 import { QrDownload } from "@/components/qr-download";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -77,7 +77,6 @@ function PublicacionCard({
   const invitationMessage = getInvitationShareMessage(event, url);
   const photoMessage = getPhotoUploadShareMessage(event, photoUploadUrl);
   const albumMessage = getAlbumShareMessage(event, albumUrl);
-  const publishAction = setEventStatus.bind(null, event.id, isDraft ? "publicado" : "borrador");
   const hasExternalPhotoAlbum = eventHasFeature(event, "external_photo_album") && Boolean(event.external_photo_album_url);
   const photoQrUrl = hasExternalPhotoAlbum ? event.external_photo_album_url! : photoUploadUrl;
   const photoQrTitle = hasExternalPhotoAlbum ? "QR album externo" : "QR subida de fotos";
@@ -106,21 +105,13 @@ function PublicacionCard({
               </p>
             </div>
             {canPublish ? (
-              <form action={publishAction}>
-                <Button size="sm" variant={isDraft ? "default" : "outline"}>
-                  {isDraft ? (
-                    <>
-                      <Globe className="h-4 w-4" />
-                      Publicar evento
-                    </>
-                  ) : (
-                    <>
-                      <GlobeLock className="h-4 w-4" />
-                      Volver a borrador
-                    </>
-                  )}
-                </Button>
-              </form>
+              <EventStatusButton
+                eventId={event.id}
+                nextStatus={isDraft ? "publicado" : "borrador"}
+                isDraft={isDraft}
+                draftLabel="Publicar evento"
+                publishedLabel="Volver a borrador"
+              />
             ) : null}
           </div>
 

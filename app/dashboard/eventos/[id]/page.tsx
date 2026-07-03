@@ -6,14 +6,13 @@ import {
   Download,
   ExternalLink,
   Eye,
-  Globe,
-  GlobeLock,
   ImageIcon,
   MonitorPlay,
   Wand2,
 } from "lucide-react";
 import { CopyLinkButton } from "@/components/copy-link-button";
 import { DashboardEventToast } from "@/components/dashboard-event-toast";
+import { EventStatusButton } from "@/components/event-status-button";
 import { LiveScreenActions } from "@/components/live-screen-actions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -35,7 +34,6 @@ import {
 } from "@/lib/permissions";
 import { perfEnd, perfStart, timed } from "@/lib/perf";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { setEventStatus } from "@/app/actions/event-status";
 import { regenerateCanvasDesignV3 } from "@/app/actions/canvas-v3";
 import type { Client, Event } from "@/lib/types";
 import { absoluteUrl, publicEventUrl, shortAlbumUrl, shortLiveScreenUrl, shortPhotoUploadUrl } from "@/lib/utils";
@@ -343,7 +341,6 @@ export default async function EventDetailPage({
   const clientPanelUrl = absoluteUrl("/evento-login");
   const isDraft        = event.status !== "publicado";
   const previewUrl     = `/evento/${event.slug}?preview=admin`;
-  const publishAction  = setEventStatus.bind(null, event.id, isDraft ? "publicado" : "borrador");
   const regenerateV3Action = regenerateCanvasDesignV3.bind(null, event.id);
   const savedToast     = query.saved
     ? query.saved === "status"
@@ -403,21 +400,13 @@ export default async function EventDetailPage({
 
             <div className="mt-3 flex flex-wrap items-center gap-2">
               {permissions.publishEvents && (
-                <form action={publishAction}>
-                  <Button size="sm" variant={isDraft ? "default" : "outline"}>
-                    {isDraft ? (
-                      <>
-                        <Globe className="h-4 w-4" />
-                        Publicar
-                      </>
-                    ) : (
-                      <>
-                        <GlobeLock className="h-4 w-4" />
-                        A borrador
-                      </>
-                    )}
-                  </Button>
-                </form>
+                <EventStatusButton
+                  eventId={event.id}
+                  nextStatus={isDraft ? "publicado" : "borrador"}
+                  isDraft={isDraft}
+                  draftLabel="Publicar"
+                  publishedLabel="A borrador"
+                />
               )}
 
               {isDraft ? (

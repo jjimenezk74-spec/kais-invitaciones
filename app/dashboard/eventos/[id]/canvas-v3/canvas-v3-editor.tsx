@@ -779,7 +779,7 @@ function hasBorder(el: Pick<V3Element, "border" | "borderWidth" | "borderStyle">
 
 function estimateElementRenderHeight(el: V3Element): number {
   if (el.type === "app" && normalizeAppType(el) === "rsvp") {
-    return Math.max(el.height ?? 0, 520);
+    return Math.max(el.height ?? 0, 1000);
   }
   if (el.height != null) return el.height;
   if (el.type === "app") return 88;

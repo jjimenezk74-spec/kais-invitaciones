@@ -6904,6 +6904,33 @@ export function CanvasEditorV3({
                     );
                   })}
 
+                {/* RSVP debug overlays (editor-only, temporary) */}
+                {(!preview) && (() => {
+                  const RSVP_DEBUG = true;
+                  if (!RSVP_DEBUG) return null;
+                  return viewportElements
+                    .filter((el) => (el.appType ?? el.appKind) === "rsvp")
+                    .map((el) => {
+                      const elH = estimateElementRenderHeight(el);
+                      const sec =
+                        sections.find((s) => el.y >= s.y && el.y < s.y + s.height) ??
+                        (el.y < (sections[0]?.y ?? 0)
+                          ? sections[0]
+                          : sections[sections.length - 1]);
+                      const secH = sec ? sec.height : 0;
+                      return (
+                        <div key={el.id + "-debug"} style={{ position: "absolute", left: el.x, top: el.y, width: el.width, height: elH, pointerEvents: "none", zIndex: 20000 }}>
+                          <div style={{ position: "absolute", inset: 0, border: "2px dashed rgba(255,80,80,0.95)", borderRadius: 8, boxSizing: "border-box", background: "rgba(255,80,80,0.03)" }} />
+                          <div style={{ position: "absolute", left: 6, top: 6, padding: "2px 6px", background: "rgba(0,0,0,0.6)", color: "#fff", fontSize: 11, borderRadius: 6 }}>
+                            <div style={{ lineHeight: 1 }}><strong>y:</strong> {el.y}</div>
+                            <div style={{ lineHeight: 1 }}><strong>elH:</strong> {elH}</div>
+                            <div style={{ lineHeight: 1 }}><strong>secH:</strong> {secH}</div>
+                          </div>
+                        </div>
+                      );
+                    });
+                })()}
+
                 {!preview && selectionBox && (
                   <div
                     style={{

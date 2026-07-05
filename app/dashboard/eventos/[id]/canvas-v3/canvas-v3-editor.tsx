@@ -1041,13 +1041,16 @@ function RenderElement({
   // clipPath clips anything that overflows section top or bottom.
   // border + borderRadius live here so they're clipped too (no border bleed).
   const hasClip = clipTop > 0 || clipBottom > 0;
-  const contentStyle: React.CSSProperties = withElementMirror(el.flipX, el.flipY, {
+const appType = el.type === "app" ? (el.appType ?? el.appKind) : null;
+    const isRsvpApp = appType === "rsvp";
+
+    const contentStyle: React.CSSProperties = withElementMirror(el.flipX, el.flipY, {
     position: "absolute",
     inset: 0,
     borderRadius: el.borderRadius,
     border: blendDecoration ? undefined : computeBorder(el),
     overflow: "hidden",
-    clipPath: hasClip ? `inset(${clipTop}px 0px ${clipBottom}px 0px)` : undefined,
+    clipPath: (hasClip && !isRsvpApp) ? `inset(${clipTop}px 0px ${clipBottom}px 0px)` : undefined,
   });
 
   const handleSize = isAtmosphericDecoration ? 5 : 6;

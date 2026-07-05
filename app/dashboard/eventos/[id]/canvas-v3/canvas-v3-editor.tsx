@@ -338,7 +338,7 @@ const DEFAULT_SECTION_TEMPLATES: Omit<V3Section, "y">[] = [
   { id: "details", label: "Detalles", height: 620, background: "linear-gradient(180deg,#241125,#18121f)" },
   { id: "church", label: "Iglesia", height: 520, background: "linear-gradient(180deg,#18121f,#20101c)" },
   { id: "dresscode", label: "Vestimenta", height: 460, background: "linear-gradient(180deg,#20101c,#17111c)" },
-  { id: "rsvp", label: "Confirmación", height: 950, background: "linear-gradient(180deg,#17111c,#241225)" },
+  { id: "rsvp", label: "Confirmación", height: 1000, background: "linear-gradient(180deg,#17111c,#241225)" },
   { id: "footer", label: "Cierre", height: 280, background: "linear-gradient(180deg,#241225,#0f0f17)" }
 ];
 
@@ -1843,7 +1843,7 @@ function makeSemanticPremiumTemplate(spec: SemanticPremiumTemplateSpec, variant:
         { id: mkId("intro"), label: "Presentación", y: y.intro, height: 500, background: `linear-gradient(180deg,${bg1},${bg0})`, kind: "person_presentation", required: true },
         { id: mkId("details"), label: "Detalles", y: y.details, height: 520, background: `linear-gradient(180deg,${bg0},${bg1})`, kind: "event_details", required: true },
         { id: mkId("message"), label: "Mensaje", y: y.message, height: 480, background: `linear-gradient(180deg,${bg1},${bg0})`, kind: "message", required: true },
-        { id: mkId("rsvp"), label: "Confirmación", y: y.rsvp, height: 950, background: `linear-gradient(180deg,${bg0},${bg1})`, kind: "rsvp", required: true },
+        { id: mkId("rsvp"), label: "Confirmación", y: y.rsvp, height: 1000, background: `linear-gradient(180deg,${bg0},${bg1})`, kind: "rsvp", required: true },
         { id: mkId("footer"), label: "Cierre", y: y.footer, height: 300, background: `linear-gradient(180deg,${bg1},${bg0})`, kind: "footer", required: true },
       ];
 
@@ -2074,7 +2074,7 @@ const PREMIUM_TEMPLATES: PremiumTemplate[] = [
         { id: mkId("s4"), label: "Mensaje especial", y: 1720, height: 480, background: "linear-gradient(180deg,#f7eadc,#fff8f0)", kind: "message", required: true },
         { id: mkId("s5"), label: "Vestimenta", y: 2200, height: 440, background: "linear-gradient(180deg,#fff8f0,#f4dfe0 48%,#fff8f0)", kind: "dress_code", required: false },
         { id: mkId("s6"), label: "Ubicacion", y: 2640, height: 480, background: "linear-gradient(180deg,#fffdf9,#f7eadc,#fffdf9)", kind: "event_details", required: true },
-        { id: mkId("s7"), label: "RSVP", y: 3120, height: 950, background: "linear-gradient(180deg,#fff8f0,#f1dccd)", kind: "rsvp", required: true },
+        { id: mkId("s7"), label: "RSVP", y: 3120, height: 1000, background: "linear-gradient(180deg,#fff8f0,#f1dccd)", kind: "rsvp", required: true },
         { id: mkId("s8"), label: "Cierre", y: 3520, height: 440, background: "linear-gradient(180deg,#f1dccd,#fffdf9 62%,#f7eadc 100%)", kind: "footer", required: true },
       ];
 

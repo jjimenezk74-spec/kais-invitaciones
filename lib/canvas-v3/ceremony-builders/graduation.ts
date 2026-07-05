@@ -13,7 +13,7 @@ const SECTION_VISUALS: Array<Pick<CanvasV3Section, "id" | "label" | "height" | "
   { id: "message", label: "Mensaje principal", height: 560, background: "linear-gradient(180deg,#12141c,#080d18)", kind: "message", required: false, sourceEventType: "graduation" },
   { id: "dress_code", label: "Vestimenta", height: 400, background: "linear-gradient(180deg,#080d18,#10131b)", kind: "dress_code", required: false, sourceEventType: "graduation" },
   { id: "location", label: "Ubicación", height: 520, background: "linear-gradient(180deg,#10131b,#070a12)", kind: "event_details", required: true, sourceEventType: "graduation" },
-  { id: "rsvp", label: "Confirmación", height: 950, background: "linear-gradient(180deg,#070a12,#111827)", kind: "rsvp", required: true, sourceEventType: "graduation" },
+  { id: "rsvp", label: "Confirmación", height: 1000, background: "linear-gradient(180deg,#070a12,#111827)", kind: "rsvp", required: true, sourceEventType: "graduation" },
   { id: "footer", label: "Cierre", height: 360, background: "linear-gradient(180deg,#111827,#030712)", kind: "footer", required: true, sourceEventType: "graduation" },
 ];
 

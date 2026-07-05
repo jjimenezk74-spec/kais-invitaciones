@@ -207,6 +207,16 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
 
   const canvasDesign = event.canvas_design as unknown;
   const hasCanvasV3Design = isCanvasV3Design(canvasDesign);
+  // Prepare RSVP context to be passed into canvas renderer when present
+  const rsvpAction = (eventSource === "d1" ? submitD1Rsvp : submitRsvp).bind(null, event.id);
+  const rsvpStatus = normalizeSearchParam(query.rsvp);
+  const rsvpError = normalizeSearchParam(query.rsvp_error);
+  const rsvpAttending = normalizeSearchParam(query.rsvp_attending);
+  const shouldRedirectWhatsApp = normalizeSearchParam(query.wa) === "1";
+  const whatsappMessage = normalizeSearchParam(query.wa_message);
+  const shouldUseWhatsAppRsvp =
+    eventHasFeature(event, "external_rsvp_whatsapp") &&
+    Boolean(event.whatsapp_phone);
 
   if (hasCanvasV3Design) {
     return (
@@ -229,24 +239,26 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
             eventSlug={event.slug ?? slug}
             eventDate={event.event_date && event.event_time ? `${event.event_date}T${event.event_time}` : undefined}
             mode="public"
+            rsvpAction={rsvpAction}
+            guestToken={guestToken}
+            invitedGuest={invitedGuest}
+            invitedGuestRsvp={invitedGuestRsvp}
+            rsvpError={rsvpError}
+            rsvpStatus={rsvpStatus}
+            rsvpAttending={rsvpAttending}
+            shouldUseWhatsAppRsvp={shouldUseWhatsAppRsvp}
           />
         </div>
       </div>
     );
   }
 
-  const rsvpAction = (eventSource === "d1" ? submitD1Rsvp : submitRsvp).bind(null, event.id);
   const calendarUrl = buildCalendarUrl(event);
   const [template, invitationTheme] = await Promise.all([
     eventSource === "supabase" && event.template_id ? getInvitationTemplate(event.template_id) : Promise.resolve(null),
     eventSource === "supabase" && event.theme_id    ? fetchThemeById(event.theme_id)           : Promise.resolve(null)
   ]);
 
-  const rsvpStatus = normalizeSearchParam(query.rsvp);
-  const rsvpError = normalizeSearchParam(query.rsvp_error);
-  const rsvpAttending = normalizeSearchParam(query.rsvp_attending);
-  const shouldRedirectWhatsApp = normalizeSearchParam(query.wa) === "1";
-  const whatsappMessage = normalizeSearchParam(query.wa_message);
   const isConfirmed = Boolean(invitedGuestRsvp) || rsvpStatus === "ok";
   const confirmedAttending = invitedGuestRsvp
     ? invitedGuestRsvp.attending
@@ -261,9 +273,6 @@ export default async function PublicEventPage({ params, searchParams }: PageProp
   const showRoyalPack =
     invitationTheme?.slug === "royal-wedding" ||
     design.designConfig.decorationPreset === "luxury-gold";
-  const shouldUseWhatsAppRsvp =
-    eventHasFeature(event, "external_rsvp_whatsapp") &&
-    Boolean(event.whatsapp_phone);
   const resolvedThemeSlug =
     invitationTheme?.slug ??
     eventRow?.theme_slug ??

@@ -601,7 +601,6 @@ export function createGraduationCanvasV3Design(event: CanvasV3EventData): Canvas
     lineHeight: 1.38,
   });
   app("grad-rsvp-app", "rsvp", 236, "rsvp", "Confirmar asistencia", 320, 66, 44);
-  if (waUrl) app("grad-whatsapp-app", "rsvp", 326, "whatsapp", "Enviar WhatsApp", 320, 60, 45, waUrl);
   text("grad-package-note", "rsvp", 430, "KAIS", 120, 18, 46, {
     semanticRole: "package_note",
     dataKey: "package_key",

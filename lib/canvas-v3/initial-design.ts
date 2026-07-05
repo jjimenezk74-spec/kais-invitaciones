@@ -158,8 +158,40 @@ export function isValidCanvasV3Design(value: unknown): value is CanvasV3Design {
   return true;
 }
 
+function normalizeSavedCanvasV3Design(design: CanvasV3Design): CanvasV3Design {
+  const hasRsvp = design.elements.some((element) => element.type === "app" && (element.appType ?? element.appKind) === "rsvp");
+  return {
+    ...design,
+    elements: design.elements.flatMap((element) => {
+      if (element.type !== "app" || (element.appType ?? element.appKind) !== "whatsapp") {
+        return [element];
+      }
+
+      if (hasRsvp) {
+        return [];
+      }
+
+      const next = {
+        ...element,
+        appType: "rsvp" as const,
+        appKind: "rsvp" as const,
+        content: "Confirmar asistencia",
+        semanticRole: element.semanticRole ?? "rsvp_action",
+        lockedContent: element.lockedContent ?? true,
+        config: { ...(element.config ?? {}) },
+      };
+
+      if (next.config) {
+        delete next.config.url;
+      }
+
+      return [next];
+    }),
+  };
+}
+
 export function resolveInitialCanvasV3Design(event: CanvasV3EventData): CanvasV3Design {
-  if (isValidCanvasV3Design(event.canvas_design)) return event.canvas_design;
+  if (isValidCanvasV3Design(event.canvas_design)) return normalizeSavedCanvasV3Design(event.canvas_design);
   return createInitialCanvasV3Design(event);
 }
 

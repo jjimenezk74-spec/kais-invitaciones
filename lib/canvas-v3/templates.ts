@@ -585,8 +585,10 @@ function normalizeCanvasV3Design(value: unknown, mode: "template" | "hydrated", 
 
   const sections = value.sections.map(sanitizeSection);
   if (sections.some((section) => section == null)) return null;
-  const elements = value.elements.map((element) => sanitizeElement(element, mode, event, currentDesign));
-  if (elements.some((element) => element == null)) return null;
+  const parsedElements = value.elements.map((element) => sanitizeElement(element, mode, event, currentDesign));
+  if (parsedElements.some((element) => element == null)) return null;
+
+  const elements = normalizeTemplateWhatsappElements(parsedElements.filter((element): element is CanvasV3Element => element != null));
 
   const themeId = typeof value.themeId === "string" && VALID_THEME_IDS.has(value.themeId as CanvasV3Design["themeId"])
     ? value.themeId as CanvasV3Design["themeId"]
@@ -599,12 +601,44 @@ function normalizeCanvasV3Design(value: unknown, mode: "template" | "hydrated", 
     height,
     themeId,
     sections: sections as CanvasV3Section[],
-    elements: elements as CanvasV3Element[],
+    elements,
   };
 }
 
+function normalizeTemplateWhatsappElements(elements: CanvasV3Element[]): CanvasV3Element[] {
+  const hasRsvp = elements.some((element) => element.type === "app" && normalizeAppType(element) === "rsvp");
+  return elements.flatMap((element) => {
+    if (element.type !== "app" || normalizeAppType(element) !== "whatsapp") {
+      return [element];
+    }
+
+    if (hasRsvp) {
+      return [];
+    }
+
+    const next = {
+      ...element,
+      appType: "rsvp" as const,
+      appKind: "rsvp" as const,
+      content: "Confirmar asistencia",
+      semanticRole: element.semanticRole ?? "rsvp_action",
+      lockedContent: element.lockedContent ?? true,
+      config: {
+        ...element.config,
+      },
+    };
+
+    if (next.config) {
+      delete next.config.url;
+    }
+
+    return [next];
+  });
+}
+
 export function sanitizeCanvasV3TemplateDesign(design: unknown): CanvasV3Design | null {
-  return normalizeCanvasV3Design(design, "template");
+  const normalized = normalizeCanvasV3Design(design, "template");
+  return normalized ? { ...normalized, elements: normalizeTemplateWhatsappElements(normalized.elements) } : null;
 }
 
 export function extractCanvasV3TemplateFromEventDesign(

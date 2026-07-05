@@ -14,6 +14,7 @@ import { eventHasFeature, type EventFeatureKey } from "@/lib/event-features";
 import { hydrateCanvasV3Template } from "@/lib/canvas-v3/templates";
 import type { CanvasV3Design as SharedCanvasV3Design, CanvasV3EventData } from "@/lib/canvas-v3/initial-design";
 import type { CeremonySectionKind, CeremonySemanticRole } from "@/lib/canvas-v3/ceremonial-structures";
+import { CanvasV3RsvpForm } from "@/components/canvas-v3/canvas-v3-rsvp-form";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -496,6 +497,35 @@ function isV3Section(value: unknown): value is V3Section {
   );
 }
 
+function normalizeEditorAppElements(elements: V3Element[]): V3Element[] {
+  const hasRsvp = elements.some((element) => element.type === "app" && normalizeAppType(element) === "rsvp");
+  return elements.flatMap((element) => {
+    if (element.type !== "app" || normalizeAppType(element) !== "whatsapp") {
+      return [element];
+    }
+
+    if (hasRsvp) {
+      return [];
+    }
+
+    const next = {
+      ...element,
+      appType: "rsvp" as const,
+      appKind: "rsvp" as const,
+      content: "Confirmar asistencia",
+      semanticRole: element.semanticRole ?? "rsvp_action",
+      lockedContent: element.lockedContent ?? true,
+      config: { ...(element.config ?? {}) },
+    };
+
+    if (next.config) {
+      delete next.config.url;
+    }
+
+    return [next];
+  });
+}
+
 function normalizeInitialV3Design(value: unknown): CanvasV3Design | null {
   if (!isRecord(value)) return null;
   if (value.version !== 3) return null;
@@ -504,11 +534,11 @@ function normalizeInitialV3Design(value: unknown): CanvasV3Design | null {
 
   const validElements = value.elements.filter(isV3Element);
   if (validElements.length !== value.elements.length) return null;
-  const elements = validElements.map((element) => ({
+  const elements = normalizeEditorAppElements(validElements.map((element) => ({
     ...element,
     content: element.id.startsWith("uploaded-") && element.config?.url ? undefined : element.content,
     height: element.height ?? null,
-  }));
+  })));
   const rawSections = Array.isArray(value.sections) ? value.sections.filter(isV3Section) : [];
   const sections = rawSections.length ? rawSections : DEFAULT_SECTIONS;
   const height = sections.at(-1) ? sections.at(-1)!.y + sections.at(-1)!.height : DEFAULT_DOCUMENT_H;
@@ -593,7 +623,6 @@ const APP_DEMO_LABELS: Record<string, { label: string; icon: string }> = {
 
 const APP_BLOCKS: { id: V3AppType; icon: string; label: string }[] = [
   { id: "rsvp", icon: "✓", label: "Confirmar asistencia" },
-  { id: "whatsapp", icon: "✉", label: "WhatsApp" },
   { id: "countdown", icon: "⏱", label: "Cuenta regresiva" },
   { id: "maps", icon: "⌖", label: "Ver ubicación" },
   { id: "live-album", icon: "▧", label: "Álbum en vivo" },
@@ -611,7 +640,7 @@ const APP_DEFAULTS: Record<V3AppType, {
   borderRadius: number;
   url?: string;
 }> = {
-  rsvp: { content: "Confirmar asistencia", width: 320, height: 82, background: "linear-gradient(135deg,#c8a96a,#9b6f2a)", color: "#1a0a18", borderRadius: 18 },
+  rsvp: { content: "Confirmar asistencia", width: 320, height: 520, background: "linear-gradient(135deg,#c8a96a,#9b6f2a)", color: "#1a0a18", borderRadius: 18 },
   whatsapp: { content: "Enviar WhatsApp", width: 320, height: 86, background: "linear-gradient(160deg,#0d3d21 0%,#1a6b3a 100%)", color: "#e8f5ee", borderRadius: 20, url: "https://wa.me/" },
   countdown: { content: "45 DÍAS · 12 HRS · 08 MIN · 30 SEG", width: 340, height: 96, background: "rgba(124,58,237,0.18)", color: "#e8e6ff", border: "1px solid rgba(124,58,237,0.35)", borderRadius: 16 },
   maps: { content: "Ver ubicación", width: 320, height: 78, background: "rgba(200,169,106,0.16)", color: "#f4d28a", border: "1px solid rgba(200,169,106,0.36)", borderRadius: 16, url: "https://maps.google.com" },
@@ -746,6 +775,9 @@ function hasBorder(el: Pick<V3Element, "border" | "borderWidth" | "borderStyle">
 }
 
 function estimateElementRenderHeight(el: V3Element): number {
+  if (el.type === "app" && normalizeAppType(el) === "rsvp") {
+    return Math.max(el.height ?? 0, 520);
+  }
   if (el.height != null) return el.height;
   if (el.type === "app") return 88;
   if (!el.content) return 60;
@@ -862,6 +894,7 @@ function RenderElement({
   onInlineTextCommit,
   onReplaceImage,
   onEditQr,
+  themeId,
   // Section clip values: how many px the element overflows its section top/bottom.
   // Applied only to the visual content layer — handles and toolbar remain unclipped.
   clipTop = 0,
@@ -877,6 +910,7 @@ function RenderElement({
   onInlineTextCommit?: (content: string) => void;
   onReplaceImage?: () => void;
   onEditQr?: () => void;
+  themeId: CanvasV3Theme["id"];
   clipTop?: number;
   clipBottom?: number;
 }) {
@@ -1119,10 +1153,36 @@ function RenderElement({
 
         {/* App block content */}
         {el.type === "app" && normalizeAppType(el) && (
+          normalizeAppType(el) === "rsvp" ? (
+            <div
+              style={{
+                position: "absolute",
+                left: 0,
+                top: 0,
+                width: "100%",
+                height: "auto",
+                overflow: "visible",
+              }}
+            >
+              <CanvasV3RsvpForm
+                mode="editor"
+                width={el.width}
+                themeId={themeId}
+                elementStyle={{
+                  content: el.content,
+                  background: el.background,
+                  color: el.color,
+                  border: el.border,
+                  borderRadius: el.borderRadius,
+                  config: el.config,
+                }}
+              />
+            </div>
+          ) : (
           <div
             style={{
               position: "absolute", inset: 0,
-              background: el.background,
+              background: normalizeAppType(el) === "whatsapp" ? APP_DEFAULTS.rsvp.background : el.background,
               borderRadius: el.borderRadius,
               display: "flex",
               alignItems: "center",
@@ -1153,49 +1213,18 @@ function RenderElement({
                 <span style={{ color: el.color ?? "#1a0a18", fontSize: 11, fontWeight: 700 }}>{el.content ?? "QR del evento"}</span>
               </>
             ) : normalizeAppType(el) === "whatsapp" ? (
-              /* WhatsApp premium render */
-              <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "0 18px", width: "100%", justifyContent: "center", boxSizing: "border-box" }}>
+              <>
+                <span style={{ fontSize: 18 }}>{APP_DEMO_LABELS.rsvp.icon}</span>
                 <span style={{
-                  position: "relative",
-                  display: "grid",
-                  placeItems: "center",
-                  width: 30,
-                  height: 30,
-                  borderRadius: 999,
-                  background: "linear-gradient(135deg,#25d366 0%,#128c7e 100%)",
-                  color: "#ffffff",
+                  color: APP_DEFAULTS.rsvp.color,
                   fontFamily: "Inter, system-ui, sans-serif",
-                  fontSize: 9,
-                  fontWeight: 900,
-                  letterSpacing: "0.02em",
-                  boxShadow: "0 8px 18px rgba(18,140,126,0.32)",
-                  flexShrink: 0,
+                  fontSize: 15,
+                  fontWeight: "700",
+                  letterSpacing: "0.12em",
                 }}>
-                  <svg width="17" height="17" viewBox="0 0 24 24" aria-hidden="true" focusable="false" style={{ position: "relative", zIndex: 1 }}>
-                    <path fill="currentColor" d="M19.1 14.7c-.3-.2-1.9-.9-2.2-1-.3-.1-.5-.2-.7.2-.2.3-.8 1-.9 1.2-.2.2-.3.2-.6.1-1.7-.8-3-1.9-3.9-3.6-.1-.3-.1-.4.1-.6.1-.1.3-.4.5-.6.2-.2.2-.3.3-.5.1-.2 0-.4 0-.6-.1-.2-.7-1.7-1-2.3-.3-.6-.5-.5-.7-.5h-.6c-.2 0-.6.1-.9.4-.3.3-1.1 1.1-1.1 2.7s1.2 3.1 1.3 3.3c.2.2 2.3 3.6 5.7 5 .8.3 1.4.5 1.9.6.8.3 1.5.2 2.1.1.6-.1 1.9-.8 2.2-1.6.3-.8.3-1.4.2-1.5-.1-.2-.3-.3-.6-.4z" />
-                  </svg>
-                  <span style={{ position: "absolute", right: 2, bottom: 3, width: 7, height: 7, borderRadius: 2, background: "#128c7e", transform: "rotate(45deg)" }} />
+                  Confirmar asistencia
                 </span>
-                <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                  <span style={{
-                    color: el.color ?? "#ffffff",
-                    fontFamily: "Inter, system-ui, sans-serif",
-                    fontSize: 14,
-                    fontWeight: "800",
-                    letterSpacing: "0.03em",
-                    lineHeight: 1.2,
-                  }}>{el.content || "Enviar WhatsApp"}</span>
-                  <span style={{
-                    color: el.color ?? "#ffffff",
-                    fontFamily: "Inter, system-ui, sans-serif",
-                    fontSize: 10,
-                    fontWeight: "700",
-                    opacity: 0.72,
-                    letterSpacing: "0.07em",
-                    textTransform: "uppercase",
-                  }}>Abrir WhatsApp</span>
-                </div>
-              </div>
+              </>
             ) : (
               <>
                 <span style={{ fontSize: 18 }}>{APP_DEMO_LABELS[normalizeAppType(el)!]?.icon}</span>
@@ -1211,6 +1240,7 @@ function RenderElement({
               </>
             )}
           </div>
+          )
         )}
       </div>{/* end visual content wrapper */}
 
@@ -1425,7 +1455,19 @@ function hydratePremiumTemplateElements(
       return { ...element, config: { ...element.config, url: mapsUrl } };
     }
     if (element.type === "app" && normalizeAppType(element) === "whatsapp") {
-      return { ...element, visible: Boolean(whatsappUrl), config: { ...element.config, url: whatsappUrl } };
+      const next = {
+        ...element,
+        appType: "rsvp" as const,
+        appKind: "rsvp" as const,
+        content: "Confirmar asistencia",
+        semanticRole: element.semanticRole ?? "rsvp_action",
+        dataKey: element.dataKey ?? "package_key",
+        lockedContent: element.lockedContent ?? true,
+        visible: element.visible,
+        config: { ...(element.config ?? {}) },
+      };
+      if (next.config) delete next.config.url;
+      return next;
     }
 
     return element;
@@ -1862,7 +1904,6 @@ function makeSemanticPremiumTemplate(spec: SemanticPremiumTemplateSpec, variant:
 
       elements.push(mkText("rsvp-title", "Confirmar asistencia", cx(304), y.rsvp + 46, 304, 64, { fontSize: type.titleSize, fontFamily: type.title, fontStyle: type.italic ? "italic" : "normal", fontWeight: "700", lineHeight: 1.16, textShadow: titleShadow }));
       elements.push(mkApp("rsvp-action", "rsvp", "Confirmar asistencia", cx(300), y.rsvp + 126, 300, 60));
-      elements.push(mkApp("rsvp-whatsapp", "whatsapp", "Enviar WhatsApp", cx(250), y.rsvp + 206, 250, 58));
 
       elements.push(mkText("footer-title", spec.footerLine, cx(318), y.footer + 74, 318, 86, { fontSize: 25, fontFamily: type.title, fontStyle: type.italic ? "italic" : "normal", fontWeight: "700", lineHeight: 1.24, textShadow: titleShadow }));
       elements.push(mkText("footer-name", "Nombre del evento", cx(250), y.footer + 162, 250, 42, { dataKey: spec.heroDataKey, semanticRole: spec.heroRole, lockedContent: true, fontSize: 16, color: spec.accent, lineHeight: 1.32 }));
@@ -2073,8 +2114,6 @@ const PREMIUM_TEMPLATES: PremiumTemplate[] = [
       els.push(mkText("s7-eye", "CONFIRMA TU ASISTENCIA", cx(264), s7 + 36, 264, 16, { fontSize: 9, fontWeight: "700", letterSpacing: 0.22, color: GOLD }));
       els.push(mkText("s7-deadline", "Antes del 1 de Junio", cx(226), s7 + 74, 226, 20, { fontSize: 12, fontStyle: "italic", fontFamily: "'Playfair Display',Georgia,serif", color: TEXT_MUTED }));
       els.push(mkApp("s7-rsvp", "rsvp", "CONFIRMAR ASISTENCIA", cx(290), s7 + 108, 290, 56, { background: "linear-gradient(135deg," + ROSE + "," + MAUVE + ")", color: IVORY, borderRadius: 18, config: { url: "", primaryColor: ROSE, textColor: IVORY } }));
-      els.push(mkText("s7-or", "- o escribinos por -", cx(208), s7 + 186, 208, 18, { fontSize: 11, color: TEXT_MUTED, fontStyle: "italic", fontFamily: "'Playfair Display',Georgia,serif" }));
-      els.push(mkApp("s7-wa", "whatsapp", "WhatsApp", cx(190), s7 + 214, 190, 46, { background: CARD, color: "#4a8c5c", borderRadius: 16, border: "1px solid rgba(74,140,92,0.30)", config: { url: "https://wa.me/", primaryColor: "#25d366", textColor: "#4a8c5c" } }));
 
       const s8 = 3520;
       els.push(mkShape("s8-wash-top", 0, s8, 390, 220, "radial-gradient(ellipse at 50% 0%,rgba(232,185,193,0.24) 0%,transparent 65%)"));
@@ -2433,7 +2472,6 @@ function ExpandedPanel({
     const appList: Array<{ id: string; icon: string; label: string; description: string; accent: string }> = [
       { id: "countdown", icon: "00", label: "Cuenta regresiva", description: "Dias, horas y minutos en vivo", accent: "linear-gradient(135deg,#2d2621,#b8925a)" },
       { id: "rsvp", icon: "✓", label: "RSVP", description: "Confirmacion de asistencia", accent: "linear-gradient(135deg,#4b3a2e,#b8925a)" },
-      { id: "whatsapp", icon: "WA", label: "WhatsApp", description: "Contacto directo con invitados", accent: "linear-gradient(135deg,#26352d,#9fb99f)" },
       { id: "maps", icon: "⌖", label: "Google Maps", description: "Boton funcional de ubicacion", accent: "linear-gradient(135deg,#2f3437,#b7a98f)" },
       { id: "qr", icon: "QR", label: "Codigo QR", description: "Acceso escaneable al evento", accent: "linear-gradient(135deg,#191716,#c8a96a)" },
       { id: "album", icon: "AL", label: "Album en vivo", description: "Fotos compartidas en tiempo real", accent: "linear-gradient(135deg,#2e2930,#b7a98f)" },
@@ -6753,6 +6791,7 @@ export function CanvasEditorV3({
                       <RenderElement
                         key={el.id}
                         el={el}
+                        themeId={themeId}
                         clipTop={clipTop}
                         clipBottom={clipBottom}
                         selected={el.id === selectedId && !preview}

@@ -404,7 +404,6 @@ export function createQuinceaniosCanvasV3Design(event: CanvasV3EventData): Canva
     color: "#f8d9a0",
   });
   app("rsvp-app", "rsvp", 180, "rsvp", "Confirmar asistencia", 320, 64, 32);
-  if (waUrl) app("whatsapp-app", "rsvp", 268, "whatsapp", "Enviar WhatsApp", 320, 60, 33, waUrl);
   text("package-note", "rsvp", 380, `Plan ${clean(event.package_key) || "KAIS"}`, 260, 24, 34, {
     semanticRole: "package_note",
     dataKey: "package_key",

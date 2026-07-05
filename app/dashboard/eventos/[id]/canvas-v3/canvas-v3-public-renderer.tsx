@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
+import { CanvasV3RsvpForm, isRsvpFormPlaceholderElement } from "@/components/canvas-v3/canvas-v3-rsvp-form";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types (mirrored from canvas-v3-editor.tsx — keep in sync)
@@ -353,17 +354,49 @@ function resolveAppType(el: V3Element): V3AppType | null {
 function PublicElement({
   el,
   eventSlug,
+  eventTitle,
   eventDate,
+  themeId,
   clipTop = 0,
   clipBottom = 0,
+  rsvpAction,
+  guestToken,
+  invitedGuest,
+  invitedGuestRsvp,
+  rsvpError,
+  rsvpStatus,
+  rsvpAttending,
+  shouldUseWhatsAppRsvp,
 }: {
   el: V3Element;
   eventSlug?: string;
+  eventTitle?: string;
   eventDate?: string;
+  themeId?: string | null;
   /** px the element overflows above its section top — clip that much from the top */
   clipTop?: number;
   /** px the element overflows below its section bottom — clip that much from the bottom */
   clipBottom?: number;
+  rsvpAction?: ((formData: FormData) => void | Promise<void>) | null;
+  guestToken?: string | null;
+  invitedGuest?: {
+    guest_name?: string;
+    phone?: string;
+    email?: string;
+    max_companions?: number;
+  } | null;
+  invitedGuestRsvp?: {
+    attending?: boolean;
+    phone?: string;
+    email?: string;
+    companions?: number;
+    dietary_restrictions?: string;
+    message?: string;
+  } | null;
+  rsvpError?: string | null;
+  rsvpStatus?: string | null;
+  rsvpAttending?: string | null;
+  shouldUseWhatsAppRsvp?: boolean;
 }) {
   // Hover state for interactive app blocks (WhatsApp lift effect)
   const [hovered, setHovered] = useState(false);
@@ -402,6 +435,44 @@ function PublicElement({
 
   // App blocks —— rendered as interactive visual elements
   if (el.type === "app" && appType) {
+    if (appType === "rsvp") {
+      return (
+        <div
+          style={{
+            ...boxStyle,
+            height: "auto",
+            background: "transparent",
+            border: "none",
+            overflow: "visible",
+          }}
+        >
+          <CanvasV3RsvpForm
+            mode="public"
+            width={Math.max(1, safeNum(el.width, 320))}
+            themeId={themeId}
+            elementStyle={{
+              content: el.content,
+              background: el.background,
+              color: el.color,
+              border: el.border,
+              borderRadius: el.borderRadius,
+              config: el.config,
+            }}
+            eventSlug={eventSlug}
+            eventTitle={eventTitle}
+            rsvpAction={rsvpAction}
+            guestToken={guestToken}
+            invitedGuest={invitedGuest}
+            invitedGuestRsvp={invitedGuestRsvp}
+            rsvpError={rsvpError}
+            rsvpStatus={rsvpStatus}
+            rsvpAttending={rsvpAttending}
+            shouldUseWhatsAppRsvp={shouldUseWhatsAppRsvp}
+          />
+        </div>
+      );
+    }
+
     const demo = APP_DEMO[appType];
 
     // WhatsApp → real link
@@ -725,9 +796,20 @@ function QrBlock({ el }: { el: V3Element }) {
 type SafeElementProps = {
   el: V3Element;
   eventSlug?: string;
+  eventTitle?: string;
   eventDate?: string;
+  themeId?: string | null;
   clipTop?: number;
   clipBottom?: number;
+  // RSVP context
+  rsvpAction?: any;
+  guestToken?: string | null;
+  invitedGuest?: any | null;
+  invitedGuestRsvp?: any | null;
+  rsvpError?: string | null;
+  rsvpStatus?: string | null;
+  rsvpAttending?: string | null;
+  shouldUseWhatsAppRsvp?: boolean;
 };
 
 class SafeElement extends React.Component<SafeElementProps, { crashed: boolean }> {
@@ -747,7 +829,17 @@ class SafeElement extends React.Component<SafeElementProps, { crashed: boolean }
       <PublicElement
         el={this.props.el}
         eventSlug={this.props.eventSlug}
+        eventTitle={this.props.eventTitle}
         eventDate={this.props.eventDate}
+        themeId={this.props.themeId}
+        rsvpAction={this.props.rsvpAction}
+        guestToken={this.props.guestToken}
+        invitedGuest={this.props.invitedGuest}
+        invitedGuestRsvp={this.props.invitedGuestRsvp}
+        rsvpError={this.props.rsvpError}
+        rsvpStatus={this.props.rsvpStatus}
+        rsvpAttending={this.props.rsvpAttending}
+        shouldUseWhatsAppRsvp={this.props.shouldUseWhatsAppRsvp}
         clipTop={this.props.clipTop}
         clipBottom={this.props.clipBottom}
       />
@@ -761,6 +853,15 @@ export interface CanvasV3PublicRendererProps {
   eventSlug?: string;
   eventDate?: string; // "YYYY-MM-DDTHH:mm:ss"
   mode?: "preview" | "public";
+  // RSVP context (optional)
+  rsvpAction?: any;
+  guestToken?: string | null;
+  invitedGuest?: any | null;
+  invitedGuestRsvp?: any | null;
+  rsvpError?: string | null;
+  rsvpStatus?: string | null;
+  rsvpAttending?: string | null;
+  shouldUseWhatsAppRsvp?: boolean;
 }
 
 export function CanvasV3PublicRenderer({
@@ -769,6 +870,14 @@ export function CanvasV3PublicRenderer({
   eventSlug,
   eventDate,
   mode = "public",
+  rsvpAction,
+  guestToken,
+  invitedGuest,
+  invitedGuestRsvp,
+  rsvpError,
+  rsvpStatus,
+  rsvpAttending,
+  shouldUseWhatsAppRsvp,
 }: CanvasV3PublicRendererProps) {
   // Normalizar siempre internamente — nunca bloqueado desde afuera
   const design: CanvasV3Design = normalizePublicV3Design(rawProp) ?? {
@@ -807,10 +916,17 @@ export function CanvasV3PublicRenderer({
     }
   }, []);
 
-  const sortedElements = [...design.elements].sort((a, b) => a.zIndex - b.zIndex);
+  const sortedElements = [...design.elements]
+    .filter((el) => el.visible && !isRsvpFormPlaceholderElement(el.content))
+    .sort((a, b) => a.zIndex - b.zIndex);
   const sectionMaxH = design.sections.reduce((max, s) => Math.max(max, s.y + s.height), 0);
   const elementMaxH = design.elements.reduce((max, el) => {
-    const elH = el.height != null ? el.height : 40;
+    const appType = el.type === "app" ? resolveAppType(el) : null;
+    const elH = appType === "rsvp"
+      ? Math.max(el.height ?? 0, 520)
+      : el.height != null
+        ? el.height
+        : 40;
     return Math.max(max, el.y + elH);
   }, 0);
   const documentHeight = Math.max(design.height, sectionMaxH, elementMaxH, 844);
@@ -892,7 +1008,8 @@ export function CanvasV3PublicRenderer({
           }}
         >
           {sortedElements.map((el) => {
-            const elH = el.height ?? 60;
+            const appType = el.type === "app" ? resolveAppType(el) : null;
+            const elH = appType === "rsvp" ? Math.max(el.height ?? 0, 520) : (el.height ?? 60);
             const sec =
               design.sections.find((s) => el.y >= s.y && el.y < s.y + s.height) ??
               (el.y < (design.sections[0]?.y ?? 0)
@@ -905,9 +1022,19 @@ export function CanvasV3PublicRenderer({
                 key={el.id}
                 el={el}
                 eventSlug={eventSlug}
+                eventTitle={eventTitle}
                 eventDate={eventDate}
+                themeId={design.themeId}
                 clipTop={clipTop}
                 clipBottom={clipBottom}
+                rsvpAction={rsvpAction}
+                guestToken={guestToken}
+                invitedGuest={invitedGuest}
+                invitedGuestRsvp={invitedGuestRsvp}
+                rsvpError={rsvpError}
+                rsvpStatus={rsvpStatus}
+                rsvpAttending={rsvpAttending}
+                shouldUseWhatsAppRsvp={shouldUseWhatsAppRsvp}
               />
             );
           })}

@@ -16,7 +16,6 @@ import {
   MessagesSectionContent,
   PresentationSectionContent
 } from "@/components/public-invitation/invitation-sections";
-import { RsvpWhatsAppRedirect } from "@/components/rsvp-whatsapp-redirect";
 import { ThemeDecorations } from "@/components/theme-decorations";
 import { eventHasFeature } from "@/lib/event-features";
 import type { ResolvedDesign } from "@/lib/invitation-design";
@@ -242,17 +241,32 @@ export function PublicInvitation({
             )}
           </div>
 
-          <div className="kais-glass relative rounded-[2rem] p-6 sm:p-9 md:p-11">
-            {isAdminPreview && (
-              <div className="mb-5 rounded-xl border border-amber-400/30 bg-amber-900/20 px-4 py-3 text-xs font-semibold text-amber-300">
-                Vista previa administrador - el envio de RSVP esta deshabilitado.
+          <div className="kais-glass relative overflow-hidden rounded-[2rem] border border-[#d4af37]/20 bg-[linear-gradient(145deg,rgba(10,4,5,0.96),rgba(24,8,12,0.94))] p-6 shadow-[0_32px_90px_rgba(0,0,0,0.34)] sm:p-9 md:p-11">
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#d4af37]/70 to-transparent" />
+            <div className="pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full bg-[#d4af37]/[0.12] blur-2xl" />
+            <div className="pointer-events-none absolute -bottom-10 left-0 h-24 w-24 rounded-full bg-[#f5ecd9]/[0.08] blur-2xl" />
+            <div className="relative">
+              {isAdminPreview && (
+                <div className="mb-5 rounded-xl border border-amber-400/30 bg-amber-900/20 px-4 py-3 text-xs font-semibold text-amber-300">
+                  Vista previa administrador - el envio de RSVP esta deshabilitado.
+                </div>
+              )}
+              {eventHasFeature(event, "external_rsvp_whatsapp") && !event.whatsapp_phone ? (
+                <div className="mb-5 rounded-xl border border-amber-400/30 bg-amber-900/20 px-4 py-3 text-xs font-semibold text-amber-300">
+                  Este evento usa RSVP por WhatsApp, pero todavia no tiene un numero configurado. La confirmacion se guardara en el sistema.
+                </div>
+              ) : null}
+              <div className="mb-6 flex items-start justify-between gap-3 rounded-2xl border border-[#d4af37]/20 bg-[#d4af37]/10 px-4 py-3">
+                <div>
+                  <p className="text-[0.62rem] font-semibold uppercase tracking-[0.34em] text-[#d4af37]/80">Confirmación</p>
+                  <p className="mt-1 text-sm leading-6 text-[#f5ecd9]/75">
+                    Tu respuesta se ve elegante, clara y alineada con el diseño de la invitación.
+                  </p>
+                </div>
+                <div className="rounded-full border border-[#d4af37]/25 bg-black/25 px-3 py-1 text-[0.62rem] font-semibold uppercase tracking-[0.3em] text-[#f5ecd9]/80">
+                  RSVP
+                </div>
               </div>
-            )}
-            {eventHasFeature(event, "external_rsvp_whatsapp") && !event.whatsapp_phone ? (
-              <div className="mb-5 rounded-xl border border-amber-400/30 bg-amber-900/20 px-4 py-3 text-xs font-semibold text-amber-300">
-                Este evento usa RSVP por WhatsApp, pero todavia no tiene un numero configurado. La confirmacion se guardara en el sistema.
-              </div>
-            ) : null}
             <form action={!isEditor ? rsvpAction ?? undefined : undefined} className="grid gap-5 md:gap-7">
               <input type="hidden" name="slug" value={event.slug} />
               <input type="hidden" name="guest_token" value={guestToken ?? ""} />
@@ -267,9 +281,6 @@ export function PublicInvitation({
                       ? "Gracias por tu respuesta."
                       : "Gracias por confirmar tu presencia. Te esperamos con mucha alegria."}
                   </p>
-                  {shouldRedirectWhatsApp && event.whatsapp_phone && whatsappMessage ? (
-                    <RsvpWhatsAppRedirect phone={event.whatsapp_phone} message={whatsappMessage} />
-                  ) : null}
                 </div>
               ) : null}
 
@@ -380,6 +391,7 @@ export function PublicInvitation({
                 </div>
               ) : null}
             </form>
+            </div>
           </div>
         </div>
         {canvasDesign && <CanvasRenderer design={canvasDesign} sectionId="rsvp" />}

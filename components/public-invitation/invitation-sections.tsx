@@ -282,8 +282,23 @@ export function RsvpPreviewContent() {
         </p>
       </div>
 
-      <div className="kais-glass relative rounded-[2rem] p-6 sm:p-9 md:p-11">
-        <div className="grid gap-5 md:gap-7">
+      <div className="kais-glass relative overflow-hidden rounded-[2rem] border border-[#d4af37]/20 bg-[linear-gradient(145deg,rgba(10,4,5,0.96),rgba(24,8,12,0.94))] p-6 shadow-[0_32px_90px_rgba(0,0,0,0.34)] sm:p-9 md:p-11">
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#d4af37]/70 to-transparent" />
+        <div className="pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full bg-[#d4af37]/[0.12] blur-2xl" />
+        <div className="pointer-events-none absolute -bottom-10 left-0 h-24 w-24 rounded-full bg-[#f5ecd9]/[0.08] blur-2xl" />
+        <div className="relative grid gap-5 md:gap-7">
+          <div className="flex items-start justify-between gap-3 rounded-2xl border border-[#d4af37]/20 bg-[#d4af37]/10 px-4 py-3">
+            <div>
+              <p className="text-[0.62rem] font-semibold uppercase tracking-[0.34em] text-[#d4af37]/80">Confirmación</p>
+              <p className="mt-1 text-sm leading-6 text-[#f5ecd9]/75">
+                El formulario se integra al diseño y se ve premium en la vista previa de la plantilla.
+              </p>
+            </div>
+            <div className="rounded-full border border-[#d4af37]/25 bg-black/25 px-3 py-1 text-[0.62rem] font-semibold uppercase tracking-[0.3em] text-[#f5ecd9]/80">
+              RSVP
+            </div>
+          </div>
+
           <RsvpLuxeField label="Nombre">
             <input disabled className="kais-input-luxe" />
           </RsvpLuxeField>

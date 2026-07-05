@@ -15,6 +15,7 @@ import { hydrateCanvasV3Template } from "@/lib/canvas-v3/templates";
 import type { CanvasV3Design as SharedCanvasV3Design, CanvasV3EventData } from "@/lib/canvas-v3/initial-design";
 import type { CeremonySectionKind, CeremonySemanticRole } from "@/lib/canvas-v3/ceremonial-structures";
 import { CanvasV3RsvpForm } from "@/components/canvas-v3/canvas-v3-rsvp-form";
+import { withElementMirror } from "@/lib/canvas-v3/element-transform";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -64,6 +65,8 @@ interface V3Element {
   borderStyle?: "solid" | "dashed" | "none";
   opacity?: number;
   blur?: number;
+  flipX?: boolean;
+  flipY?: boolean;
   // app
   appKind?: V3AppType | "album" | "live";
   appType?: V3AppType;
@@ -879,6 +882,36 @@ function AlignmentIcon({ kind }: { kind: AlignmentIconKind }) {
   );
 }
 
+type MirrorIconKind = "horizontal" | "vertical";
+
+function MirrorIcon({ kind }: { kind: MirrorIconKind }) {
+  const stroke = "#4b2735";
+  const accent = "#2563eb";
+  const dash = {
+    stroke,
+    strokeWidth: 1,
+    strokeDasharray: "2 2",
+  };
+
+  if (kind === "horizontal") {
+    return (
+      <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true" focusable="false">
+        <path d="M9 2.5v13" {...dash} />
+        <path d="M3.5 5.5h3.2v3.2H3.5z" fill="#fff" stroke={stroke} strokeWidth="1" />
+        <path d="M11.3 5.5h3.2v3.2h-3.2z" fill={accent} stroke={stroke} strokeWidth="1" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true" focusable="false">
+      <path d="M2.5 9h13" {...dash} />
+      <path d="M5.5 3.5h3.2v3.2H5.5z" fill="#fff" stroke={stroke} strokeWidth="1" />
+      <path d="M5.5 11.3h3.2v3.2H5.5z" fill={accent} stroke={stroke} strokeWidth="1" />
+    </svg>
+  );
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Render a single canvas element
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1008,14 +1041,14 @@ function RenderElement({
   // clipPath clips anything that overflows section top or bottom.
   // border + borderRadius live here so they're clipped too (no border bleed).
   const hasClip = clipTop > 0 || clipBottom > 0;
-  const contentStyle: React.CSSProperties = {
+  const contentStyle: React.CSSProperties = withElementMirror(el.flipX, el.flipY, {
     position: "absolute",
     inset: 0,
     borderRadius: el.borderRadius,
     border: blendDecoration ? undefined : computeBorder(el),
     overflow: "hidden",
     clipPath: hasClip ? `inset(${clipTop}px 0px ${clipBottom}px 0px)` : undefined,
-  };
+  });
 
   const handleSize = isAtmosphericDecoration ? 5 : 6;
   const handleOffset = isAtmosphericDecoration ? 9 : 6;
@@ -5491,6 +5524,30 @@ export function CanvasEditorV3({
     };
   }, []);
 
+  const mirrorSelectedHorizontally = () => {
+    if (selectedIds.length === 0) return;
+    pushHistory(snapshot());
+    const activeViewport = viewportModeRef.current;
+    setElements((prev) =>
+      prev.map((el) => {
+        if (!selectedIds.includes(el.id) || el.locked) return el;
+        return patchElementForViewport(el, activeViewport, { flipX: !el.flipX });
+      }),
+    );
+  };
+
+  const mirrorSelectedVertically = () => {
+    if (selectedIds.length === 0) return;
+    pushHistory(snapshot());
+    const activeViewport = viewportModeRef.current;
+    setElements((prev) =>
+      prev.map((el) => {
+        if (!selectedIds.includes(el.id) || el.locked) return el;
+        return patchElementForViewport(el, activeViewport, { flipY: !el.flipY });
+      }),
+    );
+  };
+
   const alignSelectedGroup = (mode: "left" | "centerX" | "right" | "top" | "centerY" | "bottom") => {
     if (selectedIds.length <= 1) return;
     const bounds = getSelectedGroupBounds(selectedIds, viewportElementsRef.current);
@@ -6461,6 +6518,26 @@ export function CanvasEditorV3({
 
             <span style={topContextDividerStyle} />
             <span style={topContextGroupStyle}>
+              <button
+                type="button"
+                aria-label="Reflejar horizontalmente"
+                title="Reflejar horizontalmente — reflejar el objeto de izquierda a derecha"
+                onClick={mirrorSelectedHorizontally}
+                style={getTopContextIconButtonStyle(Boolean(selected.flipX))}
+              >
+                <MirrorIcon kind="horizontal" />
+              </button>
+              <button
+                type="button"
+                aria-label="Reflejar verticalmente"
+                title="Reflejar verticalmente — reflejar el objeto de arriba a abajo"
+                onClick={mirrorSelectedVertically}
+                style={getTopContextIconButtonStyle(Boolean(selected.flipY))}
+              >
+                <MirrorIcon kind="vertical" />
+              </button>
+            </span>
+            <span style={topContextGroupStyle}>
             <button type="button" title="Animar" disabled style={topContextDisabledButtonStyle}>Ani</button>
             <button type="button" title="Posicion y tamano" onClick={openSelectedInspector} style={topContextButtonStyle}>Pos</button>
             <button type="button" title="Traer adelante" onClick={bringToFront} style={topContextButtonStyle}>↑</button>
@@ -6971,6 +7048,8 @@ export function CanvasEditorV3({
                               <button type="button" onClick={() => { alignSelectedGroup("top"); setMultiToolbarMenuOpen(false); }} style={groupToolbarButton}>Alinear arriba</button>
                               <button type="button" onClick={() => { alignSelectedGroup("centerY"); setMultiToolbarMenuOpen(false); }} style={groupToolbarButton}>Centro vertical</button>
                               <button type="button" onClick={() => { alignSelectedGroup("bottom"); setMultiToolbarMenuOpen(false); }} style={groupToolbarButton}>Alinear abajo</button>
+                              <button type="button" onClick={() => { mirrorSelectedHorizontally(); setMultiToolbarMenuOpen(false); }} style={groupToolbarButton}>Reflejar horizontal</button>
+                              <button type="button" onClick={() => { mirrorSelectedVertically(); setMultiToolbarMenuOpen(false); }} style={groupToolbarButton}>Reflejar vertical</button>
                               <button type="button" onClick={() => { distributeSelectedGroup("horizontal"); setMultiToolbarMenuOpen(false); }} disabled={!canDistribute} style={{ ...groupToolbarButton, opacity: canDistribute ? 1 : 0.45, cursor: canDistribute ? "pointer" : "not-allowed" }}>Distribuir horizontal</button>
                               <button type="button" onClick={() => { distributeSelectedGroup("vertical"); setMultiToolbarMenuOpen(false); }} disabled={!canDistribute} style={{ ...groupToolbarButton, opacity: canDistribute ? 1 : 0.45, cursor: canDistribute ? "pointer" : "not-allowed" }}>Distribuir vertical</button>
                             </div>
@@ -7391,6 +7470,34 @@ export function CanvasEditorV3({
               {
                 label: "Enviar atras",
                 action: () => sendElementToBack(contextMenuElement.id),
+              },
+              {
+                label: "Reflejar horizontalmente",
+                action: () => {
+                  if (contextMenuElement.locked) return;
+                  pushHistory(snapshot());
+                  setElements((prev) =>
+                    prev.map((el) =>
+                      el.id === contextMenuElement.id
+                        ? patchElementForViewport(el, viewportModeRef.current, { flipX: !el.flipX })
+                        : el,
+                    ),
+                  );
+                },
+              },
+              {
+                label: "Reflejar verticalmente",
+                action: () => {
+                  if (contextMenuElement.locked) return;
+                  pushHistory(snapshot());
+                  setElements((prev) =>
+                    prev.map((el) =>
+                      el.id === contextMenuElement.id
+                        ? patchElementForViewport(el, viewportModeRef.current, { flipY: !el.flipY })
+                        : el,
+                    ),
+                  );
+                },
               },
               {
                 label: "Eliminar",

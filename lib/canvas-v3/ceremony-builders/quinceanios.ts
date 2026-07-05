@@ -12,7 +12,7 @@ const SECTION_VISUALS: Record<string, Pick<CanvasV3Section, "height" | "backgrou
   church: { height: 520, background: "linear-gradient(180deg,#241125,#18121f)" },
   details: { height: 620, background: "linear-gradient(180deg,#18121f,#20101c)" },
   dresscode: { height: 460, background: "linear-gradient(180deg,#20101c,#17111c)" },
-  rsvp: { height: 560, background: "linear-gradient(180deg,#17111c,#241225)" },
+  rsvp: { height: 720, background: "linear-gradient(180deg,#17111c,#241225)" },
   footer: { height: 280, background: "linear-gradient(180deg,#241225,#0f0f17)" },
 };
 
@@ -403,8 +403,8 @@ export function createQuinceaniosCanvasV3Design(event: CanvasV3EventData): Canva
     fontStyle: "italic",
     color: "#f8d9a0",
   });
-  app("rsvp-app", "rsvp", 180, "rsvp", "Confirmar asistencia", 320, 64, 32);
-  text("package-note", "rsvp", 380, `Plan ${clean(event.package_key) || "KAIS"}`, 260, 24, 34, {
+  app("rsvp-app", "rsvp", 220, "rsvp", "Confirmar asistencia", 320, 64, 32);
+  text("package-note", "rsvp", 520, `Plan ${clean(event.package_key) || "KAIS"}`, 260, 24, 34, {
     semanticRole: "package_note",
     dataKey: "package_key",
     lockedContent: true,

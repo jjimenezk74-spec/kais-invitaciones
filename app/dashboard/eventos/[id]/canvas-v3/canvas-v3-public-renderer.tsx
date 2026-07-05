@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import { CanvasV3RsvpForm, isRsvpFormPlaceholderElement } from "@/components/canvas-v3/canvas-v3-rsvp-form";
+import { withElementMirror } from "@/lib/canvas-v3/element-transform";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types (mirrored from canvas-v3-editor.tsx — keep in sync)
@@ -40,6 +41,8 @@ export interface V3Element {
   borderStyle?: "solid" | "dashed" | "none";
   opacity?: number;
   blur?: number;
+  flipX?: boolean;
+  flipY?: boolean;
   // app
   appKind?: V3AppType | "album" | "live";
   appType?: V3AppType;
@@ -438,13 +441,13 @@ function PublicElement({
     if (appType === "rsvp") {
       return (
         <div
-          style={{
+          style={withElementMirror(el.flipX, el.flipY, {
             ...boxStyle,
             height: "auto",
             background: "transparent",
             border: "none",
             overflow: "visible",
-          }}
+          })}
         >
           <CanvasV3RsvpForm
             mode="public"
@@ -553,6 +556,20 @@ function PublicElement({
         </span>
       );
 
+    const mirroredInner = el.flipX || el.flipY ? (
+      <div
+        style={withElementMirror(el.flipX, el.flipY, {
+          width: "100%",
+          height: "100%",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        })}
+      >
+        {inner}
+      </div>
+    ) : inner;
+
     // Premium shadow — subtle lift for linked app blocks; WhatsApp gets hover-lift
     const wrapBoxShadow = isWhatsapp && hovered
       ? "0 8px 28px rgba(0,0,0,0.22), 0 2px 8px rgba(0,0,0,0.12)"
@@ -583,24 +600,24 @@ function PublicElement({
           onMouseEnter={isWhatsapp ? () => setHovered(true) : undefined}
           onMouseLeave={isWhatsapp ? () => setHovered(false) : undefined}
         >
-          {inner}
+          {mirroredInner}
         </a>
       );
     }
-    return <div style={wrapStyle}>{inner}</div>;
+    return <div style={wrapStyle}>{mirroredInner}</div>;
   }
 
   // Shape / decoration with background but no text content
   if (!el.content && visualBackground) {
     return (
       <div
-        style={{
+        style={withElementMirror(el.flipX, el.flipY, {
           ...boxStyle,
           background: visualBackground,
           mixBlendMode: blendDecoration ? getDecorationBlendMode(el.config?.effect) : undefined,
           opacity: blendDecoration ? 0.92 : undefined,
           backdropFilter: el.blur ? `blur(${el.blur}px)` : undefined,
-        }}
+        })}
       />
     );
   }
@@ -609,6 +626,7 @@ function PublicElement({
   if (el.content) {
     return (
       <div style={boxStyle}>
+        <div style={withElementMirror(el.flipX, el.flipY, { position: "absolute", inset: 0 })}>
         {visualBackground && (
           <div
             style={{
@@ -648,6 +666,7 @@ function PublicElement({
         >
           <span>{el.content}</span>
         </p>
+        </div>
       </div>
     );
   }
@@ -923,7 +942,7 @@ export function CanvasV3PublicRenderer({
   const elementMaxH = design.elements.reduce((max, el) => {
     const appType = el.type === "app" ? resolveAppType(el) : null;
     const elH = appType === "rsvp"
-      ? Math.max(el.height ?? 0, 520)
+      ? Math.max(el.height ?? 0, 1000)
       : el.height != null
         ? el.height
         : 40;
@@ -1009,7 +1028,7 @@ export function CanvasV3PublicRenderer({
         >
           {sortedElements.map((el) => {
             const appType = el.type === "app" ? resolveAppType(el) : null;
-            const elH = appType === "rsvp" ? Math.max(el.height ?? 0, 520) : (el.height ?? 60);
+            const elH = appType === "rsvp" ? Math.max(el.height ?? 0, 1000) : (el.height ?? 60);
             const sec =
               design.sections.find((s) => el.y >= s.y && el.y < s.y + s.height) ??
               (el.y < (design.sections[0]?.y ?? 0)

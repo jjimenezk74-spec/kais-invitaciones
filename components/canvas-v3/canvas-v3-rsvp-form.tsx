@@ -93,7 +93,7 @@ export function CanvasV3RsvpForm({
     width: "100%",
     maxWidth: width,
     boxSizing: "border-box",
-    padding: "18px 16px 20px",
+    padding: "24px 22px 26px",
     pointerEvents: isEditor ? "none" : "auto",
     ...appearance.card,
   };
@@ -102,6 +102,7 @@ export function CanvasV3RsvpForm({
     ...appearance.button,
     cursor: formDisabled ? "default" : "pointer",
     opacity: formDisabled ? 0.72 : 1,
+    transition: "transform 160ms ease, box-shadow 160ms ease",
   };
 
   return (

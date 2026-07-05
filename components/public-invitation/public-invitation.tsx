@@ -82,6 +82,18 @@ export function PublicInvitation({
       ? rsvpAttending !== "no"
       : null;
   const formDisabled = isEditor || isConfirmed || isAdminPreview;
+  const rsvpMinHeightStyle = (() => {
+    try {
+      const sec = canvasDesign?.sections?.find((s: any) => s.id === "rsvp");
+      const ref = (canvasDesign as any)?.refWidth ?? (canvasDesign as any)?.width ?? 390;
+      if (sec && typeof sec.height === "number" && ref) {
+        return { minHeight: `${(sec.height / ref) * 100}vw` } as React.CSSProperties;
+      }
+    } catch (e) {
+      // ignore
+    }
+    return undefined;
+  })();
 
   return (
     <main
@@ -185,7 +197,7 @@ export function PublicInvitation({
 
       {showRoyalPack && <RoyalWeddingDivider />}
 
-      <section id="rsvp" className="kais-section relative overflow-hidden bg-[#0a0405]">
+      <section id="rsvp" className="kais-section relative overflow-hidden bg-[#0a0405]" style={rsvpMinHeightStyle}>
         <ThemeDecorations
           themeSlug={decorationThemeSlug}
           section="rsvp"

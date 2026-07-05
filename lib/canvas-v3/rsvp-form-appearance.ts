@@ -129,10 +129,14 @@ export function buildRsvpFormAppearance(
       border: fieldBorder,
       background: fieldBackground,
       color: text,
-      padding: "11px 13px",
-      fontSize: 13,
+      padding: "14px 16px",
+      minHeight: 48,
+      fontSize: 14,
+      lineHeight: 1.45,
       fontFamily: theme.fonts.body,
       outline: "none",
+      transition: "border-color 160ms ease, box-shadow 160ms ease",
+      boxShadow: light ? "0 4px 18px rgba(15,23,42,0.08)" : "0 4px 18px rgba(255,255,255,0.06)",
     },
     button: {
       display: "inline-flex",
@@ -142,16 +146,16 @@ export function buildRsvpFormAppearance(
       width: "100%",
       border: theme.buttonStyle.border ?? "none",
       borderRadius: buttonRadius,
-      padding: "13px 16px",
+      padding: "14px 18px",
       background: buttonBackground,
       color: buttonColor,
-      fontSize: 12,
-      fontWeight: 800,
-      letterSpacing: "0.12em",
+      fontSize: 13,
+      fontWeight: 700,
+      letterSpacing: "0.14em",
       textTransform: "uppercase",
       fontFamily: theme.fonts.body,
       boxShadow: light
-        ? "0 10px 24px rgba(20,18,16,0.10)"
+        ? "0 12px 28px rgba(20,18,16,0.10)"
         : "0 12px 28px rgba(0,0,0,0.22)",
     },
     note: {

@@ -13,7 +13,7 @@ const SECTION_VISUALS: Array<Pick<CanvasV3Section, "id" | "label" | "height" | "
   { id: "message", label: "Mensaje principal", height: 560, background: "linear-gradient(180deg,#12141c,#080d18)", kind: "message", required: false, sourceEventType: "graduation" },
   { id: "dress_code", label: "Vestimenta", height: 400, background: "linear-gradient(180deg,#080d18,#10131b)", kind: "dress_code", required: false, sourceEventType: "graduation" },
   { id: "location", label: "Ubicación", height: 520, background: "linear-gradient(180deg,#10131b,#070a12)", kind: "event_details", required: true, sourceEventType: "graduation" },
-  { id: "rsvp", label: "Confirmación", height: 500, background: "linear-gradient(180deg,#070a12,#111827)", kind: "rsvp", required: true, sourceEventType: "graduation" },
+  { id: "rsvp", label: "Confirmación", height: 700, background: "linear-gradient(180deg,#070a12,#111827)", kind: "rsvp", required: true, sourceEventType: "graduation" },
   { id: "footer", label: "Cierre", height: 360, background: "linear-gradient(180deg,#111827,#030712)", kind: "footer", required: true, sourceEventType: "graduation" },
 ];
 
@@ -600,8 +600,8 @@ export function createGraduationCanvasV3Design(event: CanvasV3EventData): Canvas
     color: "#d8cfbd",
     lineHeight: 1.38,
   });
-  app("grad-rsvp-app", "rsvp", 236, "rsvp", "Confirmar asistencia", 320, 66, 44);
-  text("grad-package-note", "rsvp", 430, "KAIS", 120, 18, 46, {
+  app("grad-rsvp-app", "rsvp", 260, "rsvp", "Confirmar asistencia", 320, 66, 44);
+  text("grad-package-note", "rsvp", 540, "KAIS", 120, 18, 46, {
     semanticRole: "package_note",
     dataKey: "package_key",
     lockedContent: true,

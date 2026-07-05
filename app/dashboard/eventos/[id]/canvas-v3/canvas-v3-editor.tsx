@@ -1009,7 +1009,7 @@ function RenderElement({
     top: el.y,
     width: el.width,
     height: renderHeight,
-    zIndex: el.zIndex,
+    zIndex: ((el.type === "app" ? (el.appType ?? el.appKind) : null) === "rsvp") ? 9999 : el.zIndex,
     opacity: el.opacity ?? 1,
     cursor: el.locked ? "default" : (selected || highlighted) ? "grab" : "pointer",
     userSelect: "none",

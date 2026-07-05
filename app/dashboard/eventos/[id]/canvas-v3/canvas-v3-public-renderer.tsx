@@ -443,6 +443,7 @@ function PublicElement({
         <div
           style={withElementMirror(el.flipX, el.flipY, {
             ...boxStyle,
+            zIndex: 9999,
             clipPath: undefined,
             height: "auto",
             background: "transparent",

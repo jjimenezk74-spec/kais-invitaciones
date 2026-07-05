@@ -543,9 +543,9 @@ function PublicElement({
             style={{
               color: el.color ?? "#ffffff",
               fontFamily: "Inter, system-ui, sans-serif",
-              fontSize: appType === "rsvp" ? 15 : 13,
-              fontWeight: appType === "rsvp" ? "700" : "600",
-              letterSpacing: appType === "rsvp" ? "0.12em" : "0.04em",
+              fontSize: 13,
+              fontWeight: "600",
+              letterSpacing: "0.04em",
             }}
           >
             {el.content || demo.label}

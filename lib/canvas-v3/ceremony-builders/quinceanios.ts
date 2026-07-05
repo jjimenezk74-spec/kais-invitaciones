@@ -12,7 +12,7 @@ const SECTION_VISUALS: Record<string, Pick<CanvasV3Section, "height" | "backgrou
   church: { height: 520, background: "linear-gradient(180deg,#241125,#18121f)" },
   details: { height: 620, background: "linear-gradient(180deg,#18121f,#20101c)" },
   dresscode: { height: 460, background: "linear-gradient(180deg,#20101c,#17111c)" },
-  rsvp: { height: 720, background: "linear-gradient(180deg,#17111c,#241225)" },
+  rsvp: { height: 950, background: "linear-gradient(180deg,#17111c,#241225)" },
   footer: { height: 280, background: "linear-gradient(180deg,#241225,#0f0f17)" },
 };
 
